@@ -1,0 +1,694 @@
+#from snakemake.utils import R
+from util import R
+from util import snake_extend
+from util import glob_wildcards
+from util import read_propfiles
+from util import get_ncbi_root, dir2targets, dir2targets2
+import shutil
+import glob
+import pprint
+import yaml
+pp = pprint.PrettyPrinter(indent=4)
+
+snake_extend(workflow, config)
+
+configfile:
+    "config.yml"
+#parse_mapfiles(config)
+
+# make jobs always list the host on which they ran
+shell.prefix("hostname;")
+
+#RAW     = "00_raw_reads"
+RAW = "raw"
+TRIMMED = "10_trimmed_reads"
+
+PAIRS   = config['pairnames']
+RNA     = config['rrna']['genes']
+
+localrules: bbmap_index, all_fasta, all_fq
+#pp.pprint(config)
+
+#root = get_ncbi_root()
+
+rule all:
+    shell:
+ #       "echo " + root
+      "echo samples: {config[pe_samples]}"
+        #"echo sample_data: {config[pe_sample]}"
+
+        
+### directory meta rules (=all samples)
+#rule megahit_complete:
+#    message: "Assembling all samples in {wildcards.dir}"
+#    input: "{dir}.mh/{$config[pe_samples]}.fasta"
+#    output: touch("{dir}.mh/complete")
+
+#rule fastqc_complete:
+#    message: "Finished QC reports for {wildcards.dir}"
+#    input: "{dir}_qc/{$config[pe_samples]}.{$PAIRS}_fastqc.html"
+#    output: touch("{dir}_qc/complete")
+        
+#rule all_fq:
+#    message: "Finished all in {wildcards.dir}"
+#    input: "{dir}/{$config[pe_samples]}.{$PAIRS}.fq.gz"
+#    output: touch("{dir}/all_fq")
+
+#rule all_fasta:
+#    message: "Finished all in {wildcards.dir}"
+#    input: "{dir}/{$config[pe_samples]}.fasta"
+#    output: "{dir}/all_fasta"
+#    shell: "touch {output}"
+
+
+#rule sra_prefetch:
+#    message: "Prefetching {wildcards.srr} from SRA"
+#    output: ""
+
+rule symlink_raw_reads:
+    message: "Creating symlink {output} -> {input}"
+    input:   lambda wc: config['pe_sample'][wc.sample][wc.r]
+    output:  "{$RAW}/{sample}.{r}.fq.gz"
+    shell:   "ln -s {input} {output}"
+
+rule fastqc:
+    message: "Creating QC report for {input}"
+    input:   "{dir}/{sample}.{$PAIRS}.fq.gz"
+    output:  "{dir}_qc/{sample}.{$PAIRS}_fastqc.html",
+             "{dir}_qc/{sample}.{$PAIRS}_fastqc.zip"
+    threads: 1
+    shell: """
+    module load fastqc
+
+    fastqc -t {threads} -o {wildcards.dir}_qc {input} -k 10
+    """
+
+rule multiqc:
+    message: "Aggregating QC reports for {wildcards.dir}"
+    output: "{dir}_qc.html",
+            "{dir}_qc/multiqc_data"
+    input: "{dir}_qc/{$config[pe_samples]}.{$PAIRS}_fastqc.html"
+    shell: """
+    multiqc --outdir {wildcards.dir}_qc \
+            --title  {wildcards.dir} \
+            --force \
+            {wildcards.dir}_qc
+    mv {wildcards.dir}_qc/multiqc_report.html {output[0]}
+    """
+
+rule multiqc_bysample:
+    message: "Aggregating QC reports for {wildcards.sample}: {input}"
+    output: "{sample}_q.html"
+    input: lambda wc: glob.glob("*/{}_fastqc.zip".format(wc.sample))
+    shadow: "shallow"
+    shell:"""
+    set +x
+    TMP="tmp_multiqc_bysample"
+    mkdir $TMP
+    cd $TMP
+    for n in {input}; do
+      folder=$(dirname $n)
+      file=$(basename $n)
+      unzip ../$n
+      mv ${{file%.zip}} $folder
+      sed -i 's/{wildcards.sample}/'$folder'/' $folder/fastqc_data.txt
+    done
+    cd ..
+    multiqc --title {wildcards.sample} $TMP
+    mv multiqc_report.html {output}
+    """
+
+
+rule trim_bbduk_adapter:
+    message: "BBDuk A+Q trimming at Q{wildcards.Q}: {wildcards.dir}/{wildcards.sample}"
+    input:  "{dir}/{sample}.{$PAIRS}.fq.gz"
+    output: "{dir}.trimAQ{Q,\d+}/{sample}.{$PAIRS}.fq.gz"
+    threads: 16
+    shell: """
+    module load bbmap
+    BBPATH=$(which bbduk.sh)
+    BBPATH=${{BBPATH%/*}}
+    bbduk.sh in={input[0]} in2={input[1]} out={output[0]} out2={output[1]} \
+             trimq={wildcards.Q} qtrim=r \
+             ref=$BBPATH/resources/adapters.fa ktrim=r k=23 mink=11 hdist=1 tpe tbo \
+             pigz unpigz jni threads={threads} -Xmx80g
+    """
+
+
+rule split_by_length:
+    message: "Splitting {input} by length"
+    input: "{dir}/{sample}.{$PAIRS}.fq.gz"
+    output: "{dir}.{length}plus/{sample}.{$PAIRS}.fq.gz",
+            "{dir}.{length}minus/{sample}.{$PAIRS}.fq.gz"
+    threads: 4
+    shell:"""
+    zcat {input[0]} | paste - - - - | awk '\
+      {{\
+        "zcat {input[1]} | paste - - - - " |& getline var;\
+        split(var,v);\
+        if (length($3) > {wildcards.length} || length(v[3]) > {wildcards.length}) {{\
+          print var |& "sed s/\\\\\\\\t/\\\\\\\\n/g | gzip -c > {output[0]}"; \
+          print $0  |& "sed s/\\\\\\\\t/\\\\\\\\n/g | gzip -c > {output[1]}" \
+        }} else {{\
+          print var |& "sed s/\\\\\\\\t/\\\\\\\\n/g | gzip -c > {output[2]}"; \
+          print $0  |& "sed s/\\\\\\\\t/\\\\\\\\n/g | gzip -c > {output[3]}" \
+        }}\
+      }}\
+    '
+    for n in {output}; do
+      if [ ! -e $n ]; then
+        touch ${{n%.gz}}
+        gzip ${{n%.gz}}
+      fi
+    done
+    """
+
+rule pool_by_column:
+    message: "{rule}: Combining {input} into {output}"
+    output: "{dir}.by_{column}/{colid}.{P}.fq.gz"
+    input: lambda wc: expand("{dir}/{sample}.{P}.fq.gz",P=wc.P,dir=wc.dir,\
+                             sample=[sample for sample in config['pe_sample'] \
+                              if config['pe_sample'][sample][wc.column] == wc.colid])
+    run:
+        if len(input) == 1:
+            os.symlink(os.path.relpath(input[0], os.path.dirname(output[0])),
+                       output[0])
+        elif len(input) == 0:
+            print(wildcards.colid)
+            print(wildcards.column)
+            print(wildcards.P)
+            print(wildcards.dir)
+            wc=wildcards
+            sample=[sample for sample in config['pe_sample'] \
+                    if config['pe_sample'][sample][wc.column] == wc.colid]
+            print("xx " + "::".join(sample))
+            return False
+        else:
+            #with open(output[0], "wb") as outfile:
+            #    for fname in input:
+            #        with open(fname, "rb") as infile:
+            #            shutil.copyfileobj(infile, outfile)
+            shell("""
+            zcat {input} | gzip > {output}
+            """)
+
+    
+rule all_pooled:
+    message: "Completed all {wildcards.ext} in directory {wildcards.dir}"
+    output: "{dir}/all_{ext}"
+    input: lambda wc: expand("{dir}/{target}.{ext}", dir=wc.dir, ext=wc.ext, \
+                             target=dir2targets(wc))
+    shell: """
+    touch {output}
+    """
+
+rule all_paired:
+    output: "{dir}/all_fq.gz"
+    input: "{dir}/all_{$PAIRS}.fq.gz"
+    shell: "touch {output}"
+    
+                        
+rule phyloFlash:
+    message: "PhyloFlash {wildcards.dir}/{wildcards.sample}"
+    input: "{dir}/{sample}.{$PAIRS}.fq.gz"
+    output: "{dir}.pf/{sample}.phyloFlash.NTUabundance.csv"
+    threads: 16
+    shell:"""
+    cd {wildcards.dir}.pf
+    phyloFlash.pl -skip_emirge \
+                  -skip_spades \
+                  -html \
+                  -readlength 301 \
+                  -read1 ../{input[0]} \
+                  -read2 ../{input[1]} \
+                  -lib {wildcards.sample} \
+                  -CPUs {threads}
+    """
+
+
+rule phyloFlash_heatmap:
+    message: "PhyloFlash Heatmap {wildcards.dir}"
+    input: "{dir}/{$config[pe_samples]}.phyloFlash.NTUabundance.csv"
+    output: "{dir}_heatmap.pdf"
+    threads: 1
+    shell:"""
+    phyloFlash_heatmap.R {input} --out {output}
+    """
+
+
+rule bb_ecco:
+    message: "BBMerge ecco {wildcards.dir}/{wildcards.sample}"
+    input: "{dir}/{sample}.{$PAIRS}.fq.gz"
+    output: "{dir}.ecco/{sample}.{$PAIRS}.fq.gz",
+            adapter="{dir}.ecco/{sample}.adapter.fq"
+    threads: 16
+    shell: """
+    module load bbmap
+    bbmerge.sh in={input[0]} in2={input[1]} out={output[0]} out2={output[1]} \
+               outadapter={output.adapter} \
+             ecco ecctadpole mix \
+             threads={threads} jni -Xmx60g
+    """
+
+rule megahit:
+    message: "Assembling {wildcards.dir}/{wildcards.sample} with megahit"
+    input: "{dir}/{sample}.{$PAIRS}.fq.gz"
+    output: "{dir}.mh/{sample}.fasta"
+    threads: 33
+    shell: """
+    module load megahit
+    if [ -s {input[0]} -a -s {input[1]} ]; then
+      megahit -1 {input[0]} -2 {input[1]} \
+              --presets meta -t {threads} \
+              -o {wildcards.dir}.mh/{wildcards.sample} \
+              --tmp-dir /scratch/$HOME/tmp
+      mv {wildcards.dir}.mh/{wildcards.sample}/final.contigs.fa {output}
+    else
+      echo One of the input files {input} did not exist or was empty
+    fi
+    touch {output}
+    """
+
+rule megahit_n50:
+    message: "Gathering assembly statistics"
+    input: "{dir}.mh/{$config[pe_samples]}.fasta"
+    output: "{dir}.mh/n50.csv"
+    run:
+        input = [x for x in input if os.path.getsize(x) > 0]
+        shell("""
+        n50c.py {input} > {output}
+        """)
+    
+
+rule megahit_coassembly:
+    message: "Co-Assembling {wildcards.dir} with megahit"
+    input: fwd = "{dir}/{$config[pe_samples]}.{$PAIRS[0]}.fq.gz",
+           rev = "{dir}/{$config[pe_samples]}.{$PAIRS[1]}.fq.gz"
+    output: "{dir}.mhc/contigs.fasta"
+    threads: 33
+    run:
+        non_empty = [os.path.getsize(r) > 0 and os.path.getsize(r) > 0
+                     for f,r in zip(input.fwd, input.rev)]
+        fwd = ",".join([x for x,k in zip(input.fwd, non_empty) if k])
+        rev = ",".join([x for x,k in zip(input.rev, non_empty) if k])
+        shell("""
+        module load megahit
+        rm -rf {wildcards.dir}.mhc
+        megahit -1 {fwd} -2 {rev} \
+                --presets meta -t {threads} \
+                -o {wildcards.dir}.mhc \
+                --tmp-dir /scratch/$HOME/tmp
+        mv {wildcards.dir}.mhc/final.contigs.fa {output}
+        """)
+
+
+rule spades_coassembly:
+    message: "Co-Assembling {wildcards.dir} with spades"
+    input: fwd = "{dir}/{$config[pe_samples]}.{$PAIRS[0]}.fq.gz",
+           rev = "{dir}/{$config[pe_samples]}.{$PAIRS[1]}.fq.gz"
+    output: "{dir}.spc/contigs.fasta"
+    threads: 33
+    run:
+        non_empty = [os.path.getsize(r) > 0 and os.path.getsize(r) > 0
+                     for f,r in zip(input.fwd, input.rev)]
+        fwd = ["../" + x for x,k in zip(input.fwd, non_empty) if k]
+        rev = ["../" + x for x,k in zip(input.rev, non_empty) if k]
+        conf_yml = wildcards.dir + ".spc/conf.yml" 
+        with open(conf_yml, "w") as f:
+            f.write(yaml.dump([{
+                "left reads": fwd,
+                "right reads": rev,
+                "type": "paired-end",
+                "orientation": "fr"
+            }]))
+        shell("""
+        module load spades
+        spades.py -o {wildcards.dir}.spc -t {threads} -m 480 --dataset {conf_yml} \
+                  --tmp-dir /scratch/$HOME/tmp --meta \
+                  --continue
+        """)
+    
+
+bbfiles="bincov.csv stats.txt".split()
+rule bbmap_coassembly:
+    output: "{dir}{by,.by_[^.]*}.{ass,[^./]+}.map/{sample}.bbmap.{$bbfiles}"
+    input: fa = "{dir}.{ass}/contigs.fasta",
+           fwd = "{dir}{by}/{sample}.{$PAIRS[0]}.fq.gz",
+           rev = "{dir}{by}/{sample}.{$PAIRS[1]}.fq.gz"
+    params: base = "{dir}{by}.{ass}.map/{sample}"
+    threads: 17
+    shell: """
+    bbmap.sh jni threads={threads} machineout \
+             nodisk ref={input.fa} \
+             in={input.fwd} in2={input.rev} \
+             statsfile={params.base}.bbmap.stats.txt \
+             covstats={params.base}.bbmap.covstats.csv \
+             covhist={params.base}.bbmap.covhist.csv \
+             bincov={params.base}.bbmap.bincov.csv \
+
+#             basecov={params.base}.bbmap.basecov.csv.gz
+    """
+
+rule combine_bbstats:
+    message: "Compiling stats table from bbmap runs"
+    output: "{dir}/mapping_stats.csv"
+    input: dir2targets2("{dir}/{sample}.bbmap.stats.txt")
+    params: samples = lambda wc: dir2targets(wc)
+    run:
+        R("""
+        f <- function(file, sample) {{
+            read.csv(file, header=FALSE, sep="=", check.names=FALSE,
+                     col.names=c("variable", sample))
+        }}
+        df <- Reduce(merge, mapply(f, input, params$samples, SIMPLIFY=FALSE))
+        tdf <- data.frame(t(df[,-1]))
+        colnames(tdf) <- df[,1]
+        sample <- rownames(tdf)
+        tdf <- sapply(tdf, function(x) as.numeric(sub("%", "", as.character(x))))
+        tdf <- data.frame(sample, tdf)
+        write.csv(tdf, file=unlist(output), row.names=FALSE)
+        """, input=input, params=params, output=output)
+
+        
+rule combine_bincovs:
+    message: "Merging coverage bins into table (in {wildcards.dir})"
+    output: "{dir}/coverage.csv"
+    input: dir2targets2("{dir}/{sample}.bbmap.bincov.csv")
+    shell: """
+    ./merge.py {output} {input}
+    """
+
+rule filter_bincovs:
+    message: "Filtering small bins from coverage"
+    output: "{dir}/coverage_filtered.csv"
+    input: "{dir}/coverage.csv"
+    shell: """
+    grep -Ev "[^,]*,(1000|[0-9]+[1-9][1-9][1-9])," {input} > {output}
+    """
+
+
+rule create_canopies:
+    message: "Computing CAG canopies for {wildcards.dir}"
+    output: clust="{dir}.cags/clusters{mod}csv",
+            clust_t="{dir}.cags/clusters{mod}ssv",
+            prof="{dir}.cags/profiles{mod}csv",
+            prof_t="{dir}.cags/profiles{mod}ssv",
+            noobs="{dir}.cags/excl_insuf_obs{mod}ssv",
+            domtop="{dir}.cags/excl_dom_top3{mod}ssv",
+            stats="{dir}.cags/progress{mod}txt"
+    input: "{dir}/coverage{mod}csv"
+    log: "{dir}.cags/mgs-canopy{mod}log"
+    threads: 33
+    shell: """
+    module load mgs-canopy
+    mgs-canopy --input_file_path <(sed -n '2,$ {{y/ /_/;y/,/ /;s/ /_/;s/ /_/;p}}' {input}) \
+               --output_clusters_file_path {output.clust_t} \
+               --output_cluster_profiles_file {output.prof_t} \
+               --cluster_name_prefix CAG \
+               --num_threads {threads} \
+               --verbosity info \
+               --print_time_statistics > {log} \
+               --die_on_kill \
+               --not_processed_points_file {wildcards.dir}.cags/not_processed.txt \
+               --filtered_out_points_min_obs_file {output.noobs} \
+               --filtered_out_points_max_dominant_obs_file {output.domtop} \
+               --canopy_size_stats_file {output.stats} 
+
+    (
+        sed -n '1 s/\([^,]*,[^,]*,[^,]*\),.*/CAG,\1/p' {input};
+        sed 'y/\t/,/; s/\(.*\)_\([^_]*\)_\([^_]*\)/\1,\2,\3/' {output.clust_t}
+    ) > {output.clust}
+
+    (
+        sed -n '1 s/[^,]*,[^,]*,[^,]*/CAG/p' {input};
+        sed 'y/\t/,/' {output.prof_t}
+    ) > {output.prof}
+
+    """
+
+
+cags_complete, = glob_wildcards("{dir,[^/]*}.cags/log.txt")
+rule summarize_cag_runs__grep:
+    message: "Parsing CAG logfiles"
+    output: temp("cag_stats.txt")
+    input: "{$cags_complete}.cags/log.txt"
+    shell: """
+    grep -P "^[^:]+: ?[0-9]+$" {input} > {output}
+    """
+
+
+rule summarize_cag_runs__R:
+    message: "Tabularizing CAG stats"
+    output: "cag_stats.csv"
+    input: "cag_stats.txt"
+    run:
+        R("""
+    library("reshape2")
+    molten <- read.csv("{input}", header=FALSE, sep=":")
+    colnames(molten) <- c("Run", "variable", "value")
+    df <- dcast(molten, Run~variable)
+    write.csv(df, "{output}", row.names=FALSE)
+    """)
+            
+    
+rule barrnap:
+    input: "{dir}/contigs.fasta"
+    output: "{dir}.rna/{kingdom}.gff"
+    message: "Searching for RNA with barrnap (in {wildcards.dir})"
+    log: "{dir}.rna/barrnap.log"
+    threads: 8
+    shell: """
+    module load barrnap
+    barrnap \
+        --threads {threads} \
+        --incseq \
+        2> {log} \
+        > {output} \
+        {input} \
+        -k {wildcards.kingdom} \
+
+    """
+
+
+rule bbmap_index:
+    message: "Building BBMap Index for {wildcards.gene}"
+    output: "ref/names/{gene}"
+    input: lambda wc: config['rrna']['references']['fasta'][wc.gene]
+    params: build=lambda wc: config['rrna']['genes'].index(wc.gene) + 1
+    threads: 1
+    shell: """
+    module load bbmap
+    rm ref/genome/{params.build}/summary.txt
+    bbmap.sh build={params.build} ref={input}
+    touch {output}
+    """
+
+gene_pat = "("+"|".join(config['rrna']['genes'])+")"
+rule bbmap_filter:
+    message: "Finding {wildcards.gene} reads in {wildcards.dir}/{wildcards.samples}"
+    output:  "{dir}.{gene,"+gene_pat+"}/{samples}.{$PAIRS}.fq.gz",
+             ihist="{dir}.{gene,"+gene_pat+"}/{samples}.bb_ihist",
+             qhist="{dir}.{gene,"+gene_pat+"}/{samples}.bb_qhist",
+             stats="{dir}.{gene,"+gene_pat+"}/{samples}.bb_stats",
+             props="{dir}.{gene,"+gene_pat+"}/{samples}.props",
+    input:   "{dir}/{samples}.{$PAIRS}.fq.gz",
+             "ref/names/{gene}"
+    log:     "{dir}.{gene}/{samples}.log"
+    params: build=lambda wc: config['rrna']['genes'].index(wc.gene) + 1
+    threads: 17
+    shell: """
+    module load bbmap
+    bbmap.sh \
+      in={input[0]} in2={input[1]} \
+      outm={output[0]} outm2={output[1]} \
+      build={params.build} \
+      threads={threads} \
+      minid=0.7 \
+      jni pigz \
+      statsfile={output.stats} machineout \
+      ihist={output.ihist} \
+      qhist={output.qhist} \
+      >{log} 2>&1
+
+    (
+        awk '/#Mean/ {{print "insert_size_avg", $2}}
+             /#STDev/ {{print "insert_size_sd", $2}}
+            ' {output.ihist} 
+        tail -n1 {output.qhist} | awk '{{print "read_length", $1}}'
+    ) > {output.props} 
+
+    """
+
+
+rule emirge:
+    message: "Inferring {wildcards.gene} rRNA for {wildcards.samples}"
+    input: "{dir}.{gene}/{samples}.{$PAIRS}.fq.gz",
+           props="{dir}.{gene}/{samples}.props",
+           ref_fasta=lambda wc: config['rrna']['references']['fasta'][wc.gene]
+    output: dir="{dir}.{gene,"+gene_pat+"}.emirge/{samples}.em",
+            props="{dir}.{gene,"+gene_pat+"}.emirge/{samples}.props"
+    params:
+        ref_bowtie=lambda wc: config['rrna']['references']['bowtie'][wc.gene],
+        iterations=80,
+        join_threshold=1.0
+    threads: 7
+    log: "{dir}.{gene,"+gene_pat+"}.emirge/{samples}.log"
+    run:
+        props = read_propfiles(input.props)
+        if props['insert_size_avg'] < 1 or props['insert_size_sd'] < 1:
+            shell("""
+            mkdir {output.dir}
+            ( 
+                cat {input.props}
+               echo "reads_used 0"
+            ) > {output.props}
+            """)
+        else:
+            shell("""
+    rm -rf {output.dir}.tmp
+    emirge_amplicon.py \
+        {output.dir}.tmp -1 {input[0]} -2 <(zcat {input[1]}) \
+        -i {props[insert_size_avg]} \
+        -s {props[insert_size_sd]} \
+        -l {props[read_length]} \
+        -n {params.iterations} \
+        -j {params.join_threshold} \
+        -f {input.ref_fasta} \
+        -b {params.ref_bowtie} \
+        -a {threads} \
+        --phred33 \
+        > {log} 2>&1
+     rm -rf {output.dir}
+     mv {output.dir}.tmp {output.dir}
+
+     (
+         cat {input.props}
+         tac {log} | sed -n '/^# reads with at least one reported alignment/ \
+                             {{ s/^[^:]*: \([0-9]*\) .*/reads_used \\1/p;q;}}'
+     ) > {output.props}
+     """)
+
+rule emirge_rename_fasta:
+    input: em="{dir}.emirge/{sample}.em",
+           props="{dir}.emirge/{sample}.props",
+    params:
+        tlen=1200
+    output: "{dir}.emirge/{sample}.fasta"
+    log: "{dir}.emimrge/{sample}.rename.log"
+    threads: 1
+    run:
+        props = read_propfiles(input.props)
+        shell("""
+        if [ -d {input.em}/iter.80 ]; then
+        emirge_rename_fasta.py \
+            -p 0.000001 \
+            -r {wildcards.sample}- \
+        {input.em}/iter.80
+    else
+        echo
+    fi | \
+    sed '/^>/ y/ /;/' | \
+    awk -F 'NormPrior=' '
+        /^>/ {{
+            size=int($2 * '{props[reads_used]}' * '{props[read_length]}' / '{params.tlen}' * 100 + .5); 
+            if (size>0) {{
+                P=1; 
+                print $0 ";size=" size
+            }} else {{
+                P=0
+            }}
+        }} 
+        /^[^>]/ {{
+            if (P==1) {{
+                print $0
+            }}
+        }}' \
+    > {output}
+    """)
+
+rule sina_align_classify:
+    message: ""
+    input: "{dir1}.{gene,"+gene_pat+"}.{dir2}/{file}.fasta"
+    output: "{dir1}.{gene,"+gene_pat+"}.{dir2}.sina/{file}.fasta"
+    params: dir = "{dir1}.{gene}.{dir2}",
+            ref = lambda wc: config['rrna']['references']['arb'][wc.gene],
+    log: "{dir1}.{gene,"+gene_pat+"}.{dir2}.{file}.log"
+    threads: 1
+    shell: """
+    module load sina
+    sina --in "{input}" \
+         --out "{output}" \
+         --ptdb "{params.ref}" \
+         --search \
+         --search-db "{params.ref}" \
+         --lca-fields tax_slv:tax_gg:tax_rdp \
+         --meta-fmt header \
+         --line-length 0 \
+         --log-file {log} \
+         --turn none
+    """
+
+rule sina_extract_classification:
+    input: "{dir}.sina/{file}.fasta"
+    output: "{dir}.sina/{file}.class.{tax}.csv"
+    shell: """
+    sed -n 's/^>\\([^|]*\\).*lca_tax_{wildcards.tax}=\\([^]]*\).*/\\1,\\2/p' {input} > {output}
+    """
+        
+rule cluster_vsearch:
+    message: "Clustering {wildcards.dir} at {wildcards.id}%"
+    output: centroids="{dir}.otu{id}/centroids.fasta",
+            uc="{dir}.otu{id}/centroids.uc"
+    input: lambda wc: expand("{dir}/{samples}.fasta", dir=wc.dir, samples=dir2targets(wc))
+    log: "{dir}.otu{id}/vsearch.log"
+    threads: 33
+    shell: """
+    module load vsearch
+    cat {input} | \
+    vsearch --cluster_size - \
+            --centroids {output.centroids} \
+            --uc {output.uc} \
+            --sizein --sizeout \
+            --id 0.{wildcards.id} \
+            --threads {threads} \
+            > {log} 2>&2
+    """
+
+rule vsearch_minsize:
+    message: "Filtering clusters by size {wildcards.cov}"
+    input: "{clusters}.fasta"
+    output: "{clusters}.cov{cov}.fasta"
+    shell: """
+    module load vsearch
+    vsearch --sortbysize {input} --output {output} --minsize {wildcards.cov}
+    """
+
+rule vsearch_map:
+    message: """
+    Mapping sequences to (filtered) centroids. Processing {input.fa}
+    """.strip()
+    input: db="{dir1}.otu{id}/centroids.cov{cov}.fasta",
+           fa="{dir1}/{sample}.fasta"
+    output: "{dir1}.otu{id}/{sample}.cov{cov}.mapping"
+    shell: """
+    module load vsearch
+
+    if [ -s {input.fa} ]; then 
+      vsearch --usearch_global {input.fa} \
+              --db {input.db} \
+              --userout {output} \
+              --userfields query+target+id \
+              --id 0.{wildcards.id}
+    else
+      touch {output}
+    fi
+
+    """
+
+rule map2otu:
+    message: "Assembling OTU table"
+    output: "{dir}.otu{id,[0-9][0-9]}/coverages{cov}.csv"
+    input: dir2targets2("{dir}.otu{id}/{sample}.cov{cov}.mapping")
+    shell: """
+    ./map2otu.py -o {output} {input}
+    """
