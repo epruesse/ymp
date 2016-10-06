@@ -27,7 +27,7 @@ def dir2targets(wildcards):
         colname=groups[-1]
     targets = set([config['pe_sample'][sample][colname]
             for sample in config['pe_sample']])
-    return list(targets)
+    return sorted(list(targets))
 
 def dir2targets2(template):
     return lambda wc: expand(template, sample=dir2targets(wc), **wc)
