@@ -1,0 +1,233 @@
+from snakemake.workflow import config
+gene_pat = "("+"|".join(config['rrna']['genes'])+")"
+
+
+rule bbmap_index:
+    message: "Building BBMap Index for {wildcards.gene}"
+    output: "ref/names/{gene}"
+    input: lambda wc: config['rrna']['references']['fasta'][wc.gene]
+    params: build=lambda wc: config['rrna']['genes'].index(wc.gene) + 1
+    threads: 1
+    shell: """
+    module load bbmap
+    rm ref/genome/{params.build}/summary.txt
+    bbmap.sh build={params.build} ref={input}
+    touch {output}
+    """
+
+
+
+rule bbmap_filter:
+    message: "Finding {wildcards.gene} reads in {wildcards.dir}/{wildcards.samples}"
+    output:  "{dir}.{gene,"+gene_pat+"}/{samples}.{$PAIRS}.fq.gz",
+             ihist="{dir}.{gene,"+gene_pat+"}/{samples}.bb_ihist",
+             qhist="{dir}.{gene,"+gene_pat+"}/{samples}.bb_qhist",
+             stats="{dir}.{gene,"+gene_pat+"}/{samples}.bb_stats",
+             props="{dir}.{gene,"+gene_pat+"}/{samples}.props",
+    input:   "{dir}/{samples}.{$PAIRS}.fq.gz",
+             "ref/names/{gene}"
+    log:     "{dir}.{gene}/{samples}.log"
+    params: build=lambda wc: config['rrna']['genes'].index(wc.gene) + 1
+    threads: 17
+    shell: """
+    module load bbmap
+    bbmap.sh \
+      in={input[0]} in2={input[1]} \
+      outm={output[0]} outm2={output[1]} \
+      build={params.build} \
+      threads={threads} \
+      minid=0.7 \
+      jni pigz \
+      statsfile={output.stats} machineout \
+      ihist={output.ihist} \
+      qhist={output.qhist} \
+      >{log} 2>&1
+
+    (
+        awk '/#Mean/ {{print "insert_size_avg", $2}}
+             /#STDev/ {{print "insert_size_sd", $2}}
+            ' {output.ihist}
+        tail -n1 {output.qhist} | awk '{{print "read_length", $1}}'
+    ) > {output.props}
+
+    """
+
+
+rule emirge:
+    message: "Inferring {wildcards.gene} rRNA for {wildcards.samples}"
+    input: "{dir}.{gene}/{samples}.{$PAIRS}.fq.gz",
+           props="{dir}.{gene}/{samples}.props",
+           ref_fasta=lambda wc: config['rrna']['references']['fasta'][wc.gene]
+    output: dir="{dir}.{gene,"+gene_pat+"}.emirge/{samples}.em",
+            props="{dir}.{gene,"+gene_pat+"}.emirge/{samples}.props"
+    params:
+        ref_bowtie=lambda wc: config['rrna']['references']['bowtie'][wc.gene],
+        iterations=80,
+        join_threshold=1.0
+    threads: 7
+    log: "{dir}.{gene,"+gene_pat+"}.emirge/{samples}.log"
+    run:
+        props = read_propfiles(input.props)
+        if props['insert_size_avg'] < 1 or props['insert_size_sd'] < 1:
+            shell("""
+            mkdir {output.dir}
+            ( 
+                cat {input.props}
+               echo "reads_used 0"
+            ) > {output.props}
+            """)
+        else:
+            shell("""
+    rm -rf {output.dir}.tmp
+    emirge_amplicon.py \
+        {output.dir}.tmp -1 {input[0]} -2 <(zcat {input[1]}) \
+        -i {props[insert_size_avg]} \
+        -s {props[insert_size_sd]} \
+        -l {props[read_length]} \
+        -n {params.iterations} \
+        -j {params.join_threshold} \
+        -f {input.ref_fasta} \
+        -b {params.ref_bowtie} \
+        -a {threads} \
+        --phred33 \
+        > {log} 2>&1
+     rm -rf {output.dir}
+     mv {output.dir}.tmp {output.dir}
+
+     (
+         cat {input.props}
+         tac {log} | sed -n '/^# reads with at least one reported alignment/ \
+                             {{ s/^[^:]*: \([0-9]*\) .*/reads_used \\1/p;q;}}'
+     ) > {output.props}
+     """)
+
+rule emirge_rename_fasta:
+    input: em="{dir}.emirge/{sample}.em",
+           props="{dir}.emirge/{sample}.props",
+    params:
+        tlen=1200
+    output: "{dir}.emirge/{sample}.fasta"
+    log: "{dir}.emimrge/{sample}.rename.log"
+    threads: 1
+    run:
+        props = read_propfiles(input.props)
+        shell("""
+        if [ -d {input.em}/iter.80 ]; then
+        emirge_rename_fasta.py \
+            -p 0.000001 \
+            -r {wildcards.sample}- \
+        {input.em}/iter.80
+    else
+        echo
+    fi | \
+    sed '/^>/ y/ /;/' | \
+    awk -F 'NormPrior=' '
+        /^>/ {{
+            size=int($2 * '{props[reads_used]}' * '{props[read_length]}' / '{params.tlen}' * 100 + .5); 
+            if (size>0) {{
+                P=1; 
+                print $0 ";size=" size
+            }} else {{
+                P=0
+            }}
+        }} 
+        /^[^>]/ {{
+            if (P==1) {{
+                print $0
+            }}
+        }}' \
+    > {output}
+    """)
+
+
+rule sina_align_classify:
+    message: ""
+    input: "{dir1}.{gene,"+gene_pat+"}.{dir2}/{file}.fasta"
+    output: "{dir1}.{gene,"+gene_pat+"}.{dir2}.sina/{file}.fasta"
+    params: dir = "{dir1}.{gene}.{dir2}",
+            ref = lambda wc: config['rrna']['references']['arb'][wc.gene],
+    log: "{dir1}.{gene,"+gene_pat+"}.{dir2}.{file}.log"
+    threads: 1
+    shell: """
+    module load sina
+    sina --in "{input}" \
+         --out "{output}" \
+         --ptdb "{params.ref}" \
+         --search \
+         --search-db "{params.ref}" \
+         --lca-fields tax_slv:tax_gg:tax_rdp \
+         --meta-fmt header \
+         --line-length 0 \
+         --log-file {log} \
+         --turn none
+    """
+
+rule sina_extract_classification:
+    input: "{dir}.sina/{file}.fasta"
+    output: "{dir}.sina/{file}.class.{tax}.csv"
+    shell: """
+    sed -n 's/^>\\([^|]*\\).*lca_tax_{wildcards.tax}=\\([^]]*\).*/\\1,\\2/p' {input} > {output}
+    """
+
+
+rule cluster_vsearch:
+    message: "Clustering {wildcards.dir} at {wildcards.id}%"
+    output: centroids="{dir}.otu{id}/centroids.fasta",
+            uc="{dir}.otu{id}/centroids.uc"
+    input: lambda wc: expand("{dir}/{samples}.fasta", dir=wc.dir, samples=dir2targets(wc))
+    log: "{dir}.otu{id}/vsearch.log"
+    threads: 33
+    shell: """
+    module load vsearch
+    cat {input} | \
+    vsearch --cluster_size - \
+            --centroids {output.centroids} \
+            --uc {output.uc} \
+            --sizein --sizeout \
+            --id 0.{wildcards.id} \
+            --threads {threads} \
+            > {log} 2>&2
+    """
+
+
+rule vsearch_minsize:
+    message: "Filtering clusters by size {wildcards.cov}"
+    input: "{clusters}.fasta"
+    output: "{clusters}.cov{cov}.fasta"
+    shell: """
+    module load vsearch
+    vsearch --sortbysize {input} --output {output} --minsize {wildcards.cov}
+    """
+
+
+rule vsearch_map:
+    message: """
+    Mapping sequences to (filtered) centroids. Processing {input.fa}
+    """.strip()
+    input: db="{dir1}.otu{id}/centroids.cov{cov}.fasta",
+           fa="{dir1}/{sample}.fasta"
+    output: "{dir1}.otu{id}/{sample}.cov{cov}.mapping"
+    shell: """
+    module load vsearch
+
+    if [ -s {input.fa} ]; then
+      vsearch --usearch_global {input.fa} \
+              --db {input.db} \
+              --userout {output} \
+              --userfields query+target+id \
+              --id 0.{wildcards.id}
+    else
+      touch {output}
+    fi
+
+    """
+
+rule map2otu:
+    message: "Assembling OTU table"
+    output: "{dir}.otu{id,[0-9][0-9]}/coverages{cov}.csv"
+    input: dir2targets2("{dir}.otu{id}/{sample}.cov{cov}.mapping")
+    run:
+        from map2otu import MapfileParser
+        parser = MapfileParser()
+        parser.read(input)
+        parser.write(output[0])
