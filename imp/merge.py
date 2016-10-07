@@ -8,7 +8,7 @@ import profile
 log = logging.getLogger(__name__)
 
 
-def merge(out, files):
+def merge_alternative_implementation(out, files):
     prefix = os.path.commonprefix(files)
     suffix = os.path.commonprefix([x[::-1] for x in files])[::-1]
     s1 = len(prefix)
@@ -38,7 +38,7 @@ def merge(out, files):
             all = all.join(df)
     all.to_csv(out)
 
-def merge2(out, files, collect = [], ignore = []):
+def merge(out, files, collect = [], ignore = []):
     prefix = os.path.commonprefix(files)
     suffix = os.path.commonprefix([x[::-1] for x in files])[::-1]
     s1 = len(prefix)
@@ -52,8 +52,8 @@ def merge2(out, files, collect = [], ignore = []):
             names += [filename[s1:s2]]
             fps += [open(filename, "rb", buffering=81920)]
         outfp = open(out, "wb")
-    except:
-        raise "unable to open {}".format(filename)
+    except IOError as e:
+        raise Exception("unable to open \"{}\"".format(filename))
 
     headers = None
     for fp in fps:
@@ -104,4 +104,4 @@ def merge2(out, files, collect = [], ignore = []):
 if __name__ == "__main__":
     #profile.run('merge(sys.argv[1], sys.argv[2:])')
     #profile.run('merge2(sys.argv[1], sys.argv[2:], collect=b"Cov")')
-    merge2(sys.argv[1], sys.argv[2:], collect=b"Cov")
+    merge(sys.argv[1], sorted(sys.argv[2:]), collect=b"Cov")

@@ -374,9 +374,10 @@ rule combine_bincovs:
     message: "Merging coverage bins into table (in {wildcards.dir})"
     output: "{dir}/coverage.csv"
     input: dir2targets2("{dir}/{sample}.bbmap.bincov.csv")
-    shell: """
-    ./merge.py {output} {input}
-    """
+    run:
+        from merge import merge
+        print(repr(input))
+        merge(output[0], input, collect=b"Cov")
 
 rule filter_bincovs:
     message: "Filtering small bins from coverage"
