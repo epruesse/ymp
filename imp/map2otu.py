@@ -1,21 +1,15 @@
-#!/usr/bin/env python
-
 import sys, csv, re
 from argparse import ArgumentParser
 import fileinput
-
-
-def test():
-    pass
 
 class emirge_info:
     def __init__(self, line):
         ## C5-14863|JF198678.1.1366;Prior=0.000387;Length=1357;NormPrior=0.000383;size=383
         ## <sample>-<id>|<acc>;(<key>=<value>)*[;]
         field_list = line.split(";");
-        (self.sid, self.acc) = field_list[0].split("|")
-        (self.sample, self.id, _) = re.split('-([0-9]*)$', self.sid)
-        #self.sid.split("-")
+        self.sid, self.acc = field_list[0].split("|")
+        self.sample, self.id, _ = re.split('-([0-9]*)$', self.sid)
+
         for kv in field_list[1:]:
             try:
                 (key, value) = kv.split("=")
@@ -68,7 +62,7 @@ class MapfileParser(object):
         if outfile == "-":
             outfile = sys.stdout
         else:
-            outfile = open(outfile, "wb")
+            outfile = open(outfile, "w")
 
         try:
             writer = csv.DictWriter(outfile, fieldnames = ["centroid"] + sorted(self.samples))

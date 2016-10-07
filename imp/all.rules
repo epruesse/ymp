@@ -660,6 +660,9 @@ rule map2otu:
     message: "Assembling OTU table"
     output: "{dir}.otu{id,[0-9][0-9]}/coverages{cov}.csv"
     input: dir2targets2("{dir}.otu{id}/{sample}.cov{cov}.mapping")
-    shell: """
-    ./map2otu.py -o {output} {input}
-    """
+    run:
+        from map2otu import MapfileParser
+        parser = MapfileParser()
+        parser.read(input)
+        parser.write(output[0])
+
