@@ -1,5 +1,4 @@
 from util import R
-from util import snake_extend
 from util import glob_wildcards
 from util import read_propfiles
 from util import get_ncbi_root, dir2targets, dir2targets2
@@ -9,7 +8,6 @@ import pprint
 import yaml
 pp = pprint.PrettyPrinter(indent=4)
 
-snake_extend(workflow, config)
 
 configfile:
     "config.yml"
@@ -30,7 +28,10 @@ localrules: bbmap_index, all_fasta, all_fq
 rule all:
     shell:
       "echo samples: {config[pe_samples]}"
-        
+
+rule test:
+    output: "test.txt"
+    shell: "echo {config}"
 
 rule symlink_raw_reads:
     message: "Creating symlink {output} -> {input}"
