@@ -1,0 +1,108 @@
+---
+title: "cags"
+output: html_document
+params:
+  cags:
+    label: "Cag profile CSV"
+    input: file
+    value: "~/projects/gvhd/profiles_filtered.csv"
+  ssu_otus:
+    label: "SSU OTUs CSV"
+    input: file
+    value: "~/projects/gvhd/coverages1000.csv"
+  min_nonzero:
+    value: 5
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(reshape2)
+library(GGally)
+
+cags <- read.csv(params$cags, header=TRUE, row.names=1)
+cags[is.na(cags)] <- 0
+ssus <- read.csv(params$ssu_otus, header=TRUE, row.names=1)
+ssus[is.na(ssus)] <- 0
+colnames(ssus) <- sub(".B$","", colnames(ssus))
+
+common_cols <- intersect(colnames(ssus), colnames(cags))
+
+ssus.nosd <- colnames(ssus)[apply(ssus, 2, sd) == 0]
+cags.nosd <- colnames(cags)[apply(cags, 2, sd) == 0]
+
+min_nonzero <- function(x) length(which(x>0)) < params$min_nonzero
+ssus.lowdata <- colnames(ssus)[apply(ssus, 2, min_nonzero)]
+cags.lowdata <- colnames(cags)[apply(cags, 2, min_nonzero)]
+
+good_cols <- setdiff(common_cols, Reduce(union,c(ssus.nosd, ssus.lowdata,cags.nosd, cags.lowdata)))
+ssus.filt <- ssus[good_cols]
+cags.filt <- cags[good_cols]
+
+```
+
+- Input Files:
+    - CAGs:
+        - File name: `r params$cags`
+        - Dimensions: `r dim(cags)`
+        - Zero SD columns: `r length(cags.nosd)`
+            - `r cags.nosd`.
+        - Columns with less than `r params$min_nonzero` non-zero values: 
+          `r length(cags.lowdata)`
+            - `r cags.lowdata`.
+        - Usable: `r ncol(cags) - length(union(cags.nosd, cags.lowdata))`
+    - SSUs:
+        - File nama: `r params$ssu_otus`
+        - Dimensions: `r dim(ssus)`
+        - Zero SD columns: `r (length(ssus.nosd))`
+            - `r ssus.nosd`.
+        - Columns with less than `r params$min_nonzero` non-zero values: 
+          `r length(ssus.lowdata)`
+            - `r ssus.lowdata`.
+        - Usable: `r ncol(ssus) - length(union(ssus.nosd, ssus.lowdata))`
+- Shared columns:
+    - total: `r length(common_cols)`
+    - Non-Zero SD in either: `r length(union(cags.nosd, ssus.nosd))`
+    - Less than `r params$min_nonzero` non-zero values in either:
+      `r length(union(cags.lowdata, ssus.lowdata))`
+    - Usable: `r length(setdiff(common_cols, (Reduce(union, c(ssus.nosd, ssus.lowdata, cags.nosd, cags.lowdata)))))`
+    
+```{r echo=FALSE}
+ordered.ggcorr <- function(data) {
+    # find points with 0 stdddev and remove
+    sds <- apply(data, 2, sd)
+    colnames(data)[which(is.na(sds))]
+    data <- data[,!is.na(sds) & sds != 0]
+
+    hc <- hclust(1-as.dist(cor(data)), method="complete")
+    data <- data[,order.dendrogram(as.dendrogram(hc))]
+
+    ggcorr(data)
+}
+
+ordered.ggcorr(ssus)
+ordered.ggcorr(cags)
+#ordered.ggcorr(cags.filt)
+```
+
+
+```{r}
+cags.filt2 <- cags.filt[apply(cags.filt, 1, sd) != 0 & !apply(cags.filt, 1, min_nonzero),]
+ssus.filt2 <- ssus.filt[apply(ssus.filt, 1, sd) != 0 & !apply(ssus.filt, 1, min_nonzero),]
+#cags.filt2 <- sweep(cags.filt2, 1, apply(cags.filt2, 1,sum), "/")
+#ssus.filt2 <- sweep(ssus.filt2, 1, apply(ssus.filt2, 1,sum), "/")
+cags.filt2 <- scale(cags.filt2)+1
+ssus.filt2 <- scale(ssus.filt2)+1
+
+corm <- cor(t(cags.filt2), t(ssus.filt2))
+
+good <- apply(corm, 2, function(x) which(x >0.9))
+
+best <- which(corm == max(corm), arr.ind=TRUE)
+best
+corm[best[1],best[2]]
+data <- rbind(ssus.filt2[best[2],], cags.filt2[best[1],])
+data
+
+```
