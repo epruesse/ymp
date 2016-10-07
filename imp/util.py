@@ -1,12 +1,10 @@
 from snakemake.io import expand 
 from snakemake.utils import format
-from imp.snakemake import config
+from snakemake.workflow import config
 
 import re, os
 import textwrap
 from subprocess import check_output
-
-#global config
 
 def get_ncbi_root():
     root = check_output("""

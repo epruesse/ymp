@@ -1,5 +1,4 @@
 from snakemake.workflow import Workflow as _Workflow
-from snakemake.workflow import config, workflow
 from snakemake.io import expand
 from string import Formatter
 import re, os, csv
@@ -45,6 +44,11 @@ _expand_regex = re.compile(
 
 class Workflow(_Workflow):
     formatter = Formatter()
+    
+    def configfile(self, file):
+        super().configfile(file)
+        global config
+        parse_mapfiles(config)
 
     def _expand_str(self, string):
         keys = []
@@ -108,4 +112,9 @@ class Workflow(_Workflow):
         return super().output(*paths, **kwpaths)
 
 
-workflow.__class__ = Workflow
+def snake_extend(workflow_in, config_in):
+    global config
+    config = config_in
+    global workflow
+    workflow = workflow_in
+    workflow.__class__ = Workflow

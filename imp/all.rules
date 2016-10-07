@@ -1,3 +1,8 @@
+from imp.snakemake import config
+from imp.snakemake import parse_mapfiles
+
+parse_mapfiles(config)
+
 from util import R
 from util import glob_wildcards
 from util import read_propfiles
@@ -7,10 +12,6 @@ import glob
 import pprint
 import yaml
 pp = pprint.PrettyPrinter(indent=4)
-
-
-configfile:
-    "config.yml"
 
 # make jobs always list the host on which they ran
 shell.prefix("hostname;")
