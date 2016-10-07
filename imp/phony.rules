@@ -1,0 +1,10 @@
+
+rule showconf:
+    "Display contents of config object"
+    message: "Printing config"
+    run:
+        import shutil, pprint
+        width, height = shutil.get_terminal_size((80, 20))
+        pp = pprint.PrettyPrinter(indent=1, compact=True, width=width)
+        pp.pprint(config)
+

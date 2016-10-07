@@ -23,14 +23,6 @@ RNA     = config['rrna']['genes']
 localrules: bbmap_index, all_fasta, all_fq
 
 
-rule all:
-    shell:
-      "echo samples: {config[pe_samples]}"
-
-rule test:
-    output: "test.txt"
-    shell: "echo {config}"
-
 rule symlink_raw_reads:
     message: "Creating symlink {output} -> {input}"
     input:   lambda wc: config['pe_sample'][wc.sample][wc.r]
