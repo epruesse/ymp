@@ -4,11 +4,8 @@ from snakemake.io import expand
 from util import R, glob_wildcards, read_propfiles, get_ncbi_root
 from config import dir2targets, dir2targets2
 
-import shutil
 import glob
-import pprint
 import yaml
-pp = pprint.PrettyPrinter(indent=4)
 
 # make jobs always list the host on which they ran
 shell.prefix("hostname;")
@@ -143,13 +140,7 @@ rule pool_by_column:
             print("xx " + "::".join(sample))
             return False
         else:
-            #with open(output[0], "wb") as outfile:
-            #    for fname in input:
-            #        with open(fname, "rb") as infile:
-            #            shutil.copyfileobj(infile, outfile)
-            shell("""
-            zcat {input} | gzip > {output}
-            """)
+            shell("zcat {input} | gzip > {output}")
 
     
 rule all_pooled:
