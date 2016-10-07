@@ -15,24 +15,6 @@ def get_ncbi_root():
     return root
 
 
-def dir2targets(wildcards):
-    dirname = wildcards.dir
-    colnames = list(config['pe_sample'][next(iter(config['pe_sample']))])
-    regex = r"\.by_({})(?:[./]|$)".format("|".join(colnames))
-    groups = re.findall(regex, dirname)
-    if len(groups) == 0:
-        colname='ID'
-    else:
-        colname=groups[-1]
-    targets = set([config['pe_sample'][sample][colname]
-            for sample in config['pe_sample']])
-    return sorted(list(targets))
-
-
-def dir2targets2(template):
-    return lambda wc: expand(template, sample=dir2targets(wc), **wc)
-
-
 def read_propfiles(files):
     if isinstance(files, str):
         files=[files]

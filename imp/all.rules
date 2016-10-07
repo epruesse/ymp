@@ -1,12 +1,9 @@
 from imp.snakemake import config
-from imp.snakemake import parse_mapfiles
+from snakemake.io import expand
 
-parse_mapfiles(config)
+from util import R, glob_wildcards, read_propfiles, get_ncbi_root
+from config import dir2targets, dir2targets2
 
-from util import R
-from util import glob_wildcards
-from util import read_propfiles
-from util import get_ncbi_root, dir2targets, dir2targets2
 import shutil
 import glob
 import pprint
