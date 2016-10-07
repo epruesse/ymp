@@ -1,4 +1,3 @@
-#from snakemake.utils import R
 from util import R
 from util import snake_extend
 from util import glob_wildcards
@@ -14,7 +13,6 @@ snake_extend(workflow, config)
 
 configfile:
     "config.yml"
-#parse_mapfiles(config)
 
 # make jobs always list the host on which they ran
 shell.prefix("hostname;")
@@ -27,49 +25,19 @@ PAIRS   = config['pairnames']
 RNA     = config['rrna']['genes']
 
 localrules: bbmap_index, all_fasta, all_fq
-#pp.pprint(config)
 
-#root = get_ncbi_root()
 
 rule all:
     shell:
- #       "echo " + root
       "echo samples: {config[pe_samples]}"
-        #"echo sample_data: {config[pe_sample]}"
-
         
-### directory meta rules (=all samples)
-#rule megahit_complete:
-#    message: "Assembling all samples in {wildcards.dir}"
-#    input: "{dir}.mh/{$config[pe_samples]}.fasta"
-#    output: touch("{dir}.mh/complete")
-
-#rule fastqc_complete:
-#    message: "Finished QC reports for {wildcards.dir}"
-#    input: "{dir}_qc/{$config[pe_samples]}.{$PAIRS}_fastqc.html"
-#    output: touch("{dir}_qc/complete")
-        
-#rule all_fq:
-#    message: "Finished all in {wildcards.dir}"
-#    input: "{dir}/{$config[pe_samples]}.{$PAIRS}.fq.gz"
-#    output: touch("{dir}/all_fq")
-
-#rule all_fasta:
-#    message: "Finished all in {wildcards.dir}"
-#    input: "{dir}/{$config[pe_samples]}.fasta"
-#    output: "{dir}/all_fasta"
-#    shell: "touch {output}"
-
-
-#rule sra_prefetch:
-#    message: "Prefetching {wildcards.srr} from SRA"
-#    output: ""
 
 rule symlink_raw_reads:
     message: "Creating symlink {output} -> {input}"
     input:   lambda wc: config['pe_sample'][wc.sample][wc.r]
     output:  "{$RAW}/{sample}.{r}.fq.gz"
     shell:   "ln -s {input} {output}"
+
 
 rule fastqc:
     message: "Creating QC report for {input}"
@@ -346,6 +314,7 @@ rule bbmap_coassembly:
              covhist={params.base}.bbmap.covhist.csv \
              bincov={params.base}.bbmap.bincov.csv \
 
+# These files are too large
 #             basecov={params.base}.bbmap.basecov.csv.gz
     """
 
