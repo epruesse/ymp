@@ -1,3 +1,0 @@
-from imp import snake_extend
-
-snake_extend(workflow, config)
