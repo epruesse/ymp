@@ -336,18 +336,19 @@ rule filter_bincovs:
     grep -Ev "[^,]*,(1000|[0-9]+[1-9][1-9][1-9])," {input} > {output}
     """
 
-
-rule create_canopies:
-    message: "Computing CAG canopies for {wildcards.dir}"
-    output: clust="{dir}.cags/clusters{mod}csv",
-            clust_t="{dir}.cags/clusters{mod}ssv",
-            prof="{dir}.cags/profiles{mod}csv",
-            prof_t="{dir}.cags/profiles{mod}ssv",
-            noobs="{dir}.cags/excl_insuf_obs{mod}ssv",
-            domtop="{dir}.cags/excl_dom_top3{mod}ssv",
-            stats="{dir}.cags/progress{mod}txt"
-    input: "{dir}/coverage{mod}csv"
-    log: "{dir}.cags/mgs-canopy{mod}log"
+rule msg_canopy_cluster:
+    message:
+        "mgs-canopy {wildcards.dir}.cags"
+    output:
+        clust_t="{dir}.cags/clusters{mod}ssv",
+        prof_t="{dir}.cags/profiles{mod}ssv",
+        noobs="{dir}.cags/excl_insuf_obs{mod}ssv",
+        domtop="{dir}.cags/excl_dom_top3{mod}ssv",
+        stats="{dir}.cags/progress{mod}txt"
+    input:
+        "{dir}/coverage{mod}csv"
+    log:
+        "{dir}.cags/mgs-canopy{mod}log"
     threads: 33
     shell: """
     module load mgs-canopy
@@ -363,17 +364,27 @@ rule create_canopies:
                --filtered_out_points_min_obs_file {output.noobs} \
                --filtered_out_points_max_dominant_obs_file {output.domtop} \
                --canopy_size_stats_file {output.stats} 
+    """
 
+rule mgs_canopy_data_to_csv:
+    message:
+        "mgs-canopy {wildcards.dir}.cags (converting files)"
+    input:
+        clust_t = "{dir}.cags/clusters{mod}ssv",
+        prof_t = "{dir}.cags/profiles{mod}ssv",
+        head = "{dir}/coverage{mod}csv"
+    output:
+        clust = "{dir}.cags/clusters{mod}csv",
+        prof = "{dir}.cags/profiles{mod}csv"
+    shell: """
     (
-        sed -n '1 s/\([^,]*,[^,]*,[^,]*\),.*/CAG,\1/p' {input};
-        sed 'y/\t/,/; s/\(.*\)_\([^_]*\)_\([^_]*\)/\1,\2,\3/' {output.clust_t}
+        sed -n '1 s/\([^,]*,[^,]*,[^,]*\),.*/CAG,\\1/p' {input.head};
+        sed 'y/\t/,/; s/\(.*\)_\([^_]*\)_\([^_]*\)/\\1,\\2,\\3/' {input.clust_t}
     ) > {output.clust}
-
     (
-        sed -n '1 s/[^,]*,[^,]*,[^,]*/CAG/p' {input};
-        sed 'y/\t/,/' {output.prof_t}
+        sed -n '1 s/[^,]*,[^,]*,[^,]*/CAG/p' {input.head};
+        sed 'y/\t/,/' {input.prof_t}
     ) > {output.prof}
-
     """
 
 
