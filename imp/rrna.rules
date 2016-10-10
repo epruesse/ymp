@@ -146,11 +146,11 @@ rule emirge_rename_fasta:
 
 rule sina_align_classify:
     message: ""
-    input: "{dir1}.{rnagene}.{dir2}/{file}.fasta"
-    output: "{dir1}.{rnagene}.{dir2}.sina/{file}.fasta"
+    input: "{dir1}.{rnagene}.{dir2}/{sample}.fasta"
+    output: "{dir1}.{rnagene}.{dir2}.sina/{sample}.fasta"
     params: dir = "{dir1}.{rnagene}.{dir2}",
             ref = lambda wc: config['rrna']['references']['arb'][wc.rnagene],
-    log: "{dir1}.{rnagene}.{dir2}.{file}.log"
+    log: "{dir1}.{rnagene}.{dir2}.{sample}.log"
     threads: 1
     shell: """
     module load sina
@@ -167,19 +167,19 @@ rule sina_align_classify:
     """
 
 rule sina_extract_classification:
-    input: "{dir}.sina/{file}.fasta"
-    output: "{dir}.sina/{file}.class.{tax}.csv"
+    input: "{dir}.sina/{sample}.fasta"
+    output: "{dir}.sina/{sample}.class.{tax}.csv"
     shell: """
     sed -n 's/^>\\([^|]*\\).*lca_tax_{wildcards.tax}=\\([^]]*\).*/\\1,\\2/p' {input} > {output}
     """
 
 
 rule cluster_vsearch:
-    message: "Clustering {wildcards.dir} at {wildcards.id}%"
-    output: centroids="{dir}.otu{id}/centroids.fasta",
-            uc="{dir}.otu{id}/centroids.uc"
+    message: "Clustering {wildcards.dir} at {wildcards.fracid}%"
+    output: centroids="{dir}.otu{fracid}/centroids.fasta",
+            uc="{dir}.otu{fracid}/centroids.uc"
     input: lambda wc: expand("{dir}/{sample}.fasta", dir=wc.dir, sample=dir2targets(wc))
-    log: "{dir}.otu{id}/vsearch.log"
+    log: "{dir}.otu{fracid}/vsearch.log"
     threads: 33
     shell: """
     module load vsearch
@@ -188,29 +188,27 @@ rule cluster_vsearch:
             --centroids {output.centroids} \
             --uc {output.uc} \
             --sizein --sizeout \
-            --id 0.{wildcards.id} \
+            --id 0.{wildcards.fracid} \
             --threads {threads} \
             > {log} 2>&2
     """
 
 
 rule vsearch_minsize:
-    message: "Filtering clusters by size {wildcards.cov}"
+    message: "Filtering clusters by size {wildcards.coverage}"
     input: "{clusters}.fasta"
-    output: "{clusters}.cov{cov}.fasta"
+    output: "{clusters}.cov{coverage}.fasta"
     shell: """
     module load vsearch
-    vsearch --sortbysize {input} --output {output} --minsize {wildcards.cov}
+    vsearch --sortbysize {input} --output {output} --minsize {wildcards.coverage}
     """
 
 
 rule vsearch_map:
-    message: """
-    Mapping sequences to (filtered) centroids. Processing {input.fa}
-    """.strip()
-    input: db="{dir1}.otu{id}/centroids.cov{cov}.fasta",
+    message: "vsearch map {output}"
+    input: db="{dir1}.otu{fracid}/centroids.cov{coverage}.fasta",
            fa="{dir1}/{sample}.fasta"
-    output: "{dir1}.otu{id}/{sample}.cov{cov}.mapping"
+    output: "{dir1}.otu{fracid}/{sample}.cov{coverage}.mapping"
     shell: """
     module load vsearch
 
@@ -219,19 +217,20 @@ rule vsearch_map:
               --db {input.db} \
               --userout {output} \
               --userfields query+target+id \
-              --id 0.{wildcards.id}
+              --id 0.{wildcards.fracid}
     else
       touch {output}
     fi
-
     """
 
-rule map2otu:
-    message: "Assembling OTU table"
-    output: "{dir}.otu{id,[0-9][0-9]}/coverages{cov}.csv"
-    input: dir2targets2("{dir}.otu{id}/{sample}.cov{cov}.mapping")
+
+rule map2coverages:
+    message: "Assembling coverage table"
+    output: "{dir}.otu{fracid}/coverages{coverage}.csv"
+    input: dir2targets2("{dir}.otu{fracid}/{sample}.cov{coverage}.mapping")
     run:
         from map2otu import MapfileParser
         parser = MapfileParser()
         parser.read(input)
         parser.write(output[0])
+
