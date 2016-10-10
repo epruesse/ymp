@@ -22,15 +22,15 @@ rule bbmap_index:
 
 
 rule bbmap_filter:
-    message: "Finding {wildcards.rnagene} reads in {wildcards.dir}/{wildcards.samples}"
-    output:  "{dir}.{rnagene}/{samples}.{$PAIRS}.fq.gz",
-             ihist="{dir}.{rnagene}/{samples}.bb_ihist",
-             qhist="{dir}.{rnagene}/{samples}.bb_qhist",
-             stats="{dir}.{rnagene}/{samples}.bb_stats",
-             props="{dir}.{rnagene}/{samples}.props",
-    input:   "{dir}/{samples}.{$PAIRS}.fq.gz",
+    message: "Finding {wildcards.rnagene} reads in {wildcards.dir}/{wildcards.sample}"
+    output:  "{dir}.{rnagene}/{sample}.{$PAIRS}.fq.gz",
+             ihist="{dir}.{rnagene}/{sample}.bb_ihist",
+             qhist="{dir}.{rnagene}/{sample}.bb_qhist",
+             stats="{dir}.{rnagene}/{sample}.bb_stats",
+             props="{dir}.{rnagene}/{sample}.props",
+    input:   "{dir}/{sample}.{$PAIRS}.fq.gz",
              "ref/names/{rnagene}"
-    log:     "{dir}.{rnagene}/{samples}.log"
+    log:     "{dir}.{rnagene}/{sample}.log"
     params: build=lambda wc: config['rrna']['genes'].index(wc.rnagene) + 1
     threads: 17
     shell: """
@@ -58,18 +58,18 @@ rule bbmap_filter:
 
 
 rule emirge:
-    message: "Inferring {wildcards.rnagene} rRNA for {wildcards.samples}"
-    input: "{dir}.{rnagene}/{samples}.{$PAIRS}.fq.gz",
-           props="{dir}.{rnagene}/{samples}.props",
+    message: "Inferring {wildcards.rnagene} rRNA for {wildcards.sample}"
+    input: "{dir}.{rnagene}/{sample}.{$PAIRS}.fq.gz",
+           props="{dir}.{rnagene}/{sample}.props",
            ref_fasta=lambda wc: config['rrna']['references']['fasta'][wc.rnagene]
-    output: dir="{dir}.{rnagene}.emirge/{samples}.em",
-            props="{dir}.{rnagene}.emirge/{samples}.props"
+    output: dir="{dir}.{rnagene}.emirge/{sample}.em",
+            props="{dir}.{rnagene}.emirge/{sample}.props"
     params:
         ref_bowtie=lambda wc: config['rrna']['references']['bowtie'][wc.rnagene],
         iterations=80,
         join_threshold=1.0
     threads: 7
-    log: "{dir}.{rnagene}.emirge/{samples}.log"
+    log: "{dir}.{rnagene}.emirge/{sample}.log"
     run:
         props = read_propfiles(input.props)
         if props['insert_size_avg'] < 1 or props['insert_size_sd'] < 1:
@@ -178,7 +178,7 @@ rule cluster_vsearch:
     message: "Clustering {wildcards.dir} at {wildcards.id}%"
     output: centroids="{dir}.otu{id}/centroids.fasta",
             uc="{dir}.otu{id}/centroids.uc"
-    input: lambda wc: expand("{dir}/{samples}.fasta", dir=wc.dir, samples=dir2targets(wc))
+    input: lambda wc: expand("{dir}/{sample}.fasta", dir=wc.dir, sample=dir2targets(wc))
     log: "{dir}.otu{id}/vsearch.log"
     threads: 33
     shell: """

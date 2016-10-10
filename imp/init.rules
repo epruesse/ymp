@@ -5,3 +5,7 @@ parse_mapfiles()
 
 PAIRS   = config['pairnames']
 RNA     = config['rrna']['genes']
+
+wildcard_constraints:
+    dir    = "[^/]+",
+    sample = "[^/]+"
