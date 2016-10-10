@@ -14,8 +14,6 @@ shell.prefix("hostname;")
 RAW = "raw"
 TRIMMED = "10_trimmed_reads"
 
-PAIRS   = config['pairnames']
-RNA     = config['rrna']['genes']
 
 localrules: bbmap_index, all_fasta, all_fq
 
