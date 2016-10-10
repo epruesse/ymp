@@ -1,4 +1,3 @@
-from imp import snakemake
 from imp.config import parse_mapfiles
 
 parse_mapfiles()
