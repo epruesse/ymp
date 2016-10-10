@@ -197,7 +197,7 @@ rule cluster_vsearch:
 rule vsearch_minsize:
     message: "Filtering clusters by size {wildcards.coverage}"
     input: "{clusters}.fasta"
-    output: "{clusters}.cov{coverage}.fasta"
+    output: touch("{clusters}.cov{coverage}.fasta")
     shell: """
     module load vsearch
     vsearch --sortbysize {input} --output {output} --minsize {wildcards.coverage}
@@ -208,7 +208,7 @@ rule vsearch_map:
     message: "vsearch map {output}"
     input: db="{dir1}.otu{fracid}/centroids.cov{coverage}.fasta",
            fa="{dir1}/{sample}.fasta"
-    output: "{dir1}.otu{fracid}/{sample}.cov{coverage}.mapping"
+    output: touch("{dir1}.otu{fracid}/{sample}.cov{coverage}.mapping")
     shell: """
     module load vsearch
 
@@ -226,7 +226,7 @@ rule vsearch_map:
 
 rule map2coverages:
     message: "Assembling coverage table"
-    output: "{dir}.otu{fracid}/coverages{coverage}.csv"
+    output: touch("{dir}.otu{fracid}/coverages{coverage}.csv")
     input: dir2targets2("{dir}.otu{fracid}/{sample}.cov{coverage}.mapping")
     run:
         from map2otu import MapfileParser
