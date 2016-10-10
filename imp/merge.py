@@ -38,6 +38,7 @@ def merge_alternative_implementation(out, files):
             all = all.join(df)
     all.to_csv(out)
 
+
 def merge(out, files, collect = [], ignore = []):
     prefix = os.path.commonprefix(files)
     suffix = os.path.commonprefix([x[::-1] for x in files])[::-1]
@@ -45,12 +46,10 @@ def merge(out, files, collect = [], ignore = []):
     s2 = -len(suffix)
     log.debug("Prefix = {}, Suffix = {}".format(prefix, suffix))
 
-    names = []
+    names = [filename[s1:s2] for filename in files]
     fps = []
     try:
-        for filename in files:
-            names += [filename[s1:s2]]
-            fps += [open(filename, "rb", buffering=81920)]
+        fps = [open(filename, "rb", buffering=81920) for filename in files]
         outfp = open(out, "wb")
     except IOError as e:
         raise Exception("unable to open \"{}\"".format(filename))
@@ -64,10 +63,10 @@ def merge(out, files, collect = [], ignore = []):
         if not headers:
             headers = cols
         if headers != cols:
-            raise "Headers in {} do not match: {} != {}".format(
-                            filename, headers, cols)
+            raise Exception("Headers in {} do not match: {} != {}".format(
+                            filename, headers, cols))
 
-        icollect = [ header in collect for header in headers ]
+    icollect = [ header in collect for header in headers ]
     iignore = [ header in ignore for header in headers ]
     imatch = [ not header and not collect for header, collect in zip(icollect, iignore) ]
 
@@ -83,16 +82,9 @@ def merge(out, files, collect = [], ignore = []):
         assert len(arr) == len(headers)
         for fp in fps[1:]:
             arr2 = fp.readline().split(b"\t")
-           
-            #match2 = [ x for x, match in zip(arr, imatch) if match ]
-            #if match != match2:
-            #    raise "Mismatch in row {}: {} != {}".format(row, match, match2)
             res += [ x for x, collect in zip(arr2, icollect) if collect ]
 
-        #x = sum([1 for x in res if float(x)>1])
-        #print(x)
         outfp.write(b",".join(match + res) + b"\n")
-        #if row > 1000: break
 
     outfp.close()
     for fp in fps:
