@@ -2,3 +2,6 @@ from imp import snakemake
 from imp.config import parse_mapfiles
 
 parse_mapfiles()
+
+PAIRS   = config['pairnames']
+RNA     = config['rrna']['genes']

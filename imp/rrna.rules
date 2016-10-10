@@ -1,12 +1,16 @@
 from snakemake.workflow import config
-gene_pat = "("+"|".join(config['rrna']['genes'])+")"
+from imp.config import dir2targets, dir2targets2
+
+
+wildcard_constraints:
+    rnagene="({})".format("|".join(config['rrna']['genes']))
 
 
 rule bbmap_index:
-    message: "Building BBMap Index for {wildcards.gene}"
-    output: "ref/names/{gene}"
-    input: lambda wc: config['rrna']['references']['fasta'][wc.gene]
-    params: build=lambda wc: config['rrna']['genes'].index(wc.gene) + 1
+    message: "Building BBMap Index for {wildcards.rnagene}"
+    output: "ref/names/{rnagene}"
+    input: lambda wc: config['rrna']['references']['fasta'][wc.rnagene]
+    params: build=lambda wc: config['rrna']['genes'].index(wc.rnagene) + 1
     threads: 1
     shell: """
     module load bbmap
@@ -18,16 +22,16 @@ rule bbmap_index:
 
 
 rule bbmap_filter:
-    message: "Finding {wildcards.gene} reads in {wildcards.dir}/{wildcards.samples}"
-    output:  "{dir}.{gene,"+gene_pat+"}/{samples}.{$PAIRS}.fq.gz",
-             ihist="{dir}.{gene,"+gene_pat+"}/{samples}.bb_ihist",
-             qhist="{dir}.{gene,"+gene_pat+"}/{samples}.bb_qhist",
-             stats="{dir}.{gene,"+gene_pat+"}/{samples}.bb_stats",
-             props="{dir}.{gene,"+gene_pat+"}/{samples}.props",
+    message: "Finding {wildcards.rnagene} reads in {wildcards.dir}/{wildcards.samples}"
+    output:  "{dir}.{rnagene}/{samples}.{$PAIRS}.fq.gz",
+             ihist="{dir}.{rnagene}/{samples}.bb_ihist",
+             qhist="{dir}.{rnagene}/{samples}.bb_qhist",
+             stats="{dir}.{rnagene}/{samples}.bb_stats",
+             props="{dir}.{rnagene}/{samples}.props",
     input:   "{dir}/{samples}.{$PAIRS}.fq.gz",
-             "ref/names/{gene}"
-    log:     "{dir}.{gene}/{samples}.log"
-    params: build=lambda wc: config['rrna']['genes'].index(wc.gene) + 1
+             "ref/names/{rnagene}"
+    log:     "{dir}.{rnagene}/{samples}.log"
+    params: build=lambda wc: config['rrna']['genes'].index(wc.rnagene) + 1
     threads: 17
     shell: """
     module load bbmap
@@ -54,18 +58,18 @@ rule bbmap_filter:
 
 
 rule emirge:
-    message: "Inferring {wildcards.gene} rRNA for {wildcards.samples}"
-    input: "{dir}.{gene}/{samples}.{$PAIRS}.fq.gz",
-           props="{dir}.{gene}/{samples}.props",
-           ref_fasta=lambda wc: config['rrna']['references']['fasta'][wc.gene]
-    output: dir="{dir}.{gene,"+gene_pat+"}.emirge/{samples}.em",
-            props="{dir}.{gene,"+gene_pat+"}.emirge/{samples}.props"
+    message: "Inferring {wildcards.rnagene} rRNA for {wildcards.samples}"
+    input: "{dir}.{rnagene}/{samples}.{$PAIRS}.fq.gz",
+           props="{dir}.{rnagene}/{samples}.props",
+           ref_fasta=lambda wc: config['rrna']['references']['fasta'][wc.rnagene]
+    output: dir="{dir}.{rnagene}.emirge/{samples}.em",
+            props="{dir}.{rnagene}.emirge/{samples}.props"
     params:
-        ref_bowtie=lambda wc: config['rrna']['references']['bowtie'][wc.gene],
+        ref_bowtie=lambda wc: config['rrna']['references']['bowtie'][wc.rnagene],
         iterations=80,
         join_threshold=1.0
     threads: 7
-    log: "{dir}.{gene,"+gene_pat+"}.emirge/{samples}.log"
+    log: "{dir}.{rnagene}.emirge/{samples}.log"
     run:
         props = read_propfiles(input.props)
         if props['insert_size_avg'] < 1 or props['insert_size_sd'] < 1:
@@ -142,11 +146,11 @@ rule emirge_rename_fasta:
 
 rule sina_align_classify:
     message: ""
-    input: "{dir1}.{gene,"+gene_pat+"}.{dir2}/{file}.fasta"
-    output: "{dir1}.{gene,"+gene_pat+"}.{dir2}.sina/{file}.fasta"
-    params: dir = "{dir1}.{gene}.{dir2}",
-            ref = lambda wc: config['rrna']['references']['arb'][wc.gene],
-    log: "{dir1}.{gene,"+gene_pat+"}.{dir2}.{file}.log"
+    input: "{dir1}.{rnagene}.{dir2}/{file}.fasta"
+    output: "{dir1}.{rnagene}.{dir2}.sina/{file}.fasta"
+    params: dir = "{dir1}.{rnagene}.{dir2}",
+            ref = lambda wc: config['rrna']['references']['arb'][wc.rnagene],
+    log: "{dir1}.{rnagene}.{dir2}.{file}.log"
     threads: 1
     shell: """
     module load sina
