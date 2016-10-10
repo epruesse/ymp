@@ -325,7 +325,6 @@ rule combine_bincovs:
     input: dir2targets2("{dir}/{sample}.bbmap.bincov.csv")
     run:
         from merge import merge
-        print(repr(input))
         merge(output[0], input, collect=b"Cov")
 
 rule filter_bincovs:
