@@ -193,8 +193,9 @@ rule sina_align_classify2:
 rule sina_extract_classification:
     input: "{dir}.sina/{sample}.fasta"
     output: "{dir}.sina/{sample}.class.{tax}.csv"
+            #FIXME: use re instead of sed, for more power
     shell: """
-    sed -n 's/^>\\([^|]*\\).*lca_tax_{wildcards.tax}=\\([^]]*\).*/\\1,\\2/p' {input} > {output}
+    sed -n 's/^>\\([^| :]*\\).*lca_tax_{wildcards.tax}=\\(.*;\)] \[.*/\\1,\\2/p' {input} > {output}
     """
 
 
