@@ -410,24 +410,6 @@ rule summarize_cag_runs__R:
     write.csv(df, "{output}", row.names=FALSE)
     """)
             
-    
-rule barrnap:
-    input: "{dir}/contigs.fasta"
-    output: "{dir}.rna/{kingdom}.gff"
-    message: "Searching for RNA with barrnap (in {wildcards.dir})"
-    log: "{dir}.rna/barrnap.log"
-    threads: 8
-    shell: """
-    module load barrnap
-    barrnap \
-        --threads {threads} \
-        --incseq \
-        2> {log} \
-        > {output} \
-        {input} \
-        -k {wildcards.kingdom} \
-
-    """
 
 rule report_test:
     output:
