@@ -151,3 +151,11 @@ def R(code="", **kwargs):
         return rval[0]
     return rval
             
+def Rmd(rmd, out, **kwargs):
+    from snakemake.workflow import srcdir
+    R("""
+    library(rmarkdown)
+    rmarkdown::render(rmd, params=paramx, output_file=out)
+    """,
+      rmd=rmd,
+      out=os.path.abspath(out[0]), paramx=kwargs)
