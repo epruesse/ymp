@@ -1,5 +1,6 @@
 from snakemake.workflow import config
 from imp.config import dir2targets, dir2targets2
+from imp.snakemake import workflow
 
 
 wildcard_constraints:
