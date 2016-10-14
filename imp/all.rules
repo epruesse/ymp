@@ -429,3 +429,17 @@ rule barrnap:
 
     """
 
+rule report_test:
+    output:
+        "reports/test.html"
+    input:
+        rmd=srcdir("CAGs.Rmd"),
+        cags="raw.ecco.trimAQ20.290minus.by_SUBJECT.spc.map.cags/profiles_filtered.csv",
+        ssu_otus="raw.ecco.trimAQ20.290minus.by_SUBJECT.SSU.emirge.otu97/otu.slv.cov100.csv"
+    run:
+        from imp.util import Rmd
+        Rmd(rmd=input.rmd[0],
+            out=output,
+            cags=os.path.abspath(input.cags[0]),
+            ssu_otus=os.path.abspath(input.ssu_otus[0]))
+        print(type(input.cags[0]))
