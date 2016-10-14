@@ -149,9 +149,9 @@ rule sina_align_classify:
     message: ""
     input: "{dir1}.{rnagene}.{dir2}/{sample}.fasta"
     output: "{dir1}.{rnagene}.{dir2}.sina/{sample}.fasta"
-    params: dir = "{dir1}.{rnagene}.{dir2}",
-            ref = lambda wc: config['rrna']['references']['arb'][wc.rnagene],
-    log: "{dir1}.{rnagene}.{dir2}.{sample}.log"
+    params:
+        ref = lambda wc: config['rrna']['references']['arb'][wc.rnagene],
+    log: "{dir1}.{rnagene}.{dir2}.sina/{sample}.log"
     threads: 1
     shell: """
     module load sina
