@@ -82,6 +82,29 @@ def glob_wildcards(pattern, files=None):
     return wildcards
 
 
+from rpy2.robjects import default_converter, conversion, sequence_to_vector
+from rpy2.robjects import conversion
+from rpy2 import robjects, rinterface
+
+
+@default_converter.py2ri.register(dict)
+def _(obj):
+    keys = list(obj.keys())
+    res = rinterface.ListSexpVector([conversion.py2ri(obj[x]) for x in keys])
+    res.do_slot_assign('names',rinterface.StrSexpVector(keys))
+    return res
+
+@default_converter.py2ri.register(tuple)
+def _(obj):
+    return conversion.py2ri(list(obj))
+
+@default_converter.py2ri.register(list)
+def _(obj):
+    #return sequence_to_vector(obj)
+    obj = rinterface.ListSexpVector([conversion.py2ri(x) for x in obj])
+    return robjects.r.unlist(obj, recursive=False)
+
+
 from snakemake.io import Namedlist
 def R(code="", **kwargs):
     """Execute R code
