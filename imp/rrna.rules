@@ -167,6 +167,29 @@ rule sina_align_classify:
          --turn none
     """
 
+rule sina_align_classify2:
+    message: ""
+    input: "{dir}/{rnagene}.fasta"
+    output: "{dir}.sina/{rnagene}.fasta"
+    params:
+        ref = lambda wc: config['rrna']['references']['arb'][wc.rnagene]
+    log: "{dir}.sina/{rnagene}.log"
+    threads: 1
+    shell: """
+    module load sina
+    sina --in "{input}" \
+         --out "{output}" \
+         --ptdb "{params.ref}" \
+         --search \
+         --search-db "{params.ref}" \
+         --lca-fields tax_slv:tax_gg:tax_rdp \
+         --meta-fmt header \
+         --line-length 0 \
+         --log-file {log} \
+         --turn none
+    """
+
+
 rule sina_extract_classification:
     input: "{dir}.sina/{sample}.fasta"
     output: "{dir}.sina/{sample}.class.{tax}.csv"
