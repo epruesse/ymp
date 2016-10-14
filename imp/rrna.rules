@@ -250,9 +250,12 @@ rule vsearch_map:
 
 
 rule map2coverages:
-    message: "Assembling coverage table"
-    output: touch("{dir}.otu{fracid}/coverages{coverage}.csv")
-    input: dir2targets2("{dir}.otu{fracid}/{sample}.cov{coverage}.mapping")
+    message:
+        "Assembling coverage table {output}"
+    output:
+        touch("{dir}.otu{fracid}/coverages{coverage}.csv")
+    input:
+        dir2targets2("{dir}.otu{fracid}/{sample}.cov{coverage}.mapping")
     run:
         from map2otu import MapfileParser
         parser = MapfileParser()
