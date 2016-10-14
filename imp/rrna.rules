@@ -3,10 +3,6 @@ from imp.config import dir2targets, dir2targets2
 from imp.snakemake import workflow
 
 
-wildcard_constraints:
-    rnagene="({})".format("|".join(config['rrna']['genes']))
-
-
 rule bbmap_index:
     message: "Building BBMap Index for {wildcards.rnagene}"
     output: "ref/names/{rnagene}"
