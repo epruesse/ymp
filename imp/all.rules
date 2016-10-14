@@ -119,7 +119,7 @@ rule split_by_length:
 
 rule pool_by_column:
     message: "{rule}: Combining {input} into {output}"
-    output: "{dir}.by_{column}/{colid}.{P}.fq.gz"
+    output: "{dir}.by_{column,[^.]+}/{colid}.{P}.fq.gz"
     input: lambda wc: expand("{dir}/{sample}.{P}.fq.gz",P=wc.P,dir=wc.dir,\
                              sample=[sample for sample in config['pe_sample'] \
                               if config['pe_sample'][sample][wc.column] == wc.colid])
