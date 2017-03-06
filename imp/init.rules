@@ -1,15 +1,35 @@
-from imp.config import parse_mapfiles
+from imp.config import icfg
 
-parse_mapfiles()
+icfg.init()
 
 PAIRS   = config['pairnames']
 RNA     = config['rrna']['genes']
 
 wildcard_constraints:
-    dir    = "[^/]+",
-    dir1   = "[^/]+",
-    dir2   = "[^/]+",
-    sample = "[^/]+",
-    fracid = "[0-9][0-9]",
+    dir      = "[^/]+",
+    dir1     = "[^/]+",
+    dir2     = "[^/]+",
+    sample   = "[^/]+",
+    file     = "[^/]+",
+    
+    nodots   = "[^/.]+",
+    query    = "[^/.]+",
+    gene     = "[^/.]+",
+    
+    fracid   = "[0-9][0-9]",
     coverage = "[0-9]+",
-    rnagene="({})".format("|".join(config['rrna']['genes']))
+    evalue   = "[0-9]+",
+    length   = "[1-0][0-9]*",
+
+    SRR = "[EDS]RR[0-9]+",
+    rnagene="({})".format("|".join(config['rrna']['genes'])),
+    project = "({})".format("|".join(icfg.datasets)),
+    assembler = "(mh|sp)",
+    mapper = "(bowtie2|bbmap)",
+
+    fasta = "(fasta|fna|fa)",
+    fagz  = "(fasta|fna|fa)(|.gz)",
+    fqgz  = "(fq)(|.gz)",
+
+    by = "(\.by_[^./]*)"
+    

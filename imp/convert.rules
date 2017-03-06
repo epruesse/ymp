@@ -1,0 +1,38 @@
+"Generic file conversion rules"
+
+rule blast7_to_gff:
+    input: "{path}.blast7"
+    output: "{path}.gff"
+    run:
+        with open(input, "r") as inf, open(output, "w") as outf:
+            gff = gff.writer(outf)
+            for hit in blast.reader(inf):
+                gff.write(gff.Feature(hit))
+                
+rule fasta_to_fastp:
+    message:
+        "FASTA->FASTP {input}"
+    input:
+        "{path}.fasta"
+    output:
+        "{path}.fastp"
+    run:
+        from imp.nuc2aa import fasta_dna2aa
+        with open(input[0], "r") as inf, open(output[0], "w") as outf:
+            fasta_dna2aa(inf, outf)
+
+
+rule fasta_to_fastp_gz:
+    message:
+        "FASTA->FASTP {input}"
+    input:
+        "{path}.fasta.gz"
+    output:
+        "{path}.fastp.gz"
+    run:
+        from imp.nuc2aa import fasta_dna2aa
+        import gzip as gz
+        with gz.open(input[0], "r") as inf, gz.open(output[0], "w") as outf:
+            fasta_dna2aa(inf, outf)
+
+

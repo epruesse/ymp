@@ -1,7 +1,8 @@
 from imp.snakemake import config
+from imp.config import icfg
 from snakemake.io import expand
 
-from util import R, glob_wildcards, read_propfiles, get_ncbi_root
+from imp.util import R, glob_wildcards, read_propfiles, get_ncbi_root
 from config import dir2targets, dir2targets2
 
 import glob
@@ -17,38 +18,6 @@ TRIMMED = "10_trimmed_reads"
 
 localrules: bbmap_index, all_fasta, all_fq
 
-
-rule symlink_raw_reads:
-    message: "Creating symlink {output} -> {input}"
-    input:   lambda wc: config['pe_sample'][wc.sample][wc.r]
-    output:  "{$RAW}/{sample}.{r}.fq.gz"
-    shell:   "ln -s {input} {output}"
-
-
-rule fastqc:
-    message: "Creating QC report for {input}"
-    input:   "{dir}/{sample}.{$PAIRS}.fq.gz"
-    output:  "{dir}_qc/{sample}.{$PAIRS}_fastqc.html",
-             "{dir}_qc/{sample}.{$PAIRS}_fastqc.zip"
-    threads: 1
-    shell: """
-    module load fastqc
-
-    fastqc -t {threads} -o {wildcards.dir}_qc {input} -k 10
-    """
-
-rule multiqc:
-    message: "Aggregating QC reports for {wildcards.dir}"
-    output: "{dir}_qc.html",
-            "{dir}_qc/multiqc_data"
-    input: "{dir}_qc/{$config[pe_samples]}.{$PAIRS}_fastqc.html"
-    shell: """
-    multiqc --outdir {wildcards.dir}_qc \
-            --title  {wildcards.dir} \
-            --force \
-            {wildcards.dir}_qc
-    mv {wildcards.dir}_qc/multiqc_report.html {output[0]}
-    """
 
 rule multiqc_bysample:
     message: "Aggregating QC reports for {wildcards.sample}: {input}"
@@ -73,20 +42,6 @@ rule multiqc_bysample:
     """
 
 
-rule trim_bbduk_adapter:
-    message: "BBDuk A+Q trimming at Q{wildcards.Q}: {wildcards.dir}/{wildcards.sample}"
-    input:  "{dir}/{sample}.{$PAIRS}.fq.gz"
-    output: "{dir}.trimAQ{Q,\d+}/{sample}.{$PAIRS}.fq.gz"
-    threads: 16
-    shell: """
-    module load bbmap
-    BBPATH=$(which bbduk.sh)
-    BBPATH=${{BBPATH%/*}}
-    bbduk.sh in={input[0]} in2={input[1]} out={output[0]} out2={output[1]} \
-             trimq={wildcards.Q} qtrim=r \
-             ref=$BBPATH/resources/adapters.fa ktrim=r k=23 mink=11 hdist=1 tpe tbo \
-             pigz unpigz jni threads={threads} -Xmx80g
-    """
 
 
 rule split_by_length:
@@ -156,66 +111,9 @@ rule all_paired:
     shell: "touch {output}"
     
                         
-rule phyloFlash:
-    message: "PhyloFlash {wildcards.dir}/{wildcards.sample}"
-    input: "{dir}/{sample}.{$PAIRS}.fq.gz"
-    output: "{dir}.pf/{sample}.phyloFlash.NTUabundance.csv"
-    threads: 16
-    shell:"""
-    cd {wildcards.dir}.pf
-    phyloFlash.pl -skip_emirge \
-                  -skip_spades \
-                  -html \
-                  -readlength 301 \
-                  -read1 ../{input[0]} \
-                  -read2 ../{input[1]} \
-                  -lib {wildcards.sample} \
-                  -CPUs {threads}
-    """
 
 
-rule phyloFlash_heatmap:
-    message: "PhyloFlash Heatmap {wildcards.dir}"
-    input: "{dir}/{$config[pe_samples]}.phyloFlash.NTUabundance.csv"
-    output: "{dir}_heatmap.pdf"
-    threads: 1
-    shell:"""
-    phyloFlash_heatmap.R {input} --out {output}
-    """
 
-
-rule bb_ecco:
-    message: "BBMerge ecco {wildcards.dir}/{wildcards.sample}"
-    input: "{dir}/{sample}.{$PAIRS}.fq.gz"
-    output: "{dir}.ecco/{sample}.{$PAIRS}.fq.gz",
-            adapter="{dir}.ecco/{sample}.adapter.fq"
-    threads: 16
-    shell: """
-    module load bbmap
-    bbmerge.sh in={input[0]} in2={input[1]} out={output[0]} out2={output[1]} \
-               outadapter={output.adapter} \
-             ecco ecctadpole mix \
-             threads={threads} jni -Xmx60g
-    """
-
-rule megahit:
-    message: "Assembling {wildcards.dir}/{wildcards.sample} with megahit"
-    input: "{dir}/{sample}.{$PAIRS}.fq.gz"
-    output: "{dir}.mh/{sample}.fasta"
-    threads: 33
-    shell: """
-    module load megahit
-    if [ -s {input[0]} -a -s {input[1]} ]; then
-      megahit -1 {input[0]} -2 {input[1]} \
-              --presets meta -t {threads} \
-              -o {wildcards.dir}.mh/{wildcards.sample} \
-              --tmp-dir /scratch/$HOME/tmp
-      mv {wildcards.dir}.mh/{wildcards.sample}/final.contigs.fa {output}
-    else
-      echo One of the input files {input} did not exist or was empty
-    fi
-    touch {output}
-    """
 
 rule megahit_n50:
     message: "Gathering assembly statistics"
@@ -228,26 +126,6 @@ rule megahit_n50:
         """)
     
 
-rule megahit_coassembly:
-    message: "Co-Assembling {wildcards.dir} with megahit"
-    input: fwd = "{dir}/{$config[pe_samples]}.{$PAIRS[0]}.fq.gz",
-           rev = "{dir}/{$config[pe_samples]}.{$PAIRS[1]}.fq.gz"
-    output: "{dir}.mhc/contigs.fasta"
-    threads: 33
-    run:
-        non_empty = [os.path.getsize(r) > 0 and os.path.getsize(r) > 0
-                     for f,r in zip(input.fwd, input.rev)]
-        fwd = ",".join([x for x,k in zip(input.fwd, non_empty) if k])
-        rev = ",".join([x for x,k in zip(input.rev, non_empty) if k])
-        shell("""
-        module load megahit
-        rm -rf {wildcards.dir}.mhc
-        megahit -1 {fwd} -2 {rev} \
-                --presets meta -t {threads} \
-                -o {wildcards.dir}.mhc \
-                --tmp-dir /scratch/$HOME/tmp
-        mv {wildcards.dir}.mhc/final.contigs.fa {output}
-        """)
 
 
 rule spades_coassembly:
@@ -391,11 +269,10 @@ cags_complete, = glob_wildcards("{dir,[^/]*}.cags/log.txt")
 rule summarize_cag_runs__grep:
     message: "Parsing CAG logfiles"
     output: temp("cag_stats.txt")
-    input: "{$cags_complete}.cags/log.txt"
+    input: expand("{cags_complete}.cags/log.txt", cags_complete=cags_complete)
     shell: """
     grep -P "^[^:]+: ?[0-9]+$" {input} > {output}
     """
-
 
 rule summarize_cag_runs__R:
     message: "Tabularizing CAG stats"

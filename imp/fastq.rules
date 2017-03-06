@@ -1,0 +1,393 @@
+from imp.config import icfg
+import os
+
+
+"""
+This file contains the rules dealing with FQ file provisioning and preparation. 
+"""
+
+
+
+###
+###  SRA access 
+###
+
+
+localrules: prefetch
+rule prefetch:
+    """
+    Downloads SRA files into NCBI SRA folder (ncbi/public/sra).
+    """
+    message:
+        "Pre-Fetching {wildcards.SRR}"
+    output:
+        "{:sra:}/{SRR}.sra"
+    conda:
+        srcdir("fastqc.yml")
+    shell: """
+    prefetch {wildcards.SRR}
+    """
+
+
+rule fastq_dump:
+    """
+    Extracts FQ from SRA files
+    """
+    message:
+        "Extracging FastQ from {wildcards.SRR}"
+    input:
+        "{:sra:}/{SRR}.sra"
+    output:
+        "{:scratch:}/SRR/{SRR}_1.fastq.gz",
+        "{:scratch:}/SRR/{SRR}_2.fastq.gz"
+    params:
+        outdir = icfg.scratchdir + "/SRR"
+    conda:
+        srcdir("fastqc.yml")
+    shell: """
+    cd {params.outdir}
+    fastq-dump {wildcards.SRR} \
+        --split-files \
+        --gzip 
+    """
+
+
+###
+###  Linking into current workspace
+###
+    
+
+localrules: symlink_raw_reads
+rule symlink_raw_reads:
+    """Normalize FQ names by creating symlinks to original files"""
+    message:
+        "Creating symlink {output} -> {input}"
+    input:
+        # extract path from config file:
+        lambda wc: icfg.FQpath(wc.project, wc.run, wc.pairsuff)
+    output:
+        "{project}/{run}.{pairsuff}.fq.gz"
+    run:
+        if not os.path.isabs(input[0]):
+            input[0] = os.path.join("..", input[0])
+        os.symlink(input[0], output[0])
+
+rule symlink_all_raw_reads:
+    message:
+        "Linked all input FQ files"
+    input:
+        lambda wc: expand(
+            "{project}/{run}.{pairsuff}.fq.gz",
+            project=wc.project,
+            run=icfg.getRuns(wc.project),
+            pairsuff=icfg.pairnames
+        )
+    output:
+        "{project}/all"
+    shell: "touch {output}"
+
+
+###
+###  Quality Reports
+###
+
+
+rule fastqc:
+    """Run FastQC on read files"""
+    message:
+        "Creating QC report for {input}"
+    input:
+        "{dir}/{file}.fq.gz"
+    output:
+        "{dir}_qc/{file}_fastqc.html",
+        "{dir}_qc/{file}_fastqc.zip"
+    threads:
+        2
+    params:
+        k = 10
+    conda:
+        srcdir("fastqc.yml")
+    shell: """
+    conda info 
+    # override too low memory requested by fastqc 0.11.5 of 256M per thread:
+    export _JAVA_OPTIONS="-Xmx$[{threads} * 4 * 1024]m"
+    fastqc -t {threads} -o {wildcards.dir}_qc {input} -k 10
+    """
+
+
+rule multiqc:
+    """Assemble report on all FQ files in a directory"""
+    message:
+        "Aggregating QC reports for {wildcards.dir}"
+    output:
+        icfg._expand(["{reportsdir}/{dir}_qc.html",
+                      "{dir}_qc/multiqc_data"])
+    input:
+        icfg.expand("{dir}_qc/{fastq_basenames}_fastqc.html")
+    threads:
+        1
+    conda:
+        srcdir("conda.yml")
+    shell: """
+    multiqc --outdir {wildcards.dir}_qc \
+            --title  {wildcards.dir} \
+            --force \
+            {wildcards.dir}_qc
+    mv {wildcards.dir}_qc/multiqc_report.html {output[0]}
+    """
+
+
+rule phyloFlash:
+    """Run PhyloFlash on samples"""
+    message:
+        "PhyloFlash {wildcards.dir}/{wildcards.sample}"
+    input:
+        icfg.expand("{dir}/{sample}.{pairnames}.fq.gz")
+    output:
+        "{dir}.pf/{sample}.phyloFlash.NTUabundance.csv"
+    threads:
+        16
+    shell: """
+    cd {wildcards.dir}.pf
+    phyloFlash.pl -skip_emirge \
+                  -skip_spades \
+                  -html \
+                  -readlength 301 \
+                  -read1 ../{input[0]} \
+                  -read2 ../{input[1]} \
+                  -lib {wildcards.sample} \
+                  -CPUs {threads}
+    """
+
+
+rule phyloFlash_heatmap:
+    message:
+        "PhyloFlash Heatmap {wildcards.dir}"
+    input:
+        icfg.expand("{dir}/{fastq_basenames}.phyloFlash.NTUabundance.csv")
+    output:
+        icfg._expand("{reportsdir}/{dir}_heatmap.pdf")
+    threads:
+        1
+    shell: """
+    phyloFlash_heatmap.R {input} --out {output}
+    """
+
+
+###
+###  Error correction
+###
+
+
+rule bb_ecco:
+    """Error correction with BBMerge overlapping"""
+    message:
+        "BBTools merge ecco {wildcards.dir}/{wildcards.sample}"
+    input:
+        "{dir}/{sample}.{:pairnames:}.fq.gz"
+    output:
+        icfg._expand("{dir}.ecco/{sample}.{pairnames}.fq.gz"),
+        adapter="{dir}.ecco/{sample}.adapter.fq"
+    threads:
+        16
+    shell: """
+    module load bbmap
+    bbmerge.sh in={input[0]} in2={input[1]} out={output[0]} out2={output[1]} \
+               outadapter={output.adapter} \
+               ecco ecctadpole mix \
+               threads={threads} jni -Xmx60g
+    """
+
+
+###
+###  Trimming
+###
+
+    
+rule trim_bbduk_adapter:
+    """Trimming and Adapter Removal using BBTools BBDuk"""
+    message:
+        "BBDuk A+Q trimming at Q{wildcards.Q}: {wildcards.dir}/{wildcards.sample}"
+    input:
+        "{dir}/{sample}.{:pairnames:}.fq.gz"
+    wildcard_constraints:
+        Q = "\d+"
+    output:
+        "{dir}.trimAQ{Q}/{sample}.{:pairnames:}.fq.gz"
+    threads:
+        16
+    shell: """
+    module load bbmap
+
+    BBPATH=$(which bbduk.sh)
+    BBPATH=${{BBPATH%/*}}
+
+    bbduk.sh in={input[0]} in2={input[1]} out={output[0]} out2={output[1]} \
+             trimq={wildcards.Q} qtrim=r \
+             ref=$BBPATH/resources/adapters.fa ktrim=r k=23 mink=11 hdist=1 tpe tbo \
+             pigz unpigz jni threads={threads} -Xmx80g
+    """
+
+
+###
+###  Contaminant filtering
+###
+
+
+bbfiles="scafstats refstats "
+bbfiles+="covstats rpkm covhist basecov bincov"
+
+bbstats =  "bhist qhist aqhist bqhist lhist ihist ehist qahist "
+bbstats += "indelhist mhist gchist idhist statsfile"
+bbstats = bbstats.split()
+
+rule bbmap_makedb:
+    message:
+        "BBMap: preparing index for ref={input}"
+    input:
+        "{path}/{file}.{fagz}"
+    output:
+        "{path}/{file}.{fagz}.bbidx/ref/genome/1/summary.txt",
+        "{path}/{file}.{fagz}.bbidx",
+    log:
+        "{path}/{file}.{fagz}.bbidx/bbmap_index.log"
+    params:
+        path="{path}/{file}.bbidx/",
+        fagz="{fagz}"
+    threads:
+        8
+    shell: """
+
+    bbmap.sh path={params.path} ref={input} threads={threads} \
+    pigz unpigz jni >{log} 2>&1
+    """
+
+rule bbmap_rmhuman:
+    message:
+        "BBTools removing human reads from {input}"
+    input:
+        "{dir}/{sample}.{:pairnames:}.fq.gz"
+    output:
+        clean="{dir}.xhum/{sample}.{:pairnames:}.fq.gz",
+        human="{dir}.xhum/{sample}.human.{:pairnames:}.fq.gz",
+        stats=expand("{{dir}}.xhum/{{sample}}.{x}",x=bbstats)
+    log:
+        "{dir}.xhum/{sample}.log"
+    params:
+        stats=lambda wc: expand("{x}={dir}.xhum/{sample}.{x}",x=bbstats,**wc),
+        minid=0.95,
+        maxindel=3,
+        bwr=0.16,
+        bw=12,
+        trimq=10,
+        qtrim="rl",
+        flags="quickmatch fast untrim machineout",
+        minhits=2,
+        mem=23,
+        path=config['human']
+    threads:
+        16
+    shell:
+        "bbmap.sh "
+        " minid={params.minid} "
+        " maxindel={params.maxindel} "
+        " bwr={params.bwr} "
+        " bw={params.bw} "
+        " {params.flags} "
+        " minhits={params.minhits} "
+        " path={params.path} "
+        " qtrim={params.qtrim} "
+        " trimq={params.trimq} "
+        " -Xmx{params.mem}g "
+        " in={input[0]} "
+        " in2={input[1]} "
+        " outu={output.clean[0]} "
+        " outu2={output.clean[1]} "
+        " outm={output.human[0]} "
+        " outm2={output.human[1]} "
+        " threads={threads} "
+        " {params.stats} "
+        " > {log} 2>&1"
+
+
+###
+### De-duplication
+###
+
+        
+rule bbmap_dedupe:
+    message:
+        "BBTools dedupe'ing {input}"
+    input:
+        "{dir}/{sample}.{:pairnames:}.fq.gz"
+    output:
+        "{dir}.ddp/{sample}.{:pairnames:}.fq.gz"
+    log:
+        "{dir}.ddp/{sample}.log"
+    threads:
+        4
+    shell:"""
+    dedupe.sh unpigz threads={threads} \
+      in={input[0]} in2={input[1]} out=stdout 2>{log} |\
+      paste - - - -  - - - - | \
+      tee >(cut -f 1-4 | tr "\t" "\n" | pigz -p {threads} > {output[0]}) | \
+      cut -f 5-8 | tr "\t" "\n" | pigz -p {threads} > {output[1]}
+    """
+        
+
+rule my_scan:
+    message:
+        "Scanning {wildcards.dir} {wildcards.sample}"
+    input:
+        "{dir}/{sample}.{:pairnames:}.fq.gz"
+    output:
+        "{dir}.scan/{sample}.bhist.csv"
+    threads:
+        2
+    log:
+        "{dir}.scan/{sample}.log"
+    params:
+        basename="{dir}.scan/{sample}",
+        k=7, s=7, o=0, n=8
+    shell: """
+    ./scan.py -t fq -k {params.k} -s {params.s} -o {params.o} -n {params.n} \
+              {input} {params.basename} >& {log}
+    """
+
+rule my_scan_mapped:
+    message:
+        "Scanning BAMs {wildcards.dir} {wildcards.sample}"
+    input:
+        bam="{dir}.map/{sample}.contigs.{mapper}.sorted.bam",
+        bai="{dir}.map/{sample}.contigs.{mapper}.sorted.bam.bai"
+    output:
+        "{dir}.map.cov/{sample}.contigs.{mapper}.kmerhist_k{k}_s{s}_o{o}_n{n}.csv"
+    log:
+        "{dir}.map.cov/{sample}.contigs.{mapper}.scan.log"
+    params:
+        basename="{dir}.map.cov/{sample}.contigs.{mapper}",
+        k="{k}",
+        s="{s}",
+        o="{o}",
+        n="{n}"
+    shell: """
+    ./scan.py -t bam -k {params.k} -s {params.s} -o {params.o} -n {params.n} \
+              {input.bam} {params.basename} >& {log}
+    """
+        
+rule myscan_all:
+    message:
+        "Completed all scans for {wildcards.dir}"
+    input:
+        "{dir}.scan/{:runs:}.bhist.csv"
+    output:
+        "{dir}.scan/all"
+
+
+rule myscan_allx:
+    message:
+        "Completed all scans for {wildcards.dir}"
+    input:
+        "{dir}.scan/{:runs:}.{mapper}.kmerhist_k7_s7_o0_n8.csv"
+    output:
+        "{dir}.scan/all_{mapper}"

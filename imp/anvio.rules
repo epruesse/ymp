@@ -1,0 +1,185 @@
+rule anvio_convert_input_fasta:
+    message:
+        "Preparing contigs for Anvio import"
+    input:
+        "{dir}/{sample}.contigs.fasta.gz"
+    output:
+        "{dir}.anvio/{sample}.fa"
+    shell:"""
+    unpigz -c {input} | sed '/^>/ s/ .*//' > {output}
+    """
+
+rule anvio_convert_gff:
+    message:
+        "Preparing gene predictions for Anvio import"
+    input:
+        "{dir}.genes/{sample}.prodigal.gff.gz"
+    output:
+        "{dir}.anvio/{sample}.genecalls.tsv"
+    run:
+        import gzip, gff, csv
+        with gzip.GzipFile(input[0], "r") as inf,\
+             open(output[0], "w") as outf:
+            gffreader = gff.reader(inf)
+            tsvwriter = csv.writer(outf, delimiter='\t')
+            tsvwriter.writerow([
+                'gene_callers_id',
+                'contig',
+                'start',
+                'stop',
+                'direction',
+                'partial',
+                'source',
+                'version'
+            ])
+
+            for num, feature in enumerate(gffreader):
+                row = [
+                    # gene_callers_id -- 1 indexed gene id
+                    num+1,
+                    # contig -- name of contig
+                    feature.seqid,
+                    # start -- start pos, 0 indexed
+                    feature.start - 1,
+                    # stop -- stop pos, 0 indexed
+                    feature.end,
+                    # direction -- f or r
+                    "f" if feature.strand == "+" else "r",
+                    # partial -- 0 or 1
+                    0,# if ((feature.end - feature.start + 1) %% 3 == 0) else 1,
+                    # source -- name of caller
+                    feature.source.split("_")[0],
+                    # version -- version of caller
+                    feature.source.split("_")[1]
+                ]
+                tsvwriter.writerow(row)
+                
+
+rule anvio_makedb:
+    message:
+        "Creating Anvi'o database"
+    input:
+        fasta = "{dir}.anvio/{sample}.fa",
+        calls = "{dir}.anvio/{sample}.genecalls.tsv"
+    output:
+        db = "{dir}.anvio/{sample}.db"
+    shell: """
+    anvi-gen-contigs-database -f {input.fasta} -o {output.db} \
+    --external-gene-calls {input.calls}
+    """
+
+rule anvio_hmm:
+    " needs hmmscan"
+    message:
+        "Running Anvio HMMs"
+    input:
+        db="{dir}.anvio/{sample}.db"
+    output:
+        stamp="{dir}.anvio/{sample}.stamp_hmm"
+    threads:
+        2
+    shell: """
+    anvi-run-hmms -c {input.db} \
+                  --num-threads {threads}
+    touch {output.stamp}
+    """
+
+rule anvio_export_genes:
+    input:
+        "{dir}.anvio/{sample}.db"
+    output:
+        temp("{dir}.anvio/{sample}.gene-calls.fa")
+    shell: """
+    anvi-get-dna-sequences-for-gene-calls -c {input} -o {output}
+    """
+
+rule anvio_centrifuge:
+    input:
+        "{dir}.anvio/{sample}.gene-calls.fa"
+    output:
+        hits=temp("{dir}.anvio/{sample}.centrifuge-hits.tsv"),
+        report=temp("{dir}.anvio/{sample}.centrifuge-report.tsv")
+    log:
+        "{dir}.anvio/{sample}.centrifuge.log"
+    shadow:
+        "shallow"
+    threads:
+        1
+    params:
+        cfdb = "/Users/elpr2080/dbs/centrifuge/p+h+v"
+    shell: """
+    centrifuge -f -x {params.cfdb} {input} -S {output.hits} \
+      -p {threads} -t &> {log}
+    ls -la
+    pwd
+    mv centrifuge_report.tsv {output.report}
+    """
+
+rule anvio_import_centrifuge:
+    input:
+        db="{dir}.anvio/{sample}.db",
+        hits="{dir}.anvio/{sample}.centrifuge-hits.tsv",
+        report="{dir}.anvio/{sample}.centrifuge-report.tsv"
+    output:
+        stamp="{dir}.anvio/{sample}.stamp_centrifuge"
+    log:
+        "{dir}.anvio/{sample}.centrifuge_import.log"
+    shadow:
+        "shallow"
+    shell: """
+    ln -s {input.hits} centrifuge_hits.tsv
+    ln -s {input.report} centrifuge_report.tsv
+    anvi-import-taxonomy -c {input.db} -i centrifuge_report.tsv centrifuge_hits.tsv -p centrifuge
+    touch {output.stamp}
+    """
+                    
+    
+    
+rule anvio_profile_partial_coassembly:
+    message:
+        "Importing BAM files into Anvio"
+    input:
+        bam="{dir}.map/{target}.contigs.{source}.bowtie2.sorted.bam",
+        bai="{dir}.map/{target}.contigs.{source}.bowtie2.sorted.bam.bai",
+        db="{dir}.anvio/{target}.db",
+        stamp="{dir}.anvio/{target}.stamp_hmm"
+    output:
+        stamp="{dir}.anvio/{target}.stamp_profile_{source}",
+        dir="{dir}.anvio/{target}_{source}.d",
+        runinfo="{dir}.anvio/{target}_{source}.d/RUNINFO.cp"
+    run:
+        sample_name = "s"+wildcards.source.replace("-","_")
+        shell("""
+        rm -rf {output.dir}
+        anvi-profile -i {input.bam} -c {input.db} -o {output.dir} \
+        --sample-name {sample_name} --cluster-contigs
+        touch {output.stamp}
+        """)
+
+rule anvio_all_for_target:
+    input:
+        "{dir}{by}.mhc.anvio/{target}.stamp_profile_{:sources:}"
+    output:
+        "{dir}{by}.mhc.anvio/{target}.stamp_profiled"
+    shell:
+        "touch {output}"
+
+rule anvio_merge:
+    input:
+        db="{dir}{by}.mhc.anvio/{target}.db",
+        runinfo="{dir}{by}.mhc.anvio/{target}_{:sources:}.d/RUNINFO.cp"
+    output:
+        stamp = "{dir}{by}.mhc.anvio/{target}.stamp_merged",
+        dir = "{dir}{by}.mhc.anvio/{target}.d"
+    params:
+        sample_name = "s{target}"
+    shell: """
+    anvi-merge \
+    -c {input.db} \
+    -S {params.sample_name} \
+    -o {output.dir} \
+    {input.runinfo}
+    """
+        
+
+#TODO: canonicalize sample names

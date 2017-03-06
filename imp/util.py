@@ -1,6 +1,7 @@
 from snakemake.io import expand 
 from snakemake.utils import format
 from snakemake.workflow import config
+from snakemake.io import Namedlist
 
 import re, os
 import textwrap
@@ -54,58 +55,69 @@ def glob_wildcards(pattern, files=None):
     # work around partial matching bug in python regex module
     # by replacing matches for "\" with "[/\0]" (0x0 can't occur in filenames)
     pattern = re.sub('\\\\/','[/\0]', pattern)
-    pattern = re.compile(pattern)
+    cpattern = re.compile(pattern)
 
-    def walker():
+    def walker(dirname, pattern):
+        """finds files/dirs matching `pattern` in `dirname`"""
         for dirpath, dirnames, filenames in os.walk(dirname):
+            dirpath = os.path.normpath(dirpath)
             for f in filenames:
                 if dirpath != ".":
                     f=os.path.join(dirpath, f)
-                yield f
+                match = pattern.match(f)
+                if match:
+                    yield match
             for i in range(len(dirnames)-1, -1, -1):
                 d = dirnames[i]
                 if dirpath != ".":
                     d=os.path.join(dirpath, d)
-                if not pattern.match(os.path.join(d,""), partial=True):
+                match = pattern.match(os.path.join(d,""), partial=True)
+                if not match:
                     del dirnames[i]
-                else:
-                    yield d
-    
-    if files is None:
-        files = walker()
+                    continue
+                if match.partial:
+                    continue
+                yield match
 
-    for f in files:
-        match = re.match(pattern, os.path.normpath(f))
-        if match:
+    print("searching {}".format(pattern))
+    if files is None:
+        for match in walker(dirname, cpattern):
             for name, value in match.groupdict().items():
                 getattr(wildcards, name).append(value)
+    else:
+        for f in files:
+            match = re.match(cpattern, os.normpath(f))
+            if match:
+                for name, value in match.groupdict().items():
+                    getattr(wildcards, name).append(value)
+    print("searching {}: done".format(pattern))
     return wildcards
 
 
-from rpy2.robjects import default_converter, conversion, sequence_to_vector
-from rpy2.robjects import conversion
-from rpy2 import robjects, rinterface
+def activate_R():
+    from rpy2.robjects import default_converter, conversion, sequence_to_vector
+    from rpy2.robjects import conversion
+    from rpy2 import robjects, rinterface
 
 
-@default_converter.py2ri.register(dict)
-def _(obj):
-    keys = list(obj.keys())
-    res = rinterface.ListSexpVector([conversion.py2ri(obj[x]) for x in keys])
-    res.do_slot_assign('names',rinterface.StrSexpVector(keys))
-    return res
+    @default_converter.py2ri.register(dict)
+    def _(obj):
+        keys = list(obj.keys())
+        res = rinterface.ListSexpVector([conversion.py2ri(obj[x]) for x in keys])
+        res.do_slot_assign('names',rinterface.StrSexpVector(keys))
+        return res
 
-@default_converter.py2ri.register(tuple)
-def _(obj):
-    return conversion.py2ri(list(obj))
+    @default_converter.py2ri.register(tuple)
+    def _(obj):
+        return conversion.py2ri(list(obj))
 
-@default_converter.py2ri.register(list)
-def _(obj):
-    #return sequence_to_vector(obj)
-    obj = rinterface.ListSexpVector([conversion.py2ri(x) for x in obj])
-    return robjects.r.unlist(obj, recursive=False)
+    @default_converter.py2ri.register(list)
+    def _(obj):
+        #return sequence_to_vector(obj)
+        obj = rinterface.ListSexpVector([conversion.py2ri(x) for x in obj])
+        return robjects.r.unlist(obj, recursive=False)
 
 
-from snakemake.io import Namedlist
 def R(code="", **kwargs):
     """Execute R code
 
@@ -131,6 +143,8 @@ def R(code="", **kwargs):
     except ImportError:
         raise ValueError(
             "Python 3 package rpy2 needs to be installed to use the R function.")
+
+    activate_R
     
     # translate Namedlists into rpy2's TaggedList to have named lists in R
     for key in kwargs:
@@ -150,11 +164,13 @@ def R(code="", **kwargs):
     if rval and len(rval) == 1:
         return rval[0]
     return rval
-            
+
+
 def Rmd(rmd, out, **kwargs):
     from snakemake.workflow import srcdir
     R("""
     library(rmarkdown)
+    print(out)
     rmarkdown::render(rmd, params=paramx, output_file=out)
     """,
       rmd=rmd,

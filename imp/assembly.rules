@@ -1,0 +1,549 @@
+from imp.util import glob_wildcards
+from imp.config import icfg
+
+
+rule megahit:
+    """
+    General megahit assembly rule
+    
+    - Extracts fastg from last K iteration.
+    - Zips fasta, fastg and log output.
+    - Removes intermediary contigs after completion.
+    """
+    message:
+        "Megahit: assembling {wildcards.dir}/{wildcards.sample}"
+    input:
+        "{dir}/{sample}.{: pairnames :}.fq.gz"
+    output:
+        fasta="{dir}.mh/{sample}.contigs.fasta.gz",
+        fastg="{dir}.mh/{sample}.contigs.fastg.gz"
+    log:
+        "{dir}.mh/{sample}.log.gz"
+    params:
+        workdir="{dir}.mh/{sample}/"
+    threads:
+        16
+    shell: """
+    #module load megahit
+    if [ -s {input[0]} -a -s {input[1]} ]; then
+      megahit -1 {input[0]} -2 {input[1]} \
+              --presets meta-sensitive -t {threads} \
+              -o {wildcards.dir}.mh/{wildcards.sample} \
+              --tmp-dir /scratch/$HOME/tmp -f 
+
+      # quit if not finished
+      [ -e {params.workdir}/done ] || exit 1
+
+      # output zipped contigs
+      pigz -p {threads} -9 -c {params.workdir}/final.contigs.fa > {output.fasta}
+
+      # output the zipped log
+      cat {params.workdir}/{{opts.txt,log}} |\
+      pigz -p {threads} -9 -c > {log}
+
+      # determine largest K used
+      MAXK=`tac {params.workdir}/log | sed -nr 's/^---.*k = ([0-9]{{2,3}}) ---/\\1/p;' | head -n1`
+
+      # output the zipped fastg
+      megahit_toolkit contig2fastg $MAXK \
+         {params.workdir}/intermediate_contigs/k${{MAXK}}.contigs.fa |\
+         pigz -p {threads} -9 -c > {output.fastg}
+
+      # remove intermediate contigs
+      rm -rf {params.workdir}
+    else
+      echo One or both of the input files {input} did not exist or was empty
+    fi
+    """
+
+
+rule megahit_partial_coassembly:
+    """
+    Specialized megahit assembly rule for co-assembly by column value
+
+    use with reads.by_COLUMN.mhc/complete as target
+
+    Same as general megahit rule, but does co-assemblies on groups in the
+    data (e.g. by subject)
+    """
+    message:
+        "Co-Assembling {wildcards.target} with megahit"
+    input:
+        r1="{dir}/{: sources :}.{: pairnames[0] :}.fq.gz",
+        r2="{dir}/{: sources :}.{: pairnames[1] :}.fq.gz"
+    output:
+        fasta = "{dir}{by}.mhc/{target}.contigs.fasta.gz",
+        fastg = "{dir}{by}.mhc/{target}.contigs.fastg.gz"
+    log:
+        "{dir}{by}.mhc/{target}.log.gz"
+    params:
+        workdir="{dir}{by}.mhc/{target}/",
+    threads:
+        16
+    run:
+        if isinstance(input.r1, str):
+            input.r1 = [input.r1]
+            input.r2 = [input.r2]
+            
+        csr1=",".join(input.r1)
+        csr2=",".join(input.r2)
+
+        shell("""
+    # delete workdir if no opts.txt was recorded (never started really)
+    [ -e {params.workdir}/opts.txt ] || rm -rf {params.workdir}
+
+    megahit -1 {csr1} -2 {csr2} \
+      --presets meta-sensitive \
+      --num-cpu-threads {threads} \
+      --out-dir {params.workdir} \
+      --tmp-dir /scratch/$HOME/tmp \
+
+    # quit if not finished
+    [ -e {params.workdir}/done ] || exit 1
+
+    # output zipped contigs
+    pigz -p {threads} -9 -c {params.workdir}/final.contigs.fa > {output.fasta}
+
+    # output the zipped log
+    cat {params.workdir}/{{opts.txt,log}} |\
+    pigz -p {threads} -9 -c > {log}
+
+    # determine largest K used
+    MAXK=`tac {params.workdir}/log | sed -nr 's/^---.*k = ([0-9]{{2,3}}) ---/\\1/p;' | head -n1`
+
+    # output the zipped fastg
+    megahit_toolkit contig2fastg $MAXK \
+    {params.workdir}/intermediate_contigs/k${{MAXK}}.contigs.fa |\
+    pigz -p {threads} -9 -c > {output.fastg}
+
+    # remove intermediate contigs
+    #rm -rf {params.workdir}
+    """)
+
+rule megahit_partial_coassembly_all:
+    "Rule to trigger building all co-assemblies in a directory"
+    message:
+        "Finished co-assembling"
+    input:
+        "{dir}.mhc/{: targets :}.contigs.fasta.gz"
+    output:
+        "{dir}.mhc/complete"
+    shell:
+        "touch {output}"
+
+        
+
+rule megahit_coassembly:
+    """
+    Specialized megahit co-assembly assembling from all read files in a directory
+
+    Same as the general megahit assembly rule other than that
+    """
+    message:
+        "Co-Assembling all in {wildcards.dir} with megahit"
+    input:
+        r1="{dir}/{: runs :}.{: pairnames[0] :}.fq.gz",
+        r2="{dir}/{: runs :}.{: pairnames[1] :}.fq.gz"
+    output:
+        fasta = "{dir}.mhc/contigs.fasta.gz",
+        fastg = "{dir}.mhc/contigs.fastg.gz"
+    conda:
+        srcdir("megahit.yml")
+    log:
+        "{dir}.mhc/megahit.log.gz"
+    params:
+        workdir="{dir}.mhc/megahit",
+    threads:
+        48
+    shell: """
+    CSR1=`echo {input.r1} | tr ' ' ,`
+    CSR2=`echo {input.r2} | tr ' ' ,`
+
+    # delete workdir if no opts.txt was recorded (never started really)
+    [ -e {params.workdir}/opts.txt ] || rm -rf {params.workdir}
+
+    if [ -e {params.workdir} ]; then 
+        megahit --continue \
+        --out-dir {params.workdir}
+    else
+        megahit -1 $CSR1 -2 $CSR2 \
+        --presets meta-sensitive \
+        --num-cpu-threads {threads} \
+        --out-dir {params.workdir} \
+        --tmp-dir /scratch/$HOME/tmp
+    fi
+
+    # quit if not finished
+    [ -e {params.workdir}/done ] || exit 1
+
+    # output zipped contigs
+    pigz -p {threads} -9 -c {params.workdir}/final.contigs.fa > {output.fasta}
+
+    # output the zipped log
+    cat {params.workdir}/{{opts.txt,log}} |\
+    pigz -p {threads} -9 -c > {log}
+
+    # determine largest K used
+    MAXK=`tac {params.workdir}/log | sed -nr 's/^---.*k = ([0-9]{{2,3}}) ---/\\1/p;' | head -n1`
+
+    # output the zipped fastg
+    megahit_toolkit contig2fastg $MAXK \
+    {params.workdir}/intermediate_contigs/k${{MAXK}}.contigs.fa |\
+    pigz -p {threads} -9 -c > {output.fastg}
+
+    # TODO: remove temp dir?
+    # remove intermediate contigs
+    #rm -rf {params.workdir}
+    """
+
+                
+rule quast_many:
+    message:
+        "QUAST qc'ing {wildcards.dir} assemblies"
+    input:
+        "{dir}.mh/{: runs :}.contigs.fasta.gz"
+    output:
+        "{:reportsdir:}/{dir}.mh_quast"
+    threads:
+        8
+    shell:"""
+    quast -o {output} \
+          -t {threads} \
+          --meta \
+          -L \
+          {input}
+    """
+
+rule quast_partial_coassembly:
+    message:
+        "QUAST qc'ing {wildcards.dir} assemblies"
+    input:
+        "{dir}.mhc/{:targets:}.contigs.fasta.gz"
+    output:
+        "{:reportsdir:}/{dir}.mhc_quast"
+    threads:
+        8
+    shell:"""
+    quast -o {output} \
+          -t {threads} \
+          --meta \
+          -L \
+          {input}
+    """
+    
+
+rule quast:
+    message: "QUAST checking {input}"
+    input:
+        "{dir}/contigs.fasta"
+    output:
+        "{dir}_qc/report.html",
+        "{dir}_qc/report.txt",
+        "{dir}_qc/report.tsv",
+        "{dir}_qc"
+    threads:
+        1
+#    conda:
+#        srcdir("conda.yml")
+    shell: """
+        quast -o {wildcards.dir}_qc/ \
+              -L \
+              --meta {input} \
+              -t {threads} \
+              --gene-finding 
+ 
+    """
+
+    
+rule quast_report:
+    message: "MultiQC aggregating QUAST reports"
+    output:
+        "reports/assembly_stats.html"
+    input:
+#        lambda wc: expand("{dir}_qc", \
+#                          dir=glob_wildcards("{dir,[^/]+}/contigs.fasta")[0])
+    threads:
+        1
+    shell: """
+    multiqc -d -m quast --no-data-dir {input} -n {output}
+    """
+                                        
+rule bbmap:
+    input:
+        contigs="{dir}.{assembler}/{sample}.contigs.fasta.gz",
+        pairs="{dir}/{sample}.{: pairnames :}.fq.gz"
+    output:
+        bam="{dir}.{assembler}.map/{sample}.contigs.bbmap.bam",
+        stats="{dir}.{assembler}.map/{sample}.contigs.bbmap.stats",
+        ihist="{dir}.{assembler}.map/{sample}.contigs.bbmap.ihist"
+    log:
+        "{dir}.{assembler}.map/{sample}.contigs.bbmap.log"
+    threads:
+        8
+    shell: """
+    bbmap.sh threads={threads} jni pigz unpigz \
+             nodisk ref={input.contigs} \
+             in={input.pairs[0]} in2={input.pairs[1]} \
+             out={output.bam} \
+             machineout statsfile={output.stats} \
+             ihist={output.ihist} \
+             ambiguous=all \
+             mdtag \
+             trimreaddescriptions \
+             >{log} 2>&1
+    """
+
+
+rule bbmap_partial_coassembly:
+    """Map read from each co-assembly read file to the assembly"""
+    message:
+        "BBMap mapping sample {wildcards.source} to assembly {wildcards.target}"
+    input:
+        contigs="{dir}{by}.mhc/{target}.contigs.fasta.gz",
+        pairs="{dir}/{source}.{: pairnames :}.fq.gz"
+    output:
+        bam="{dir}{by}.mhc.map/{target}.contigs.{source}.bbmap.bam",
+        stats="{dir}{by}.mhc.map/{target}.contigs.{source}.bbmap.stats",
+        ihist="{dir}{by}.mhc.map/{target}.contigs.{source}.bbmap.ihist"
+    log:
+        "{dir}{by}.mhc.map/{source}.contigs.{source}.bbmap.log"
+    threads:
+        8
+    shell: """
+    bbmap.sh threads={threads} jni pigz unpigz \
+             nodisk ref={input.contigs} \
+             in={input.pairs[0]} in2={input.pairs[1]} \
+             out={output.bam} \
+             machineout statsfile={output.stats} \
+             ihist={output.ihist} \
+             ambiguous=all \
+             mdtag \
+             trimreaddescriptions \
+             >{log} 2>&1
+    """
+
+rule bbmap_partial_coassembly_all_for_target:
+    message:
+        "Finished mapping for {wildcards.target} with {wildcards.mapper}"
+    output:
+        "{dir}{by}.mhc.map/complete_{mapper}_{target}"
+    input:
+        "{dir}{by}.mhc.map/{target}.contigs.{:sources:}.{mapper}.sorted.bam.bai"
+    shell:
+        "touch {output}"
+
+rule bbmap_partial_coassembly_all:
+    message:
+        "Finished mapping with {wildcards.mapper} on {wildcards.dir}"
+    output:
+        "{dir}.mhc.map/complete_{mapper}"
+    input:
+        "{dir}.mhc.map/complete_{mapper}_{:targets:}"
+    shell:
+        "touch {output}"
+
+
+    
+    
+rule bbmap_gene_cat:
+    message:
+        "BBMap mapping to {wildcards.ref} - {wildcards.sample}"
+    output:
+        stats="{dir}.mh.blast.map/{ref}__{sample}.stats"
+    input:
+        ref="{dir}.mh.blast/{ref}.fasta.gz",
+        pairs="{dir}/{sample}.{: pairnames :}.fq.gz"
+    log:
+        "{dir}.mh.blast.map/{ref}__{sample}.log"
+    threads:
+        8
+    shell: """
+    bbmap.sh nodisk pigz unpigz jni machineout \
+      threads={threads} \
+      ref={input.ref} \
+      in={input.pairs[0]} in2={input.pairs[1]} \
+      minid=0.99 \
+      statsfile={output.stats} > {log} 2>&1
+    """
+             
+rule gene_presence_table:
+    message:
+        "IMP creating RMPM table {output}"
+    output:
+        stats="{dir}.mh.blast.map/{ref}.csv"
+    input:
+        "{dir}.mh.blast.map/{ref}__{: runs :}.stats"
+    params:
+        re="{dir}.mh.blast.map/{ref}__(.+).stats"
+    run:
+        import csv, fileinput
+        sample_re = re.compile(params.re)
+        fields = ['sample', 'reads', 'mapped', 'rmpm']
+        with open(output[0], "w") as outf, fileinput.input(input) as f:
+            out = csv.DictWriter(outf, fields)
+            out.writeheader()
+            for line in f:
+                if f.isfirstline():
+                    data={}
+                    sample = sample_re.match(f.filename()).group(1)
+                    
+                if not "=" in line: continue
+                key, val = line.strip().split('=')
+                try:
+                    val = int(val)
+                except Exception as e:
+                    continue
+                
+                data[key] = val
+
+                if key == "R2_Mapped_Reads":
+                    row = {
+                        'mapped': data['R1_Mapped_Reads'] + data['R2_Mapped_Reads'],
+                        'reads':data['Reads_Used'],
+                        'sample':sample
+                    }
+                    row['rmpm'] = row['mapped'] / row['reads'] * 1000000
+                    out.writerow(row)
+
+rule gene_presence_plots:
+    message:
+        "IMO creating RMPM report"
+    input:
+        csv="{dir}.mh.blast.map/{ref}.csv",
+        map="mapping.csv",
+        rmd=srcdir("Genes.Rmd")
+    output:
+        "reports/{dir}.mh.blast.map__{ref}.pdf"
+    run:
+        from imp.util import Rmd
+        Rmd(rmd=input.rmd[0],
+            out=output,
+            csv=os.path.abspath(csv),
+            map=os.path.abspath(map)
+            )
+        
+rule temp_unzip:
+    input: "{path}.fasta.gz"
+    output: temp("{path}.fasta")
+    threads: 8
+    shell: "unpigz -k -p {threads} {input}"
+        
+rule bowtie_index:
+    message:
+        "Bowtie2: Indexing {input.contigs}"
+    input:
+        contigs="{dir}/{sample}.contigs.fasta"
+    output:
+        expand("{{dir}}/{{sample}}.contigs.{ext}",
+               ext="1.bt2 2.bt2 3.bt2 4.bt2 rev.1.bt2 rev.2.bt2".split())
+    params:
+        bt2_base="{dir}/{sample}.contigs"
+    threads:
+        8
+    log:
+        "{dir}/{sample}.contigs.btbuild.log"
+    shell:"""
+    bowtie2-build-s {input.contigs} {params.bt2_base} \
+      --threads {threads} >& {log}
+    """
+
+rule bowtie_map:
+    message:
+        "Bowtie: Mapping {wildcards.sample} from {wildcards.dir} to its assembly"
+    input:
+        contigs="{dir}.{assembler}/{sample}.contigs.fasta.gz",
+        pairs="{dir}/{sample}.{: pairnames :}.fq.gz",
+        index="{dir}.{assembler}/{sample}.contigs.1.bt2"
+    output:
+        bam="{dir}.{assembler}.map/{sample}.contigs.bowtie2.bam",
+        stats="{dir}.{assembler}.map/{sample}.contigs.bowtie2.bt2_stats"
+    log:
+        "{dir}.{assembler}.map/{sample}.contigs.bowtie2.log"
+    params:
+        bt2_base="{dir}.{assembler}/{sample}.contigs",
+        maxins = 800,
+        k = 100
+    threads:
+        16
+    shell:"""
+    bowtie2 \
+        -x {params.bt2_base} \
+        -1 {input.pairs[0]} -2 {input.pairs[1]} \
+        -X {params.maxins} \
+        --met-file {output.stats} \
+        -k {params.k} \
+        -p {threads} \
+        2>{log} \
+        | samtools view -b -o {output.bam} - 
+    """
+
+rule bowtie_map_partial_coassembly:
+    message:
+        "Bowtie2: Mapping sample {wildcards.source} to assembly {wildcards.target}"
+    input:
+        contigs = "{dir}{by}.mhc/{target}.contigs.fasta.gz",
+        index   = "{dir}{by}.mhc/{target}.contigs.1.bt2",
+        pairs   = "{dir}/{source}.{: pairnames :}.fq.gz"
+    output:
+        bam     = "{dir}{by}.mhc.map/{target}.contigs.{source}.bowtie2.bam",
+        stats   = "{dir}{by}.mhc.map/{target}.contigs.{source}.bowtie2.bt2_stats"
+    log:
+                  "{dir}{by}.mhc.map/{target}.contigs.{source}.bowtie2.log"
+    params:
+        bt2_base= "{dir}{by}.mhc/{target}.contigs",
+        maxins = 800,
+        k = 100
+    threads:
+        16
+    shell:"""
+    bowtie2 \
+        -x {params.bt2_base} \
+        -1 {input.pairs[0]} -2 {input.pairs[1]} \
+        -X {params.maxins} \
+        --met-file {output.stats} \
+        -k {params.k} \
+        -p {threads} \
+        2>{log} \
+        | samtools view -b -o {output.bam} - 
+    """
+
+    
+rule samtools_sort:
+    message:
+        "Samtools: Sorting BAM file {input}"
+    input:
+        "{path}.bam"
+    output:
+        "{path,.*(?<!.sorted)}.sorted.bam"
+    params:
+        mem=32
+    threads:
+        8
+    shell:"""
+    samtools sort -m {params.mem}G --threads {threads} -o {output} {input}
+    """
+
+rule samtools_index:
+    message:
+        "Samtools: Indexing BAM file {input}"
+    input:
+        "{path}.bam"
+    output:
+        "{path}.bam.bai"
+    threads:
+        1
+    shell:"""
+    samtools index {input}
+    """
+
+rule all_mapped:
+    input:
+        "{dir}.{assembler}.map/{: runs :}.contigs.{mapper}.sorted.bam.bai"
+    output:
+        "{dir}.{assembler}.map/complete_{mapper}"
+    shell:
+        "touch {output}"
+
+
+        
+        

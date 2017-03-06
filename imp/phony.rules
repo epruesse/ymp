@@ -1,10 +1,65 @@
+from imp.config import icfg 
+import shutil, pprint
 
+width, height = shutil.get_terminal_size((80, 20))
+pp = pprint.PrettyPrinter(indent=1, compact=True, width=width)
+
+rule cmds:
+    message: "Commands:"
+    run:
+        print("""
+     - showconf
+     - listruns
+     - listprops
+    """)
+    
 rule showconf:
     "Display contents of config object"
     message: "Printing config"
     run:
-        import shutil, pprint
-        width, height = shutil.get_terminal_size((80, 20))
-        pp = pprint.PrettyPrinter(indent=1, compact=True, width=width)
         pp.pprint(config)
 
+rule showmap:
+    message: "Dumping Mapfile Data"
+    run:
+        if config['DS']:
+            print(icfg[config['DS']].print_runs())
+
+
+rule listruns:
+    """List all configured "run"s"""
+    message: "Configured Run objects:"
+    run:
+        pp.pprint(icfg.allruns)
+
+rule listprops:
+    """List all available run properties"""
+    message: "Run properties"
+    run:
+        pp.pprint(icfg.allprops)
+
+rule listfqnames:
+    """List all FQ file basenames"""
+    message: "FQ file basemanes"
+    run:
+        for ds in icfg.datasets:
+            pp.pprint(icfg[ds].fastq_basenames)
+
+
+rule testexpand:
+    input: "{dir}/{: runs :}"
+    output: "{dir}/test"
+
+rule test2:
+    input:
+        lambda wc: expand("{{dir}}_{a}", a=['1','2'])
+
+    output:
+        "test__{dir}"
+
+def x(wc=0):
+    return expand("test_{{var}}_{x}", x=['1','2'])
+
+rule test:
+    input: "{var}/{: scratch :}/{var}"
+    output: a="{:reportsdir:}/a_{var}"

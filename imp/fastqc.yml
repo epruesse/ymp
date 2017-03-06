@@ -1,0 +1,9 @@
+channels:
+ - bioconda
+dependencies:
+ - megahit
+ - bowtie2
+ - bbmap
+ - pigz
+ - quast
+ - samtools

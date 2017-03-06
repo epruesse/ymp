@@ -1,0 +1,45 @@
+---
+title: "Blast Hit Distribution"
+output: html_document
+params:
+    blast7:
+        label: "Input Blast7 formatted file"
+        input: file
+        value: "query.wcfR.blast7"
+    colnames:
+        label: "Blast Columns"
+        value: "qacc,sacc,pident,length,mismatch,gapopen,qstart,qend,sstart,send,evalue,bitscore,sstrand,sframe,score"
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(ggplot2)
+library(scales)
+
+knitr::opts_chunk$set(echo = FALSE)
+
+write.csv(params, "/tmp/out.test")
+
+df <- read.csv(params$blast7, sep="\t", header=FALSE, comment.char="#")
+colnames(df) <- unlist(strsplit(params$colnames,","))
+
+minval  <- min(df[df$evalue>0,]$evalue)
+df[df$evalue==0,]$evalue <- minval/10^10
+
+```
+
+# Evalue by length
+```{r evalue_by_length}
+warning("3")
+breaks  <- 10^seq(0,log10(minval),-10)
+mbreaks <- 10^seq(0,log10(minval),-1)
+labels <- trans_format("log10", math_format(10^.x))(breaks)
+
+breaks <- c(breaks, minval/10^10)
+labels <- c(labels, 0)
+            
+g<-ggplot(df, aes(x=evalue, y=length, color=pident)) +  geom_point(size=1.5,alpha=.5) + scale_x_log10("e-value",minor_breaks=mbreaks, breaks=breaks, labels=labels) +
+scale_color_gradient2(midpoint=50,mid=muted("green"))
+g
+warning("4")
+```
