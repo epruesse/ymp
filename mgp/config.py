@@ -10,7 +10,7 @@ from snakemake.io import expand, get_wildcard_names, apply_wildcards
 from snakemake.workflow import config
 from snakemake.utils import format
 
-from imp.snakemake import ExpandableWorkflow, ColonExpander
+from mgp.snakemake import ExpandableWorkflow, ColonExpander
 
 
 def xexpand(*args, stepout=1, **wildcards):

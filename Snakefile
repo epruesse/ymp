@@ -1,15 +1,15 @@
-include: "imp/init.rules"
-include: "imp/phony.rules"
-include: "imp/convert.rules"
+include: "mgs/init.rules"
+include: "mgs/phony.rules"
+include: "mgs/convert.rules"
 
-include: "imp/fastq.rules"
-include: "imp/assembly.rules"
-include: "imp/genepred.rules"
+include: "mgs/fastq.rules"
+include: "mgs/assembly.rules"
+include: "mgs/genepred.rules"
 
-#include: "imp/rrna.rules"
-include: "imp/align.rules"
-include: "imp/tree.rules"
+#include: "mgs/rrna.rules"
+include: "mgs/align.rules"
+include: "mgs/tree.rules"
 
-include: "imp/anvio.rules"
+include: "mgs/anvio.rules"
 
-#include: "imp/all.rules"
+#include: "mgs/all.rules"

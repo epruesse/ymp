@@ -1,6 +1,6 @@
 from snakemake.workflow import config
-from imp.config import dir2targets, dir2targets2
-from imp.snakemake import workflow
+from mgp.config import dir2targets, dir2targets2
+from mgp.snakemake import workflow
 
 
 rule bbmap_index:

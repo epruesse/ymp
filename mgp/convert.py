@@ -3,8 +3,8 @@ Various converters
 
 """
 
-import imp.blast
-import imp.gff
+import mgs.blast
+import mgs.gff
 
 def BlastHit2GffFeature(blasthit):
     return gff.Feature(

@@ -291,7 +291,7 @@ rule blast7_eval_hist:
         "{dir}.blast/{query}.{gene}.blast7.{type}_hist.pdf"
     run:
         col = BLASTFMT.split().index(wildcards.type)
-        from imp.util import R
+        from mgp.util import R
         
         R("""
         df <- read.csv("{input}", header=FALSE, sep="\t", comment.char="#")
@@ -322,7 +322,7 @@ rule blast7_eval_plot:
         "{:reportsdir:}/{dir}.blast.{query}.{gene}.blast7.html"
     run:
         colnames = ",".join(BLASTFMT.split()[1:])
-        from imp.util import Rmd
+        from mgp.util import Rmd
         import os
         print(repr(input.blast7))
         print(repr(output))

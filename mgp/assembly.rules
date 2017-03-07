@@ -1,5 +1,5 @@
-from imp.util import glob_wildcards
-from imp.config import icfg
+from mgp.util import glob_wildcards
+from mgp.config import icfg
 
 
 rule megahit:
@@ -415,7 +415,7 @@ rule gene_presence_plots:
     output:
         "reports/{dir}.mh.blast.map__{ref}.pdf"
     run:
-        from imp.util import Rmd
+        from mgp.util import Rmd
         Rmd(rmd=input.rmd[0],
             out=output,
             csv=os.path.abspath(csv),

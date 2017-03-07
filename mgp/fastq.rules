@@ -1,4 +1,4 @@
-from imp.config import icfg
+from mgp.config import icfg
 import os
 
 
