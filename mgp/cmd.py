@@ -34,6 +34,7 @@ workdir=None,
     printreason=False,
     printshellcmds=False,
     printdag=False,
+
     printrulegraph=False,
     printd3dag=False,
     nocolor=False,
@@ -94,6 +95,7 @@ def cli():
 @cli.command()
 @click.argument("targets", nargs=-1, metavar="FILES")
 @click.option("--dryrun", "-n", default=False, is_flag=True)
+@click.option("--printshellcmds", "-p", default=False, is_flag=True)
 @click.option("--cores", "-j", default=1)
 @click.option("--keepgoing", "-k", default=False, is_flag=True)
 @click.option("--verbose", "-v", default=False, is_flag=True)
