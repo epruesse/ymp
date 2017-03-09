@@ -10,7 +10,7 @@ setup(
     package_data={ '': [
         'rules/*.rules',
         'rules/*.yml',
-        '*.yml'
+        'etc/*.yml'
     ]},
     zip_safe=False,
     setup_requires=[
