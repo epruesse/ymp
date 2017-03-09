@@ -2,9 +2,6 @@ from mgp.config import icfg
 
 icfg.init()
 
-PAIRS   = config['pairnames']
-RNA     = config['rrna']['genes']
-
 wildcard_constraints:
     dir      = "[^/]+",
     dir1     = "[^/]+",
@@ -22,7 +19,7 @@ wildcard_constraints:
     length   = "[1-0][0-9]*",
 
     SRR = "[EDS]RR[0-9]+",
-    rnagene="({})".format("|".join(config['rrna']['genes'])),
+    rnagene="({})".format("|".join(icfg.db.rrna)),
     project = "({})".format("|".join(icfg.datasets)),
     assembler = "(mh|sp)",
     mapper = "(bowtie2|bbmap)",

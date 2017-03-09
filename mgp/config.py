@@ -5,12 +5,14 @@ import sys
 import inspect
 from functools import lru_cache
 from contextlib import contextmanager
+from pkg_resources import resource_filename
 
 from snakemake.io import expand, get_wildcard_names, apply_wildcards
-from snakemake.workflow import config
 from snakemake.utils import format
+import snakemake
 
 from mgp.snakemake import ExpandableWorkflow, ColonExpander
+from mgp.util import AttrDict
 
 
 #TODO: allow comment lines starting with # or ; or somesuch
@@ -61,7 +63,6 @@ class DatasetConfig(object):
             if len(only_main) > 0:
                 raise Exception("Need to deal with incomplete extra data: FIXME")
 
-
     def clean_uninformative(self):
         common = {}
         for field in self.fieldnames:
@@ -77,14 +78,12 @@ class DatasetConfig(object):
 
         self.fieldnames = [field for field in self.fieldnames if field not in common]
         
-                
     def print_runs(self):
         w = csv.writer(sys.stdout)
         w.writerow(self.fieldnames)
         w.writerows([ [self._runs[run][field] for field in self.fieldnames]
                       for run in self._runs])
 
-                
     @property
     def runs(self):
         return self._runs
@@ -132,12 +131,9 @@ class DatasetConfig(object):
 
         @property
         def sources(self):
-            sources = set([self.dc.runs[run][self.colname]
-                           for run in self.dc.runs
-                           if self.dc.runs[run][self.byname] == self.wc.target])
-            #print(sources)
-            return sources
-            
+            return set([self.dc.runs[run][self.colname]
+                        for run in self.dc.runs
+                        if self.dc.runs[run][self.byname] == self.wc.target])
         
 
 class SraRunTable(DatasetConfig):
@@ -210,8 +206,6 @@ class ConfigExpander(ColonExpander):
                 ])
 
         def get_value(self, field_name, args, kwargs):
-            #print("get_value: {} {} {}".format( field_name, args, kwargs))
-
             # try to resolve variable as property of the config_mgr
             try:
                 return getattr(self.expander.config_mgr, field_name)
@@ -235,19 +229,35 @@ class ConfigExpander(ColonExpander):
 
 class ConfigMgr(object):
     """Interface to configuration. Singleton as "icfg" """
-    
+
     def __init__(self):
         self._datasets = {}
-        from snakemake.workflow import config
-        self._config = config
+        self._config = {}
         self.config_expander = ConfigExpander(self)
 
-        
     def init(self):
-        self._datasets = { cfg: self.loadcfg(cfg)
-                          for cfg in self._config['mapfiles'] }
+        ExpandableWorkflow.activate()
+        self.load_cfg()
+        self.load_datasets()
 
-    def loadcfg(self, cfg):
+    def load_cfg(self):
+        self.load_cfg_file(resource_filename("mgp", "etc/defaults.yml"))
+        self.load_cfg_file(os.path.join(os.getcwd(), "mgp.yml"))
+
+    def load_cfg_file(self, filename):
+        cfg = snakemake.io.load_configfile(filename)
+        snakemake.utils.update_config(self._config, cfg)
+
+    def load_datasets(self):
+        try:
+            self._datasets = { cfg: self.load_dataset(cfg)
+                               for cfg in self._config['mapfiles'] }
+        except KeyError as e: # no mapfiles?
+            print(repr(self._config))
+            raise e
+        # TODO: catch no mapfiles
+
+    def load_dataset(self, cfg):
         for sc in DatasetConfig.__subclasses__():
             try:
                 return sc(self._config['mapfiles'][cfg])
@@ -296,11 +306,14 @@ class ConfigMgr(object):
         except:
             raise KeyError("Missing directories/reports in config")
     
-            
     @property
     def datasets(self):
         """Returns list of all configured datasets"""
         return self._datasets.keys()
+
+    @property
+    def db(self):
+        return AttrDict(self._config['databases'])
 
     @property
     def allruns(self):
@@ -374,6 +387,5 @@ class ConfigMgr(object):
             for dataset in datasets
             for prop in self._datasets[dataset].props
         ]
-    
 
 icfg = ConfigMgr()

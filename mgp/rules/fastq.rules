@@ -284,7 +284,7 @@ rule bbmap_rmhuman:
         flags="quickmatch fast untrim machineout",
         minhits=2,
         mem=23,
-        path=config['human']
+        path=icfg.db.human
     threads:
         16
     shell:
