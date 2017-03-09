@@ -44,22 +44,3 @@ rule listfqnames:
     run:
         for ds in icfg.datasets:
             pp.pprint(icfg[ds].fastq_basenames)
-
-
-rule testexpand:
-    input: "{dir}/{: runs :}"
-    output: "{dir}/test"
-
-rule test2:
-    input:
-        lambda wc: expand("{{dir}}_{a}", a=['1','2'])
-
-    output:
-        "test__{dir}"
-
-def x(wc=0):
-    return expand("test_{{var}}_{x}", x=['1','2'])
-
-rule test:
-    input: "{var}/{: scratch :}/{var}"
-    output: a="{:reportsdir:}/a_{var}"
