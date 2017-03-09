@@ -1,12 +1,8 @@
-from snakemake.workflow import Workflow
-from snakemake.workflow import config, workflow
-from snakemake.io import expand
-from snakemake.io import apply_wildcards
+from snakemake.workflow import Workflow, workflow
+from snakemake.io import expand, apply_wildcards
 from string import Formatter
 from itertools import product
 import re, os, csv
-
-xxx = apply_wildcards
 
 class OverrideJoinFormatter(Formatter):
     def _vformat(self, format_string, args, kwargs, used_args, recursion_depth,
@@ -64,7 +60,6 @@ class OverrideJoinFormatter(Formatter):
         return ''.join(args)
 
 
-
 class ExpandableWorkflow(Workflow):
     @staticmethod
     def activate():
@@ -89,14 +84,12 @@ class ExpandableWorkflow(Workflow):
         if expand_output:
             workflow.expand_funcs['output'].append(expand_output)
 
-
     def input(self, *paths, **kwpaths):
         for func in reversed(self.expand_funcs['input']):
             try:
                 (paths, kwpaths) = func(paths, kwpaths)
             except Exception as e:
                 print("exception in input expand:" + repr(e))
-
         return super().input(*paths, **kwpaths)
 
     def output(self, *paths, **kwpaths):
@@ -108,18 +101,12 @@ class ExpandableWorkflow(Workflow):
         return super().output(*paths, **kwpaths)
 
 
-def erepr(x):
-    s=repr(x)
-    n=75
-    return s[:75] + (s[75:] and '..')
-
 class BaseExpander(object):
     def __init__(self):
         ExpandableWorkflow.register_expandfuncs(
             expand_input = self.expand_input,
             expand_output = self.expand_output
         )
-        
         
     def format(item, *args, **kwargs):
         return item
@@ -225,11 +212,6 @@ class FormatExpander(BaseExpander):
                 return ''
             return res
 
-        # FIXME: this seems redundant:
-        def get_field(self, field_name, args, kwargs):
-            (obj, used_args) = super().get_field(field_name, args, kwargs)
-            return obj, used_args
-
     def get_names(self, pattern):
         return set(match.group('name') for match in self._regex.finditer(pattern))
 
@@ -248,43 +230,3 @@ class ColonExpander(FormatExpander):
 
     def __init__(self):
         super().__init__()
-    
-
-class dummy(object):
-    formatter = Formatter()
-
-    _expand_regex = re.compile(
-    r"""
-    \{([^{}]+)\}
-    """, re.VERBOSE)
-#    \{([].,\+[\w$]+)\}
-    
-    def _expand_str(self, string):
-        keys = []
-        values = {}
-        
-        def ex(match, keys=keys, values=values):
-            key = match.group(1)
-            
-            if key[0] != "$":
-                return "{{" + key + "}}"
-            key = key[1:]
-
-            if key in keys:
-                return "{{_{}}}".format(keys.index(key))
-                
-            try:
-                val = self.formatter.get_field(key, [], self.globals)[0]
-                if isinstance(val, str) or not hasattr(val, "__iter__"):
-                    return val
-                values["_{}".format(len(keys))] = val
-                keys += [key]
-            except KeyError:
-                return "{{" + match.group() + "}}"
-
-            return "{{_{}}}".format(keys.index(key))
-
-        a = _expand_regex.sub(ex, string)
-        return expand(a, **values)
-        
-        
