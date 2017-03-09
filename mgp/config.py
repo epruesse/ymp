@@ -13,16 +13,6 @@ from snakemake.utils import format
 from mgp.snakemake import ExpandableWorkflow, ColonExpander
 
 
-def xexpand(*args, stepout=1, **wildcards):
-    frame = inspect.currentframe().f_back
-    while stepout > 1 and frame.f_back:
-        frame = frame.f_back
-        stepout -= 1
-    variables = dict(frame.f_globals)
-    variables.update(frame.f_locals)
-    variables.update(wildcards)
-    _expand(*args, **variables)
-
 #TODO: allow comment lines starting with # or ; or somesuch
 @contextmanager
 def AutoDictReader(filename):
@@ -33,24 +23,6 @@ def AutoDictReader(filename):
         f.seek(0)
         reader = csv.DictReader(f, dialect=dialect)
         yield reader
-
-
-def dir2targets(wildcards):
-    dirname = wildcards.dir.split(".")
-
-    regex = r"\.by_({})(?:[./]|$)".format("|".join(colnames))
-    groups = re.findall(regex, dirname)
-    if len(groups) == 0:
-        colname='ID'
-    else:
-        colname=groups[-1]
-    targets = set([config['pe_sample'][sample][colname]
-            for sample in config['pe_sample']])
-    return sorted(list(targets))
-
-
-def dir2targets2(template):
-    return lambda wc: expand(template, sample=dir2targets(wc), **wc)
 
 
 class DatasetConfig(object):
@@ -193,6 +165,7 @@ class SraRunTable(DatasetConfig):
                 for run in self.runs
                 for pair in range(2)]
     
+
 class Mapfile(DatasetConfig):
     """Contains a dataset configuration specified as a CSV"""
     def __init__(self, cfg):
@@ -214,6 +187,7 @@ class Mapfile(DatasetConfig):
         return ["{}.{}".format(run, icfg.pairnames[pair])
                 for run in self.runs
                 for pair in range(len(self.fq_cols))]
+
 
 class ConfigExpander(ColonExpander):
     def __init__(self, config_mgr):
