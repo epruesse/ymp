@@ -153,20 +153,25 @@ rule megahit_coassembly:
         "{dir}.mhc/megahit.log.gz"
     params:
         workdir="{dir}.mhc/megahit",
+        r1=lambda wc, input: ",".join(input.r1),
+        r2=lambda wc, input: ",".join(input.r2),
     threads:
         48
     shell: """
-    CSR1=`echo {input.r1} | tr ' ' ,`
-    CSR2=`echo {input.r2} | tr ' ' ,`
+    if [ -e {params.workdir} ]; then
+        if [ -e {params.workdir}/opts.txt -a ! -e {params.workdir}/done ]; then
+            # we have a workdir, there are opts.txt so its all started, 
+            # but we lack the `done` indicating we're finished
+            # => continue
+            megahit --continue --out-dir {params.workdir}
+        else
+            # get rid of the workdir
+            rm -rf {params.workdir}
+        fi
+    fi
 
-    # delete workdir if no opts.txt was recorded (never started really)
-    [ -e {params.workdir}/opts.txt ] || rm -rf {params.workdir}
-
-    if [ -e {params.workdir} ]; then 
-        megahit --continue \
-        --out-dir {params.workdir}
-    else
-        megahit -1 $CSR1 -2 $CSR2 \
+    if [ ! -e {params.workdir} ]; then
+        megahit -1 {params.r1} -2 {params.r2} \
         --presets meta-sensitive \
         --num-cpu-threads {threads} \
         --out-dir {params.workdir} \
@@ -191,9 +196,8 @@ rule megahit_coassembly:
     {params.workdir}/intermediate_contigs/k${{MAXK}}.contigs.fa |\
     pigz -p {threads} -9 -c > {output.fastg}
 
-    # TODO: remove temp dir?
     # remove intermediate contigs
-    #rm -rf {params.workdir}
+    rm -rf {params.workdir}
     """
 
                 
