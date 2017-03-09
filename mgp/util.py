@@ -1,6 +1,5 @@
 from snakemake.io import expand 
 from snakemake.utils import format
-from snakemake.workflow import config
 from snakemake.io import Namedlist
 
 import re, os
@@ -28,6 +27,17 @@ def read_propfiles(files):
                      for key, value in [line.strip().split(maxsplit=1)]}
             )
     return props
+
+
+class AttrDict(dict):
+    def __init__(self, dictionary):
+        self._dict = dictionary
+
+    def __getattr__(self, attr):
+        res = self._dict[attr]
+        if isinstance(res, dict):
+            return AttrDict(res)
+        return res
 
 
 def glob_wildcards(pattern, files=None):
