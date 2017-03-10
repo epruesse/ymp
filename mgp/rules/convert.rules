@@ -36,3 +36,8 @@ rule fasta_to_fastp_gz:
             fasta_dna2aa(inf, outf)
 
 
+rule temp_unzip:
+    input: "{pathx}.fasta.gz"
+    output: temp("{pathx}.fasta")
+    threads: 8
+    shell: "unpigz -k -p {threads} {input}"

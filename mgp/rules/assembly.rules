@@ -360,11 +360,6 @@ rule gene_presence_plots:
             map=os.path.abspath(map)
             )
         
-rule temp_unzip:
-    input: "{path}.fasta.gz"
-    output: temp("{path}.fasta")
-    threads: 8
-    shell: "unpigz -k -p {threads} {input}"
         
 rule bowtie_index:
     message:
