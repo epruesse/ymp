@@ -1,7 +1,8 @@
 from snakemake.workflow import Workflow, workflow
-from snakemake.io import expand, apply_wildcards
+from snakemake.io import expand, apply_wildcards, AnnotatedString
 from string import Formatter
 from itertools import product
+from copy import deepcopy
 import re, os, csv
 
 class OverrideJoinFormatter(Formatter):
@@ -111,11 +112,13 @@ class BaseExpander(object):
     def format(item, *args, **kwargs):
         return item
     
-    def expand(self, item, fields, _format=None, rec=-1):
-        if not _format: _format = self.format
-
+    def expand(self, item, fields, rec=-1):
         if isinstance(item, str):
-            item = _format(item, **fields)
+            updated = self.format(item, **fields)
+            if isinstance(item, AnnotatedString):
+                updated = AnnotatedString(updated)
+                updated.flags = deepcopy(item.flags)
+            item = updated
         elif hasattr(item, '__call__'):  # function
             _item = item
             def late_expand(*args, **kwargs):
