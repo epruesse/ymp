@@ -1,0 +1,93 @@
+"""
+
+Quast options:
+
+--output-dir outdir
+-R reference_genome
+--genes genes.{gff,bed,txt,ncbi}
+--operons operons.{gff,bed,txt,ncbi}
+--min-contig lens (500)
+--threads 
+--labels comma,separated
+-L labels from dirname
+--bam filename
+
+
+"""
+
+
+rule quast_individual_assembly:
+    message:
+        "QUAST qc'ing {wildcards.dir} assemblies"
+    input:
+        "{dir}.mh/{: runs :}.contigs.fasta.gz"
+    output:
+        "{:reportsdir:}/{dir}.mh_quast"
+    conda:
+        srcdir("quast.yml")
+    threads:
+        8
+    shell:"""
+    quast -o {output} \
+          -t {threads} \
+          --meta \
+          -L \
+          {input}
+    """
+
+
+rule quast_partial_coassembly:
+    message:
+        "QUAST qc'ing {wildcards.dir} assemblies"
+    input:
+        "{dir}.mhc/{:targets:}.contigs.fasta.gz"
+    output:
+        "{:reportsdir:}/{dir}.mhc_quast"
+    conda:
+        srcdir("quast.yml")
+    threads:
+        8
+    shell:"""
+    quast -o {output} \
+          -t {threads} \
+          --meta \
+          -L \
+          {input}
+    """
+
+
+rule quast_coassembly:
+    message: "QUAST checking {input}"
+    input:
+        "{dir}/contigs.fasta"
+    output:
+        "{dir}_qc/report.html",
+        "{dir}_qc/report.txt",
+        "{dir}_qc/report.tsv",
+        "{dir}_qc"
+    threads:
+        1
+    conda:
+        srcdir("quast.yml")
+    shell: """
+        quast -o {wildcards.dir}_qc/ \
+              -L \
+              --meta {input} \
+              -t {threads} \
+              --gene-finding
+    """
+
+
+rule quast_report_coassembly:
+    message: "MultiQC aggregating QUAST reports"
+    output:
+        "reports/{dir}_stats.html"
+    input:
+        "{dir}_qc/report.txt"
+    params:
+        dir = "{dir}_qc"
+    threads:
+        1
+    shell: """
+    multiqc -d -m quast --no-data-dir {params.dir} -n {output}
+    """

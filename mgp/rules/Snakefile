@@ -3,7 +3,10 @@ include: "phony.rules"
 include: "convert.rules"
 
 include: "fastq.rules"
+
 include: "assembly.rules"
+include: "assembly_qc.rules"
+
 include: "genepred.rules"
 
 #include: "rrna.rules"
