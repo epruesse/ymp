@@ -159,13 +159,17 @@ rule megahit_coassembly:
         48
     shell: """
     if [ -e {params.workdir} ]; then
-        if [ -e {params.workdir}/opts.txt -a ! -e {params.workdir}/done ]; then
+        if [ -e {params.workdir}/opts.txt ]; then
             # we have a workdir, there are opts.txt so its all started, 
-            # but we lack the `done` indicating we're finished
-            # => continue
-            megahit --continue --out-dir {params.workdir}
+            if [ ! -e {params.workdir}/done ]; then
+                 # but we lack the `done` indicating we're finished
+                 # => continue
+                 megahit --continue --out-dir {params.workdir}
+            fi
+            # We're done...
         else
-            # get rid of the workdir
+            # Workdir but no opts? Something went wrong last round.
+            # => get rid of the workdir
             rm -rf {params.workdir}
         fi
     fi
