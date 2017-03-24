@@ -106,7 +106,7 @@ def cli():
 @click.option("--latency-wait","-w")
 def make(**kwargs):
     "generate target files"
-    snakemake.snakemake(resource_filename("mgp", "rules/Snakefile"), **kwargs)
+    snakemake.snakemake(resource_filename("ymp", "rules/Snakefile"), **kwargs)
 
 @cli.command()
 @click.argument("targets", nargs=-1, metavar="FILES")
@@ -131,4 +131,4 @@ def submit(**kwargs):
         '-q {cluster.queue}'
     ])
     print(repr(kwargs))
-    snakemake.snakemake(resource_filename("mgp", "rules/Snakefile"), drmaa=drmaa, **kwargs)
+    snakemake.snakemake(resource_filename("ymp", "rules/Snakefile"), drmaa=drmaa, **kwargs)

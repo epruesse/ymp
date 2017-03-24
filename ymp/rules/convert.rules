@@ -17,7 +17,7 @@ rule fasta_to_fastp:
     output:
         "{path}.fastp"
     run:
-        from mgp.nuc2aa import fasta_dna2aa
+        from ymp.nuc2aa import fasta_dna2aa
         with open(input[0], "r") as inf, open(output[0], "w") as outf:
             fasta_dna2aa(inf, outf)
 
@@ -30,7 +30,7 @@ rule fasta_to_fastp_gz:
     output:
         "{path}.fastp.gz"
     run:
-        from mgp.nuc2aa import fasta_dna2aa
+        from ymp.nuc2aa import fasta_dna2aa
         import gzip as gz
         with gz.open(input[0], "r") as inf, gz.open(output[0], "w") as outf:
             fasta_dna2aa(inf, outf)

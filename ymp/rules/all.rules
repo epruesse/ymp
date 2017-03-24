@@ -1,8 +1,8 @@
-from mgp.snakemake import config
-from mgp.config import icfg
+from ymp.snakemake import config
+from ymp.config import icfg
 from snakemake.io import expand
 
-from mgp.util import R, glob_wildcards, read_propfiles, get_ncbi_root
+from ymp.util import R, glob_wildcards, read_propfiles, get_ncbi_root
 from config import dir2targets, dir2targets2
 
 import glob
@@ -296,7 +296,7 @@ rule report_test:
         cags="raw.ecco.trimAQ20.290minus.by_SUBJECT.spc.map.cags/profiles_filtered.csv",
         ssu_otus="raw.ecco.trimAQ20.290minus.by_SUBJECT.SSU.emirge.otu97/otu.slv.cov100.csv"
     run:
-        from mgp.util import Rmd
+        from ymp.util import Rmd
         Rmd(rmd=input.rmd[0],
             out=output,
             cags=os.path.abspath(input.cags[0]),

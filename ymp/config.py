@@ -11,8 +11,8 @@ from snakemake.io import expand, get_wildcard_names, apply_wildcards
 from snakemake.utils import format
 import snakemake
 
-from mgp.snakemake import ExpandableWorkflow, ColonExpander
-from mgp.util import AttrDict
+from ymp.snakemake import ExpandableWorkflow, ColonExpander
+from ymp.util import AttrDict
 
 
 #TODO: allow comment lines starting with # or ; or somesuch
@@ -241,8 +241,8 @@ class ConfigMgr(object):
         self.load_datasets()
 
     def load_cfg(self):
-        self.load_cfg_file(resource_filename("mgp", "etc/defaults.yml"))
-        self.load_cfg_file(os.path.join(os.getcwd(), "mgp.yml"))
+        self.load_cfg_file(resource_filename("ymp", "etc/defaults.yml"))
+        self.load_cfg_file(os.path.join(os.getcwd(), "ymp.yml"))
 
     def load_cfg_file(self, filename):
         cfg = snakemake.io.load_configfile(filename)

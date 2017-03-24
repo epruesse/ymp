@@ -1,4 +1,4 @@
-from mgp.config import icfg 
+from ymp.config import icfg 
 import shutil, pprint
 
 width, height = shutil.get_terminal_size((80, 20))

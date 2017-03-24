@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 
 setup(
-    name="MGP",
+    name="YMP",
     use_scm_version=True,
     packages=find_packages(),
     package_data={ '': [
@@ -24,7 +24,7 @@ setup(
     ],
     entry_points='''
         [console_scripts]
-        mgp=mgp.cmd:cli
+        ymp=tmp.cmd:cli
     '''
 
 
