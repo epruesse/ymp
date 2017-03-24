@@ -24,7 +24,7 @@ setup(
     ],
     entry_points='''
         [console_scripts]
-        ymp=tmp.cmd:cli
+        ymp=ymp.cmd:cli
     '''
 
 
