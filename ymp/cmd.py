@@ -120,6 +120,7 @@ def make(**kwargs):
 @click.option("--cluster-config", "-u", default="cluster.yaml")
 @click.option("--rerun-incomplete","--ri", 'force_incomplete', is_flag=True)
 @click.option("--latency-wait","-w", default=0)
+@click.option("--local-cores", default=8)
 def submit(**kwargs):
     "generate target files"
     drmaa = " ".join([
