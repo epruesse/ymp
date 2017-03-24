@@ -23,7 +23,7 @@ rule prefetch:
     output:
         "{:sra:}/{SRR}.sra"
     conda:
-        srcdir("fastqc.yml")
+        srcdir("fastq.yml")
     shell: """
     prefetch {wildcards.SRR}
     """
@@ -43,7 +43,7 @@ rule fastq_dump:
     params:
         outdir = icfg.scratchdir + "/SRR"
     conda:
-        srcdir("fastqc.yml")
+        srcdir("fastq.yml")
     shell: """
     cd {params.outdir}
     fastq-dump {wildcards.SRR} \
@@ -106,7 +106,7 @@ rule fastqc:
     params:
         k = 10
     conda:
-        srcdir("fastqc.yml")
+        srcdir("fastq.yml")
     shell: """
     conda info 
     # override too low memory requested by fastqc 0.11.5 of 256M per thread:
@@ -127,7 +127,7 @@ rule multiqc:
     threads:
         1
     conda:
-        srcdir("conda.yml")
+        srcdir("multiqc.yml")
     shell: """
     multiqc --outdir {wildcards.dir}_qc \
             --title  {wildcards.dir} \
@@ -190,6 +190,8 @@ rule bb_ecco:
         adapter="{dir}.ecco/{sample}.adapter.fq"
     threads:
         16
+    conda:
+        srcdir("bbmap.yml")
     shell: """
     module load bbmap
     bbmerge.sh in={input[0]} in2={input[1]} out={output[0]} out2={output[1]} \
@@ -216,6 +218,8 @@ rule trim_bbduk_adapter:
         "{dir}.trimAQ{Q}/{sample}.{:pairnames:}.fq.gz"
     threads:
         16
+    conda:
+        srcdir("bbmap.yml")
     shell: """
     module load bbmap
 
@@ -256,6 +260,8 @@ rule bbmap_makedb:
         fagz="{fagz}"
     threads:
         8
+    conda:
+        srcdir("bbmap.yml")
     shell: """
 
     bbmap.sh path={params.path} ref={input} threads={threads} \
@@ -287,6 +293,8 @@ rule bbmap_rmhuman:
         path=icfg.db.human
     threads:
         16
+    conda:
+        srcdir("bbmap.yml")
     shell:
         "bbmap.sh "
         " minid={params.minid} "
@@ -326,6 +334,8 @@ rule bbmap_dedupe:
         "{dir}.ddp/{sample}.log"
     threads:
         4
+    conda:
+        srcdir("bbmap.yml")
     shell:"""
     dedupe.sh unpigz threads={threads} \
       in={input[0]} in2={input[1]} out=stdout 2>{log} |\
