@@ -8,6 +8,7 @@ setup(
     use_scm_version=True,
     packages=find_packages(),
     package_data={ '': [
+        'rules/Snakefile',
         'rules/*.rules',
         'rules/*.yml',
         'etc/*.yml'
