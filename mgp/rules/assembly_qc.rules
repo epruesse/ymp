@@ -86,6 +86,8 @@ rule quast_report_coassembly:
         "{dir}_qc/report.txt"
     params:
         dir = "{dir}_qc"
+    conda:
+        srcdir("multiqc.yml")
     threads:
         1
     shell: """
