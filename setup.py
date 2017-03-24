@@ -21,6 +21,7 @@ setup(
         'snakemake',
         'Click',
         'PyYAML',
+        'drmaa'
     ],
     entry_points='''
         [console_scripts]
