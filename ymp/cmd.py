@@ -103,7 +103,7 @@ def cli():
 @click.option("--lock/--no-lock")
 @click.option("--cluster-config", "-u", default="cluster.yaml")
 @click.option("--rerun-incomplete","--ri", 'force_incomplete', is_flag=True)
-@click.option("--latency-wait","-w")
+@click.option("--latency-wait","-w", default=0)
 def make(**kwargs):
     "generate target files"
     snakemake.snakemake(resource_filename("ymp", "rules/Snakefile"), **kwargs)
