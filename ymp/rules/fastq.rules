@@ -35,20 +35,33 @@ rule fastq_dump:
     """
     message:
         "Extracging FastQ from {wildcards.SRR}"
-    input:
-        "{:sra:}/{SRR}.sra"
+#    input:
+#        "{:sra:}/{SRR}.sra"
     output:
         "{:scratch:}/SRR/{SRR}_1.fastq.gz",
         "{:scratch:}/SRR/{SRR}_2.fastq.gz"
     params:
-        outdir = icfg.scratchdir + "/SRR"
+        outdir = icfg.scratchdir + "/SRR",
+        p = lambda wc,threads: int(threads/2+.5)
     conda:
         srcdir("fastq.yml")
+    threads:
+        4
+    # FIXME
+    # the two cut processes use about 1 cpu each, fastqdump 1/4 and pgzip about 1 each.
+    # not ideal. not sure why cut needs so much time. 
     shell: """
-    cd {params.outdir}
     fastq-dump {wildcards.SRR} \
         --split-files \
-        --gzip 
+        --readids \
+        --dumpbase \
+        --skip-technical \
+        --clip \
+        --read-filter pass \
+        --stdout | \
+      paste - - - -  - - - - | \
+      tee >(cut -f 1-4 | tr "\t" "\\n" | pigz -p {params.p} > {output[0]}) | \
+      cut -f 5-8 | tr "\t" "\\n" | pigz -p {params.p} > {output[1]}
     """
 
 
