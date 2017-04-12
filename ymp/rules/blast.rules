@@ -1,0 +1,218 @@
+
+rule makeblastdb:
+    message: "Building Blastdb"
+    input:
+        "{file}.fasta"
+    output:
+        "{file}.fasta.nin",
+        "{file}.fasta.nhr",
+        "{file}.fasta.nsq"
+    threads:
+        1
+    shell: """
+    makeblastdb -in {input} -dbtype nucl -parse_seqids
+    """
+
+rule makeblastdb_gz:
+    message: "Building Blastdb"
+    input:
+        "{dir}/{file}.fasta.gz"
+    output:
+        "{dir}.blast/{file}.fasta.nhr",
+        "{dir}.blast/{file}.fasta.nin",
+        "{dir}.blast/{file}.fasta.nog",
+        "{dir}.blast/{file}.fasta.nsd",
+        "{dir}.blast/{file}.fasta.nsi",
+        "{dir}.blast/{file}.fasta.nsq"
+    params:
+        out="{dir}.blast/{file}.fasta",
+        title="{file}"
+    threads:
+        1
+    shell: """
+    zcat {input} |
+    makeblastdb -dbtype nucl \
+                -parse_seqids \
+                -out {params.out} \
+                -title {params.title}
+    """
+
+BLASTFMT="7 qacc sacc pident length mismatch gapopen qstart qend sstart send evalue bitscore"
+BLASTFMT+=" sstrand sframe score"
+    
+#BLASTFMT="7 qseqid sseqid sstart send evalue bitscore score length pident sframe sstrand"
+    
+rule tblastn_query:
+    message:
+        "tblastn: searching {wildcards.dir} {wildcards.sample} for {wildcards.query}"
+    output:
+        "{dir}.blast/{sample}.{query}.blast7"
+    input:
+        idx="{dir}.blast/{sample}.fasta.nin",
+        q="{query}.faa"
+    params:
+        db="{dir}.blast/{sample}.fasta",
+        blastfmt=BLASTFMT
+    threads:
+        8
+    shell: """
+    tblastn -db {params.db} -query {input.q} \
+      -outfmt "{params.blastfmt}" \
+      -out {output} \
+      -num_threads {threads}
+    """
+
+rule tblastn_query_all:
+    input:
+        "{dir}.blast/{: targets :}.contigs.{query}.blast7"
+    output:
+        "{dir}.blast/complete_{query}"
+    shell:
+        "touch {output}"
+
+
+rule blast7_merge:
+    input:
+        "{dir}.blast/{: targets :}.contigs.{query}.blast7",
+    output:
+        "{dir}.blast/{query}.{gene}.blast7"
+    params:
+        re="{dir}.blast/(.+).contigs.{query}.blast7",
+        gene="{gene}"
+    threads:
+        16
+    run:
+        import fileinput
+        sample_re=re.compile(params.re)
+        with fileinput.input(input) as f, open(output[0], "w") as out:
+            for line in f:
+                if f.isfirstline():
+                    # extract target name from filename
+                    sample = sample_re.match(f.filename()).group(1)
+                    
+                if line[0] == "#":
+                    if "BLAST" in line:
+                        header = ""
+                    header += line
+                elif line.startswith(params.gene):
+                    if len(header) > 0:
+                        out.write(header)
+                        header = ""
+                    line_parts = line.split('\t', 1)
+                    out.write("".join([line_parts[0], '\t', sample, '_', line_parts[1]]))
+
+
+rule blast7_extract:
+    message:
+        "Collecting hits for {wildcards.query}/{wildcards.gene} <e{wildcards.evalue}"
+    input:
+        "{dir}.blast/{sample}.fasta.nin",
+        blast="{dir}.blast/{sample}.{query}.blast7"
+    output:
+        "{dir}.blast/{sample}.{query}.{gene}.e{evalue}.fasta"
+    params:
+        re="{dir}.blast/(.+).contigs.{query}.blast7",
+        gene="{gene}",
+        evalue="{evalue}",
+        db="{dir}.blast/{sample}.fasta",
+        sample="{sample}"
+    threads:
+        1
+    run:
+        import subprocess 
+        blastfmt = BLASTFMT.split()
+        get_field = lambda sline, col: sline[blastfmt.index(col)-1]
+        get_fields = lambda sline, cols: (get_field(sline, col) for col in cols)
+        with open(input.blast, "r") as blast, open(output[0],"w") as out:
+            for line in blast:
+                if line[0] == "#": continue
+                if not line.startswith(params.gene): continue
+                line_parts = line.strip().split('\t')
+                sacc, sstart, send, evalue = get_fields(line_parts,
+                                                       ['sacc','sstart','send','evalue'])
+                evalue = float(evalue)
+                if evalue > 10 ** -int(params.evalue):
+                    continue
+
+                sstart = int(sstart)
+                send = int(send)
+                
+                seq = subprocess.check_output(
+                    ['blastdbcmd',
+                     '-db', params.db,
+                     '-entry', sacc,
+                     '-range', "{}-{}".format(min(sstart,send), max(sstart,send)),
+                     '-strand', "plus" if sstart < send else "minus"
+                     ]).decode('ascii')
+                seqid, seq = re.split("[\t ]",seq[1:], maxsplit=1)
+                
+                out.write(">{sample}|{seqid}|{start}-{stop} {seq}".format(
+                    sample=params.sample,
+                    seqid=seqid,
+                    start=sstart, stop=send,
+                    seq=seq
+                ))
+
+        
+rule blast7_exctract_merge:
+    message:
+        "Merging {wildcards.query}/{wildcards.gene} <e{wildcards.evalue}"
+    input:
+        "{dir}.blast/{: targets :}.contigs.{query}.{gene}.e{evalue}.fasta"
+    output:
+        "{dir}.blast/{query}.{gene}.e{evalue}.fasta.gz"
+    shell: """
+    cat {input} | gzip -c9 > {output}
+    """
+        
+rule blast7_eval_hist:
+    input:
+        "{dir}.blast/{query}.{gene}.blast7"
+    wildcard_constraints:
+       type="(evalue|bitscore|score|length|pident)"
+    output:
+        "{dir}.blast/{query}.{gene}.blast7.{type}_hist.pdf"
+    run:
+        col = BLASTFMT.split().index(wildcards.type)
+        from ymp.util import R
+        
+        R("""
+        df <- read.csv("{input}", header=FALSE, sep="\t", comment.char="#")
+        minval = min(df[df[,{col}]>0,{col}])
+        print(minval)
+        print(log10(minval))
+        maxval = max(df[,{col}])
+        library(ggplot2)
+
+        f = function(x,y) {{x[x == -Inf]=y[1]; x}}
+        pdf("{output}")
+
+        g <- ggplot(df, aes(x=V{col})) + \
+        geom_histogram(bins=100) + \
+        scale_x_log10("{wildcards.gene}",oob=f,minor_breaks=10^seq(0,log10(minval),-1),
+                      breaks=10^seq(0,log10(minval),-10)) + \
+        scale_y_log10();
+        
+        dev.off()
+        """)
+
+
+rule blast7_eval_plot:
+    input:
+        blast7="{dir}.blast/{query}.{gene}.blast7",
+        rmd=srcdir("blast.Rmd")
+    output:
+        "{:reportsdir:}/{dir}.blast.{query}.{gene}.blast7.html"
+    run:
+        colnames = ",".join(BLASTFMT.split()[1:])
+        from ymp.util import Rmd
+        import os
+        print(repr(input.blast7))
+        print(repr(output))
+        
+        Rmd(rmd=input.rmd,
+            out=output,
+            blast7=os.path.abspath(input.blast7),
+            colnames=colnames)
+        
+

@@ -1,0 +1,57 @@
+rule cdhit_faa_single:
+    """Clustering predicted genes using cdhit"""
+    message:
+        "CD-HIT clustering {input} -> {output}"
+    input:
+        "{dir}.genes/{nodots}.faa"
+    output:
+        "{dir}.genes/{nodots}.NR.faa"
+    log:
+        "{dir}.genes/{nodots}.NR.faa.log"
+    threads:
+        33
+    params:
+        slow=1,
+        print_overlap=1,
+        description_length=0
+    shell: """
+    cd-hit \
+    -T {threads} \
+    -M $[1024 * 4 * {threads}] \
+    -i {input} \
+    -o {output} \
+    -g {params.slow} \
+    -p {params.print_overlap} \
+    -d {params.description_length}
+    > {log} 2>&1
+    """
+
+rule cdhit_fna_single:
+    """Clustering predicted genes (nuc) using cdhit-est"""
+    message:
+        "CD-HIT-EST clustering {input} -> {output}"
+    input:
+        "{dir}.genes/{nodots}.fna"
+    output:
+        "{dir}.genes/{nodots}.NR.fna"
+    log:
+        "{dir}.genes/{nodots}.NR.fna.log"
+    threads:
+        33
+    params:
+        slow=1,
+        print_overlap=1,
+        description_length=0,
+        id=0.95
+    shell: """
+    cd-hit-est \
+    -i {input} \
+    -o {output} \
+    -c {params.id} \
+    -M $[{threads} * 1024 * 4] \
+    -T {threads} \
+    -g {params.slow} \
+    -p {params.print_overlap} \
+    -d {params.description_length}
+    > {log} 2>&1
+    """
