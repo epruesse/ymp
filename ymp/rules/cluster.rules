@@ -3,11 +3,11 @@ rule cdhit_faa_single:
     message:
         "CD-HIT clustering {input} -> {output}"
     input:
-        "{dir}.genes/{nodots}.faa"
+        "{dir}/{file}.faa"
     output:
-        "{dir}.genes/{nodots}.NR.faa"
+        "{dir}/{file}.NR.faa"
     log:
-        "{dir}.genes/{nodots}.NR.faa.log"
+        "{dir}/{file}.NR.faa.log"
     threads:
         33
     params:
