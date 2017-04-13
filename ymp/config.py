@@ -42,7 +42,7 @@ class DatasetConfig(object):
             self._runs = {row[id_col]:row for row in reader}
         self.loadExtra()
         self.clean_uninformative()
-        
+
     def loadExtra(self):
         if 'extra_file' in self.cfg:
             keyname = self.cfg['extra_name_col']
@@ -371,7 +371,7 @@ class ConfigMgr(object):
         if isinstance(datasets, str):
             datasets = [datasets]
         return [
-            run             
+            run
             for dataset in datasets
             for run in self._datasets[dataset].runs
         ]

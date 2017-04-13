@@ -44,7 +44,7 @@ class blast_parser(object):
         'sframe': int
     }
 
-    
+
 class fmt7_parser(blast_parser):
     """
     Parses BLAST results in fmt7 (CSV with comments)

@@ -18,11 +18,11 @@ class emirge_info:
                 except ValueError:
                     self.__dict__[key] = value
             except:
-                pass    
+                pass
 
     def __str__(self):
         return "sample=%s id=%s acc=%s prior=%f" % (self.sample, self.id, self.acc, self.Prior)
-        
+
 class MapfileParser(object):
     def __init__(self, minid=0):
         self.samples = set()

@@ -38,7 +38,7 @@ def fasta_dna2aa(input, output):
             ]).strip()+'\n')
                      #.encode('ascii')
         )
-        
+
     header = None
     seq = ""
     

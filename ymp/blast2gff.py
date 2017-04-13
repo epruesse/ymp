@@ -10,7 +10,7 @@ import click
 def blast2gff(input, output):
     blastfile = blast.reader(input)
     gfffile = gff.writer(output)
-    
+
     for hit in blastfile:
         print(type(hit))
         assert (hit.send > hit.sstart) == (hit.sframe > 0)

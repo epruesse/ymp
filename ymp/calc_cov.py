@@ -34,7 +34,7 @@ def calc_cov(bamfile, regionfile):
         bam.mapped / (bam.mapped + bam.unmapped) * 100
     ))
 
-    
+
     name2ref = {word.split()[0]:word for word in bam.references}
     for hit in blastfile:
         #if blastfile.isfirsthit():
@@ -44,7 +44,7 @@ def calc_cov(bamfile, regionfile):
         covarr = bam.count_coverage(ref, start, end, quality_threshold=0)
         cov = sum([sum(x) for x in covarr]) / abs(hit.sstart - hit.send)
         reads = bam.count(ref, start, end)
-        RPMK = reads / ((end - start) / 1000.0) 
+        RPMK = reads / ((end - start) / 1000.0)
         info("%s: %f / %f -- %f", hit.sacc, cov, RPMK, RPMK/cov)
             
 

@@ -32,11 +32,11 @@ def merge_alternative_implementation(out, files):
                                  nrows=1000
                                  )
         if filename == files[0]:
-            all = df
+            allf = df
         else:
             #log.warning("Merging...")
-            all = all.join(df)
-    all.to_csv(out)
+            allf = allf.join(df)
+    allf.to_csv(out)
 
 
 def merge(out, files, collect = [], ignore = []):
@@ -59,7 +59,7 @@ def merge(out, files, collect = [], ignore = []):
         cols = []
         while len(cols) <= 2:
             cols = fp.readline()[1:].strip().split(b"\t")
-            
+
         if not headers:
             headers = cols
         if headers != cols:

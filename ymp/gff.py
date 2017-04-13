@@ -1,5 +1,5 @@
 """
-Implements simple reader and writer for GFF (general feature format) files. 
+Implements simple reader and writer for GFF (general feature format) files.
 
 Unfinished
 
@@ -14,10 +14,10 @@ _FIELDS = [
     'seqid', # the sequence id
     'source', # the tool
     'type', # CDS, rRNA, ...
-    'start', 
+    'start',
     'end',
     'score',
-    'strand', # + / - 
+    'strand', # + / -
     'phase',
     'attributes'
 ]
