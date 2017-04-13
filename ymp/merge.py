@@ -39,7 +39,11 @@ def merge_alternative_implementation(out, files):
     allf.to_csv(out)
 
 
-def merge(out, files, collect = [], ignore = []):
+def merge(out, files, collect = None, ignore = None):
+    if collect is None:
+        collect = []
+    if ignore is None:
+        ignore = []
     prefix = os.path.commonprefix(files)
     suffix = os.path.commonprefix([x[::-1] for x in files])[::-1]
     s1 = len(prefix)
