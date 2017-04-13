@@ -5,7 +5,8 @@ rule cdhit_faa_single:
     input:
         "{dir}/{file}.faa"
     output:
-        "{dir}/{file}.NR.faa"
+        fa="{dir}/{file}.NR.faa",
+        clstr="{dir}/{file}.NR.faa.clstr"
     log:
         "{dir}/{file}.NR.faa.log"
     threads:
@@ -19,7 +20,7 @@ rule cdhit_faa_single:
     -T {threads} \
     -M $[1024 * 4 * {threads}] \
     -i {input} \
-    -o {output} \
+    -o {output.fa} \
     -g {params.slow} \
     -p {params.print_overlap} \
     -d {params.description_length} \
