@@ -8,6 +8,8 @@ include: "assembly.rules"
 include: "assembly_qc.rules"
 
 include: "genepred.rules"
+include: "cluster.rules"
+include: "blast.rules"
 
 #include: "rrna.rules"
 include: "align.rules"
