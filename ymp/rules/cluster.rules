@@ -26,6 +26,57 @@ rule cdhit_faa_single:
     > {log} 2>&1
     """
 
+rule cdhit_clstr_to_csv:
+    input:
+        "{dir}/{file}.NR.faa.clstr"
+    output:
+        "{dir}/{file}.NR.csv"
+    threads:
+        1
+    run:
+        import re, csv
+        clstr_format = re.compile(
+            "(?P<leaf_id>\d+)\s+(?P<qlen>\d+)aa,\s"
+            ">(?P<qacc>.*)\.\.\.\s"
+            "(at\s(?P<qstart>\d+):(?P<qend>\d+):(?P<sstart>\d+):(?P<send>\d+)/"
+            "(?P<pident>\d+\.\d+)%|\*)"
+            , flags = re.VERBOSE|re.ASCII)
+        fieldnames = ["cluster_id", "leaf_id",
+                      "sacc", "qacc", "qlen",
+                      "qstart", "qend", "sstart", "send",
+                      "pident"]
+        with open(input[0], "r") as inf, \
+             open(output[0], "w") as outf:
+            writer = csv.DictWriter(outf, fieldnames=fieldnames)
+            rows=[]
+            cluster_id = None
+            sacc = None
+            for line in inf:
+                if line[0] == ">":
+                    if len(rows) > 0:
+                        for row in rows:
+                            row['sacc'] = sacc
+                        writer.writerows(rows)
+                        rows=[]
+                    cluster_id = line.split()[1].strip()
+                else:
+                    d = clstr_format.match(line).groupdict()
+                    d["cluster_id"] = cluster_id
+                    if "qstart" not in d or d["qstart"] is None:
+                        d["qstart"] = 1
+                        d["qend"] = d["qlen"]
+                        d["sstart"] = 1
+                        d["send"] = d["qlen"]
+                        d["pident"] = "100.00"
+                        sacc = d["qacc"]
+                    rows.append(d)
+
+            if len(rows) > 0:
+                for row in rows:
+                    row['sacc'] = sacc
+                writer.writerows(rows)
+
+
 rule cdhit_fna_single:
     """Clustering predicted genes (nuc) using cdhit-est"""
     message:
