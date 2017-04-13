@@ -22,7 +22,7 @@ rule cdhit_faa_single:
     -o {output} \
     -g {params.slow} \
     -p {params.print_overlap} \
-    -d {params.description_length}
+    -d {params.description_length} \
     > {log} 2>&1
     """
 
@@ -52,6 +52,6 @@ rule cdhit_fna_single:
     -T {threads} \
     -g {params.slow} \
     -p {params.print_overlap} \
-    -d {params.description_length}
+    -d {params.description_length} \
     > {log} 2>&1
     """
