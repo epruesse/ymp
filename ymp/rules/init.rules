@@ -25,6 +25,7 @@ wildcard_constraints:
     mapper = "(bowtie2|bbmap)",
 
     fasta = "(fasta|fna|fa)",
+    fastp = "(fastp|faa)",
     fagz  = "(fasta|fna|fa)(|.gz)",
     fqgz  = "(fq)(|.gz)",
 
