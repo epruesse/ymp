@@ -154,7 +154,7 @@ def R(code="", **kwargs):
         raise ValueError(
             "Python 3 package rpy2 needs to be installed to use the R function.")
 
-    activate_R
+    activate_R()
     
     # translate Namedlists into rpy2's TaggedList to have named lists in R
     for key in kwargs:
