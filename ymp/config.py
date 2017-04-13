@@ -333,7 +333,9 @@ class ConfigMgr(object):
     def expand(self, template):
         return lambda wc: self._expand(template, wc)
 
-    def _expand(self, template, wc={}):
+    def _expand(self, template, wc=None):
+        if wc is None:
+            wc={}
         if isinstance(template, str):
             template = [template]
         names = set()
