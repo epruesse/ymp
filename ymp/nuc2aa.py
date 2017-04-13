@@ -27,21 +27,23 @@ def click_fasta_dna2aa(input, output):
 
 def fasta_dna2aa(input, output):
     def write_aa(header, seq):
-        output.write(header.encode('ascii'))
+#        output.write(header.encode('ascii'))
+        output.write(header)
         aa = nuc2aa(seq)
         if "start_type=GTG" in header:
             aa = 'M'+aa[1:]
         output.write(('\n'.join([
             aa[s:s+60]
             for s in range(0, len(aa)+59, 60)
-            ]).strip()+'\n').encode('ascii')
+            ]).strip()+'\n')
+                     #.encode('ascii')
         )
         
     header = None
     seq = ""
     
     for line in input:
-        line = line.decode('ascii')
+#        line = line.decode('ascii')
         if line[0] == '>':
             if header:
                 write_aa(header, seq)
