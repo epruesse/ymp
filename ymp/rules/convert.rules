@@ -1,25 +1,43 @@
 "Generic file conversion rules"
 
+from ymp import blast, gff
+
+# FIXME: this doesn't work due to gff/blast hit conversion missing
 rule blast7_to_gff:
-    input: "{path}.blast7"
-    output: "{path}.gff"
-    run:
-        with open(input, "r") as inf, open(output, "w") as outf:
-            gff = gff.writer(outf)
-            for hit in blast.reader(inf):
-                gff.write(gff.Feature(hit))
-                
-rule fasta_to_fastp:
-    message:
-        "FASTA->FASTP {input}"
     input:
-        "{path}.fasta"
+        "{path}.blast7"
     output:
-        "{path}.fastp"
+        "{path}.gff"
     run:
-        from ymp.nuc2aa import fasta_dna2aa
         with open(input[0], "r") as inf, open(output[0], "w") as outf:
-            fasta_dna2aa(inf, outf)
+            gfff = gff.writer(outf)
+            for hit in blast.reader(inf):
+                gfff.write(gff.Feature(hit))
+
+rule blast7_to_csv:
+    input:
+        "{path}.blast7"
+    output:
+        "{path}.csv"
+    run:
+        with open(input[0]) as inf, open(output[0], "w") as outf:
+            for hit in blast.reader(inf):
+                print(repr(hit), repr(blast))
+
+
+for fasta in "fa fna fasta".split():
+    for fastp in "faa fastp".split():
+        rule:
+            message:
+                "FASTA->FASTP {output}"
+            input:
+                "{path}."+fasta
+            output:
+                "{path}."+fastp
+            run:
+                from ymp.nuc2aa import fasta_dna2aa
+                with open(input[0], "r") as inf, open(output[0], "w") as outf:
+                    fasta_dna2aa(inf, outf)
 
 
 rule fasta_to_fastp_gz:
