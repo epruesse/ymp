@@ -152,8 +152,8 @@ rule blast7_extract:
                 line_parts = line.strip().split('\t')
                 sacc, sstart, send = get_fields(line_parts,
                                                 ['sacc','sstart','send',])
-                evalue, pident, length = get_fields(line_parts,
-                                                    ['evalue', 'pident', 'length'])
+                qacc, evalue, pident, length = get_fields(line_parts,
+                                                          ['qacc','evalue', 'pident', 'length'])
                 sstart = int(sstart)
                 send = int(send)
                 
@@ -164,17 +164,17 @@ rule blast7_extract:
                      '-range', "{}-{}".format(min(sstart,send), max(sstart,send)),
                      '-strand', "plus" if sstart < send else "minus"
                      ]).decode('ascii')
-                seqid, seq = re.split("[\t ]",seq[1:], maxsplit=1)
                 seqbla, seq = seq.split("\n", 1)
                 seq = seq.replace("\n","")
-                seqname = "{sample}.{seqid}.{start}.{stop}".format(
+                seqname = "{sample}.{sacc}.{start}.{stop}".format(
                     sample=params.sample,
-                    seqid=seqid,
+                    sacc=sacc,
                     start=sstart,
                     stop=send,
                 )
                 out.write(">{seqname}\n{seq}\n".format(seq=seq, seqname=seqname))
-                out_csv.writerow([seqname, params.sample, seqid, sacc, sstart, send, evalue, pident, length])
+                out_csv.writerow([seqname, params.sample, sacc, qacc,
+                                  sstart, send, evalue, pident, length])
 
         
 rule blast7_exctract_merge:
