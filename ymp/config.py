@@ -273,7 +273,7 @@ class ConfigMgr(object):
         "Returns DatasetConfig"
         return self._datasets[key]
 
-    def __iter__(self, key):
+    def __iter__(self):
         "Returns iterator over DatasetConfigs"
         return iter(self._datasets)
 
