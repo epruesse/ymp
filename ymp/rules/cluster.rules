@@ -49,6 +49,7 @@ rule cdhit_clstr_to_csv:
         with open(input[0], "r") as inf, \
              open(output[0], "w") as outf:
             writer = csv.DictWriter(outf, fieldnames=fieldnames)
+            writer.writeheader()
             rows=[]
             cluster_id = None
             sacc = None
