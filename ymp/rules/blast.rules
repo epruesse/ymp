@@ -195,6 +195,21 @@ rule blast7_exctract_merge:
     """
 
 
+rule blast7_coverage:
+    message:
+        "Calulating coverage"
+    input:
+        blast7="{dir}.blast/{sample}.{query}.blast7",
+        bam="{dir}.map/{sample}.{target}.bowtie2.sorted.bam"
+    output:
+        csv="{dir}.blast/{sample}.{target}.{query}.cov.csv"
+    log:
+        "{dir}.blast/{sample}.{target}.{query}.cov.log"
+    shell: """
+    metacov {input.bam} {input.blast7} {output.csv} >{log} w2>&1
+    """
+
+
 ##### Reports ##########
 
 rule blast7_reports:
