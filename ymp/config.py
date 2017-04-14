@@ -123,6 +123,11 @@ class DatasetConfig(object):
 
         @property
         def targets(self):
+            """
+            Returns the current targets:
+             - all "runs" if no by_COLUMN is active
+             - the unique values for COLUMN of grouping is active
+            """
             if self.colname:
                 return set([self.dc.runs[run][self.colname]
                             for run in self.dc.runs])
@@ -131,6 +136,9 @@ class DatasetConfig(object):
 
         @property
         def sources(self):
+            """
+            Returns the runs associated with the current target
+            """
             return set([self.dc.runs[run][self.colname]
                         for run in self.dc.runs
                         if self.dc.runs[run][self.byname] == self.wc.target])
