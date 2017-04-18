@@ -35,7 +35,6 @@ def cli():
 @click.option("--cores", "-j", default=1)
 def make(**kwargs):
     "generate target files"
-    log.warning("Snakemake Params: {}".format(kwargs))
     start_snakemake(**kwargs)
 
 
@@ -58,4 +57,5 @@ def submit(**kwargs):
 
 def start_snakemake(**kwargs):
    # kwargs['cluster_config'] = os.path.join(kwargs['cluster_config'], kwargs['workdir'])
+    log.warning("Snakemake Params: {}".format(kwargs))
     snakemake.snakemake(resource_filename("ymp", "rules/Snakefile"), **kwargs)
