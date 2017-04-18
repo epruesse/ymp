@@ -10,7 +10,7 @@ rule raxml_tree:
         algo="CAT",
         seed="12345",
         bs_seed="12345",
-        bs_num="100",
+        bs_num="5",
     threads:
         32
     shell: """
