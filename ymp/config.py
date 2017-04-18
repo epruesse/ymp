@@ -134,7 +134,7 @@ class DatasetConfig(object):
             """
             Returns the current targets:
              - all "runs" if no by_COLUMN is active
-             - the unique values for COLUMN of grouping is active
+             - the unique values for COLUMN if grouping is active
             """
             if self.colname:
                 return set([self.dc.runs[run][self.colname]
@@ -147,9 +147,10 @@ class DatasetConfig(object):
             """
             Returns the runs associated with the current target
             """
-            return set([self.dc.runs[run][self.colname]
+            resu = set([self.dc.runs[run][self.byname]
                         for run in self.dc.runs
-                        if self.dc.runs[run][self.byname] == self.wc.target])
+                        if self.dc.runs[run][self.colname] == self.wc.target])
+            return resu
         
 
 class SraRunTable(DatasetConfig):
