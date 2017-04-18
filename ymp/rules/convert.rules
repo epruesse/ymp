@@ -34,11 +34,31 @@ for fasta in "fa fna fasta".split():
                 "{path}."+fasta
             output:
                 "{path}."+fastp
+            priority:
+                -50
             run:
                 from ymp.nuc2aa import fasta_dna2aa
                 with open(input[0], "r") as inf, open(output[0], "w") as outf:
                     fasta_dna2aa(inf, outf)
 
+rule faa_fastp:
+    message: "LN_S {output} -> {input}"
+    input:
+        "{path}.faa"
+    output:
+        "{path}.fastp"
+    run:
+        import os
+        os.symlink(
+            os.path.join(
+                os.path.relpath(
+                    os.path.dirname(input[0]),
+                    os.path.dirname(output[0])
+                ),
+                os.path.basename(input[0])
+            ),
+            output[0]
+        )
 
 rule fasta_to_fastp_gz:
     message:
