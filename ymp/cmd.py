@@ -19,7 +19,6 @@ def snake_params(func):
     @click.option("--verbose", "-v", default=False, is_flag=True)
     @click.option("--use-conda/--skip-conda", default=True)
     @click.option("--lock/--no-lock")
-    @click.option("--cluster-config", "-u", default="cluster.yaml")
     @click.option("--rerun-incomplete","--ri", 'force_incomplete', is_flag=True)
     @click.option("--latency-wait","-w", default=0)
     @functools.wraps(func)
@@ -44,6 +43,7 @@ def make(**kwargs):
 @snake_params
 @click.option("--cores", "-j", "nodes", default=1024)
 @click.option("--local-cores", default=8)
+@click.option("--cluster-config", "-u", default="cluster.yaml")
 def submit(**kwargs):
     "generate target files"
     drmaa = " ".join([
@@ -57,4 +57,5 @@ def submit(**kwargs):
     start_snakemake(drmaa=drmaa, **kwargs)
 
 def start_snakemake(**kwargs):
+   # kwargs['cluster_config'] = os.path.join(kwargs['cluster_config'], kwargs['workdir'])
     snakemake.snakemake(resource_filename("ymp", "rules/Snakefile"), **kwargs)
