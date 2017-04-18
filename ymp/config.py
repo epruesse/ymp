@@ -15,6 +15,14 @@ from ymp.snakemake import ExpandableWorkflow, ColonExpander
 from ymp.util import AttrDict
 
 
+class YmpException(Exception):
+    pass
+
+class YmpConfigNotFound(YmpException):
+    pass
+
+
+
 #TODO: allow comment lines starting with # or ; or somesuch
 @contextmanager
 def AutoDictReader(filename):
@@ -248,9 +256,17 @@ class ConfigMgr(object):
         self.load_cfg()
         self.load_datasets()
 
+    def find_root(self):
+        curpath = os.path.abspath(os.getcwd())
+        while not os.path.exists(os.path.join(curpath, "ymp.yml")):
+            curpath, removed = os.path.split(curpath)
+            if removed == "":
+                raise YmpConfigNotFound()
+        return curpath
+
     def load_cfg(self):
         self.load_cfg_file(resource_filename("ymp", "etc/defaults.yml"))
-        self.load_cfg_file(os.path.join(os.getcwd(), "ymp.yml"))
+        self.load_cfg_file(os.path.join(self.find_root(), "ymp.yml"))
 
     def load_cfg_file(self, filename):
         cfg = snakemake.io.load_configfile(filename)

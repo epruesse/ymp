@@ -7,7 +7,29 @@ import os
 import logging
 import functools
 
+
 log = logging.getLogger(__name__)
+
+
+class YmpException(Exception):
+    pass
+
+class YmpConfigNotFound(YmpException):
+    pass
+
+
+
+def find_root():
+    curpath = os.path.abspath(os.getcwd())
+    prefix = ""
+    while not os.path.exists(os.path.join(curpath, "ymp.yml")):
+        left, right = os.path.split(curpath)
+        if curpath == left:
+            raise YmpConfigNotFound()
+        curpath = left
+        prefix = os.path.join(right, prefix)
+    log.error("%s %s",curpath,prefix)
+    return (curpath, prefix)
 
 
 
@@ -56,6 +78,8 @@ def submit(**kwargs):
     start_snakemake(drmaa=drmaa, **kwargs)
 
 def start_snakemake(**kwargs):
+    kwargs['workdir'], prefix = find_root()
+    kwargs['targets'] = [os.path.join(prefix, t) for t in kwargs['targets']]
    # kwargs['cluster_config'] = os.path.join(kwargs['cluster_config'], kwargs['workdir'])
     log.warning("Snakemake Params: {}".format(kwargs))
     snakemake.snakemake(resource_filename("ymp", "rules/Snakefile"), **kwargs)
