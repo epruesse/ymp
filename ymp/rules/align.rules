@@ -2,8 +2,8 @@ rule combine_with_ref:
     message:
         "Adding {wildcards.gene} reference sequences to {input[1]}"
     input:
-        "{gene}_ref.fastp.gz",
-        "{dir}/{query}.{gene}.e{evalue}.fastp.gz"
+        "{gene}_ref.fastp",
+        "{dir}/{query}.{gene}.e{evalue}.fastp"
     output:
         "{dir}/{query}.{gene}.e{evalue}.with_ref.fastp.gz"
     shell:
@@ -13,7 +13,7 @@ rule align_mafft:
     message:
         "MaFFT aligning {input}"
     input:
-        "{dir}/{file}.fastp.gz"
+        "{dir}/{file}.fastp"
     output:
         "{dir}.mafft/{file}.aligned.fastp.gz"
     log:
@@ -21,7 +21,7 @@ rule align_mafft:
     threads:
         32
     shell:"""
-    zcat {input} | \
+    cat {input} | \
     mafft \
       --maxiterate 1000 \
       --localpair \

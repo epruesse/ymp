@@ -188,10 +188,15 @@ rule blast7_exctract_merge:
         csv="{dir}.blast/{query}.{gene}.csv"
     shell: """
     cat {input.fa} | gzip -c9 > {output.fa}
-    (
-        head -n1 {input.csv[0]};
-        tail -n +2 -q {input.csv};
-    ) > {output.csv}
+
+    if test "$(echo {input.csv} | wc -w)" -eq 1; then
+       cp {input.csv} {output.csv}
+    else
+        (
+            head -n1 {input.csv[0]};
+            tail -n +2 -q {input.csv};
+        ) > {output.csv}
+    fi
     """
 
 
@@ -199,15 +204,83 @@ rule blast7_coverage:
     message:
         "Calulating coverage"
     input:
-        blast7="{dir}.blast/{sample}.{query}.blast7",
-        bam="{dir}.map/{sample}.{target}.bowtie2.sorted.bam"
+        blast7="{dir}.blast/{target}.contigs.{query}.blast7",
+        bam="{dir}.map/{target}.contigs.{source}.bowtie2.sorted.bam",
     output:
-        csv="{dir}.blast/{sample}.{target}.{query}.cov.csv"
+        csv="{dir}.blast.cov/{target}.contigs.{source}.{query}.cov"
     log:
-        "{dir}.blast/{sample}.{target}.{query}.cov.log"
+        "{dir}.blast.cov/{target}.contigs.{source}.{query}.log"
     shell: """
-    metacov {input.bam} {input.blast7} {output.csv} >{log} w2>&1
+    ulimit -c 10000000
+    metacov {input.bam} {input.blast7} {output.csv}.tmp >{log} 2>&1
+    sed -e '1 s/^/target,source,/' \
+        -e '2~1 s/^/{wildcards.target},{wildcards.source},/' \
+        {output.csv}.tmp > {output.csv}
+    rm {output.csv}.tmp
     """
+
+rule blast7_coverage_join_sources:
+    message:
+        "Merging coverage"
+    input:
+        csv="{dir}.cov/{target}.contigs.{: sources :}.{query}.cov"
+    output:
+        csv=temp("{dir}.cov/{target}.contigs.{query}.cov")
+    shell: """
+    if test "$(echo {input.csv} | wc -w)" -eq 1; then
+       cp {input.csv} {output.csv}
+    else
+        (
+            head -n1 {input.csv[0]};
+            tail -n +2 -q {input.csv};
+        ) > {output.csv}
+    fi
+    """
+
+rule blast7_coverage_join_targets:
+    message:
+        "Merging coverage"
+    input:
+        csv="{dir}.cov/{:targets:}.contigs.{query}.cov"
+    output:
+        csv="{dir}.cov/{query}.cov"
+    shell: """
+    if test "$(echo {input.csv} | wc -w)" -eq 1; then
+       cp {input.csv} {output.csv}
+    else
+        (
+            head -n1 {input.csv[0]};
+            tail -n +2 -q {input.csv};
+        ) > {output.csv}
+    fi
+    """
+
+
+rule blast7_coverage_per_otu:
+    input:
+        cov="{dir}.blast/{sample}.{: targets :}.{query}.cov.csv",
+        clust="{dir}.blast/{query}.{gene}.NR.csv"
+    output:
+        otu="{dir}.blast/{sample}.{target}.{query}.{gene}.cova.csv"
+    run:
+        import csv
+        clust_map = {}
+        cov_map = {}
+        with open(input.clust, "r") as clust_f:
+            clust_reader = csv.DictReader(clust_f)
+            for row in clust_reader:
+                clust_map[row['sacc']] = row['qacc']
+        with open(input.cov, "r") as cov_f:
+            cov_reader  = csv.DictReader(cov_f)
+            for row in cov_reader:
+                ref = ".".join([wildcards.sample,
+                                row['sacc'], row['start'], row['end']])
+                try:
+                    cov_map[clust_map[ref]] = row['q23']
+                except:
+                    pass
+            print(repr(cov_map))
+
 
 
 ##### Reports ##########
