@@ -6,7 +6,7 @@ rule raxml_tree:
     output:
         "{dir}.raxml/{file}.tree"
     params:
-        matrix="BLOSUM62",
+        matrix="AUTO",
         algo="CAT",
         seed="12345",
         bs_seed="12345",
@@ -23,6 +23,7 @@ rule raxml_tree:
     zcat "$x"/{input} > input.fasta
 
     raxmlHPC-PTHREADS-SSE3  \
+      -f a \
       -m PROT{params.algo}{params.matrix} \
       -n {wildcards.file} \
       -T {threads} \
