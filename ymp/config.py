@@ -127,7 +127,7 @@ class DatasetConfig(object):
             if hasattr(wc, 'by'):
                 groups = re.findall(regex, wc.by)
                 if len(groups) > 0:
-                    self.byname = groups[-1]
+                    self.colname = groups[-1]
 
         @property
         def targets(self):
