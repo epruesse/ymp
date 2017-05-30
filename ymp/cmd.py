@@ -43,6 +43,7 @@ def snake_params(func):
     @click.option("--lock/--no-lock")
     @click.option("--rerun-incomplete","--ri", 'force_incomplete', is_flag=True)
     @click.option("--latency-wait","-w", default=0)
+    @click.option("--forceall", "-F", is_flag=True, default=False)
     @functools.wraps(func)
     def decorated(*args, **kwargs):
         return func(*args, **kwargs)
@@ -55,6 +56,7 @@ def cli():
 @cli.command()
 @snake_params
 @click.option("--cores", "-j", default=1)
+@click.option("--dag", "printdag", default=False, is_flag=True)
 def make(**kwargs):
     "generate target files"
     start_snakemake(**kwargs)
