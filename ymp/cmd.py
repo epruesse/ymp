@@ -57,6 +57,7 @@ def cli():
 @snake_params
 @click.option("--cores", "-j", default=1)
 @click.option("--dag", "printdag", default=False, is_flag=True)
+@click.option("--rulegraph", "printrulegraph", default=False, is_flag=True)
 def make(**kwargs):
     "generate target files"
     start_snakemake(**kwargs)
