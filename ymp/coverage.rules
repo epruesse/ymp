@@ -1,0 +1,58 @@
+rule blast7_coverage:
+    message:
+        "Calulating coverage"
+    input:
+        blast7="{dir}.blast/{target}.contigs.{query}.blast7",
+        bam="{dir}.map/{target}.contigs.{source}.bowtie2.sorted.bam",
+    output:
+        csv="{dir}.blast.cov/{target}.contigs.{source}.{query}.cov"
+    log:
+        "{dir}.blast.cov/{target}.contigs.{source}.{query}.log"
+    shell: """
+    ulimit -c 10000000
+    metacov {input.bam} {input.blast7} {output.csv}.tmp >{log} 2>&1
+    sed -e '1 s/^/target,source,/' \
+        -e '2~1 s/^/{wildcards.target},{wildcards.source},/' \
+        {output.csv}.tmp > {output.csv}
+    rm {output.csv}.tmp
+    """
+
+
+localrules: blast7_coverage_join_sources
+rule blast7_coverage_join_sources:
+    message:
+        "Merging coverage"
+    input:
+        csv="{dir}.cov/{target}.contigs.{: sources :}.{query}.cov"
+    output:
+        csv=temp("{dir}.cov/{target}.contigs.{query}.cov")
+    shell: """
+    if test "$(echo {input.csv} | wc -w)" -eq 1; then
+       cp {input.csv} {output.csv}
+    else
+        (
+            head -n1 {input.csv[0]};
+            tail -n +2 -q {input.csv};
+        ) > {output.csv}
+    fi
+    """
+
+
+localrules: blast7_coverage_join_targets
+rule blast7_coverage_join_targets:
+    message:
+        "Merging coverage"
+    input:
+        csv="{dir}.cov/{:targets:}.contigs.{query}.cov"
+    output:
+        csv="{dir}.cov/{query}.cov"
+    shell: """
+    if test "$(echo {input.csv} | wc -w)" -eq 1; then
+       cp {input.csv} {output.csv}
+    else
+        (
+            head -n1 {input.csv[0]};
+            tail -n +2 -q {input.csv};
+        ) > {output.csv}
+    fi
+    """
