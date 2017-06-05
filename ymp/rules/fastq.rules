@@ -155,7 +155,7 @@ rule phyloFlash:
     message:
         "PhyloFlash {wildcards.dir}/{wildcards.sample}"
     input:
-        icfg.expand("{dir}/{sample}.{pairnames}.fq.gz")
+        "{dir}/{sample}.{:pairnames:}.fq.gz"
     output:
         "{dir}.pf/{sample}.phyloFlash.NTUabundance.csv"
     threads:
@@ -177,9 +177,9 @@ rule phyloFlash_heatmap:
     message:
         "PhyloFlash Heatmap {wildcards.dir}"
     input:
-        icfg.expand("{dir}/{fastq_basenames}.phyloFlash.NTUabundance.csv")
+        "{dir}.pf/{:runs:}.phyloFlash.NTUabundance.csv"
     output:
-        icfg._expand("{reportsdir}/{dir}_heatmap.pdf")
+        "{:reportsdir:}/{dir}_heatmap.pdf"
     threads:
         1
     shell: """
