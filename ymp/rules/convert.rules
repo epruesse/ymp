@@ -14,17 +14,8 @@ rule blast7_to_gff:
             for hit in blast.reader(inf):
                 gfff.write(gff.Feature(hit))
 
-rule blast7_to_csv:
-    input:
-        "{path}.blast7"
-    output:
-        "{path}.csv"
-    run:
-        with open(input[0]) as inf, open(output[0], "w") as outf:
-            for hit in blast.reader(inf):
-                print(repr(hit), repr(blast))
 
-
+# FIXME: how can I make these localrules?
 for fasta in "fa fna fasta".split():
     for fastp in "faa fastp".split():
         rule:
