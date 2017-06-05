@@ -15,7 +15,8 @@ setup(
     ]},
     zip_safe=False,
     setup_requires=[
-        'setuptools_scm'
+        'setuptools_scm',
+        'pytest-runner'
     ],
     test_require=[
         'pytest',
