@@ -5,10 +5,10 @@ rule cdhit_faa_single:
     input:
         "{dir}/{file}.faa"
     output:
-        fa="{dir}.otu/{file}.NR.faa",
-        clstr="{dir}.otu/{file}.NR.faa.clstr"
+        fa="{dir}/{file}.NR.faa",
+        clstr="{dir}/{file}.NR.clstr"
     log:
-        "{dir}.otu/{file}.NR.faa.log"
+        "{dir}/{file}.NR.faa.log"
     threads:
         33
     params:
@@ -25,13 +25,14 @@ rule cdhit_faa_single:
     -p {params.print_overlap} \
     -d {params.description_length} \
     > {log} 2>&1
+    mv {output.fa}.clstr {output.clstr}
     """
 
 rule cdhit_clstr_to_csv:
     input:
-        "{dir}/{file}.NR.faa.clstr"
+        "{dir}/{file}.NR.clstr"
     output:
-        "{dir}/{file}.NR.csv"
+        "{dir}/{file}.NR.clstr.csv"
     threads:
         1
     run:
@@ -80,12 +81,12 @@ rule cdhit_clstr_to_csv:
 
 
 rule make_otu_table:
+    input:
+        clust="{dir}/{query}.{gene}.NR.clstr.csv",
+        cov="{dir}.cov/{query}.cov"
     output:
         table="{dir}.otu/{query}.{gene}.otu_table.csv",
         counts="{dir}.otu/{query}.{gene}.otu_count.csv"
-    input:
-        clust="{dir}.otu/{query}.{gene}.NR.csv",
-        cov="{dir}.cov/{query}.cov"
     run:
         import csv
         from collections import defaultdict
