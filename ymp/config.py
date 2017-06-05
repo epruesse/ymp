@@ -250,12 +250,12 @@ class ConfigMgr(object):
     def __init__(self):
         self._datasets = {}
         self._config = {}
-        self.config_expander = ConfigExpander(self)
 
     def init(self):
         ExpandableWorkflow.activate()
         self.load_cfg()
         self.load_datasets()
+        self.config_expander = ConfigExpander(self)
 
     def find_root(self):
         curpath = os.path.abspath(os.getcwd())
@@ -300,7 +300,7 @@ class ConfigMgr(object):
 
     def __iter__(self):
         "Returns iterator over DatasetConfigs"
-        return iter(self._datasets)
+        return iter(self._datasets.keys())
 
     @property
     def pairnames(self):
