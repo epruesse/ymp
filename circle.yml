@@ -4,7 +4,6 @@ machine:
     MINICONDA_URL: "https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh"
     PATH: "$MINICONDA/bin:$PATH"
     CONDA: "$MINICONDA_PATH/conda"
-    CONDA_CHANNELS: 
 
 dependencies:
   pre:
@@ -12,17 +11,19 @@ dependencies:
   override:
     - rm -rf virtualenvs venv .pyenv
     - rm -rf .condarc
-    - ls -R .
+    - ls -R ~
+    - env
     - |
       set -x
       wget $MINICONDA_URL -O miniconda.sh
       bash miniconda.sh -b -p $MINICONDA
       hash -r
+      conda config --show
       conda config --set always_yes yes --set changeps1 no
       conda update -q conda
       for channel in $CONDA_CHANNELS; do
         conda config --system --add channels $channel
       done
-
+      conda config --show
       conda info -a
     - conda install rpy2
