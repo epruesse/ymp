@@ -1,4 +1,4 @@
-from snakemake.workflow import Workflow, workflow
+from snakemake.workflow import Workflow
 from snakemake.io import expand, apply_wildcards, AnnotatedString
 from string import Formatter
 from itertools import product
@@ -64,26 +64,33 @@ class OverrideJoinFormatter(Formatter):
 class ExpandableWorkflow(Workflow):
     @staticmethod
     def activate():
-        from snakemake.workflow import workflow
+        try:
+            from snakemake.workflow import workflow
 
-        if workflow.__class__ != ExpandableWorkflow:
-            workflow.__class__ = ExpandableWorkflow
-            workflow.expand_funcs = {
-                'input': [
-                ],
-                'output': [
-                ]
-            }
-            
-            workflow.sm_expander = SnakemakeExpander()
+            if workflow.__class__ != ExpandableWorkflow:
+                workflow.__class__ = ExpandableWorkflow
+                workflow.expand_funcs = {
+                    'input': [
+                    ],
+                    'output': [
+                    ]
+                }
+                workflow.sm_expander = SnakemakeExpander()
+        except ImportError:
+            pass
 
     @staticmethod
     def register_expandfuncs(expand_input = None, expand_output = None):
         ExpandableWorkflow.activate()
-        if expand_input:
-            workflow.expand_funcs['input'].append(expand_input)
-        if expand_output:
-            workflow.expand_funcs['output'].append(expand_output)
+        try:
+            from snakemake.workflow import workflow
+
+            if expand_input:
+                workflow.expand_funcs['input'].append(expand_input)
+            if expand_output:
+                workflow.expand_funcs['output'].append(expand_output)
+        except ImportError:
+            pass
 
     def input(self, *paths, **kwpaths):
         for func in reversed(self.expand_funcs['input']):
