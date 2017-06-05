@@ -1,0 +1,5 @@
+mapfiles:
+    ibd:
+        file: 'ibd_runtable.txt'
+        type: 'SraRunTable'
+        name_col: 'Library_Name_s'

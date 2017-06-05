@@ -17,6 +17,11 @@ setup(
     setup_requires=[
         'setuptools_scm'
     ],
+    test_requires=[
+        'pytest',
+        'networkx',
+        'pygraphviz'
+    ],
     install_requires=[
         'snakemake',
         'Click',
