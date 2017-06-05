@@ -132,11 +132,11 @@ rule multiqc:
     """Assemble report on all FQ files in a directory"""
     message:
         "Aggregating QC reports for {wildcards.dir}"
-    output:
-        icfg._expand(["{reportsdir}/{dir}_qc.html",
-                      "{dir}_qc/multiqc_data"])
     input:
-        icfg.expand("{dir}_qc/{fastq_basenames}_fastqc.html")
+        "{dir}_qc/{:runs:}.{:pairnames:}_fastqc.html"
+    output:
+        "{:reportsdir:}/{dir}_qc.html",
+        "{dir}_qc/multiqc_data"
     threads:
         1
     conda:
