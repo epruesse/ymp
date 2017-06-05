@@ -10,20 +10,17 @@ dependencies:
     - export CONDA_CHANNELS="conda-forge defaults r bioconda"
   override:
     - rm -rf virtualenvs venv .pyenv
-    - rm -rf .condarc
-    - ls -R ~
+    - rm -rf ~/.condarc ~/.conda
+    - ls -R -a ~
     - env
-    - |
-      set -x
-      wget $MINICONDA_URL -O miniconda.sh
-      bash miniconda.sh -b -p $MINICONDA
-      hash -r
-      conda config --show
-      conda config --set always_yes yes --set changeps1 no
-      conda update -q conda
-      for channel in $CONDA_CHANNELS; do
+    - wget $MINICONDA_URL -O miniconda.sh
+    - bash miniconda.sh -b -p $MINICONDA; hash -r
+    - conda config --show
+    - conda config --set always_yes yes --set changeps1 no
+    - conda update -q conda
+    - for channel in $CONDA_CHANNELS; do
         conda config --system --add channels $channel
       done
-      conda config --show
-      conda info -a
+    - conda config --show
+    - conda info -a
     - conda install rpy2
