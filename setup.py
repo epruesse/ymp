@@ -17,7 +17,7 @@ setup(
     setup_requires=[
         'setuptools_scm'
     ],
-    test_requires=[
+    test_require=[
         'pytest',
         'networkx',
         'pygraphviz'
