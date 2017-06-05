@@ -4,6 +4,7 @@ import click
 from pkg_resources import resource_filename
 import snakemake
 import os
+import sys
 import logging
 import functools
 
@@ -28,7 +29,6 @@ def find_root():
             raise YmpConfigNotFound()
         curpath = left
         prefix = os.path.join(right, prefix)
-    log.error("%s %s",curpath,prefix)
     return (curpath, prefix)
 
 
@@ -58,9 +58,13 @@ def cli():
 @click.option("--cores", "-j", default=1)
 @click.option("--dag", "printdag", default=False, is_flag=True)
 @click.option("--rulegraph", "printrulegraph", default=False, is_flag=True)
+@click.option("--debug-dag", default=False, is_flag=True)
+@click.option("--debug", default=False, is_flag=True)
 def make(**kwargs):
     "generate target files"
-    start_snakemake(**kwargs)
+    rval = start_snakemake(**kwargs)
+    if not rval:
+        sys.exit(1)
 
 
 @cli.command()
@@ -78,11 +82,13 @@ def submit(**kwargs):
         '-l mem={cluster.mem}',
         '-q {cluster.queue}'
     ])
-    start_snakemake(drmaa=drmaa, **kwargs)
+    rval = start_snakemake(drmaa=drmaa, **kwargs)
+    if not rval:
+        sys.exit(1)
 
 def start_snakemake(**kwargs):
     kwargs['workdir'], prefix = find_root()
     kwargs['targets'] = [os.path.join(prefix, t) for t in kwargs['targets']]
-   # kwargs['cluster_config'] = os.path.join(kwargs['cluster_config'], kwargs['workdir'])
-    log.warning("Snakemake Params: {}".format(kwargs))
-    snakemake.snakemake(resource_filename("ymp", "rules/Snakefile"), **kwargs)
+    # kwargs['cluster_config'] = os.path.join(kwargs['cluster_config'], kwargs['workdir'])
+    #log.warning("Snakemake Params: {}".format(kwargs))
+    return snakemake.snakemake(resource_filename("ymp", "rules/Snakefile"), **kwargs)
