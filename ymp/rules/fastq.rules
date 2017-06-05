@@ -34,7 +34,7 @@ rule fastq_dump:
     Extracts FQ from SRA files
     """
     message:
-        "Extracging FastQ from {wildcards.SRR}"
+        "Extracting FastQ from {wildcards.SRR}"
 #    input:
 #        "{:sra:}/{SRR}.sra"
     output:
