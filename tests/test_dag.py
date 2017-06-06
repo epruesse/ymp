@@ -25,6 +25,8 @@ targets = [
     'reports/{}.by_SUBJECT.mhc_qc.html',
     # complete co-assembly
     'reports/{}.mhc_qc.html',
+    # blast test
+    '{}.by_Subject.mhc.blast/psa.wcfR.csv',
     #
     '{}.ecco.trimAQ10.xhum.by_Subject.mhc.blast.otu/psa.wcfR.otu_table.csv'
 ]
