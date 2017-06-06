@@ -16,19 +16,20 @@ Quast options:
 """
 
 
-rule quast_individual_assembly:
+rule quast:
     message:
         "QUAST qc'ing {wildcards.dir} assemblies"
     input:
-        "{dir}.mh/{: runs :}.contigs.fasta.gz"
+        "{dir}/{:targets:}.contigs.fasta.gz"
     output:
-        "{:reportsdir:}/{dir}.mh_quast"
+        report="{dir}_qc/report.txt",
+        dir="{dir}_qc/"
     conda:
         srcdir("quast.yml")
     threads:
         8
     shell:"""
-    quast -o {output} \
+    quast -o {output.dir} \
           -t {threads} \
           --meta \
           -L \
@@ -36,54 +37,12 @@ rule quast_individual_assembly:
     """
 
 
-rule quast_partial_coassembly:
-    message:
-        "QUAST qc'ing {wildcards.dir} assemblies"
-    input:
-        "{dir}.mhc/{:targets:}.contigs.fasta.gz"
-    output:
-        "{:reportsdir:}/{dir}.mhc_quast"
-    conda:
-        srcdir("quast.yml")
-    threads:
-        8
-    shell:"""
-    quast -o {output} \
-          -t {threads} \
-          --meta \
-          -L \
-          {input}
-    """
-
-
-rule quast_coassembly:
-    message: "QUAST checking {input}"
-    input:
-        "{dir}/contigs.fasta"
-    output:
-        "{dir}_qc/report.html",
-        "{dir}_qc/report.txt",
-        "{dir}_qc/report.tsv",
-        "{dir}_qc"
-    threads:
-        1
-    conda:
-        srcdir("quast.yml")
-    shell: """
-        quast -o {wildcards.dir}_qc/ \
-              -L \
-              --meta {input} \
-              -t {threads} \
-              --gene-finding
-    """
-
-
-rule quast_report_coassembly:
+rule quast_report:
     message: "MultiQC aggregating QUAST reports"
-    output:
-        "reports/{dir}_stats.html"
     input:
         "{dir}_qc/report.txt"
+    output:
+        "reports/{dir}_qc.html"
     params:
         dir = "{dir}_qc"
     conda:
