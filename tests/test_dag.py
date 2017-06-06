@@ -4,6 +4,7 @@ import logging
 import os
 
 targets = [
+    ## fastq.rules
     # test import
     'reports/{}_qc.html',
     # test rule bb_ecco
@@ -16,6 +17,15 @@ targets = [
     'reports/{}.ddp_qc.html',
     # test rule phyloFlash and rule phyloFlash_heatmap
     'reports/{}_heatmap.pdf',
+    ## assembly.rules
+    # FIXME: some of these should fail currently:
+    # individual assembly
+    'reports/{}.by_ID.mhc_qc.html',
+    # grouped assembly
+    'reports/{}.by_SUBJECT.mhc_qc.html',
+    # complete co-assembly
+    'reports/{}.mhc_qc.html',
+    #
     '{}.ecco.trimAQ10.xhum.by_Subject.mhc.blast.otu/psa.wcfR.otu_table.csv'
 ]
 
@@ -51,4 +61,7 @@ def test_graph_complete(project_dir, target):
                 [1
                  for node, degree in G.in_degree().items()
                  if degree == 0])
-            assert n_start_nodes == len(icfg[ds].runs)
+            n_runs = len(icfg[ds].runs)
+            print("Testing start-nodes ({}) == runs ({})"
+                  "".format(n_start_nodes, n_runs))
+            assert n_start_nodes == n_runs
