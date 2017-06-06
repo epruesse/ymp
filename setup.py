@@ -20,6 +20,7 @@ setup(
     ],
     tests_require=[
         'pytest',
+        'pytest-xdist',
         'networkx',
         'pygraphviz'
     ],
