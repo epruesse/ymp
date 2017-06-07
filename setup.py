@@ -19,10 +19,10 @@ setup(
         'pytest-runner'
     ],
     tests_require=[
-        'pytest',
-        'pytest-xdist',
+#        'pytest-xdist',
         'networkx',
-        'pygraphviz'
+        'pygraphviz',
+        'pytest'
     ],
     install_requires=[
         'snakemake',
