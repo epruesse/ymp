@@ -1,16 +1,16 @@
-rule bbmap_partial_coassembly:
-    """Map read from each co-assembly read file to the assembly"""
+rule bbmap:
+    """Map read from each (co-)assembly read file to the assembly"""
     message:
         "BBMap mapping sample {wildcards.source} to assembly {wildcards.target}"
     input:
         contigs="{dir}{by}.mhc/{target}.contigs.fasta.gz",
         pairs="{dir}/{source}.{: pairnames :}.fq.gz"
     output:
-        bam="{dir}{by}.mhc.map/{target}.contigs.{source}.bbmap.bam",
-        stats="{dir}{by}.mhc.map/{target}.contigs.{source}.bbmap.stats",
-        ihist="{dir}{by}.mhc.map/{target}.contigs.{source}.bbmap.ihist"
+        bam="{dir}{by}.mhc.bbm/{target}.contigs.{source}.bam",
+        stats="{dir}{by}.mhc.bbm/{target}.contigs.{source}.stats",
+        ihist="{dir}{by}.mhc.bbm/{target}.contigs.{source}.ihist"
     log:
-        "{dir}{by}.mhc.map/{source}.contigs.{source}.bbmap.log"
+        "{dir}{by}.mhc.bbm/{source}.contigs.{source}.log"
     threads:
         8
     conda:
@@ -36,10 +36,10 @@ rule bowtie_index:
     input:
         contigs="{dir}/{sample}.contigs.fasta"
     output:
-        expand("{{dir}}/{{sample}}.contigs.{ext}",
-               ext="1.bt2 2.bt2 3.bt2 4.bt2 rev.1.bt2 rev.2.bt2".split())
+        temp(expand("{{dir}}.bt2/{{sample}}.contigs.{ext}",
+                    ext="1.bt2 2.bt2 3.bt2 4.bt2 rev.1.bt2 rev.2.bt2".split()))
     params:
-        bt2_base="{dir}/{sample}.contigs"
+        bt2_base="{dir}.bt2/{sample}.contigs"
     threads:
         8
     log:
@@ -47,8 +47,11 @@ rule bowtie_index:
     conda:
       srcdir("bowtie2.yml")
     shell:"""
-    bowtie2-build-s {input.contigs} {params.bt2_base} \
-      --threads {threads} >& {log}
+    bowtie2-build-s \
+      {input.contigs} \
+      {params.bt2_base} \
+      --threads {threads} \
+      >& {log}
     """
 
 
@@ -57,13 +60,13 @@ rule bowtie_map_partial_coassembly:
         "Bowtie2: Mapping sample {wildcards.source} to assembly {wildcards.target}"
     input:
         contigs = "{dir}{by}.mhc/{target}.contigs.fasta.gz",
-        index   = "{dir}{by}.mhc/{target}.contigs.1.bt2",
+        index   = "{dir}{by}.mhc.bt2/{target}.contigs.1.bt2",
         pairs   = "{dir}/{source}.{: pairnames :}.fq.gz"
     output:
-        bam     = "{dir}{by}.mhc.map/{target}.contigs.{source}.bowtie2.bam",
-        stats   = "{dir}{by}.mhc.map/{target}.contigs.{source}.bowtie2.bt2_stats"
+        bam     = "{dir}{by}.mhc.bt2/{target}.contigs.{source}.bam",
+        stats   = "{dir}{by}.mhc.bt2/{target}.contigs.{source}.stats"
     log:
-                  "{dir}{by}.mhc.map/{target}.contigs.{source}.bowtie2.log"
+                  "{dir}{by}.mhc.bt2/{target}.contigs.{source}.log"
     params:
         bt2_base= "{dir}{by}.mhc/{target}.contigs",
         maxins = 800,
@@ -91,7 +94,7 @@ rule samtools_sort:
     input:
         "{path}.bam"
     output:
-        "{path,.*(?<!.sorted)}.sorted.bam"
+        "{path}.sorted.bam"
     params:
         mem=32
     threads:
@@ -119,31 +122,17 @@ rule samtools_index:
 
 rule all_mapped:
     input:
-        "{dir}.map/{: runs :}.contigs.{mapper}.sorted.bam.bai"
+        "{dir}/{target}.contigs.{:sources:}.sorted.bam.bai"
     output:
-        "{dir}.map/complete_{mapper}"
+        "{dir}/complete_{target}"
     shell:
         "touch {output}"
 
 
-
-rule bbmap_partial_coassembly_all_for_target:
-    message:
-        "Finished mapping for {wildcards.target} with {wildcards.mapper}"
+rule complete_from_targets:
     output:
-        "{dir}{by}.mhc.map/complete_{mapper}_{target}"
+        "{dir}/complete"
     input:
-        "{dir}{by}.mhc.map/{target}.contigs.{:sources:}.{mapper}.sorted.bam.bai"
-    shell:
-        "touch {output}"
-
-
-rule bbmap_partial_coassembly_all:
-    message:
-        "Finished mapping with {wildcards.mapper} on {wildcards.dir}"
-    output:
-        "{dir}.mhc.map/complete_{mapper}"
-    input:
-        "{dir}.mhc.map/complete_{mapper}_{:targets:}"
+        "{dir}/complete_{:targets:}"
     shell:
         "touch {output}"
