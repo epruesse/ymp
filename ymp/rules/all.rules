@@ -302,3 +302,82 @@ rule report_test:
             cags=os.path.abspath(input.cags[0]),
             ssu_otus=os.path.abspath(input.ssu_otus[0]))
         print(type(input.cags[0]))
+
+rule bbmap_gene_cat:
+    message:
+        "BBMap mapping to {wildcards.ref} - {wildcards.sample}"
+    output:
+        stats="{dir}.mh.blast.map/{ref}__{sample}.stats"
+    input:
+        ref="{dir}.mh.blast/{ref}.fasta.gz",
+        pairs="{dir}/{sample}.{: pairnames :}.fq.gz"
+    log:
+        "{dir}.mh.blast.map/{ref}__{sample}.log"
+    threads:
+        8
+    conda:
+        srcdir("bbmap.yml")
+    shell: """
+    bbmap.sh nodisk pigz unpigz jni machineout \
+      threads={threads} \
+      ref={input.ref} \
+      in={input.pairs[0]} in2={input.pairs[1]} \
+      minid=0.99 \
+      statsfile={output.stats} > {log} 2>&1
+    """
+
+rule gene_presence_table:
+    message:
+        "IMP creating RMPM table {output}"
+    output:
+        stats="{dir}.mh.blast.map/{ref}.csv"
+    input:
+        "{dir}.mh.blast.map/{ref}__{: runs :}.stats"
+    params:
+        re="{dir}.mh.blast.map/{ref}__(.+).stats"
+    run:
+        import csv, fileinput
+        sample_re = re.compile(params.re)
+        fields = ['sample', 'reads', 'mapped', 'rmpm']
+        with open(output[0], "w") as outf, fileinput.input(input) as f:
+            out = csv.DictWriter(outf, fields)
+            out.writeheader()
+            for line in f:
+                if f.isfirstline():
+                    data={}
+                    sample = sample_re.match(f.filename()).group(1)
+
+                if not "=" in line: continue
+                key, val = line.strip().split('=')
+                try:
+                    val = int(val)
+                except Exception as e:
+                    continue
+
+                data[key] = val
+
+                if key == "R2_Mapped_Reads":
+                    row = {
+                        'mapped': data['R1_Mapped_Reads'] + data['R2_Mapped_Reads'],
+                        'reads':data['Reads_Used'],
+                        'sample':sample
+                    }
+                    row['rmpm'] = row['mapped'] / row['reads'] * 1000000
+                    out.writerow(row)
+
+rule gene_presence_plots:
+    message:
+        "IMO creating RMPM report"
+    input:
+        csv="{dir}.mh.blast.map/{ref}.csv",
+        map="mapping.csv",
+        rmd=srcdir("Genes.Rmd")
+    output:
+        "reports/{dir}.mh.blast.map__{ref}.pdf"
+    run:
+        from ymp.util import Rmd
+        Rmd(rmd=input.rmd[0],
+            out=output,
+            csv=os.path.abspath(csv),
+            map=os.path.abspath(map)
+            )
