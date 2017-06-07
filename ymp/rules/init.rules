@@ -3,7 +3,7 @@ from ymp.config import icfg
 icfg.init()
 
 wildcard_constraints:
-    dir      = "[^/]+",
+    dir      = "[^/]+?",
     dir1     = "[^/]+",
     dir2     = "[^/]+",
     sample   = "[^/]+",
@@ -29,5 +29,5 @@ wildcard_constraints:
     fagz  = "(fasta|fna|fa)(|.gz)",
     fqgz  = "(fq)(|.gz)",
 
-    by = "(\.by_[^./]*)"
+    by = "(\.by_[^./]*|)"
     
