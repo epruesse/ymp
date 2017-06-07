@@ -391,7 +391,11 @@ class ConfigMgr(object):
         return res
             
     def FQpath(self, dataset, run, pairsuff):
-        return self._datasets[dataset].FQpath(run, self.pairnames.index(pairsuff))
+        try:
+            return self._datasets[dataset].FQpath(run, self.pairnames.index(pairsuff))
+        except KeyError:
+            return ":::No such file (ds={}, run={}, pair={}):::".format(
+                dataset, run, pairsuff)
 
 
     def getRuns(self, datasets=None):
