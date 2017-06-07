@@ -28,6 +28,13 @@ targets = odict[
     'assemble_separate': 'reports/{}.by_ID.mhc_qc.html',
     'assemble_grouped':  'reports/{}.by_SUBJECT.mhc_qc.html',
     'assemble_joined':   'reports/{}.mhc_qc.html',
+    ## mapping.rules
+    'map_bbmap_separate':   '{}.by_ID.mhc.bbm/complete',
+    'map_bbmap_grouped':   '{}.by_SUBJECT.mhc.bbm/complete',
+    'map_bbmap_joined':   '{}.mhc.bbm/complete',
+    'map_bowtie2_separate': '{}.by_ID.mhc.bt2/complete',
+    'map_bowtie2_grouped': '{}.by_SUBJECT.mhc.bt2/complete',
+    'map_bowtie2_joined': '{}.mhc.bt2/complete',
     ## blast.rules
     'blast_gene_find':   '{}.by_Subject.mhc.blast/psa.wcfR.csv',
     ## otu.rules
