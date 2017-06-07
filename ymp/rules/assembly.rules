@@ -63,3 +63,48 @@ rule megahit_partial_coassembly:
     # remove intermediate contigs
     #rm -rf {params.workdir}
     """
+
+
+rule quast:
+    message:
+        "QUAST qc'ing {wildcards.dir} assemblies"
+    input:
+        "{dir}/{:targets:}.contigs.fasta.gz"
+    output:
+        report="{dir}_qc/report.txt",
+        dir="{dir}_qc/"
+    log:
+        "{dir}_qc/metaquast.log"
+    params:
+        targets = icfg.expand("{:targets:}"),
+        min_contig_len = 500
+    conda:
+        srcdir("quast.yml")
+    threads:
+        16
+    shell:"""
+    TARGETS="{params.targets}"
+    metaquast \
+          -o {output.dir} \
+          -t {threads} \
+          -l ${{TARGETS// /,}} \
+          --min-contig {params.min_contig_len}
+          {input}
+    """
+
+
+rule quast_report:
+    message: "MultiQC aggregating QUAST reports"
+    input:
+        "{dir}_qc/report.txt"
+    output:
+        "reports/{dir}_qc.html"
+    params:
+        dir = "{dir}_qc"
+    conda:
+        srcdir("multiqc.yml")
+    threads:
+        1
+    shell: """
+    multiqc -d -m quast --no-data-dir {params.dir} -n {output}
+    """
