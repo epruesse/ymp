@@ -13,38 +13,34 @@ rule megahit_partial_coassembly:
     message:
         "Co-Assembling {wildcards.target} with megahit"
     input:
-        r1="{dir}/{: sources :}.{: pairnames[0] :}.fq.gz",
-        r2="{dir}/{: sources :}.{: pairnames[1] :}.fq.gz"
+        r1 = "{dir}/{: sources :}.{: pairnames[0] :}.fq.gz",
+        r2 = "{dir}/{: sources :}.{: pairnames[1] :}.fq.gz"
     output:
         fasta = "{dir}{by}.mhc/{target}.contigs.fasta.gz",
         fastg = "{dir}{by}.mhc/{target}.contigs.fastg.gz"
     log:
         "{dir}{by}.mhc/{target}.log.gz"
     params:
-        workdir="{dir}{by}.mhc/{target}/",
+        workdir = "{dir}{by}.mhc/{target}/",
+        tmpdir  = "/scratch/$HOME/tmp",
+        preset  = "meta-sensitive",
+        r1 = lambda wc, input: ",".join([input.r1]
+                                        if isinstance(input.r1, str) else input.r1),
+        r2 = lambda wc, input: ",".join([input.r2]
+                                        if isinstance(input.r2, str) else input.r2)
     threads:
         16
-# FIXME: work around need for run: using param
-# so that conda will work
-#    conda:
-#        srcdir("megahit.yml")
-    run:
-        if isinstance(input.r1, str):
-            input.r1 = [input.r1]
-            input.r2 = [input.r2]
-            
-        csr1=",".join(input.r1)
-        csr2=",".join(input.r2)
-
-        shell("""
+    conda:
+        srcdir("megahit.yml")
+    shell: """
     # delete workdir if no opts.txt was recorded (never started really)
     [ -e {params.workdir}/opts.txt ] || rm -rf {params.workdir}
 
-    megahit -1 {csr1} -2 {csr2} \
-      --presets meta-sensitive \
+    megahit -1 {params.r1} -2 {params.r2} \
+      --presets {params.preset} \
       --num-cpu-threads {threads} \
       --out-dir {params.workdir} \
-      --tmp-dir /scratch/$HOME/tmp \
+      --tmp-dir {params.tmpdir} \
 
     # quit if not finished
     [ -e {params.workdir}/done ] || exit 1
@@ -66,9 +62,4 @@ rule megahit_partial_coassembly:
 
     # remove intermediate contigs
     #rm -rf {params.workdir}
-    """)
-
-
-
-
-    
+    """
