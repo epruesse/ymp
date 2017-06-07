@@ -355,8 +355,11 @@ class ConfigMgr(object):
         except:
             raise KeyError("no dataset found matching '{}'".format(dirname))
         
-    def expand(self, template):
-        return lambda wc: self._expand(template, wc)
+    def expand(self, *args, **kwargs):
+        # FIXME:
+        res = self.config_expander.expand_input(args, kwargs)[0][0]
+        return res
+        #return lambda wc: self._expand(template, wc)
 
     def _expand(self, template, wc=None):
         if wc is None:
