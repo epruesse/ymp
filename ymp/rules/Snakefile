@@ -6,6 +6,7 @@ include: "fastq.rules"
 
 include: "assembly.rules"
 include: "assembly_qc.rules"
+include: "mapping.rules"
 
 include: "genepred.rules"
 include: "cluster.rules"
