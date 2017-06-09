@@ -88,7 +88,7 @@ rule quast:
           -o {output.dir} \
           -t {threads} \
           -l ${{TARGETS// /,}} \
-          --min-contig {params.min_contig_len}
+          --min-contig {params.min_contig_len} \
           {input}
     """
 
