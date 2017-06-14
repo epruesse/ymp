@@ -99,7 +99,7 @@ rule metaquast_part:
     input:
         "{dir}/{sample}.contigs.fasta.gz"
     output:
-        report="{dir}.mq/{sample}/report.txt",
+        report="{dir}.mq/{sample}/combined_reference/report.txt",
         dir="{dir}.mq/{sample}"
     log:
         "{dir}.mq/{sample}/metaquast.log"
@@ -122,11 +122,11 @@ rule metaquast_part:
 rule quast_report:
     message: "MultiQC aggregating QUAST reports"
     input:
-        "{dir}.mq/{:targets:}/report.txt"
+        "{dir}.mq/{:targets:}/combined_reference/report.txt"
     output:
         "reports/{dir}.mq.html"
     params:
-        dir = "{dir},mq"
+        dir = "{dir}.mq"
     conda:
         srcdir("multiqc.yml")
     threads:
