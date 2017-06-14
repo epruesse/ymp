@@ -25,9 +25,9 @@ targets = odict[
     'BB_dedupe':      'reports/{}.ddp_qc.html',
     'phyloFlash':     'reports/{}_heatmap.pdf',
     ## assembly.rules
-    'assemble_separate': 'reports/{}.by_ID.mhc_qc.html',
-    'assemble_grouped':  'reports/{}.by_SUBJECT.mhc_qc.html',
-    'assemble_joined':   'reports/{}.mhc_qc.html',
+    'assemble_separate': 'reports/{}.by_ID.mhc.mq.html',
+    'assemble_grouped':  'reports/{}.by_SUBJECT.mhc.mq.html',
+    'assemble_joined':   'reports/{}.mhc.mq.html',
     ## mapping.rules
     'map_bbmap_separate':   '{}.by_ID.mhc.bbm/complete',
     'map_bbmap_grouped':   '{}.by_SUBJECT.mhc.bbm/complete',

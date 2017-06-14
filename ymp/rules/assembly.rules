@@ -65,16 +65,16 @@ rule megahit_partial_coassembly:
     """
 
 
-rule quast:
+rule metaquast_all_at_once:
     message:
-        "QUAST qc'ing {wildcards.dir} assemblies"
+        "MetaQUAST qc'ing {wildcards.dir} combined co-assemblies"
     input:
         "{dir}/{:targets:}.contigs.fasta.gz"
     output:
-        report="{dir}_qc/report.txt",
-        dir="{dir}_qc/"
+        report="{dir}.mqc/report.txt",
+        dir="{dir}.mqc/"
     log:
-        "{dir}_qc/metaquast.log"
+        "{dir}.mqc/metaquast.log"
     params:
         targets = icfg.expand("{:targets:}"),
         min_contig_len = 500
@@ -93,14 +93,40 @@ rule quast:
     """
 
 
+rule metaquast_part:
+    message:
+        "MetaQUAST qc'ing {wildcards.dir} assembly {wildcards.sample}"
+    input:
+        "{dir}/{sample}.contigs.fasta.gz"
+    output:
+        report="{dir}.mq/{sample}/report.txt",
+        dir="{dir}.mq/{sample}"
+    log:
+        "{dir}.mq/{sample}/metaquast.log"
+    params:
+        min_contig_len = 500
+    conda:
+        srcdir("quast.yml")
+    threads:
+        8
+    shell:"""
+    metaquast \
+          -o {output.dir} \
+          -t {threads} \
+          -l {wildcards.sample} \
+          --min-contig {params.min_contig_len} \
+          {input}
+    """
+
+
 rule quast_report:
     message: "MultiQC aggregating QUAST reports"
     input:
-        "{dir}_qc/report.txt"
+        "{dir}.mq/{:targets:}/report.txt"
     output:
-        "reports/{dir}_qc.html"
+        "reports/{dir}.mq.html"
     params:
-        dir = "{dir}_qc"
+        dir = "{dir},mq"
     conda:
         srcdir("multiqc.yml")
     threads:
