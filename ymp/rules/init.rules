@@ -22,7 +22,7 @@ wildcard_constraints:
     rnagene="({})".format("|".join(icfg.db.rrna)),
     project = "({})".format("|".join(icfg.datasets)),
     assembler = "(mh|sp)",
-    mapper = "(bowtie2|bbmap)",
+    mapper = "(bt2|bbm)",
 
     fasta = "(fasta|fna|fa)",
     fastp = "(fastp|faa)",
