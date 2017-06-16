@@ -142,7 +142,9 @@ rule multiqc:
     conda:
         srcdir("multiqc.yml")
     shell: """
-    multiqc --outdir {wildcards.dir}_qc \
+    multiqc \
+            --module fastqc \
+            --outdir {wildcards.dir}_qc \
             --title  {wildcards.dir} \
             --force \
             {wildcards.dir}_qc
