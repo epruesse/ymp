@@ -212,7 +212,7 @@ rule bb_ecco:
     bbmerge.sh in={input[0]} in2={input[1]} out={output[0]} out2={output[1]} \
                outadapter={output.adapter} \
                ecco ecctadpole mix \
-               threads={threads} jni -Xmx60g
+               threads={threads} -Xmx60g
     """
 
 
@@ -244,7 +244,7 @@ rule trim_bbduk_adapter:
     bbduk.sh in={input[0]} in2={input[1]} out={output[0]} out2={output[1]} \
              trimq={wildcards.Q} qtrim=r \
              ref=$BBPATH/resources/adapters.fa ktrim=r k=23 mink=11 hdist=1 tpe tbo \
-             pigz unpigz jni threads={threads} -Xmx80g
+             pigz unpigz threads={threads} -Xmx80g
     """
 
 
@@ -280,7 +280,7 @@ rule bbmap_makedb:
     shell: """
 
     bbmap.sh path={params.path} ref={input} threads={threads} \
-    pigz unpigz jni >{log} 2>&1
+    pigz unpigz >{log} 2>&1
     """
 
 rule bbmap_rmhuman:

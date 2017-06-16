@@ -164,7 +164,7 @@ rule bbmap_coassembly:
     params: base = "{dir}{by}.{ass}.map/{sample}"
     threads: 17
     shell: """
-    bbmap.sh jni threads={threads} machineout \
+    bbmap.sh threads={threads} machineout \
              nodisk ref={input.fa} \
              in={input.fwd} in2={input.rev} \
              statsfile={params.base}.bbmap.stats.txt \
@@ -318,7 +318,7 @@ rule bbmap_gene_cat:
     conda:
         srcdir("bbmap.yml")
     shell: """
-    bbmap.sh nodisk pigz unpigz jni machineout \
+    bbmap.sh nodisk pigz unpigz machineout \
       threads={threads} \
       ref={input.ref} \
       in={input.pairs[0]} in2={input.pairs[1]} \

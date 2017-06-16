@@ -38,7 +38,7 @@ rule bbmap_filter:
       build={params.build} \
       threads={threads} \
       minid=0.7 \
-      jni pigz \
+      pigz \
       statsfile={output.stats} machineout \
       ihist={output.ihist} \
       qhist={output.qhist} \

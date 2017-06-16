@@ -16,7 +16,7 @@ rule bbmap:
     conda:
         srcdir("bbmap.yml")
     shell: """
-    bbmap.sh threads={threads} jni pigz unpigz \
+    bbmap.sh threads={threads} pigz unpigz \
              nodisk ref={input.contigs} \
              in={input.pairs[0]} in2={input.pairs[1]} \
              out={output.bam} \
