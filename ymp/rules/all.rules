@@ -19,31 +19,6 @@ TRIMMED = "10_trimmed_reads"
 localrules: bbmap_index, all_fasta, all_fq
 
 
-rule multiqc_bysample:
-    message: "Aggregating QC reports for {wildcards.sample}: {input}"
-    output: "{sample}_q.html"
-    input: lambda wc: glob.glob("*/{}_fastqc.zip".format(wc.sample))
-    shadow: "shallow"
-    shell:"""
-    set +x
-    TMP="tmp_multiqc_bysample"
-    mkdir $TMP
-    cd $TMP
-    for n in {input}; do
-      folder=$(dirname $n)
-      file=$(basename $n)
-      unzip ../$n
-      mv ${{file%.zip}} $folder
-      sed -i 's/{wildcards.sample}/'$folder'/' $folder/fastqc_data.txt
-    done
-    cd ..
-    multiqc --title {wildcards.sample} $TMP
-    mv multiqc_report.html {output}
-    """
-
-
-
-
 rule split_by_length:
     message: "Splitting {input} by length"
     input: "{dir}/{sample}.{$PAIRS}.fq.gz"
@@ -111,49 +86,6 @@ rule all_paired:
     shell: "touch {output}"
     
                         
-
-
-
-
-rule megahit_n50:
-    message: "Gathering assembly statistics"
-    input: "{dir}.mh/{$config[pe_samples]}.fasta"
-    output: "{dir}.mh/n50.csv"
-    run:
-        input = [x for x in input if os.path.getsize(x) > 0]
-        shell("""
-        n50c.py {input} > {output}
-        """)
-    
-
-
-
-rule spades_coassembly:
-    message: "Co-Assembling {wildcards.dir} with spades"
-    input: fwd = "{dir}/{$config[pe_samples]}.{$PAIRS[0]}.fq.gz",
-           rev = "{dir}/{$config[pe_samples]}.{$PAIRS[1]}.fq.gz"
-    output: "{dir}.spc/contigs.fasta"
-    threads: 33
-    run:
-        non_empty = [os.path.getsize(r) > 0 and os.path.getsize(r) > 0
-                     for f,r in zip(input.fwd, input.rev)]
-        fwd = ["../" + x for x,k in zip(input.fwd, non_empty) if k]
-        rev = ["../" + x for x,k in zip(input.rev, non_empty) if k]
-        conf_yml = wildcards.dir + ".spc/conf.yml" 
-        with open(conf_yml, "w") as f:
-            f.write(yaml.dump([{
-                "left reads": fwd,
-                "right reads": rev,
-                "type": "paired-end",
-                "orientation": "fr"
-            }]))
-        shell("""
-        module load spades
-        spades.py -o {wildcards.dir}.spc -t {threads} -m 480 --dataset {conf_yml} \
-                  --tmp-dir /scratch/$HOME/tmp --meta \
-                  --continue
-        """)
-    
 
 bbfiles="bincov.csv stats.txt".split()
 rule bbmap_coassembly:

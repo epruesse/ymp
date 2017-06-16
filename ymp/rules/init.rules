@@ -21,7 +21,7 @@ wildcard_constraints:
     SRR = "[EDS]RR[0-9]+",
     rnagene="({})".format("|".join(icfg.db.rrna)),
     project = "({})".format("|".join(icfg.datasets)),
-    assembler = "(mh|sp)",
+    assembler = "(mh|mhc|sp)",
     mapper = "(bt2|bbm)",
 
     fasta = "(fasta|fna|fa)",
