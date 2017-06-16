@@ -44,6 +44,7 @@ def snake_params(func):
     @click.option("--rerun-incomplete","--ri", 'force_incomplete', is_flag=True)
     @click.option("--latency-wait","-w", default=0)
     @click.option("--forceall", "-F", is_flag=True, default=False)
+    @click.option("--conda-prefix", default=os.path.expanduser("~/.ymp/conda"))
     @functools.wraps(func)
     def decorated(*args, **kwargs):
         return func(*args, **kwargs)
