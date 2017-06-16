@@ -138,8 +138,9 @@ rule quast_report:
     sed 's|/combined_reference/report.tsv||; s|.*/||' \
         {params.dir}/files.txt > {params.dir}/names.txt
     multiqc \
-      -m quast \
-      --comment {wildcards.dir} \
+      --module quast \
+      --force \
+      --title {wildcards.dir} \
       --no-data-dir \
       --file-list {params.dir}/files.txt \
       --sample-names {params.dir}/names.txt \
