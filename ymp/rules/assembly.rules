@@ -71,7 +71,7 @@ rule metaquast_all_at_once:
     input:
         "{dir}/{:targets:}.contigs.fasta.gz"
     output:
-        report="{dir}.mqc/report.txt",
+        report="{dir}.mqc/report.tsv",
         dir="{dir}.mqc/"
     log:
         "{dir}.mqc/metaquast.log"
@@ -99,7 +99,7 @@ rule metaquast_part:
     input:
         "{dir}/{sample}.contigs.fasta.gz"
     output:
-        report="{dir}.mq/{sample}/combined_reference/report.txt",
+        report="{dir}.mq/{sample}/combined_reference/report.tsv",
         dir="{dir}.mq/{sample}"
     log:
         "{dir}.mq/{sample}/metaquast.log"
@@ -122,9 +122,11 @@ rule metaquast_part:
 rule quast_report:
     message: "MultiQC aggregating QUAST reports"
     input:
-        "{dir}.mq/{:targets:}/combined_reference/report.txt"
+        "{dir}.mq/{:targets:}/combined_reference/report.tsv"
     output:
         "reports/{dir}.mq.html"
+    log:
+        "{dir}.mq/multiqc.log"
     params:
         dir = "{dir}.mq"
     conda:
@@ -132,5 +134,15 @@ rule quast_report:
     threads:
         1
     shell: """
-    multiqc -d -m quast --no-data-dir {params.dir} -n {output}
+    echo {input} | tr ' ' '\n' > {params.dir}/files.txt
+    sed 's|/combined_reference/report.tsv||; s|.*/||' \
+        {params.dir}/files.txt > {params.dir}/names.txt
+    multiqc \
+      -m quast \
+      --comment {wildcards.dir} \
+      --no-data-dir \
+      --file-list {params.dir}/files.txt \
+      --sample-names {params.dir}/names.txt \
+      --filename {output} \
+      --verbose > {log} 2>&1
     """
