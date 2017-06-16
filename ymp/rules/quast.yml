@@ -1,4 +1,4 @@
 channels:
  - bioconda
 dependencies:
- - quast
+ - quast >=4.5
