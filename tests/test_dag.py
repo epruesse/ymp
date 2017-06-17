@@ -45,9 +45,9 @@ targets = odict[
     'blast_gene_find':   '{}.by_Subject.mhc.blast/psa.wcfR.csv',
     ## coverage rules
     'coverage':          '{}.by_Subject.mhc.bbm.cov/blast.psa.wcfR.csv',
-    'coverage':          '{}.by_Subject.mhc.bt2.cov/blast.psa.wcfR.csv',
+    'coverage':          '{}.by_Subject.mhc.bt2.cov/blast.psa.wcfR.csv'
     ## otu.rules
-    'otu_table':         '{}.by_Subject.mhc.blast.otu/psa.wcfR.otu_table.csv'
+#    'otu_table':         '{}.by_Subject.mhc.blast.otu/psa.wcfR.otu_table.csv'
 ]
 
 
