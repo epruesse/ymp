@@ -23,7 +23,7 @@ rule prefetch:
     output:
         "{:sra:}/{SRR}.sra"
     conda:
-        srcdir("fastq.yml")
+        srcdir("sratools.yml")
     shell: """
     prefetch {wildcards.SRR}
     """
@@ -44,7 +44,7 @@ rule fastq_dump:
         outdir = icfg.scratchdir + "/SRR",
         p = lambda wc,threads: int(threads/2+.5)
     conda:
-        srcdir("fastq.yml")
+        srcdir("sratools.yml")
     threads:
         4
     # FIXME
