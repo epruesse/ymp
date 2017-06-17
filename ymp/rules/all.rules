@@ -313,3 +313,60 @@ rule gene_presence_plots:
             csv=os.path.abspath(csv),
             map=os.path.abspath(map)
             )
+
+rule my_scan:
+    message:
+        "Scanning {wildcards.dir} {wildcards.sample}"
+    input:
+        "{dir}/{sample}.{:pairnames:}.fq.gz"
+    output:
+        "{dir}.scan/{sample}.bhist.csv"
+    threads:
+        2
+    log:
+        "{dir}.scan/{sample}.log"
+    params:
+        basename="{dir}.scan/{sample}",
+        k=7, s=7, o=0, n=8
+    shell: """
+    ./scan.py -t fq -k {params.k} -s {params.s} -o {params.o} -n {params.n} \
+              {input} {params.basename} >& {log}
+    """
+
+rule my_scan_mapped:
+    message:
+        "Scanning BAMs {wildcards.dir} {wildcards.sample}"
+    input:
+        bam="{dir}.map/{sample}.contigs.{mapper}.sorted.bam",
+        bai="{dir}.map/{sample}.contigs.{mapper}.sorted.bam.bai"
+    output:
+        "{dir}.map.cov/{sample}.contigs.{mapper}.kmerhist_k{k}_s{s}_o{o}_n{n}.csv"
+    log:
+        "{dir}.map.cov/{sample}.contigs.{mapper}.scan.log"
+    params:
+        basename="{dir}.map.cov/{sample}.contigs.{mapper}",
+        k="{k}",
+        s="{s}",
+        o="{o}",
+        n="{n}"
+    shell: """
+    ./scan.py -t bam -k {params.k} -s {params.s} -o {params.o} -n {params.n} \
+              {input.bam} {params.basename} >& {log}
+    """
+        
+rule myscan_all:
+    message:
+        "Completed all scans for {wildcards.dir}"
+    input:
+        "{dir}.scan/{:runs:}.bhist.csv"
+    output:
+        "{dir}.scan/all"
+
+
+rule myscan_allx:
+    message:
+        "Completed all scans for {wildcards.dir}"
+    input:
+        "{dir}.scan/{:runs:}.{mapper}.kmerhist_k7_s7_o0_n8.csv"
+    output:
+        "{dir}.scan/all_{mapper}"
