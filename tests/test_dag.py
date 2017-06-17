@@ -22,6 +22,7 @@ targets = odict[
     'BBDuk_rm_human': 'reports/{}.xhum_qc.html',
     'BB_dedupe':      'reports/{}.ddp_qc.html',
     'phyloFlash':     'reports/{}_heatmap.pdf',
+    'trimmomaticT32': 'reports/{}.trimmomaticT32_qc.html',
     ## assembly.rules
     'assemble_separate_mh': 'reports/{}.by_ID.mhc.mq.html',
     'assemble_grouped_mh':  'reports/{}.by_SUBJECT.mhc.mq.html',

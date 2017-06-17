@@ -248,6 +248,56 @@ rule trim_bbduk_adapter:
     """
 
 
+rule trimmomatic_adapter:
+    """
+    """
+    message:
+        "Trimmomatic {wildcards.dir}/{wildcards.sample}"
+    input:
+        "{dir}/{sample}.{:pairnames:}.fq.gz"
+    wildcard_constraints:
+        adapter="(N|T(2|3|32))"
+    output:
+        p  = "{dir}.trimmomatic{adapter}/{sample}.{:pairnames:}.fq.gz",
+        up = "{dir}.trimmomatic{adapter}/{sample}.unpaired.{:pairnames:}.fq.gz"
+    log:
+        "{dir}.trimmomatic{adapter}/{sample}.log"
+    params:
+        seed_mismatches = 2,
+        palindrome_clip_thresh = 30,
+        simple_clip_thresh = 10,
+        min_adapter_len = 8,
+        keep_both_reads = "true"
+    conda:
+        srcdir("trimmomatic.yml")
+    threads:
+        1
+    shell:"""
+    case {wildcards.adapter} in
+      N)   ADAPTER=NexteraPE-PE.fa ;;
+      T2)  ADAPTER=TruSeq2-PE.fa ;;
+      T3)  ADAPTER=TruSeq3-PE.fa ;;
+      T32) ADAPTER=TruSeq3-PE-2.fa ;;
+    esac
+
+    ADAPTER_DIR="$(dirname $(which trimmomatic))/../share/trimmomatic/adapters"
+
+    CLIPARG="ILLUMINACLIP:$ADAPTER_DIR/$ADAPTER"
+    CLIPARG="$CLIPARG:{params.seed_mismatches}"
+    CLIPARG="$CLIPARG:{params.palindrome_clip_thresh}"
+    CLIPARG="$CLIPARG:{params.simple_clip_thresh}"
+    CLIPARG="$CLIPARG:{params.min_adapter_len}"
+    CLIPARG="$CLIPARG:{params.keep_both_reads}"
+
+    trimmomatic PE \
+        -threads {threads} \
+        -phred33 \
+        {input} \
+        {output.p[0]} {output.up[0]} \
+        {output.p[1]} {output.up[1]} \
+        $CLIPARG >{log} 2>&1
+    """
+
 ###
 ###  Contaminant filtering
 ###
