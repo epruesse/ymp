@@ -23,6 +23,10 @@ targets = odict[
     'BB_dedupe':      'reports/{}.ddp_qc.html',
     'phyloFlash':     'reports/{}_heatmap.pdf',
     'trimmomaticT32': 'reports/{}.trimmomaticT32_qc.html',
+    'sickle':         'reports/{}.sickle_qc.html',
+    'sickleQ10':      'reports/{}.sickleQ10_qc.html',
+    'sickleL10':      'reports/{}.sickleL10_qc.html',
+    'sickleQ10L10':   'reports/{}.sickleQ10L10_qc.html',
     ## assembly.rules
     'assemble_separate_mh': 'reports/{}.by_ID.mhc.mq.html',
     'assemble_grouped_mh':  'reports/{}.by_SUBJECT.mhc.mq.html',

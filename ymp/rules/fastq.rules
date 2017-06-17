@@ -298,6 +298,39 @@ rule trimmomatic_adapter:
         $CLIPARG >{log} 2>&1
     """
 
+
+rule sickle:
+    message:
+        "Trimming with Sickle {wildcards.dir}/{wildcards.sample} "
+        "(Q={params.qual} L={params.length})"
+    input:
+        "{dir}/{sample}.{:pairnames:}.fq.gz"
+    wildcard_constraints:
+        Q = "(Q\d+|)",
+        L = "(L\d+|)",
+    output:
+        "{dir}.sickle{Q}{L}/{sample}.{:pairnames:}.fq.gz",
+        up = "{dir}.sickle{Q}{L}/{sample}.unpaired.fq.gz"
+    log:
+        "{dir}.sickle{Q}{L}/{sample}.log"
+    params:
+        length=lambda wc: wc.L[1:] if wc.L else 20,
+        qual=lambda wc: wc.Q[1:] if wc.Q else 20
+    threads: 1
+    shell:"""
+    sickle pe \
+        --pe-file1={input[0]} \
+        --pe-file2={input[1]} \
+        --qual-type=sanger \
+        --output-pe1={output[0]} \
+        --output-pe2={output[1]} \
+        --output-single={output.up} \
+        --length-threshold={params.length} \
+        --qual-threshold={params.qual} \
+        --gzip-output \
+        > {log} 2>&1
+    """
+
 ###
 ###  Contaminant filtering
 ###
