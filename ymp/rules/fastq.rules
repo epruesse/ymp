@@ -115,7 +115,7 @@ rule fastqc:
         "{dir}_qc/{file}_fastqc.html",
         "{dir}_qc/{file}_fastqc.zip"
     threads:
-        2
+        1
     params:
         k = 10
     conda:
@@ -123,7 +123,7 @@ rule fastqc:
     shell: """
     conda info 
     # override too low memory requested by fastqc 0.11.5 of 256M per thread:
-    export _JAVA_OPTIONS="-Xmx$[{threads} * 4 * 1024]m"
+    export _JAVA_OPTIONS="-Xmx$[{threads} * 8 * 1024]m"
     fastqc -t {threads} -o {wildcards.dir}_qc {input} -k 10
     """
 
