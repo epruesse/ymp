@@ -1,7 +1,5 @@
 import pytest
 import py
-import logging
-import os
 
 from collections import OrderedDict
 class slice2OrderedDict(object):
@@ -82,7 +80,7 @@ def build_graph(request, project_dir):
 
 
 def test_graph_complete(build_graph):
-    cfg, G, R = build_graph
+    cfg, G, _ = build_graph
     n_start_nodes = len(
         [1
          for node, degree in G.in_degree().items()
