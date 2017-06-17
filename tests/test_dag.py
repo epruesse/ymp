@@ -86,13 +86,22 @@ def build_graph(request, project_dir):
 
 def test_graph_complete(build_graph):
     cfg, G, R = build_graph
+    n_runs = len(cfg.runs)
+
+    n_start_nodes = len(
+        [1
+         for node, degree in G.in_degree().items()
+         if degree == 0
+        ])
+    print("Testing start-nodes ({}) >= runs ({})"
+          "".format(n_start_nodes, n_runs))
+    assert n_start_nodes >= n_runs
+
     n_symlinks = len(
         [1
          for node, degree in G.in_degree().items()
          if degree == 1 and G.node[node]['label'].startswith('symlink_raw_reads')
         ])
-    n_runs = len(cfg.runs)
-
     print("Testing symlinks ({}) == 2 * runs ({})"
           "".format(n_symlinks, n_runs))
     assert n_symlinks == 2*n_runs
