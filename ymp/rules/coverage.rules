@@ -1,31 +1,37 @@
-rule blast7_coverage:
+rule metacov:
+    """
+    Compute coverage for a set of regions. Needs:
+    - csv with regions
+      - sequence_id, start, end
+    - bam with aligned reads
+    """
     message:
-        "Calulating coverage"
+        "Calculating coverage"
     input:
-        blast7="{dir}.blast/{target}.contigs.{query}.blast7",
-        bam="{dir}.map/{target}.contigs.{source}.bowtie2.sorted.bam",
+        csv = "{dir}.{genefind}/{target}.contigs.{query}.{gene}.csv",
+        bam = "{dir}.{mapper}/{target}.contigs.{source}.sorted.bam",
+        bai = "{dir}.{mapper}/{target}.contigs.{source}.sorted.bam.bai"
     output:
-        csv="{dir}.blast.cov/{target}.contigs.{source}.{query}.cov"
+        "{dir}.{mapper}.cov/{target}.contigs.{source}.{genefind}.{query}.{gene}.csv"
     log:
-        "{dir}.blast.cov/{target}.contigs.{source}.{query}.log"
-    shell: """
-    ulimit -c 10000000
-    metacov {input.bam} {input.blast7} {output.csv}.tmp >{log} 2>&1
+        "{dir}.{mapper}.cov/{target}.contigs.{source}.{genefind}.{query}.{gene}.log"
+    shell:"""
+    metacov {input.bam} {input.csv} {output}.tmp >{log} 2>&1
     sed -e '1 s/^/target,source,/' \
         -e '2~1 s/^/{wildcards.target},{wildcards.source},/' \
-        {output.csv}.tmp > {output.csv}
-    rm {output.csv}.tmp
+        {output}.tmp > {output}
+    rm {output}.tmp
     """
 
 
 localrules: blast7_coverage_join_sources
-rule blast7_coverage_join_sources:
+rule metacov_join_sources:
     message:
         "Merging coverage"
     input:
-        csv="{dir}.cov/{target}.contigs.{: sources :}.{query}.cov"
+        csv="{dir}.cov/{target}.contigs.{: sources :}.{genefind}.{query}.{gene}.csv"
     output:
-        csv=temp("{dir}.cov/{target}.contigs.{query}.cov")
+        csv=temp("{dir}.cov/{target}.contigs.{genefind}.{query}.{gene}.csv")
     shell: """
     if test "$(echo {input.csv} | wc -w)" -eq 1; then
        cp {input.csv} {output.csv}
@@ -39,13 +45,13 @@ rule blast7_coverage_join_sources:
 
 
 localrules: blast7_coverage_join_targets
-rule blast7_coverage_join_targets:
+rule metacov_join_targets:
     message:
         "Merging coverage"
     input:
-        csv="{dir}.cov/{:targets:}.contigs.{query}.cov"
+        csv="{dir}.cov/{:targets:}.contigs.{genefind}.{query}.{gene}.csv"
     output:
-        csv="{dir}.cov/{query}.cov"
+        csv="{dir}.cov/{genefind}.{query}.{gene}.csv"
     shell: """
     if test "$(echo {input.csv} | wc -w)" -eq 1; then
        cp {input.csv} {output.csv}
