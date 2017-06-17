@@ -119,7 +119,7 @@ rule fastqc:
     params:
         k = 10
     conda:
-        srcdir("fastq.yml")
+        srcdir("fastqc.yml")
     shell: """
     conda info 
     # override too low memory requested by fastqc 0.11.5 of 256M per thread:
