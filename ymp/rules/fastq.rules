@@ -449,7 +449,7 @@ rule bmtagger_find:
         -T {params.tmpdir} \
         -o {output[0]} \
         > {log} 2>&1
-    gzip {output[0]}
+    gzip {output[0]} -c > {output[0]}.gz
     """
 
 
