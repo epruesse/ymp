@@ -304,6 +304,7 @@ rule sickle:
         > {log} 2>&1
     """
 
+
 ###
 ###  Contaminant filtering
 ###
@@ -377,6 +378,98 @@ rule bbmap_rmhuman:
         " threads={threads} "
         " {params.stats} "
         " > {log} 2>&1"
+
+
+
+from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
+HTTP = HTTPRemoteProvider()
+localrules: bmtagger_get_hs37
+rule bmtagger_get_hs37:
+    message: "Downloading hs37"
+    input:   HTTP.remote("https://ftp.ncbi.nlm.nih.gov/pub/agarwala/bmtagger/hs37.fa")
+    output:  "references/hs37.fa"
+    threads: 1
+    shell:   "mv {input} {output}"
+
+
+rule bmtagger_bitmask:
+    message: "Bmtool indexing {input}"
+    input:   "{path}.fa"
+    output:  "{path}.bitmask"
+    log:     "{path}.bitmask.log"
+    threads: 1
+    params:  wordsize = 18
+    conda:   srcdir("bmtagger.yml")
+    shell: """
+    bmtool \
+        --fasta-file={input} \
+        --output-file={output} \
+        --word-size={params.wordsize} \
+        --compress \
+        > {log} 2>&1
+    """
+
+
+rule bmtagger_index:
+    message: "Srcprism indexing {input}"
+    input:   "{path}.fa"
+    output:  touch("{path}.srprism")
+    log:     "{path}.srprism.log"
+    threads: 1
+    params:  basename="{path}.srprism",
+             mem = 8
+    conda:   srcdir("bmtagger.yml")
+    shell: """
+    srprism mkindex \
+        --input {input} \
+        --output {output} \
+        --memory $(({params.mem} * 1024)) \
+        > {log} 2>&1
+    """
+
+
+rule bmtagger_find:
+    message: "Bmtagger find {wildcards.reference} {wildcards.dir}/{wildcards.sample}"
+    input:   "{dir}/{sample}.{:pairnames:}.fq",
+             bitmask = "references/{reference}.bitmask",
+             srprism = "references/{reference}.srprism"
+    output:  temp("{dir}.bmtagger{reference}/{sample}.txt"),
+             "{dir}.bmtagger{reference}/{sample}.txt.gz"
+    log:     "{dir}.bmtagger{reference}/{sample}.bmtagger.log"
+    threads: 1
+    params:  tmpdir = "/scratch/$HOME/tmp"
+    conda:   srcdir("bmtagger.yml")
+    shell: """
+    bmtagger.sh \
+        -b {input.bitmask} \
+        -x {input.srprism} \
+        -q 1 \
+        -1 {input[0]} \
+        -2 {input[1]} \
+        -T {params.tmpdir} \
+        -o {output[0]} \
+        > {log} 2>&1
+    gzip {output[0]}
+    """
+
+
+rule bmtagger_remove:
+    message: "Bmtagger removing {wildcards.reference} {wildcards.dir}/{wildcards.sample}"
+    input:   "{dir}/{sample}.{pairsuff}.fq",
+             idlist = "{dir}.bmtagger{reference}/{sample}.txt"
+    output:  "{dir}.bmtagger{reference}/{sample}.{pairsuff}.fq.gz"
+    log:     "{dir}.bmtagger{reference}/{sample}.extract.log"
+    threads: 1
+    params:  tmpdir = "/scratch/$HOME/tmp"
+    conda:   srcdir("bmtagger.yml")
+    shell: """
+    extract_fullseq \
+        {input.idlist} \
+        -remove \
+        -fastq \
+        -mate1 {input[0]} | pigz -p {threads} -9 > {output}  2>{log}
+
+    """
 
 
 ###
