@@ -73,6 +73,8 @@ class DatasetConfig(object):
 
     def clean_uninformative(self):
         common = {}
+        if len(self._runs) == 1:
+            return # don't empty 1-line mapfiles
         for field in self.fieldnames:
             l = len(set([self._runs[run][field] for run in self._runs]))
             if not l:
