@@ -44,7 +44,9 @@ def snake_params(func):
     @click.option("--rerun-incomplete","--ri", 'force_incomplete', is_flag=True)
     @click.option("--latency-wait","-w", default=0)
     @click.option("--forceall", "-F", is_flag=True, default=False)
+    @click.option("--force", "-f", "forcetargets", is_flag=True, default=False)
     @click.option("--conda-prefix", default=os.path.expanduser("~/.ymp/conda"))
+    @click.option("--timestamp", "-T", is_flag=True, default=False)
     @functools.wraps(func)
     def decorated(*args, **kwargs):
         return func(*args, **kwargs)
@@ -73,6 +75,8 @@ def make(**kwargs):
 @click.option("--cores", "-j", "nodes", default=1024)
 @click.option("--local-cores", default=8)
 @click.option("--cluster-config", "-u", default="cluster.yaml")
+@click.option("--jobname", "--jn", default="ymp.{rulename}.{jobid}.sh")
+@click.option("--drmaa-log-dir", default="log/")
 def submit(**kwargs):
     "generate target files"
     drmaa = " ".join([
