@@ -94,7 +94,7 @@ rule samtools_sort:
     input:
         "{path}.bam"
     output:
-        "{path}.sorted.bam"
+        "{path}.sorted.bam__DISABLED"
     params:
         mem=32
     threads:
@@ -105,13 +105,14 @@ rule samtools_sort:
     samtools sort -m {params.mem}G --threads {threads} -o {output} {input}
     """
 
+
 rule samtools_index:
     message:
         "Samtools: Indexing BAM file {input}"
     input:
         "{path}.bam"
     output:
-        "{path}.bam.bai"
+        "{path}.bam.bai__DISABLED"
     threads:
         1
     conda:
@@ -119,6 +120,27 @@ rule samtools_index:
     shell:"""
     samtools index {input}
     """
+
+
+rule sambamba_sort:
+    message: "Sambamba: Sorting BAM file {input}"
+    input:   "{path}.bam"
+    output:  "{path}.sorted.bam",
+             "{path}.sorted.bam.bai"
+    log:     "{path}.sorted.bam.log"
+    benchmark: "benchmarks/sambamba_sort/{path}.txt"
+    params:  mem=32,
+             compress=3
+    threads: 8
+    conda: srcdir("sambamba.yml")
+    shell:
+        "sambamba sort"
+        " --memory-limit={params.mem}GB"
+        " --compression-level={params.compress}"
+        " --nthreads={threads}"
+        " {input}"
+        " >{log} 2>&1"
+
 
 rule all_mapped:
     input:
