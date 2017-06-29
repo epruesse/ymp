@@ -57,7 +57,7 @@ rule makeblastdb:
     message: "BLAST building db {params.db_name}"
     input:   blast_db_source
     output:  blast_db_files
-    log:     blast_db_title+".log"
+    log:     blast_db_name+".log"
     params:  db_name   = blast_db_name,
              db_title = blast_db_title
     threads: 1
