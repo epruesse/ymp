@@ -75,7 +75,7 @@ def make(**kwargs):
 @click.option("--cores", "-j", "nodes", default=1024)
 @click.option("--local-cores", default=8)
 @click.option("--cluster-config", "-u", default="cluster.yaml")
-@click.option("--jobname", "--jn", default="ymp.{rulename}.{jobid}.sh")
+@click.option("--jobname", "--jn", "jobname", default="ymp.{rulename}.{jobid}.sh")
 @click.option("--drmaa-log-dir", default="log/")
 def submit(**kwargs):
     "generate target files"
