@@ -6,7 +6,7 @@ rule bbmap:
         contigs="{dir}{by}.mhc/{target}.contigs.fasta.gz",
         pairs="{dir}/{source}.{: pairnames :}.fq.gz"
     output:
-        bam="{dir}{by}.mhc.bbm/{target}.contigs.{source}.bam",
+        bam=temp("{dir}{by}.mhc.bbm/{target}.contigs.{source}.bam"),
         stats="{dir}{by}.mhc.bbm/{target}.contigs.{source}.stats",
         ihist="{dir}{by}.mhc.bbm/{target}.contigs.{source}.ihist"
     log:
@@ -63,7 +63,7 @@ rule bowtie_map_partial_coassembly:
         index   = "{dir}{by}.mhc.bt2/{target}.contigs.1.bt2",
         pairs   = "{dir}/{source}.{: pairnames :}.fq.gz"
     output:
-        bam     = "{dir}{by}.mhc.bt2/{target}.contigs.{source}.bam",
+        bam     = temp("{dir}{by}.mhc.bt2/{target}.contigs.{source}.bam"),
         stats   = "{dir}{by}.mhc.bt2/{target}.contigs.{source}.stats"
     log:
                   "{dir}{by}.mhc.bt2/{target}.contigs.{source}.log"
