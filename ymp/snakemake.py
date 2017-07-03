@@ -4,6 +4,7 @@ from string import Formatter
 from itertools import product
 from copy import deepcopy
 import re, os, csv
+import traceback
 
 class OverrideJoinFormatter(Formatter):
     def _vformat(self, format_string, args, kwargs, used_args, recursion_depth,
@@ -98,6 +99,7 @@ class ExpandableWorkflow(Workflow):
                 (paths, kwpaths) = func(paths, kwpaths)
             except Exception as e:
                 print("exception in input expand:" + repr(e))
+                traceback.print_exc()
         return super().input(*paths, **kwpaths)
 
     def output(self, *paths, **kwpaths):
@@ -106,6 +108,7 @@ class ExpandableWorkflow(Workflow):
                 (paths, kwpaths) = func(paths, kwpaths)
             except Exception as e:
                 print("exception in output expand:" + repr(e))
+                traceback.print_exc()
         return super().output(*paths, **kwpaths)
 
 
