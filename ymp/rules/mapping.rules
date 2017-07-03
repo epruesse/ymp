@@ -130,7 +130,7 @@ rule sambamba_sort:
     log:     "{path}.sorted.bam.log"
     benchmark: "benchmarks/sambamba_sort/{path}.txt"
     params:  mem=32,
-             compress=3
+             compress=6
     threads: 8
     conda: srcdir("sambamba.yml")
     shell:
