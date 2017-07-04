@@ -80,61 +80,6 @@ rule cdhit_clstr_to_csv:
                 writer.writerows(rows)
 
 
-rule make_otu_table:
-    input:
-        clust="{dir}/{query}.{gene}.NR.clstr.csv",
-        cov="{dir}.cov/{query}.cov"
-    output:
-        table="{dir}.otu/{query}.{gene}.otu_table.csv",
-        counts="{dir}.otu/{query}.{gene}.otu_count.csv"
-    run:
-        import csv
-        from collections import defaultdict
-        map_seq_to_clust = {}
-        clusters = set()
-        samples = set()
-        # cluster_id,leaf_id,sacc,qacc,qlen,qstart,qend,sstart,send,pident
-        # 175,6,4021.contigs.k119_34902.51644.52807,4023.contigs.k119_1016.316.1059,248,1,248,1,248,100.00
-        with open(input.clust, "r") as cluster_f:
-            cluster_reader = csv.DictReader(cluster_f)
-            for row in cluster_reader:
-                map_seq_to_clust[row['qacc']] = row['sacc']
-                clusters.add(row['sacc'])
-
-        coverages = { centroid:defaultdict(float) for centroid in clusters }
-        coverage_counts = { centroid:defaultdict(float) for centroid in clusters }
-
-        # target,source,sacc,start,end,avg,max,med,min,q23,std,sum
-        # 4023,4023,k119_13047,623,180,5.70203160271,12.0,5.0,1.0,5.31390134529,2.60866249754,2526.0
-        lost = 0
-        found = 0
-        with open(input.cov, "r") as coverage_f:
-            coverage_reader = csv.DictReader(coverage_f)
-            for row in coverage_reader:
-                seq_name = "{target}.contigs.{sacc}.{start}.{end}".format(**row)
-                if seq_name in map_seq_to_clust:
-                    samples.add(row['source'])
-                    centroid = map_seq_to_clust[seq_name]
-                    coverages[centroid][row['source']]+=float(row['q23'])
-                    coverage_counts[centroid][row['source']]+=1
-                    found += 1
-                else:
-                    lost +=1
-
-        with open(output.table, "w") as out_f:
-            table_writer = csv.DictWriter(out_f, fieldnames = ["centroid"]+list(samples))
-            table_writer.writeheader()
-            for centroid in coverages:
-                coverages[centroid]['centroid']=centroid
-                table_writer.writerow(coverages[centroid])
-
-        with open(output.counts, "w") as out_f:
-            table_writer = csv.DictWriter(out_f, fieldnames = ["centroid"]+list(samples))
-            table_writer.writeheader()
-            for centroid in coverages:
-                coverage_counts[centroid]['centroid']=centroid
-                table_writer.writerow(coverage_counts[centroid])
-
 
 rule cdhit_fna_single:
     """Clustering predicted genes (nuc) using cdhit-est"""
@@ -165,3 +110,12 @@ rule cdhit_fna_single:
     -d {params.description_length} \
     > {log} 2>&1
     """
+
+### Reports ###
+
+rule cluster_report:
+    message: "Generating Cluster Report"
+    input:   clusters="{dir}/{file}.NR.clstr.csv",
+             hits="{dir}/{file}.csv"
+    output:  "{:reportsdir:}/{dir}.{file}.cluster.html"
+    script:  srcdir("../R/cluster.Rmd")

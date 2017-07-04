@@ -11,6 +11,7 @@ include: "genepred.rules"
 include: "cluster.rules"
 include: "blast.rules"
 include: "coverage.rules"
+include: "otu.rules"
 
 #include: "rrna.rules"
 include: "align.rules"
