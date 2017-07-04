@@ -11,6 +11,8 @@ rule bbmap:
         ihist="{dir}{by}.mhc.bbm/{target}.contigs.{source}.ihist"
     log:
         "{dir}{by}.mhc.bbm/{source}.contigs.{source}.log"
+    benchmark:
+        "benchmarks/bbmap/{dir}{by}.mhc.bbm/{source}.contigs.{source}.txt"
     threads:
         8
     conda:
