@@ -24,6 +24,7 @@ Directories:
 """
 
 
+localrules: make_otu_table
 rule make_otu_table:
     message:
         "Preparing OTU table {output.table}"
@@ -87,6 +88,7 @@ rule make_otu_table:
                 table_writer.writerow(coverage_counts[centroid])
 
 
+localrules: otu_to_qiime_txt
 rule otu_to_qiime_txt:
     message: "Converting OTU table to Qiime TXT Format"
     input:  "{dir}.otu/{file}.table.csv"
@@ -104,6 +106,7 @@ rule otu_to_qiime_txt:
             for row in csv_table:
                 txt_table.writerow([i if i else "0.0" for i in row])
 
+localrules: otu_to_biom
 rule otu_to_biom:
     message: "Converting OTU table to Biom Format"
     input:   "{dir}.otu/{file}.table.txt"
