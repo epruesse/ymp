@@ -16,7 +16,7 @@ wildcard_constraints:
     fracid   = "[0-9][0-9]",
     coverage = "[0-9]+",
     evalue   = "[0-9]+",
-    length   = "[1-0][0-9]*",
+    length   = "[1-9][0-9]*",
 
     SRR = "[EDS]RR[0-9]+",
     rnagene="({})".format("|".join(icfg.db.rrna)),
