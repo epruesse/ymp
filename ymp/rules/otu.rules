@@ -87,6 +87,36 @@ rule make_otu_table:
                 table_writer.writerow(coverage_counts[centroid])
 
 
+rule otu_to_qiime_txt:
+    message: "Converting OTU table to Qiime TXT Format"
+    input:  "{dir}.otu/{file}.table.csv"
+    output: "{dir}.otu/{file}.table.txt"
+    threads: 1
+    run:
+        import csv
+        with open(input[0], "r") as inf, \
+             open(output[0], "w") as outf:
+            csv_table = csv.reader(inf)
+            txt_table = csv.writer(outf, delimiter="\t")
+            header = next(csv_table)
+            header[0] = "#OTU ID"
+            txt_table.writerow(header)
+            for row in csv_table:
+                txt_table.writerow([i if i else "0.0" for i in row])
+
+rule otu_to_biom:
+    message: "Converting OTU table to Biom Format"
+    input:   "{dir}.otu/{file}.table.txt"
+    output:  "{dir}.otu/{file}.table.biom"
+    threads: 1
+    conda:   srcdir("biom_format.yml")
+    shell:   "biom convert"
+             " --input-fp {input}"
+             " --output-fp {output}"
+             " --to-hdf5"
+             " --table-type 'OTU table'"
+
+
 localrules: blast7_coverage_per_otu
 rule blast7_coverage_per_otu:
     input:
