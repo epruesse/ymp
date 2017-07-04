@@ -17,19 +17,23 @@ rule bbmap:
         8
     conda:
         srcdir("bbmap.yml")
-    shell: """
-    bbmap.sh threads={threads} pigz unpigz \
-             nodisk ref={input.contigs} \
-             in={input.pairs[0]} in2={input.pairs[1]} \
-             out={output.bam} \
-             machineout statsfile={output.stats} \
-             ihist={output.ihist} \
-             ambiguous=all \
-             mdtag \
-             trimreaddescriptions \
-             >{log} 2>&1
-    """
-# FIXME: document above options
+    shell:
+        "bbmap.sh"
+        " threads={threads}"
+        " pigz unpigz"          # enable use of pigz for zip/unzip
+        # this is disabled because not compiled in conda:
+        # " jni"                # use JNI for C alignment algo
+        " nodisk "              # don't write index to disk
+        " ref={input.contigs}"  # reference
+        " in={input.pairs[0]} in2={input.pairs[1]}"
+        " out=stdout"           # write sam to stdout
+        " machineout statsfile={output.stats}" # parseable stats
+        " ihist={output.ihist}" # insert histogram
+        " ambiguous=all"        # output all matches
+        " mdtag"                # make source recoverable in sam
+        " trimreaddescriptions" # use header until space like bowtie2
+        " 2>{log}"              # log error
+        " | samtools view -b -o {output.bam} -" # convert to bam
 
 
 rule bowtie_index:
