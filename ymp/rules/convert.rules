@@ -68,11 +68,11 @@ rule fasta_to_fastp_gz:
 rule temp_unzip_fasta:
     input: "{pathx}.fasta.gz"
     output: temp("{pathx}.fasta")
-    threads: 1
-    shell: "gunzip -c {input} > {output}"
+    threads: 4
+    shell: "unpigz -k -p {threads} {input}"
 
 rule temp_unzip_fq:
     input: "{pathx}.fq.gz"
     output: temp("{pathx}.fq")
-    threads: 1
-    shell: "gunzip -c {input} > {output}"
+    threads: 4
+    shell: "unpigz -k -p {threads} {input}"
