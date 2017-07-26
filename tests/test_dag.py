@@ -1,11 +1,7 @@
 import pytest
 import py
+from ymp.common import odict
 
-from collections import OrderedDict
-class slice2OrderedDict(object):
-    def __getitem__(self, keys):
-        return OrderedDict([(slice.start, slice.stop) for slice in keys])
-odict = slice2OrderedDict()
 
 
 config_dirs = [
