@@ -57,8 +57,6 @@ targets = odict[
 ]
 
 
-
-
 def make_graph(target, rulegraph=False):
     from click.testing import CliRunner
     from ymp.cmd import make as ymp_make
@@ -70,7 +68,7 @@ def make_graph(target, rulegraph=False):
         target])
     assert result.exit_code == 0, result.output
     return DiGraph(AGraph(result.output))
-    
+
 
 @pytest.fixture(params=list(targets.values()), ids=list(targets.keys()))
 def build_graph(request, project_dir):

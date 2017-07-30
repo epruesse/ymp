@@ -49,7 +49,6 @@ class fmt7_parser(blast_parser):
     """
     Parses BLAST results in fmt7 (CSV with comments)
     """
-    
     FIELDS = "# Fields: "
     QUERY = "# Query: "
     DATABASE = "# Database: "

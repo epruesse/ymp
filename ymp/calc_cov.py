@@ -45,7 +45,6 @@ def calc_cov(bamfile, regionfile):
         reads = bam.count(ref, start, end)
         RPMK = reads / ((end - start) / 1000.0)
         info("%s: %f / %f -- %f", hit.sacc, cov, RPMK, RPMK/cov)
-            
 
 
 def outtake():

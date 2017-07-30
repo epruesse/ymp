@@ -68,7 +68,7 @@ class reader(object):
                 for item in f[-1].strip(';').split(';')
             ])
             yield Feature(*f)
-            
+
 
 class writer(object):
     def __init__(self, fileobj):

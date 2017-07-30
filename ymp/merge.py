@@ -92,8 +92,6 @@ def merge(out, files, collect = None, ignore = None):
     for fp in fps:
         fp.close()
 
-            
-
 
 if __name__ == "__main__":
     #profile.run('merge(sys.argv[1], sys.argv[2:])')

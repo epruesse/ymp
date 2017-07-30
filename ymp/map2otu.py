@@ -23,13 +23,14 @@ class emirge_info:
     def __str__(self):
         return "sample=%s id=%s acc=%s prior=%f" % (self.sample, self.id, self.acc, self.Prior)
 
+
 class MapfileParser(object):
     def __init__(self, minid=0):
         self.samples = set()
         self.by_centroid_sums={}
         self.by_sample_sums={}
         self.minid=0
-        
+
     def read(self, mapfiles):
         mapfile = fileinput.input(mapfiles)
         try:

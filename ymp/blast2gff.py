@@ -27,7 +27,6 @@ def blast2gff(input, output):
             attributes = "ID={}_{}_{}".format(hit.sacc, hit.sstart, hit.send)
         )
         gfffile.write(feature)
-        
 
 
 if __name__ == '__main__':

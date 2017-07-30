@@ -16,9 +16,6 @@ nuc2aa = lambda seq: ''.join([
 ])
 
 
-
-
-
 @click.command()
 @click.argument('input', type=click.File('r'))
 @click.argument('output', type=click.File('w'))
@@ -41,7 +38,7 @@ def fasta_dna2aa(input, output):
 
     header = None
     seq = ""
-    
+
     for line in input:
 #        line = line.decode('ascii')
         if line[0] == '>':

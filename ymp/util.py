@@ -131,7 +131,7 @@ def R(code="", **kwargs):
     """Execute R code
 
     This function executes the R code given as a string. Additional arguments are injected into
-    the R environment. The value of the last R statement is returned. 
+    the R environment. The value of the last R statement is returned.
 
     The function requires rpy2 to be installed.
 
@@ -143,7 +143,6 @@ def R(code="", **kwargs):
         **kwargs (dict): variables to inject into R globalenv
     Yields:
         value of last R statement
-        
     """
     try:
         import rpy2.robjects as robjects
