@@ -1,5 +1,7 @@
-mapfiles:
-    ibd:
-        file: 'ibd_runtable.txt'
-        type: 'SraRunTable'
-        name_col: 'Library_Name_s'
+projects:
+  ibd:
+    data:
+      - join:
+          - 'mapping.csv'
+          - 'ibd_runtable.txt'
+

@@ -30,7 +30,8 @@ setup(
         'Click',
         'PyYAML',
         'drmaa',
-        'rpy2'
+        'rpy2',
+        'pandas'
     ],
     entry_points='''
         [console_scripts]

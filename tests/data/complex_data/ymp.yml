@@ -1,0 +1,7 @@
+projects:
+  test:
+    data:
+      - top.csv
+      - join:
+          - left.csv
+          - right.tsv
