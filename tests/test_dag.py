@@ -4,11 +4,6 @@ from ymp.common import odict
 
 
 
-config_dirs = [
-    'ibd'
-]
-
-
 # test subject : build target
 targets = odict[
     ## fastq.rules
@@ -48,12 +43,6 @@ targets = odict[
 ]
 
 
-@pytest.fixture(params=config_dirs)
-def project_dir(request, tmpdir):
-    data_dir = py.path.local(__file__).dirpath('data', request.param)
-    data_dir.copy(tmpdir)
-    yield tmpdir
-    tmpdir.remove()
 
 
 def make_graph(target, rulegraph=False):
