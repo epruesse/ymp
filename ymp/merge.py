@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 import pandas
 import os, sys
-import csv
 import logging
-import profile
 
 log = logging.getLogger(__name__)
 

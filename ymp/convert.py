@@ -3,9 +3,6 @@ Various converters
 
 """
 
-import ymp.blast
-import ymp.gff
-
 def BlastHit2GffFeature(blasthit):
     return gff.Feature(
         seqid = hit.sacc,

@@ -1,5 +1,4 @@
 import pytest
-import py
 
 @pytest.mark.parametrize("project_dir", ['ibd','complex_data'], indirect=True)
 def test_config(project_dir):

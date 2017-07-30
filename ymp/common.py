@@ -1,5 +1,4 @@
 from collections import OrderedDict, Mapping
-import yaml
 
 class _odict(object):
     """

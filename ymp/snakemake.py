@@ -3,7 +3,7 @@ from snakemake.io import expand, apply_wildcards, AnnotatedString
 from string import Formatter
 from itertools import product
 from copy import deepcopy
-import re, os, csv
+import re, csv
 import traceback
 
 class OverrideJoinFormatter(Formatter):

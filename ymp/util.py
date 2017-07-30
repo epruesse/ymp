@@ -1,8 +1,7 @@
-from snakemake.io import expand 
 from snakemake.utils import format
 from snakemake.io import Namedlist
 
-import re, os
+import os
 import textwrap
 from subprocess import check_output
 

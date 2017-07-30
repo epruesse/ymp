@@ -1,5 +1,4 @@
 import pytest
-import py
 from ymp.common import odict
 import yappi
 

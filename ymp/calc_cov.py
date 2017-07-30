@@ -6,7 +6,6 @@ import logging
 from logging import info
 import pprint
 import blast
-import gff
 
 pprinter = pprint.PrettyPrinter()
 pprint = pprinter.pprint

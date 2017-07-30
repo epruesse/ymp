@@ -1,19 +1,14 @@
-import csv
 import os
 import re
-import sys
 import inspect
 from functools import lru_cache
-from contextlib import contextmanager
 from pkg_resources import resource_filename
 import yaml
 
 import logging
 log = logging.getLogger(__name__)
 
-from snakemake.io import expand, get_wildcard_names, apply_wildcards
-from snakemake.utils import format
-import snakemake
+from snakemake.io import expand, get_wildcard_names
 from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
 HTTP = HTTPRemoteProvider()
 
