@@ -21,17 +21,17 @@ targets = odict[
     'bmtaggerhs37':   'reports/{}.bmtaggerhs37_qc.html',
     ## assembly.rules
     'assemble_separate_mh': 'reports/{}.by_ID.mhc.mq.html',
-    'assemble_grouped_mh':  'reports/{}.by_SUBJECT.mhc.mq.html',
+    'assemble_grouped_mh':  'reports/{}.by_Subject.mhc.mq.html',
     'assemble_joined_mh':   'reports/{}.mhc.mq.html',
     'assemble_separate_sp': 'reports/{}.by_ID.sp.mq.html',
-    'assemble_grouped_sp':  'reports/{}.by_SUBJECT.sp.mq.html',
+    'assemble_grouped_sp':  'reports/{}.by_Subject.sp.mq.html',
     'assemble_joined_sp':   'reports/{}.sp.mq.html',
     ## mapping.rules
     'map_bbmap_separate':   '{}.by_ID.mhc.bbm/complete',
-    'map_bbmap_grouped':   '{}.by_SUBJECT.mhc.bbm/complete',
+    'map_bbmap_grouped':   '{}.by_Subject.mhc.bbm/complete',
     'map_bbmap_joined':   '{}.mhc.bbm/complete',
     'map_bowtie2_separate': '{}.by_ID.mhc.bt2/complete',
-    'map_bowtie2_grouped': '{}.by_SUBJECT.mhc.bt2/complete',
+    'map_bowtie2_grouped': '{}.by_Subject.mhc.bt2/complete',
     'map_bowtie2_joined': '{}.mhc.bt2/complete',
     ## blast.rules
     'blast_gene_find':   '{}.by_Subject.mhc.blast/psa.wcfR.csv',
@@ -79,7 +79,7 @@ def test_graph_complete(build_graph):
          for node, degree in G.in_degree().items()
          if degree == 0
         ])
-    print("Testing start-nodes ({}) >= runs ({})"
+    print("\nTesting start-nodes ({}) >= runs ({})"
           "".format(n_start_nodes, n_runs))
     assert n_start_nodes >= n_runs
 
