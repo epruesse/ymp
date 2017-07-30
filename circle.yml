@@ -18,8 +18,12 @@ dependencies:
         conda config --system --add channels $channel;
       done;
       conda info -a;
-      conda install rpy2;
+      conda env create -n test_env -f ymp_dependencies.yml
 test:
   override:
-    - python setup.py install
-    - python setup.py test --addopts "--junit-xml $CI_REPORTS/test.xml"
+    - |
+      source activate test_env
+      python setup.py install
+    - |
+      source activate test_env
+      python setup.py test --addopts "--junit-xml $CI_REPORTS/test.xml"
