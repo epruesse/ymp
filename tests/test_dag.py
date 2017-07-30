@@ -2,7 +2,7 @@ import pytest
 from ymp.common import odict
 import yappi
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module") # autouse=True)
 def profiling():
     yappi.start()
     yield
