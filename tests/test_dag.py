@@ -1,7 +1,22 @@
 import pytest
 import py
 from ymp.common import odict
+import yappi
 
+@pytest.fixture(scope="module", autouse=True)
+def profiling():
+    yappi.start()
+    yield
+    yappi.stop()
+    profile = yappi.get_func_stats()
+    profile.sort("subtime")
+    with open("profile.txt", "w") as f:
+        profile.print_all(out=f, columns = {
+            0:("name",120),
+            1:("ncall", 10),
+            2:("tsub", 8),
+            3: ("ttot", 8),
+            4:("tavg",8)})
 
 
 # test subject : build target

@@ -23,7 +23,8 @@ setup(
         'networkx',
         'pygraphviz',
         'pytest',
-        'pytest-logging'
+        'pytest-logging',
+        'yappi'
     ],
     install_requires=[
         'snakemake',
