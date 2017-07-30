@@ -20,10 +20,10 @@ setup(
     ],
     tests_require=[
 #        'pytest-xdist',
+        'pytest-logging',
         'networkx',
         'pygraphviz',
         'pytest',
-        'pytest-logging',
         'yappi'
     ],
     install_requires=[
