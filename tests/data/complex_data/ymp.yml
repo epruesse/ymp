@@ -3,5 +3,5 @@ projects:
     data:
       - top.csv
       - join:
-          - left.csv
+          - excel.xlsx%left
           - right.tsv

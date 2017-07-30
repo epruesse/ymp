@@ -8,8 +8,10 @@ dependencies:
   - pyyaml
   - python-drmaa
   - pandas
+  - xlrd # for excel support
   # for tests:
   - networkx
   - pytest
   - pygraphviz
   - yappi
+

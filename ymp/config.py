@@ -52,7 +52,17 @@ def loadData(cfg):
       - bottom_right.csv
     """
     if isinstance(cfg, str):
-        return pd.read_csv(cfg, sep=None, engine='python', dtype='str')
+        try:
+            return pd.read_csv(cfg, sep=None, engine='python', dtype='str')
+        except FileNotFoundError:
+            parts = cfg.split('%')
+            try:
+                return pd.read_excel(parts[0], parts[1] if len(parts)>1 else 0)
+            except ModuleNotFoundError:
+                raise YmpConfigNotFound("Could not load specified data file '{}'."
+                                        " If this is an Excel file, you might need"
+                                        " to install 'xlrd'."
+                                        "".format(cfg))
     if isinstance(cfg, list):
         return pd.concat(list(map(loadData, cfg)), ignore_index=True)
     if isinstance(cfg, dict):
