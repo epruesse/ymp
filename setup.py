@@ -22,7 +22,8 @@ setup(
 #        'pytest-xdist',
         'networkx',
         'pygraphviz',
-        'pytest'
+        'pytest',
+        'pytest-logging'
     ],
     install_requires=[
         'snakemake',
