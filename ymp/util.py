@@ -40,7 +40,6 @@ class AttrDict(dict):
 
 
 def glob_wildcards(pattern, files=None):
-    from itertools import chain
     from snakemake.io import _wildcard_regex, namedtuple, regex
     import regex as re
 
@@ -175,7 +174,6 @@ def R(code="", **kwargs):
 
 
 def Rmd(rmd, out, **kwargs):
-    from snakemake.workflow import srcdir
     R("""
     library(rmarkdown)
     print(out)

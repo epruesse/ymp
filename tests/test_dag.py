@@ -83,7 +83,7 @@ def build_graph(request, project_dir):
 
 
 def test_graph_complete(build_graph):
-    cfg, G, R = build_graph
+    cfg, G, _ = build_graph
     n_runs = len(cfg.runs)
 
     n_start_nodes = len(

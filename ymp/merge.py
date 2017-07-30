@@ -53,7 +53,7 @@ def merge(out, files, collect = None, ignore = None):
     try:
         fps = [open(filename, "rb", buffering=81920) for filename in files]
         outfp = open(out, "wb")
-    except IOError as e:
+    except IOError:
         raise Exception("unable to open \"{}\"".format(filename))
 
     headers = None
@@ -77,7 +77,7 @@ def merge(out, files, collect = None, ignore = None):
     outfp.write(",".join(names).encode('ascii'))
     outfp.write(b"\n")
 
-    for row, line in enumerate(fps[0]):
+    for line in fps[0]:
         arr = line.rstrip().split(b"\t")
         res = [ x for x, collect in zip(arr, icollect) if collect ]
         match = [ x for x, match in zip(arr, imatch) if match ]

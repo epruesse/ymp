@@ -354,7 +354,7 @@ class ConfigExpander(ColonExpander):
             try:
                 ct = ds.get_context(kwargs['wc'])
                 return getattr(ct, field_name)
-            except AttributeError as e:
+            except AttributeError:
                 pass
 
             return super().get_value(field_name, args, kwargs)
