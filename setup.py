@@ -24,7 +24,8 @@ setup(
         'networkx',
         'pygraphviz',
         'pytest',
-        'yappi'
+        'yappi',
+        'xlrd'
     ],
     install_requires=[
         'snakemake',
