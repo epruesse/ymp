@@ -1,42 +1,49 @@
+import logging
+
 import os
 import re
-import inspect
+
 from functools import lru_cache
-from pkg_resources import resource_filename
-import yaml
-
-import logging
-log = logging.getLogger(__name__)
-
-from snakemake.io import expand, get_wildcard_names
-from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
-HTTP = HTTPRemoteProvider()
-
 
 import pandas as pd
 
-from ymp.snakemake import ExpandableWorkflow, ColonExpander
-from ymp.util import AttrDict
+from pkg_resources import resource_filename
+
+from snakemake.io import expand, get_wildcard_names
+from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
+
+import yaml
+
 from ymp.common import update_dict
+from ymp.snakemake import ColonExpander, ExpandableWorkflow
+from ymp.util import AttrDict
+
+log = logging.getLogger(__name__)
+
+HTTP = HTTPRemoteProvider()
 
 
 class YmpException(Exception):
     pass
 
+
 class YmpConfigError(YmpException):
     pass
+
 
 class YmpConfigNotFound(YmpException):
     pass
 
+
 class YmpConfigMalformed(YmpException):
     pass
+
 
 class YmpConfigNoProjects(YmpException):
     pass
 
 
-def loadData(cfg):
+def load_data(cfg):
     """Recursively loads csv/tsv type data as defined by yaml structure
 
     Format:
@@ -57,17 +64,20 @@ def loadData(cfg):
         except FileNotFoundError:
             parts = cfg.split('%')
             try:
-                return pd.read_excel(parts[0], parts[1] if len(parts)>1 else 0)
-            except ModuleNotFoundError:
-                raise YmpConfigNotFound("Could not load specified data file '{}'."
-                                        " If this is an Excel file, you might need"
-                                        " to install 'xlrd'."
-                                        "".format(cfg))
+                return pd.read_excel(parts[0],
+                                     parts[1] if len(parts) > 1 else 0)
+            except ImportError:
+                raise YmpConfigNotFound(
+                    "Could not load specified data file '{}'."
+                    " If this is an Excel file, you might need"
+                    " to install 'xlrd'."
+                    "".format(cfg)
+                )
     if isinstance(cfg, list):
-        return pd.concat(list(map(loadData, cfg)), ignore_index=True)
+        return pd.concat(list(map(load_data, cfg)), ignore_index=True)
     if isinstance(cfg, dict):
         if 'join' in cfg:
-            tables = list(map(loadData, cfg['join']))
+            tables = list(map(load_data, cfg['join']))
             return pd.merge(*tables)
     raise YmpConfigMalformed()
 
@@ -85,7 +95,7 @@ class Context(object):
 
         df = dcfg._runs
 
-        groupbys=[]
+        groupbys = []
         # extract groupby column from dir or by key, with by having preference
         for key in ['dir', 'by']:
             if hasattr(wc, key):
@@ -136,10 +146,10 @@ class DatasetConfig(object):
     def __init__(self, cfg):
         self.cfg = cfg
         self.fieldnames = None
-        
+
         if self.KEY_DATA not in self.cfg:
             raise YmpConfigMalformed("Missing key " + self.KEY_DATA)
-        self._runs = loadData(self.cfg[self.KEY_DATA])
+        self._runs = load_data(self.cfg[self.KEY_DATA])
         self.choose_id_column()
         self.choose_fq_columns()
 
@@ -159,23 +169,29 @@ class DatasetConfig(object):
         if self.KEY_IDCOL in self.cfg:
             idcol = self.cfg[self.KEY_IDCOL]
             if idcol not in self._runs.columns:
-                raise YmpConfigError("Configured column {}={} not found in data. "
-                                     "Is the spelling correct?"
-                                     "Available columns: {}"
-                                     "".format(
-                                         self.KEY_IDCOL, idcol, list(self._runs.columns)
-                                     ))
+                raise YmpConfigError(
+                    "Configured column {}={} not found in data. "
+                    "Is the spelling correct?"
+                    "Available columns: {}"
+                    "".format(
+                        self.KEY_IDCOL, idcol, list(self._runs.columns)
+                    )
+                )
             if idcol not in unique_columns:
-                raise YmpConfigError("Configured column {}={} is not unique. "
-                                     "Unique columns: {}"
-                                     "".format(
-                                         self.KEY_IDCOL, id_col, list(unique_columns)
-                                     ))
+                raise YmpConfigError(
+                    "Configured column {}={} is not unique. "
+                    "Unique columns: {}"
+                    "".format(
+                        self.KEY_IDCOL, idcol, list(unique_columns)
+                    )
+                )
         else:
             self.cfg[self.KEY_IDCOL] = unique_columns[0]
-            log.info("Autoselected column %s=%s", self.KEY_IDCOL, self.cfg[self.KEY_IDCOL])
+            log.info("Autoselected column %s=%s",
+                     self.KEY_IDCOL, self.cfg[self.KEY_IDCOL])
 
-        self._runs.set_index(self.cfg[self.KEY_IDCOL], drop=False, inplace=True)
+        self._runs.set_index(self.cfg[self.KEY_IDCOL],
+                             drop=False, inplace=True)
 
     def choose_fq_columns(self):
         """
@@ -204,22 +220,23 @@ class DatasetConfig(object):
         for pat, nmax, msg, func in (
                 (self.RE_FILE, 2, "fastq files", "file"),
                 (self.RE_REMOTE, 2, "remote URLs", "remote"),
-                (self.RE_SRR, 1, "SRR numbers", "srr"),
-            ):
+                (self.RE_SRR, 1, "SRR numbers", "srr")):
             no_type_yet = string_cols[source_cfg['type'].isnull()]
             match = no_type_yet.apply(lambda x: x.str.contains(pat))
             broken_rows = match.sum(axis=1) > nmax
             if any(broken_rows):
                 rows = list(self._runs.index[broken_rows])
                 cols = list(self._runs.columns[match[broken_rows].any])
-                raise YmpConfigError("Some rows contain more than two {}. "
-                                     "Use {} to specify the desired rows. "
-                                     "Rows in question: {} "
-                                     "Columns in question: {} "
-                                     "".format(msg, self.KEY_READCOLS, rows, cols))
+                raise YmpConfigError(
+                    "Some rows contain more than two {}. "
+                    "Use {} to specify the desired rows. "
+                    "Rows in question: {} "
+                    "Columns in question: {} "
+                    "".format(msg, self.KEY_READCOLS, rows, cols))
             good_rows = match.sum(axis=1).eq(nmax)
             out = match[good_rows]
-            out = out.apply(lambda x: (func,) + tuple(match.columns[x]), axis=1)
+            out = out.apply(lambda x: (func,) + tuple(match.columns[x]),
+                            axis=1)
             outm = out.apply(pd.Series, index=source_cfg.columns[0:nmax+1])
             source_cfg.update(outm, overwrite=False)
 
@@ -249,13 +266,13 @@ class DatasetConfig(object):
             source = list(self._source_cfg.loc[run])
         except KeyError:
             raise YmpException("Internal error")
-            
+
         kind = source[0]
         if kind == 'srr':
             srr = self._runs.loc[run][source[1]]
-            f= os.path.join(icfg.scratchdir,
-                                "SRR",
-                                "{}_{}.fastq.gz".format(srr, pair+1))
+            f = os.path.join(icfg.scratchdir,
+                             "SRR",
+                             "{}_{}.fastq.gz".format(srr, pair+1))
             return f
         fn = source[pair+1]
         if kind == 'file':
@@ -275,7 +292,7 @@ class DatasetConfig(object):
         return ["{}.{}".format(run, icfg.pairnames[pair])
                 for run in self.runs
                 for pair in range(2)]
-        
+
 
 class SraRunTable(DatasetConfig):
     """Contains dataset configuration specified as a SraRunTable"""
@@ -287,12 +304,12 @@ class SraRunTable(DatasetConfig):
             self.name_col = self.cfg['name_col']
         else:
             self.name_col = "Libary_Name_s"
-        
+
         self.loadRuns(self.name_col)
 
     def FQpath(self, run, pair):
         return os.path.join(
-            icfg.scratchdir,"SRR",
+            icfg.scratchdir, "SRR",
             "{}_{}.fastq.gz".format(self.runs[run]['Run_s'], pair+1)
         )
 
@@ -301,7 +318,7 @@ class SraRunTable(DatasetConfig):
         return ["{}.{}".format(run, icfg.pairnames[pair])
                 for run in self.runs
                 for pair in range(2)]
-    
+
 
 class Mapfile(DatasetConfig):
     """Contains a dataset configuration specified as a CSV"""
@@ -309,8 +326,8 @@ class Mapfile(DatasetConfig):
         super().__init__(cfg)
         if self.cfg['type'] != 'CSV':
             raise self.CantLoad()
-        
-        self.basedir=os.path.dirname(self.file)
+
+        self.basedir = os.path.dirname(self.file)
         self.fq_cols = self.cfg['fq_cols']
         self.name_col = self.cfg['name_col']
 
@@ -332,20 +349,6 @@ class ConfigExpander(ColonExpander):
         self.config_mgr = config_mgr
 
     class Formatter(ColonExpander.Formatter):
-        def _get_column(self, dirname):
-            regex = r"\.by_({})(?:[./]|$)".format("|".join(colnames))
-            groups = re.findall(regex, dirname)
-            if len(groups) == 0:
-                return None
-            else:
-                return groups[-1]
-            
-        def _get_targets(self, data):
-            return set([
-                data[item][colname]
-                for item in data
-                ])
-
         def get_value(self, field_name, args, kwargs):
             # try to resolve variable as property of the config_mgr
             try:
@@ -355,7 +358,8 @@ class ConfigExpander(ColonExpander):
 
             # try to resolve as part of dataset
             try:
-                ds = self.expander.config_mgr.getDatasetFromDir(kwargs['wc'].dir)
+                ds = self.expander.config_mgr.getDatasetFromDir(
+                    kwargs['wc'].dir)
                 return getattr(ds, field_name)
             except AttributeError:
                 pass
@@ -368,7 +372,7 @@ class ConfigExpander(ColonExpander):
                 pass
 
             return super().get_value(field_name, args, kwargs)
-        
+
 
 class ConfigMgr(object):
     """Interface to configuration. Singleton as "icfg" """
@@ -416,15 +420,15 @@ class ConfigMgr(object):
                 conf = yaml.load(f)
                 update_dict(self._config, conf)
         self._datasets = {
-            project :  DatasetConfig(self._config[self.KEY_PROJECTS][project])
+            project:  DatasetConfig(self._config[self.KEY_PROJECTS][project])
             for project in self._config[self.KEY_PROJECTS]
         }
         if len(self._datasets) == 0:
-            raise YmpConfigNoDatasets()
+            raise YmpConfigNoProjects()
 
     def __len__(self):
         "Our length is the number of datasets"
-        return length(self._datasets)
+        return len(self._datasets)
 
     def __getitem__(self, key):
         "Returns DatasetConfig"
@@ -462,7 +466,7 @@ class ConfigMgr(object):
             return self._config['directories']['sra']
         except:
             raise KeyError("Missing directories/reports in config")
-    
+
     @property
     def datasets(self):
         """Returns list of all configured datasets"""
@@ -486,22 +490,22 @@ class ConfigMgr(object):
             return self._datasets[ds]
         except:
             raise KeyError("no dataset found matching '{}'".format(dirname))
-        
+
     def expand(self, *args, **kwargs):
         # FIXME:
         res = self.config_expander.expand_input(args, kwargs)[0][0]
         return res
-        #return lambda wc: self._expand(template, wc)
+        # return lambda wc: self._expand(template, wc)
 
     def _expand(self, template, wc=None):
         if wc is None:
-            wc={}
+            wc = {}
         if isinstance(template, str):
             template = [template]
         names = set()
         for item in template:
             names |= get_wildcard_names(item)
- 
+
         sources = [wc]
         try:
             ds = self.getDatasetFromDir(wc.dir)
@@ -516,22 +520,23 @@ class ConfigMgr(object):
                 if name in dir(source):
                     fields[name] = getattr(source, name)
                     break
-            if not name in fields:
+            if name not in fields:
                 fields[name] = "{{{}}}".format(name)
 
         res = expand(template, **fields)
         return res
-            
+
     def FQpath(self, dataset, run, pairsuff):
         try:
-            return self._datasets[dataset].FQpath(run, self.pairnames.index(pairsuff))
+            return self._datasets[dataset].FQpath(
+                run, self.pairnames.index(pairsuff))
         except KeyError:
             return ":::No such file (ds={}, run={}, pair={}):::".format(
                 dataset, run, pairsuff)
 
-
     def getRuns(self, datasets=None):
-        """Returns list of names of Runs of `dataset`, or names of all configured Runs"""
+        """Returns list of names of Runs of `dataset`, or names of all
+        configured Runs"""
         if not datasets:
             datasets = self.datasets
         if isinstance(datasets, str):
@@ -553,5 +558,6 @@ class ConfigMgr(object):
             for dataset in datasets
             for prop in self._datasets[dataset].props
         ]
+
 
 icfg = ConfigMgr()
