@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 
-import pysam
-import click
 import logging
-from logging import info
 import pprint
-import blast
+from logging import info
+
+import click
+
+import pysam
+
+from ymp import blast
 
 pprinter = pprint.PrettyPrinter()
 pprint = pprinter.pprint
@@ -15,7 +18,6 @@ logging.basicConfig(
     format="%(relativeCreated)6.1f %(funcName)s: %(message)s",
     datefmt="%I:%M:%S"
 )
-
 
 
 @click.command()
@@ -33,27 +35,26 @@ def calc_cov(bamfile, regionfile):
         bam.mapped / (bam.mapped + bam.unmapped) * 100
     ))
 
-
-    name2ref = {word.split()[0]:word for word in bam.references}
+    name2ref = {word.split()[0]: word for word in bam.references}
     for hit in blastfile:
-        #if blastfile.isfirsthit():
+        # if blastfile.isfirsthit():
 
         ref = name2ref[hit.sacc]
         start, end = sorted((hit.sstart, hit.send))
         covarr = bam.count_coverage(ref, start, end, quality_threshold=0)
         cov = sum([sum(x) for x in covarr]) / abs(hit.sstart - hit.send)
         reads = bam.count(ref, start, end)
-        RPMK = reads / ((end - start) / 1000.0)
-        info("%s: %f / %f -- %f", hit.sacc, cov, RPMK, RPMK/cov)
+        rpmk = reads / ((end - start) / 1000.0)
+        info("%s: %f / %f -- %f", hit.sacc, cov, rpmk, rpmk/cov)
 
 
-def outtake():
-    hist = []
-    for col in bam.pileup(ref, hit.sstart, hit.send):
-        if col.reference_pos < hit.sstart: continue
-        if col.reference_pos > hit.send: continue
-        hist.append(col.nsegments)
-    info(hist)
-        
+# def outtake():
+#    hist = []
+#    for col in bam.pileup(ref, hit.sstart, hit.send):
+#        if col.reference_pos < hit.sstart: continue
+#        if col.reference_pos > hit.send: continue
+#        hist.append(col.nsegments)
+#    info(hist)
+
 if __name__ == "__main__":
     calc_cov()
