@@ -294,55 +294,6 @@ class DatasetConfig(object):
                 for pair in range(2)]
 
 
-class SraRunTable(DatasetConfig):
-    """Contains dataset configuration specified as a SraRunTable"""
-    def __init__(self, cfg):
-        super().__init__(cfg)
-        if self.cfg['type'] != 'SraRunTable':
-            raise self.CantLoad()
-        if 'name_col' in self.cfg:
-            self.name_col = self.cfg['name_col']
-        else:
-            self.name_col = "Libary_Name_s"
-
-        self.loadRuns(self.name_col)
-
-    def FQpath(self, run, pair):
-        return os.path.join(
-            icfg.scratchdir, "SRR",
-            "{}_{}.fastq.gz".format(self.runs[run]['Run_s'], pair+1)
-        )
-
-    @property
-    def fastq_basenames(self):
-        return ["{}.{}".format(run, icfg.pairnames[pair])
-                for run in self.runs
-                for pair in range(2)]
-
-
-class Mapfile(DatasetConfig):
-    """Contains a dataset configuration specified as a CSV"""
-    def __init__(self, cfg):
-        super().__init__(cfg)
-        if self.cfg['type'] != 'CSV':
-            raise self.CantLoad()
-
-        self.basedir = os.path.dirname(self.file)
-        self.fq_cols = self.cfg['fq_cols']
-        self.name_col = self.cfg['name_col']
-
-        self.loadRuns(self.name_col)
-
-    def FQpath(self, run, pair):
-        return os.path.join(self.basedir, self.runs[run][self.fq_cols[pair]])
-
-    @property
-    def fastq_basenames(self):
-        return ["{}.{}".format(run, icfg.pairnames[pair])
-                for run in self.runs
-                for pair in range(len(self.fq_cols))]
-
-
 class ConfigExpander(ColonExpander):
     def __init__(self, config_mgr):
         super().__init__()
