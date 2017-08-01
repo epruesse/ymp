@@ -308,6 +308,7 @@ rule sickle:
         --length-threshold={params.length} \
         --qual-threshold={params.qual} \
         --gzip-output \
+        --no-fiveprime \
         > {log} 2>&1
     """
 
