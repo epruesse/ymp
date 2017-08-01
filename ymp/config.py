@@ -141,7 +141,7 @@ class DatasetConfig(object):
 
     RE_REMOTE = re.compile(r"^(?:https?|ftp|sftp)://(?:.*)")
     RE_SRR = re.compile(r"^SRR[0-9]+$")
-    RE_FILE = re.compile(r"(?:fq|fastq)(?:|\.gz)$")
+    RE_FILE = re.compile(r"^(?!http://).*(?:fq|fastq)(?:|\.gz)$")
 
     def __init__(self, cfg):
         self.cfg = cfg
@@ -274,18 +274,20 @@ class DatasetConfig(object):
                              "SRR",
                              "{}_{}.fastq.gz".format(srr, pair+1))
             return f
-        fn = source[pair+1]
+        fn = self._runs.loc[run][source[pair+1]]
         if kind == 'file':
             if os.path.isabs(fn):
                 return fn
-            else:
-                return os.path.join(self.basedir, fn)
+# FIXME: need to get basedir of mapping file somehow
+#            else:
+#                return os.path.join(self.basedir, fn)
 
         if kind == 'remote':
+            print("http url:",fn)
             return HTTP.remote(fn, keep_local=True)
 
-        raise YmpException("Internal error: no source for {}:{}"
-                           "".format(run, pair))
+        raise YmpException("Internal error: no source for {}:{} ({})"
+                           "".format(run, pair, source))
 
     @property
     def fastq_basenames(self):
