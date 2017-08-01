@@ -218,12 +218,11 @@ rule trim_bbduk_adapter:
     threads:  16
     conda:    srcdir("bbmap.yml")
     shell: """
-    BBPATH=$(which bbduk.sh)
-    BBPATH=${{BBPATH%/*}}
+    ADAPTER_DIR="$(dirname $(readlink -f $(command -v bbduk.sh)))/resources"
 
     bbduk.sh in={input[0]} in2={input[1]} out={output[0]} out2={output[1]} \
              trimq={wildcards.Q} qtrim=r \
-             ref=$BBPATH/resources/adapters.fa ktrim=r k=23 mink=11 hdist=1 tpe tbo \
+             ref=$ADAPTER_DIR/adapters.fa ktrim=r k=23 mink=11 hdist=1 tpe tbo \
              pigz unpigz threads={threads} -Xmx80g
     """
 

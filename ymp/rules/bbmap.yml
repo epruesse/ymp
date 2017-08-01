@@ -4,3 +4,4 @@ dependencies:
  - bbmap
  - pigz
  - samtools
+ - coreutils # for readlink -f
