@@ -1,0 +1,17 @@
+channels:
+ - r
+ - bioconda
+dependencies:
+ - bbmap
+ - pigz
+ - samtools
+ - vsearch
+ - bedtools
+ - mafft
+ - r-ggdendro
+ - r-gtable
+ - r-reshape2
+ - r-ggplot2
+ - r-optparse
+
+ 

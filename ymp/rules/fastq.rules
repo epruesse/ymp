@@ -150,8 +150,11 @@ rule phyloFlash:
     output:  "{dir}.pf/{sample}.phyloFlash.NTUabundance.csv"
     log:     "{dir}.pf/{sample}.log"
     threads: 16
+    conda:   srcdir("phyloflash.yml")
     shell: """
+    module load phyloFlash
     cd {wildcards.dir}.pf
+
     phyloFlash.pl -skip_emirge \
                   -skip_spades \
                   -html \
@@ -160,7 +163,7 @@ rule phyloFlash:
                   -read2 ../{input[1]} \
                   -lib {wildcards.sample} \
                   -CPUs {threads} \
-                  > {log} 2>&1
+                  > ../{log} 2>&1
     """
 
 
@@ -170,7 +173,11 @@ rule phyloFlash_heatmap:
     output:  "{:reportsdir:}/{dir}_heatmap.pdf"
     log:     "{dir}.pf/phyloFlash_heatmap.log"
     threads: 1
-    shell: "phyloFlash_heatmap.R {input} --out {output} >{log} 2>&1"
+    conda:   srcdir("phyloflash.yml")
+    shell: """
+    module load phyloFlash
+    phyloFlash_heatmap.R -t '' {input} --out {output} >{log} 2>&1
+    """
 
 
 ###
