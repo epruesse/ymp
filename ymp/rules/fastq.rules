@@ -489,6 +489,7 @@ rule bbmap_dedupe:
     input:   "{dir}/{sample}.{:pairnames:}.fq.gz"
     output:  "{dir}.ddp/{sample}.{:pairnames:}.fq.gz"
     log:     "{dir}.ddp/{sample}.log"
+    params: mem=80
     threads: 4
     conda:   srcdir("bbmap.yml")
     shell:
@@ -498,6 +499,7 @@ rule bbmap_dedupe:
         " in={input[0]}"
         " in2={input[1]}"
         " out=stdout"
+        " -Xmx{params.mem}g "
         " 2>{log}"
         " |"
         " paste - - - -  - - - - | "
