@@ -7,7 +7,7 @@ dependencies:
   - click
   - pyyaml
   - python-drmaa
-  - pandas
+  - pandas >= 0.20
   - xlrd # for excel support
   # for tests:
   - networkx

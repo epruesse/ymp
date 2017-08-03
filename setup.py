@@ -33,7 +33,7 @@ setup(
         'PyYAML',
         'drmaa',
         'rpy2',
-        'pandas'
+        'pandas>=0.20'
     ],
     entry_points='''
         [console_scripts]
