@@ -1,4 +1,7 @@
 directories:
+    tmp: 'tmp'
+    references: 'references'
+    dbs: 'dbs'
     scratch: 'scratch'
     reports: 'reports'
     sra: 'sra'

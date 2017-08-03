@@ -396,6 +396,10 @@ class ConfigMgr(object):
         return self._config['pairnames']
 
     @property
+    def dir(self):
+        return AttrDict(self._config['directories'])
+
+    @property
     def scratchdir(self):
         try:
             return self._config['directories']['scratch']
