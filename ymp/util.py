@@ -53,14 +53,18 @@ def read_propfiles(files):
 
 
 class AttrDict(dict):
-    def __init__(self, dictionary):
-        self._dict = dictionary
-
+    """
+    AttrDict adds accessing stored keys as attributes to dict
+    """
     def __getattr__(self, attr):
-        res = self._dict[attr]
-        if isinstance(res, dict):
-            return AttrDict(res)
-        return res
+        try:
+            return super().__getattr__(attr)
+        except AttributeError:
+            val = self[attr]
+            if isinstance(attr, dict):
+                return AttrDict(attr)
+            else:
+                return val
 
 
 def glob_wildcards(pattern, files=None):
