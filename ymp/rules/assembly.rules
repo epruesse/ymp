@@ -116,7 +116,7 @@ rule metaspades:
         16
     shell: """
     metaspades.py \
-        -o {params.outdir} \
+        -o {params.workdir} \
         --threads {threads} \
         --tmp-dir {params.tmpdir} \
         --dataset {input.conf} \
