@@ -18,7 +18,7 @@ dependencies:
         conda config --system --add channels $channel;
       done;
       conda info -a;
-      conda env create -n test_env -f ymp_dependencies.yml -v
+    - conda env create -n test_env -f ymp_dependencies.yml -vv
 test:
   override:
     - |
