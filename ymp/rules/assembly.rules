@@ -81,14 +81,12 @@ rule metaspades_input_yaml:
         yaml = "{dir}{by}.sp/{target}.yaml"
     run:
         import yaml
-        # exclude pairs where one file is empty:
-        non_empty = [ os.path.getsize(r1) > 0 and
-                      os.path.getsize(r2) > 0
-                      for r1, r2 in zip(input.r1, input.r2) ]
-        r1 = [ "../" + fn for fn, good in zip(input.r1, non_empty) if good ]
-        r2 = [ "../" + fn for fn, good in zip(input.r2, non_empty) if good ]
+        from ymp.util import filter_out_empty
+
+        r1, r2 = filter_out_empty(input.r1, input.r2)
+
         with open(output.yaml, "w") as cfg:
-            cfg.write(yaml.dump([{
+            cfg.write(yaml.safe_dump([{
                 "left reads": r1,
                 "right reads": r2,
                 "type": "paired-end",

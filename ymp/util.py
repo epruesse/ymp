@@ -5,6 +5,30 @@ import os
 import textwrap
 from subprocess import check_output
 
+def file_not_empty(fn):
+    "Checks is a file is not empty, accounting for gz mininum size 20"
+    if fn.endswith('gz'):
+        return os.path.getsize(fn) > 20
+    return os.path.getsize(fn) > 0
+
+def filter_out_empty(*args):
+    """
+    Removes empty sets of files from input file lists.
+
+    Takes a variable number of file lists of equal length and removes
+    indices where any of the files is empty. Strings are converted to
+    lists of length 1.
+
+    Returns a generator tuple.
+
+    Example:
+    r1, r2 = filter_out_empty(input.r1, input.r2)
+    """
+    args = ( [arg] if isinstance(arg, str) else arg
+             for arg in args )
+    return zip(*(t for t in zip(*args)
+                 if all(map(file_not_empty, t))))
+
 def get_ncbi_root():
     root = check_output("""
     module load sratoolkit
