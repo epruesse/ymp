@@ -18,7 +18,7 @@ rule megahit:
         "{dir}{by}.mhc/{target}.log.gz"
     params:
         workdir = "{dir}{by}.mhc/{target}/",
-        tmpdir  = "/scratch/$HOME/tmp",
+        tmpdir  = icfg.expand("{:dir.tmp:}"),
         preset  = "meta-sensitive",
         r1 = lambda wc, input: ",".join([input.r1]
                                         if isinstance(input.r1, str) else input.r1),
