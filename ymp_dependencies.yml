@@ -1,6 +1,8 @@
 channels:
-  - conda-forge
   - bioconda
+  - conda-forge
+  - r
+  - defaults
 dependencies:
   - snakemake
   - rpy2

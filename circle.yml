@@ -14,11 +14,11 @@ dependencies:
       bash miniconda.sh -b -p $MINICONDA; hash -r;
       conda config --set always_yes yes --set changeps1 no;
       conda update -q conda;
-      for channel in conda-forge defaults r bioconda; do
+      for channel in defaults r conda-forge bioconda; do
         conda config --system --add channels $channel;
       done;
       conda info -a;
-      conda env create -n test_env -f ymp_dependencies.yml
+      conda env create -n test_env -f ymp_dependencies.yml -v
 test:
   override:
     - |
