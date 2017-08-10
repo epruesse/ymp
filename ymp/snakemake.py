@@ -6,60 +6,9 @@ from copy import deepcopy
 import re, csv
 import traceback
 
-class OverrideJoinFormatter(Formatter):
-    def _vformat(self, format_string, args, kwargs, used_args, recursion_depth,
-                 auto_arg_index=0):
-        if recursion_depth < 0:
-            raise ValueError('Max string recursion exceeded')
-        result = []
-        for literal_text, field_name, format_spec, conversion in \
-                self.parse(format_string):
-            # output the literal text
-            if literal_text:
-                result.append(literal_text)
-            # if there's a field, output it
-            if field_name is not None:
-                # this is some markup, find the object and do
-                #  the formatting
 
-                # handle arg indexing when empty field_names are given.
-                if field_name == '':
-                    if auto_arg_index is False:
-                        raise ValueError('cannot switch from manual field '
-                                         'specification to automatic field '
-                                         'numbering')
-                    field_name = str(auto_arg_index)
-                    auto_arg_index += 1
-                elif field_name.isdigit():
-                    if auto_arg_index:
-                        raise ValueError('cannot switch from manual field '
-                                         'specification to automatic field '
-                                         'numbering')
-                    # disable auto arg incrementing, if it gets
-                    # used later on, then an exception will be raised
-                    auto_arg_index = False
+from ymp.string import ProductFormatter
 
-                # given the field_name, find the object it references
-                #  and the argument it came from
-                obj, arg_used = self.get_field(field_name, args, kwargs)
-                used_args.add(arg_used)
-
-                # do any conversion on the resulting object
-                obj = self.convert_field(obj, conversion)
-                # expand the format spec, if needed
-                format_spec, auto_arg_index = self._vformat(
-                    format_spec, args, kwargs,
-                    used_args, recursion_depth-1,
-                    auto_arg_index=auto_arg_index)
-
-                # format the object and append to the result
-                #result.append(self.format_field(obj, format_spec))
-                result.append(obj)
-
-        return self.join(result), auto_arg_index
-
-    def join(self, args):
-        return ''.join(args)
 
 
 class ExpandableWorkflow(Workflow):
@@ -199,34 +148,28 @@ class FormatExpander(BaseExpander):
 
     def format(self, *args, **kwargs):
         return self.formatter.format(*args, **kwargs)
-            
-    class Formatter(OverrideJoinFormatter):
+
+    class Formatter(ProductFormatter):
         def __init__(self, expander):
             self.expander = expander
             super().__init__()
-            
+
         def parse(self, format_string):
             if format_string is None:
                 return
 
             start = 0
             for match in self.expander._regex.finditer(format_string):
-                yield (format_string[start:match.start()], match.group('name'), '', None)
+                yield (format_string[start:match.start()],
+                       match.group('name'), '', None)
                 start = match.end()
 
-            yield (format_string[start:], None, None, None)
-
-        def join(self, args):
-            args = [[item] if isinstance(item, str) else list(item) for item in args]
-            res =  [''.join(flat_args) for flat_args in product(*args)]
-            if len(res) == 1:
-                res = res[0]
-            if len(res) == 0:
-                return ''
-            return res
+            yield (format_string[start:],
+                   None, None, None)
 
     def get_names(self, pattern):
-        return set(match.group('name') for match in self._regex.finditer(pattern))
+        return set(match.group('name')
+                   for match in self._regex.finditer(pattern))
 
 
 class ColonExpander(FormatExpander):
