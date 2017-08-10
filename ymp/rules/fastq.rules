@@ -127,7 +127,6 @@ rule multiqc:
     message: "Aggregating QC reports for {wildcards.dir}"
     input:   "{dir}_qc/{:runs:}.{:pairnames:}_fastqc.html"
     output:  "{:reportsdir:}/{dir}_qc.html",
-             "{dir}_qc/multiqc_data"
     log:     "{dir}_qc/multiqc.log"
     threads: 1
     conda:   srcdir("multiqc.yml")
@@ -139,7 +138,12 @@ rule multiqc:
             --force \
             {wildcards.dir}_qc \
             > {log} 2>&1
-    mv {wildcards.dir}_qc/multiqc_report.html {output[0]}
+    if [ -e  {wildcards.dir}_qc/multiqc_report.html ]; then
+        mv {wildcards.dir}_qc/multiqc_report.html {output[0]}
+    else
+        # never versions of multiqc put title in output file name
+        mv {wildcards.dir}_qc/{wildcards.dir}_multiqc_report.html {output[0]}
+    fi
     """
 
 
