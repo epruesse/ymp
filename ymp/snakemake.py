@@ -1,16 +1,14 @@
-from snakemake.workflow import Workflow
-from snakemake.io import expand, apply_wildcards, AnnotatedString
-from string import Formatter
-from itertools import product
 import logging
-from copy import deepcopy
-import re, csv
-import traceback
+import re
 
-log = logging.getLogger(__name__)
+from copy import deepcopy
+
+from snakemake.io import AnnotatedString, apply_wildcards
+from snakemake.workflow import Workflow
 
 from ymp.string import ProductFormatter
 
+log = logging.getLogger(__name__)
 
 
 class ExpandableWorkflow(Workflow):
