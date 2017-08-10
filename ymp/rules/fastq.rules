@@ -211,7 +211,6 @@ rule bb_ecco:
 ###  Trimming
 ###
 
-# FIXME: this doesn't work with bbmap from conda!
 rule trim_bbduk_adapter:
     """Trimming and Adapter Removal using BBTools BBDuk"""
     message:  "BBDuk A+Q trimming at Q{wildcards.Q}:"
@@ -232,8 +231,7 @@ rule trim_bbduk_adapter:
 
 
 rule trimmomatic_adapter:
-    """
-    """
+    """Trimming with Trimmomatic"""
     message:
         "Trimmomatic {wildcards.dir}/{wildcards.sample}"
     input:
