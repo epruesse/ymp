@@ -2,10 +2,12 @@ from snakemake.workflow import Workflow
 from snakemake.io import expand, apply_wildcards, AnnotatedString
 from string import Formatter
 from itertools import product
+import logging
 from copy import deepcopy
 import re, csv
 import traceback
 
+log = logging.getLogger(__name__)
 
 from ymp.string import ProductFormatter
 
@@ -34,7 +36,8 @@ class ExpandableWorkflow(Workflow):
                 }
                 workflow.sm_expander = SnakemakeExpander()
         except ImportError:
-            pass
+            log.debug("ExpandableWorkflow not installed: "
+                      "Failed to import workflow object.")
 
     @staticmethod
     def register_expandfuncs(expand_input=None, expand_output=None):
@@ -57,8 +60,7 @@ class ExpandableWorkflow(Workflow):
             try:
                 (paths, kwpaths) = func(paths, kwpaths)
             except Exception as e:
-                print("exception in input expand:" + repr(e))
-                traceback.print_exc()
+                log.exception("exception in input expand")
         return super().input(*paths, **kwpaths)
 
     def output(self, *paths, **kwpaths):
@@ -69,8 +71,7 @@ class ExpandableWorkflow(Workflow):
             try:
                 (paths, kwpaths) = func(paths, kwpaths)
             except Exception as e:
-                print("exception in output expand:" + repr(e))
-                traceback.print_exc()
+                log.exception("exception in output expand")
         return super().output(*paths, **kwpaths)
 
 
