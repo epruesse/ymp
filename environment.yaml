@@ -1,11 +1,10 @@
 channels:
   - bioconda
   - conda-forge
-  - r
-  - defaults
 dependencies:
   - snakemake
-  - rpy2
+  # rpy2 pinned to keep conda from spinning for ever trying to resolve dependencies
+  - rpy2 =2.8.5
   - click
   - pyyaml
   - python-drmaa
