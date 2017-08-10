@@ -287,8 +287,9 @@ class DatasetConfig(object):
             print("http url:",fn)
             return HTTP.remote(fn, keep_local=True)
 
-        raise YmpException("Internal error: no source for {}:{} ({})"
-                           "".format(run, pair, source))
+        raise YmpException(
+            "Configuration Error: no source for sample {} and read {} found."
+            "".format(run, pair))
 
     @property
     def fastq_basenames(self):
