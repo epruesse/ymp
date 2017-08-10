@@ -278,6 +278,7 @@ class DatasetConfig(object):
         if kind == 'file':
             if os.path.isabs(fn):
                 return fn
+            return fn
 # FIXME: need to get basedir of mapping file somehow
 #            else:
 #                return os.path.join(self.basedir, fn)
