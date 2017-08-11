@@ -9,6 +9,17 @@
 # - needs MINICONDA to point to the miniconda install path
 set -x
 
+# Determine OS
+
+case $(uname) in
+    Linux)
+	export CONDA_OSNAME=Linux
+	;;
+    Darwin)
+	export CONDA_OSNAME=MacOSX
+	;;
+esac
+
 # Make sure we have conda in the PATH always
 if test -n "$BASH_ENV"; then
     echo "Prepending $MINICONDA/bin to PATH in $BASH_ENV"
@@ -17,11 +28,11 @@ fi
 export PATH="$MINICONDA/bin:$PATH" >> $BASH_ENV
 
 # Homemade restore_cache
-if test -e "LOCAL"; then
+if test -e "LOCAL" -o -n "$TRAVIS"; then
     echo "Running locally"
-    if test -e conda.tgz; then
+    if test -e conda_cache/conda.tgz; then
 	echo -n "Unpacking local conda cache... "
-	tar -C / -xzf conda.tgz
+	tar -C / -xzf conda_cache/conda.tgz
 	echo "done"
     fi
 fi
@@ -56,10 +67,10 @@ conda info
 
 # Homemade save_cache
 # Clean out tarballs, update cache if there were any (=> something was installed)
-if test -e "LOCAL"; then
+if test -e "LOCAL" -o -n "$TRAVIS"; then
     if conda clean --yes --tarballs | grep Removed; then
 	echo -n "Packing local conda cache..."
-	tar -C / -czf conda.tgz $MINICONDA
+	tar -C / -czf conda_cache/conda.tgz $MINICONDA
 	echo "done"
     fi
 else
