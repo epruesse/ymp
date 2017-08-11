@@ -45,8 +45,8 @@ else
     conda update -q conda
 fi
 
-conda install -q git
-conda update -q git
+conda install -q git ssh # missing in anvil
+conda update -q conda git ssh
 
 # Install/update package
 # (Hope that "install" suffices)
@@ -64,7 +64,7 @@ if test -e "LOCAL"; then
     fi
 else
     conda clean --yes --tarballs
-    (conda info; conda list) >> conda_state.txt
+    (conda info; conda list; ls -1 $MINICONDA/pkgs) >> conda_state.txt
 fi
 
 
