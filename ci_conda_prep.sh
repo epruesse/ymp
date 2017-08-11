@@ -56,8 +56,8 @@ else
     conda update -q conda
 fi
 
-conda install -q git ssh # missing in anvil
-conda update -q conda git ssh
+conda install -q git # missing in anvil
+conda update -q conda git
 
 # Install/update package
 # (Hope that "install" suffices)
