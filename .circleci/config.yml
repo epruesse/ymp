@@ -44,7 +44,7 @@ jobs:
           command: |
             source activate test_env
             python setup.py test \
-            --addopts "--junit-xml $JUNIT_REPORT_PATH/report.xml"
+            --addopts "--junit-xml $JUNIT_REPORT_PATH/report.xml -n 2"
       - store_test_results:
           path: $JUNIT_REPORT_PATH
 

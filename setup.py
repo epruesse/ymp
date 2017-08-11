@@ -19,7 +19,7 @@ setup(
         'pytest-runner'
     ],
     tests_require=[
-#        'pytest-xdist',
+        'pytest-xdist',
         'pytest-logging',
         'networkx',
         'pygraphviz',

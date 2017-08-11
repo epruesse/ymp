@@ -3,16 +3,16 @@ channels:
   - conda-forge
 dependencies:
   - snakemake
-  # rpy2 pinned to keep conda from spinning for ever trying to resolve dependencies
-  - rpy2 =2.8.5
+  - rpy2 =2.8.5  # pinned to keep conda from taking for ever
   - click
   - pyyaml
   - python-drmaa
-  - pandas  #=0.20.*
-  - xlrd # for excel support
-  # for tests:
+  - pandas >=0.20  # need dtype support in python csv engine
+  - xlrd         # excel support
+  #### for tests: ####
   - networkx
-  - pytest
   - pygraphviz
-  - yappi
+  - pytest
+  - pytest-xdist # parallel testing
+  - yappi        # profiler
 
