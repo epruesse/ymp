@@ -13,6 +13,7 @@ dependencies:
   - networkx
   - pygraphviz
   - pytest
-  - pytest-xdist # parallel testing
-  - yappi        # profiler
+  - pytest-runner  # run from setup.py
+  - pytest-xdist   # parallel testing
+  - yappi          # profiler
 
