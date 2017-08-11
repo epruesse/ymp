@@ -1,0 +1,50 @@
+version: 2
+
+jobs:
+  build:
+    docker:
+      - image: condaforge/linux-anvil
+        environment:
+          MINICONDA: /root/miniconda
+          JUNIT_REPORT_PATH: /root/reports/ # trailing slash required
+          CONDA_OSNAME: Linux
+
+    working_directory: /root/ymp
+
+    steps:
+      ## Prepare
+      - checkout
+
+      - restore_cache:
+          keys:
+            - conda
+      - run:
+          name: Preparing Conda Environment
+          command: ./ci_conda_prep.sh
+      - save_cache:
+          key: conda-{{ checksum "conda_state.txt" }}
+          paths: /root/miniconda
+
+      - run:
+          name: Checking out submodules
+          command: git submodule update --init --recursive --remote
+
+      - run:
+          name: Preparing Directory Structure
+          command: mkdir $JUNIT_REPORT_PATH
+      ## Install
+      - run:
+          name: Installing
+          command: |
+            source activate test_env
+            python setup.py install
+      ## Test
+      - run:
+          name: Running Tests
+          command: |
+            source activate test_env
+            python setup.py test \
+            --addopts "--junit-xml $JUNIT_REPORT_PATH/report.xml"
+      - store_test_results:
+          path: $JUNIT_REPORT_PATH
+
