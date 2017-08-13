@@ -1,3 +1,5 @@
+import re
+
 from itertools import product
 from string import Formatter
 
@@ -17,9 +19,11 @@ class OverrideJoinFormatter(Formatter):
         result = []
         for literal_text, field_name, format_spec, conversion in \
                 self.parse(format_string):
+
             # output the literal text
             if literal_text:
                 result.append(literal_text)
+
             # if there's a field, output it
             if field_name is not None:
                 # this is some markup, find the object and do
@@ -49,14 +53,14 @@ class OverrideJoinFormatter(Formatter):
 
                 # do any conversion on the resulting object
                 obj = self.convert_field(obj, conversion)
+
                 # expand the format spec, if needed
                 format_spec, auto_arg_index = self._vformat(
                     format_spec, args, kwargs,
                     used_args, recursion_depth-1,
                     auto_arg_index=auto_arg_index)
 
-                # format the object and append to the result
-                result.append(obj)
+                result.append(self.format_field(obj, format_spec))
 
         return self.join(result), auto_arg_index
 
@@ -80,7 +84,7 @@ class ProductFormatter(OverrideJoinFormatter):
     If none of the arguments evaluate to lists, the result is a string,
     otherwise it is a list.
 
-    >>> "{A} and {B}".format(A=[1,2],B=[3,4])
+    >>> ProductFormatter().format("{A} and {B}", A=[1,2], B=[3,4])
     "1 and 3"
     "1 and 4"
     "2 and 3"
@@ -101,6 +105,11 @@ class ProductFormatter(OverrideJoinFormatter):
             return ''
         return res
 
+    def format_field(self, obj, format_spec):
+        if hasattr(obj, '__iter__') and not isinstance(obj, str):
+            return (format(item) for item in obj)
+        return format(obj, format_spec)
+
 
 class RegexFormatter(Formatter):
     """
@@ -109,26 +118,66 @@ class RegexFormatter(Formatter):
     """
     def __init__(self, regex):
         super().__init__()
-        self._regex = regex
+        if (isinstance(regex, str)):
+            self._regex = re.compile(regex)
+        else:
+            self._regex = regex
 
     def parse(self, format_string):
+        """
+        Parse format_string into tuples. Tuples contain
+        literal_text: text to copy
+        field_name: follwed by field name
+        format_spec:
+        conversion:
+        """
         if format_string is None:
             return
 
         start = 0
-        for match in self.expander._regex.finditer(format_string):
-            yield (format_string[start:match.start()],
-                   match.group('name'), '', None)
+        for match in self._regex.finditer(format_string):
+            yield (format_string[start:match.start()],  # literal text
+                   match.group('name'),                 # field name
+                   '',                                  # format spec
+                   None)                                # conversion
             start = match.end()
 
+        # yield text at end of format_string
         yield (format_string[start:],
                None, None, None)
 
+    def get_names(self, format_string):
+        """Get set of field names in format_string)"""
+        return set(match.group('name')
+                   for match in self._regex.finditer(format_string))
+
 
 class PartialFormatter(Formatter):
+    """
+    Formats what it can and leaves the remainder untouched
+    """
     def get_value(self, key, args, kwargs):
         if isinstance(key, str):
             return kwargs.get(key,  # key in kwards
                               "{{{}}}".format(key))  # key not found
         else:
             return super().get_value(key, args, kwargs)
+
+
+def make_formatter(product=None, regex=None, partial=None):
+    formatter = 1
+    types = []
+    class_name = ""
+    class_dict = {}
+    for arg, cls, name in (
+            (product, ProductFormatter, 'Product'),
+            (regex, RegexFormatter, 'Regex'),
+            (partial, PartialFormatter, 'Partial'),
+            (formatter, Formatter, 'Formatter')
+             ):
+        if arg is not None:
+            types += [cls]
+            class_name += name
+            if not isinstance(arg, int):
+                class_dict[name.lower()] = arg
+    return type(class_name, tuple(types), {})(**class_dict)
