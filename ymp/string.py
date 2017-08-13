@@ -105,10 +105,10 @@ class ProductFormatter(OverrideJoinFormatter):
             return ''
         return res
 
-    def format_field(self, obj, format_spec):
-        if hasattr(obj, '__iter__') and not isinstance(obj, str):
-            return (format(item) for item in obj)
-        return format(obj, format_spec)
+    def format_field(self, value, format_spec):
+        if hasattr(value, '__iter__') and not isinstance(value, str):
+            return (format(item) for item in value)
+        return format(value, format_spec)
 
 
 class RegexFormatter(Formatter):
