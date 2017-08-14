@@ -97,8 +97,8 @@ rule metaspades_input_yaml:
 
         with open(output.yaml, "w") as cfg:
             cfg.write(yaml.safe_dump([{
-                "left reads": r1,
-                "right reads": r2,
+                "left reads": ["../"+r for r in r1],
+                "right reads": ["../"+r for r in r2],
                 "type": "paired-end",
                 "orientation": "fr"
             }]))
