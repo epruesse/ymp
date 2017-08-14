@@ -29,16 +29,26 @@ rule megahit:
     conda:
         srcdir("megahit.yml")
     shell: """
-    # delete workdir if no opts.txt was recorded (never started really)
-    [ -e {params.workdir}/opts.txt ] || rm -rf {params.workdir}
+    # iff there is an existing opts.txt with an existing megahit temp dir,
+    # then we can continue an existing run
+    MHTMP=$(sed -n '/MEGAHIT_TEMP_DIR:/ s/.*:\s*//p' "{params.workdir}/opts.txt" 2>/dev/null)
+    CONTINUE=""
+    if [ -e "$MHTMP" ]; then
+        echo "YMP: Trying to restart aborted assembly"
+        CONTINUE="--continue"
+    else
+        rm -rf "{params.workdir}"
+    fi
 
-    megahit -1 {params.r1} -2 {params.r2} \
+    megahit \
+      -1 {params.r1} -2 {params.r2} \
       --presets {params.preset} \
       --num-cpu-threads {threads} \
       --out-dir {params.workdir} \
       --tmp-dir {params.tmpdir} \
+      $CONTINUE
 
-    # quit if not finished
+    # abort if not finished
     [ -e {params.workdir}/done ] || exit 1
 
     # output zipped contigs
