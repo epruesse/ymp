@@ -278,6 +278,7 @@ class DatasetConfig(object):
         if kind == 'file':
             if os.path.isabs(fn):
                 return fn
+            return fn
 # FIXME: need to get basedir of mapping file somehow
 #            else:
 #                return os.path.join(self.basedir, fn)
@@ -286,8 +287,9 @@ class DatasetConfig(object):
             print("http url:",fn)
             return HTTP.remote(fn, keep_local=True)
 
-        raise YmpException("Internal error: no source for {}:{} ({})"
-                           "".format(run, pair, source))
+        raise YmpException(
+            "Configuration Error: no source for sample {} and read {} found."
+            "".format(run, pair))
 
     @property
     def fastq_basenames(self):

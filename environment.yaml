@@ -1,0 +1,19 @@
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - snakemake
+  - rpy2 =2.8.5  # pinned to keep conda from taking for ever
+  - click
+  - pyyaml
+  - python-drmaa
+  - pandas >=0.20  # need dtype support in python csv engine
+  - xlrd         # excel support
+  #### for tests: ####
+  - networkx
+  - pygraphviz
+  - pytest
+  - pytest-runner  # run from setup.py
+  - pytest-xdist   # parallel testing
+  - yappi          # profiler
+
