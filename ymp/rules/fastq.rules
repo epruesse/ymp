@@ -213,21 +213,50 @@ rule bb_ecco:
 
 rule trim_bbduk_adapter:
     """Trimming and Adapter Removal using BBTools BBDuk"""
-    message:  "BBDuk A+Q trimming at Q{wildcards.Q}:"
-              "{wildcards.dir}/{wildcards.sample}"
-    input:    "{dir}/{sample}.{:pairnames:}.fq.gz"
-    wildcard_constraints:  Q = "\d+"
-    output:   "{dir}.trimAQ{Q}/{sample}.{:pairnames:}.fq.gz"
-    threads:  16
-    conda:    srcdir("bbmap.yml")
-    shell: """
-    ADAPTER_DIR="$(dirname $(readlink -f $(command -v bbduk.sh)))/resources"
+    message:
+        "Trimming with BBduk {wildcards.dir}/wildcards.sample "
+        "({params.adapt}Q={params.qual} L={params.length})"
+    input:
+        "{dir}/{sample}.{:pairnames:}.fq.gz"
+    wildcard_constraints:
+        A = "(A?)",
+        Q = "(Q\d+|)",
+        L = "(L\d+|)"
+    output:
+        "{dir}.trim{A}{Q}{L}/{sample}.{:pairnames:}.fq.gz"
+    log:
+        "{dir}.trim{A}{Q}{L}/{sample}.log"
+    params:
+        length=lambda wc: wc.L[1:] if wc.L else 20,
+        qual=lambda wc: wc.Q[1:] if wc.Q else 20,
+        adapt=lambda wc: 'ref=$BB_RSRC/adapters.fa ' if wc.A else '',
+        k=23,
+        mink=11,
+        hdist=1,
+        mem=80,
+        flags="pigz unpigz"
+    threads: 16
+    conda: srcdir("bbmap.yml")
+    shell:
+        # find adapter dir:
+        'BB_RSRC="$(dirname $(readlink -f $(command -v bbduk.sh)))/resources";'
+        'bbduk.sh '
+        'in={input[0]} in2={input[1]} '
+        'out={output[0]} out2={output[1]} '
+        'trimq={params.qual} qtrim=r '         # quality trimming
+        'minlength={params.length} '           # length filtering
+        '{params.adapt}'                       # adapter trimming
+        'ktrim=r '                             # 3' side only
+        'k={params.k} '                        # k for adapter matching
+        'mink={params.mink} '                  # k at read end
+        'hdist={params.hdist} '                # hamming distance, allow 1 mismatch
+        'tpe ' # trimpairsevenly -- in case adapter detected in only one read
+        'tbo ' # trimbyoverlap -- trim if read runs over other reads' end
+        '{params.flags} '                      # processing settings
+        'threads={threads} '
+        '-Xmx{params.mem}g '
+        '>{log} 2>&1'
 
-    bbduk.sh in={input[0]} in2={input[1]} out={output[0]} out2={output[1]} \
-             trimq={wildcards.Q} qtrim=r \
-             ref=$ADAPTER_DIR/adapters.fa ktrim=r k=23 mink=11 hdist=1 tpe tbo \
-             pigz unpigz threads={threads} -Xmx80g
-    """
 
 
 rule trimmomatic_adapter:
