@@ -110,7 +110,7 @@ rule metaspades:
         "{dir}{by}.sp/{target}.log.gz"
     params:
         workdir = "{dir}{by}.sp/{target}/",
-        tmpdir  = "/scratch/$HOME/tmp",
+        tmpdir  = icfg.expand("{:dir.tmp:}"),
         memory  = 500
     threads:
         16
