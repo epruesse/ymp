@@ -122,6 +122,7 @@ rule metaspades:
         workdir = "{dir}{by}.sp/{target}/",
         tmpdir  = icfg.expand("{:dir.tmp:}"),
         memory  = 500
+    conda: srcdir("spades.yml")
     threads:
         16
     shell: """
