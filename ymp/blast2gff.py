@@ -31,4 +31,6 @@ def blast2gff(input, output):
 
 
 if __name__ == '__main__':
-    blast2gff()  # pylint: no-value-for-parameter
+    # pylint does not get click decorators, disable warning:
+    # pylint: disable=no-value-for-parameter
+    blast2gff()

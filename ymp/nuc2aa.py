@@ -5,15 +5,21 @@ import click
 
 AA = 'FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG'
 NU = 'TCAG'
-B2N = { a:b for a,b in zip(NU, range(len(NU))) }
-nuc2num = lambda seq: sum([
-    len(NU) ** pos * B2N[nuc]
-    for pos,nuc in enumerate(reversed(seq))
-])
-nuc2aa = lambda seq: ''.join([
-    AA[nuc2num(codon)]
-    for codon in zip(*[iter(seq)]*3)
-])
+B2N = {a: b for a, b in zip(NU, range(len(NU)))}
+
+
+def nuc2num(seq):
+    return sum([
+        len(NU) ** pos * B2N[nuc]
+        for pos, nuc in enumerate(reversed(seq))
+    ])
+
+
+def nuc2aa(seq):
+    return ''.join([
+        AA[nuc2num(codon)]
+        for codon in zip(*[iter(seq)]*3)
+    ])
 
 
 @click.command()
@@ -22,9 +28,10 @@ nuc2aa = lambda seq: ''.join([
 def click_fasta_dna2aa(input, output):
     fasta_dna2aa(input, output)
 
+
 def fasta_dna2aa(input, output):
     def write_aa(header, seq):
-#        output.write(header.encode('ascii'))
+        # output.write(header.encode('ascii'))
         output.write(header)
         aa = nuc2aa(seq)
         if "start_type=GTG" in header:
@@ -33,14 +40,14 @@ def fasta_dna2aa(input, output):
             aa[s:s+60]
             for s in range(0, len(aa)+59, 60)
             ]).strip()+'\n')
-                     #.encode('ascii')
+            # .encode('ascii')
         )
 
     header = None
     seq = ""
 
     for line in input:
-#        line = line.decode('ascii')
+        # line = line.decode('ascii')
         if line[0] == '>':
             if header:
                 write_aa(header, seq)
@@ -52,4 +59,6 @@ def fasta_dna2aa(input, output):
 
 
 if __name__ == "__main__":
+    # pylint does not get click decorators, disable warning:
+    # pylint: disable=no-value-for-parameter
     click_fasta_dna2aa()

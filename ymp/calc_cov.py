@@ -57,4 +57,6 @@ def calc_cov(bamfile, regionfile):
 #    info(hist)
 
 if __name__ == "__main__":
+    # pylint does not get click decorators, disable warning:
+    # pylint: disable=no-value-for-parameter
     calc_cov()
