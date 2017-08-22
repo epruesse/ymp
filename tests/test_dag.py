@@ -1,12 +1,12 @@
 import pytest
 
-import yappi
 
 from ymp.common import odict
 
 
 @pytest.fixture(scope="module")  # autouse=True)
 def profiling():
+    import yappi
     yappi.start()
     yield
     yappi.stop()
