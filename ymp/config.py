@@ -284,7 +284,6 @@ class DatasetConfig(object):
 #                return os.path.join(self.basedir, fn)
 
         if kind == 'remote':
-            print("http url:",fn)
             return HTTP.remote(fn, keep_local=True)
 
         raise YmpException(
