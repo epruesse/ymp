@@ -348,6 +348,7 @@ class ConfigMgr(object):
             resource_filename("ymp", "/etc/defaults.yml"),
             self.find_config(filename=self.CONF_FNAME)
         ]
+        self._root = os.path.dirname(self._conffiles[-1])
         self.load_config()
         self.config_expander = ConfigExpander(self)
 
