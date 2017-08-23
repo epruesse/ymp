@@ -374,10 +374,12 @@ class ConfigMgr(object):
             with open(fn, "r") as f:
                 conf = yaml.load(f)
                 update_dict(self._config, conf)
+
         self._datasets = {
-            project:  DatasetConfig(self._config[self.KEY_PROJECTS][project])
-            for project in self._config[self.KEY_PROJECTS]
+            project:  DatasetConfig(cfg)
+            for project, cfg in self._config[self.KEY_PROJECTS].items()
         }
+
         if len(self._datasets) == 0:
             raise YmpConfigNoProjects()
 
