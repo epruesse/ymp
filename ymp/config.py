@@ -43,6 +43,15 @@ class YmpConfigNoProjects(YmpException):
     pass
 
 
+def make_path_reference(path, workdir):
+    if (path.startswith('http://') or path.startswith('https://')):
+        return HTTP.remote(path, keep_local=True)
+    elif path.startswith('/'):
+        return path
+    else:
+        return os.path.join(workdir, path)
+
+
 def load_data(cfg):
     """Recursively loads csv/tsv type data as defined by yaml structure
 
@@ -331,6 +340,7 @@ class ConfigExpander(ColonExpander):
 class ConfigMgr(object):
     """Interface to configuration. Singleton as "icfg" """
     KEY_PROJECTS = 'projects'
+    KEY_REFERENCES = 'references'
     CONF_FNAME = 'ymp.yml'
 
     def __init__(self):
@@ -380,6 +390,11 @@ class ConfigMgr(object):
             for project, cfg in self._config[self.KEY_PROJECTS].items()
         }
 
+        self._references = {
+            ref: make_path_reference(path, self._root)
+            for ref, path in self._config[self.KEY_REFERENCES].items()
+        }
+
         if len(self._datasets) == 0:
             raise YmpConfigNoProjects()
 
@@ -402,6 +417,10 @@ class ConfigMgr(object):
     @property
     def dir(self):
         return AttrDict(self._config['directories'])
+
+    @property
+    def ref(self):
+        return AttrDict(self._references)
 
     @property
     def scratchdir(self):

@@ -1,3 +1,4 @@
+# Default directory structure
 directories:
     tmp: 'tmp'
     references: 'references'
@@ -6,16 +7,29 @@ directories:
     reports: 'reports'
     sra: 'sra'
 
+# Default references FASTAs
+references:
+  hs37: https://ftp.ncbi.nlm.nih.gov/pub/agarwala/bmtagger/hs37.fa
+  phiX: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/819/615/GCF_000819615.1_ViralProj14015/GCF_000819615.1_ViralProj14015_genomic.fna.gz
+  hs37d5: ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz
+  hs37d5ss: ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5ss.fa.gz
+
+
+# Default projects (none)
+projects:
+
+
+# Internal:
 pairnames:
     - R1
     - R2
 
 
+#### To Clean Out: ####
 databases:
-    human: '/Users/elpr2080/dbs/human'
-    rrna:
-        ssu: test
-        lsu: test
+  rrna:
+    - ssu
+    - lsu
     
 
 rrna:

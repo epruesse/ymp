@@ -100,6 +100,18 @@ rule symlink_all_raw_reads:
     shell: "touch {output}"
 
 
+localrules: symlink_reference_files
+rule symlink_reference_files:
+    message: "Preparing {input}"
+    input:   lambda wc: icfg.ref[wc.ref]
+    output:  "{:dir.references:}/{ref}.fa.gz"
+    threads: 1
+    run:
+        if not os.path.isabs(input[0]):
+            input[0] = os.path.join("..", input[0])
+        os.symlink(input[0], output[0])
+
+
 ###
 ###  Quality Reports
 ###
