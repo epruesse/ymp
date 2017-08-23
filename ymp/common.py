@@ -27,11 +27,16 @@ odict = _odict() # need only one instance ever
 def update_dict(dst, src):#
     """Recursively update dictionary `dst` with `src`
 
-    Treats a `list` as atomic, replacing it with new list.
+    - Treats a `list` as atomic, replacing it with new list.
+    - Dictionaries are overwritten by item
+    - None is replaced by empty dict if necessary
     """
     for key, val in src.items():
         if isinstance(val, Mapping):
-            tmp = update_dict(dst.get(key, {}), val)
+            dst_sub = dst.get(key, {})
+            if (dst_sub) is None:
+                dst_sub = {}
+            tmp = update_dict(dst_sub, val)
             dst[key] = tmp
         else:
             dst[key] = src[key]
