@@ -361,6 +361,8 @@ rule sickle:
         length=lambda wc: wc.L[1:] if wc.L else 20,
         qual=lambda wc: wc.Q[1:] if wc.Q else 20
     threads: 1
+    conda:
+        srcdir("sickle.yml")
     shell:"""
     sickle pe \
         --pe-file1={input[0]} \
