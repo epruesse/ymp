@@ -30,7 +30,7 @@ targets = odict[
     'import':         'reports/{}_qc.html',
     'BBMap_ecco':     'reports/{}.ecco_qc.html',
     'BBDuk_trim':     'reports/{}.trimAQ10_qc.html',
-    'BBDuk_rm_human': 'reports/{}.xhum_qc.html',
+    'BBDuk_remove':   'reports/{}.bbmRMphiX_qc.html',
     'BB_dedupe':      'reports/{}.ddp_qc.html',
     'phyloFlash':     'reports/{}_heatmap.pdf',
     'trimmomaticT32': 'reports/{}.trimmomaticT32_qc.html',
@@ -38,7 +38,7 @@ targets = odict[
     'sickleQ10':      'reports/{}.sickleQ10_qc.html',
     'sickleL10':      'reports/{}.sickleL10_qc.html',
     'sickleQ10L10':   'reports/{}.sickleQ10L10_qc.html',
-    'bmtaggerhs37':   'reports/{}.bmtaggerhs37_qc.html',
+    'bmtagger':       'reports/{}.bmtaggerRMphiX_qc.html',
     # assembly.rules
     'assemble_separate_mh': 'reports/{}.by_ID.mhc.mq.html',
     'assemble_grouped_mh':  'reports/{}.by_Subject.mhc.mq.html',
