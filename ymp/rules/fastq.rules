@@ -426,8 +426,7 @@ rule bbmap_split:
              qtrim="rl",
              flags="quickmatch fast untrim machineout",
              minhits=2,
-             mem=23,
-             path=icfg.db.human
+             mem=23
     threads: 16
     conda:   srcdir("bbmap.yml")
     shell:
@@ -438,7 +437,7 @@ rule bbmap_split:
         " bw={params.bw} "
         " {params.flags} "
         " minhits={params.minhits} "
-        " path={params.path} "
+        " path={input.reference} "
         " qtrim={params.qtrim} "
         " trimq={params.trimq} "
         " -Xmx{params.mem}g "
