@@ -213,8 +213,7 @@ rule phyloFlash_heatmap:
     threads: 1
     conda:   srcdir("phyloflash.yml")
     shell: """
-    module load phyloFlash
-    phyloFlash_heatmap.R -t '' {input} --out {output} >{log} 2>&1
+    phyloFlash_heatmap.R {input[0]} {input} --out {output} >{log} 2>&1
     """
 
 
