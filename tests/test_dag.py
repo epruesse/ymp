@@ -84,7 +84,8 @@ def build_graph(request, project_dir):
         icfg.init()
         for ds in icfg:
             g = make_graph(target.format(ds))
-            r = make_graph(target.format(ds), rulegraph=True)
+            # r = make_graph(target.format(ds), rulegraph=True)
+            r = None
             yield (icfg[ds], g, r)
 
 
