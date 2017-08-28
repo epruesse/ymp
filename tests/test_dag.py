@@ -68,4 +68,4 @@ def test_graph_complete(build_graph):
          G.node[node]['label'].startswith('symlink_raw_reads')])
     log.info("Testing symlinks ({}) == 2 * runs ({})"
              "".format(n_symlinks, n_runs))
-    assert n_symlinks == 2*n_runs
+    assert n_symlinks == 2 * n_runs
