@@ -448,18 +448,6 @@ rule bbmap_split:
         " > {log} 2>&1"
 
 
-
-from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
-HTTP = HTTPRemoteProvider()
-localrules: bmtagger_get_hs37
-rule bmtagger_get_hs37:
-    message: "Downloading hs37"
-    input:   HTTP.remote("https://ftp.ncbi.nlm.nih.gov/pub/agarwala/bmtagger/hs37.fa")
-    output:  "references/hs37.fa"
-    threads: 1
-    shell:   "mv {input} {output}"
-
-
 rule bmtagger_bitmask:
     message: "Bmtool indexing {input}"
     input:   "{path}.fasta.gz"
