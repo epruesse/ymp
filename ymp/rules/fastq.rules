@@ -104,12 +104,15 @@ localrules: symlink_reference_files
 rule symlink_reference_files:
     message: "Preparing {input}"
     input:   lambda wc: icfg.ref[wc.ref]
-    output:  "{:dir.references:}/{ref}.fa.gz"
+    output:  "{:dir.references:}/{ref}.fasta.gz"
     threads: 1
     run:
-        if not os.path.isabs(input[0]):
-            input[0] = os.path.join("..", input[0])
-        os.symlink(input[0], output[0])
+        if input[0].endswith(".gz"): # just symlink
+            if not os.path.isabs(input[0]):
+                input[0] = os.path.join("..", input[0])
+            os.symlink(input[0], output[0])
+        else: # compress
+            shell("gzip -c {input} > {output}")
 
 
 ###
@@ -162,7 +165,8 @@ rule multiqc:
 rule phyloFlash:
     """Run PhyloFlash on samples"""
     message: "PhyloFlash {wildcards.dir}/{wildcards.sample}"
-    input:   "{dir}/{sample}.{:pairnames:}.fq.gz"
+    input:   "{dir}/{sample}.{:pairnames:}.fq.gz",
+             dbhome="{:dir.references:}/phyloFlash"
     output:  "{dir}.pf/{sample}.phyloFlash.NTUabundance.csv"
     log:     "{dir}.pf/{sample}.log"
     threads: 16
@@ -368,12 +372,11 @@ bbstats = bbstats.split()
 
 rule bbmap_makedb:
     message: "BBMap: preparing index for ref={input}"
-    input:   "{path}/{file}.{fagz}"
-    output:  "{path}/{file}.{fagz}.bbidx/ref/genome/1/summary.txt",
-             "{path}/{file}.{fagz}.bbidx"
-    log:     "{path}/{file}.{fagz}.bbidx/bbmap_index.log"
-    params:  path="{path}/{file}.bbidx/",
-             fagz="{fagz}"
+    input:   "{path}/{file}.fasta.gz"
+    output:  "{path}/{file}.bbidx/ref/genome/1/summary.txt",
+             "{path}/{file}.bbidx"
+    log:     "{path}/{file}.bbidx/bbmap_index.log"
+    params:  path="{path}/{file}.bbidx/"
     threads: 8
     conda:   srcdir("bbmap.yml")
     shell: """
@@ -386,14 +389,15 @@ rule bbmap_makedb:
     """
 
 
-rule bbmap_rmhuman:
-    message: "BBTools removing human reads from {input}"
-    input:   "{dir}/{sample}.{:pairnames:}.fq.gz"
-    output:  clean="{dir}.xhum/{sample}.{:pairnames:}.fq.gz",
-             human="{dir}.xhum/{sample}.human.{:pairnames:}.fq.gz",
-             stats=expand("{{dir}}.xhum/{{sample}}.{x}",x=bbstats)
-    log:     "{dir}.xhum/{sample}.log"
-    params:  stats=lambda wc: expand("{x}={dir}.xhum/{sample}.{x}",x=bbstats,**wc),
+rule bbmap_split:
+    message: "BBMap filtering by {wildcards.reference} - {wildcards.dir}/{wildcards.sample}"
+    input:   "{dir}/{sample}.{:pairnames:}.fq.gz",
+             reference = "{:dir.references:}/{reference}.bbidx"
+    output:  clean="{dir}.bbmRM{reference}/{sample}.{:pairnames:}.fq.gz",
+             human="{dir}.bbmKP{reference}/{sample}.{:pairnames:}.fq.gz",
+             stats=expand("{{dir}}.bbdukX{{reference}}/{{sample}}.{x}",x=bbstats)
+    log:     "{dir}.bbmRM{reference}/{sample}.log"
+    params:  stats=lambda wc: expand("{x}={dir}.bbdukX{reference}/{sample}.{x}",x=bbstats,**wc),
              minid=0.95,
              maxindel=3,
              bwr=0.16,
@@ -443,7 +447,7 @@ rule bmtagger_get_hs37:
 
 rule bmtagger_bitmask:
     message: "Bmtool indexing {input}"
-    input:   "{path}.fa"
+    input:   "{path}.fasta.gz"
     output:  "{path}.bitmask"
     log:     "{path}.bitmask.log"
     threads: 1
@@ -461,7 +465,7 @@ rule bmtagger_bitmask:
 
 rule bmtagger_index:
     message: "Srcprism indexing {input}"
-    input:   "{path}.fa"
+    input:   "{path}.fasta.gz"
     output:  touch("{path}.srprism")
     log:     "{path}.srprism.log"
     threads: 1
@@ -480,11 +484,11 @@ rule bmtagger_index:
 rule bmtagger_find:
     message: "Bmtagger find {wildcards.reference} {wildcards.dir}/{wildcards.sample}"
     input:   "{dir}/{sample}.{:pairnames:}.fq",
-             bitmask = "references/{reference}.bitmask",
-             srprism = "references/{reference}.srprism"
-    output:  temp("{dir}.bmtagger{reference}/{sample}.txt"),
-             "{dir}.bmtagger{reference}/{sample}.txt.gz"
-    log:     "{dir}.bmtagger{reference}/{sample}.bmtagger.log"
+             bitmask = "{:dir.references:}/{reference}.bitmask",
+             srprism = "{:dir.references:}/{reference}.srprism"
+    output:  temp("{dir}.bmtaggerRM{reference}/{sample}.txt"),
+             "{dir}.bmtaggerRM{reference}/{sample}.txt.gz"
+    log:     "{dir}.bmtaggerRM{reference}/{sample}.bmtagger.log"
     threads: 1
     params:  tmpdir = "/scratch/$HOME/tmp"
     conda:   srcdir("bmtagger.yml")
@@ -505,9 +509,9 @@ rule bmtagger_find:
 rule bmtagger_remove:
     message: "Bmtagger removing {wildcards.reference} {wildcards.dir}/{wildcards.sample}"
     input:   "{dir}/{sample}.{pairsuff}.fq",
-             idlist = "{dir}.bmtagger{reference}/{sample}.txt"
-    output:  "{dir}.bmtagger{reference}/{sample}.{pairsuff}.fq.gz"
-    log:     "{dir}.bmtagger{reference}/{sample}.extract.log"
+             idlist = "{dir}.bmtaggerRM{reference}/{sample}.txt"
+    output:  "{dir}.bmtaggerRM{reference}/{sample}.{pairsuff}.fq.gz"
+    log:     "{dir}.bmtaggerRM{reference}/{sample}.extract.log"
     threads: 1
     params:  tmpdir = "/scratch/$HOME/tmp"
     conda:   srcdir("bmtagger.yml")
