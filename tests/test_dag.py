@@ -50,6 +50,7 @@ def build_graph(request, project_dir):
             yield (icfg[ds], g, r)
 
 
+@pytest.mark.parametrize("project_dir", ['ibd'], indirect=True)
 def test_graph_complete(build_graph):
     cfg, G, _ = build_graph
     n_runs = len(cfg.runs)

@@ -6,12 +6,8 @@ import pytest
 
 log = logging.getLogger(__name__)
 
-config_dirs = [
-    'ibd'
-]
 
-
-@pytest.fixture(params=config_dirs)
+@pytest.fixture(params=[])
 def project_dir(request, tmpdir):
     data_dir = py.path.local(__file__).dirpath('data', request.param)
     data_dir.copy(tmpdir)
