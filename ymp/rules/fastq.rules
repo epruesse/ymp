@@ -85,20 +85,6 @@ rule symlink_raw_reads:
             input[0] = os.path.join("..", input[0])
         os.symlink(input[0], output[0])
 
-rule symlink_all_raw_reads:
-    message:
-        "Linked all input FQ files"
-    input:
-        lambda wc: expand(
-            "{project}/{run}.{pairsuff}.fq.gz",
-            project=wc.project,
-            run=icfg.getRuns(wc.project),
-            pairsuff=icfg.pairnames
-        )
-    output:
-        "{project}/all"
-    shell: "touch {output}"
-
 
 localrules: symlink_reference_files
 rule symlink_reference_files:
@@ -113,6 +99,16 @@ rule symlink_reference_files:
             os.symlink(input[0], output[0])
         else: # compress
             shell("gzip -c {input} > {output}")
+
+###
+### Meta rules
+###
+
+localrules: fq_all
+rule fq_all:
+    message: "Finished {wildcards.dir}"
+    input: "{dir}/{:runs:}.{:pairnames:}.fq.gz"
+    output: touch("{dir}/all")
 
 
 ###
