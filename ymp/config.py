@@ -357,16 +357,13 @@ class ConfigMgr(object):
     def init(self):
         self.clear()
         ExpandableWorkflow.activate()
-        self._conffiles += [
-            resource_filename("ymp", "/etc/defaults.yml"),
-            self.find_config(filename=self.CONF_FNAME)
-        ]
-        self._root = os.path.dirname(self._conffiles[-1])
+        self._conffiles += [resource_filename("ymp", "/etc/defaults.yml")]
+        self.find_config()
         self.load_config()
         self.config_expander = ConfigExpander(self)
 
     def find_config(self, filename):
-        """Locates ymp root directory"""
+        """Locates ymp local config file and sets ymp root"""
         if not filename:
             filename = self.CONF_FNAME
         log.debug("Trying to find '%s'", filename)
@@ -376,9 +373,15 @@ class ConfigMgr(object):
             curpath, removed = os.path.split(curpath)
             log.debug("No; trying '%s'", curpath)
             if removed == "":
-                raise YmpConfigNotFound()
+                self._root = None
+                return
         log.debug("Found '%s' in '%s'", filename, curpath)
-        return os.path.join(curpath, filename)
+        self._root = curpath
+        self._conffiles += [os.path.join(self._root, self.CONF_FNAME)]
+
+    @property
+    def root(self):
+        return self._root
 
     def load_config(self):
         """Loads ymp configuration files"""
