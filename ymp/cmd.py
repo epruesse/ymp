@@ -8,6 +8,8 @@ import sys
 import logging
 import functools
 
+from ymp.config import icfg
+icfg.init()
 
 log = logging.getLogger(__name__)
 
@@ -89,9 +91,13 @@ def make(**kwargs):
 @click.option("--cluster-config", "-u", default="cluster.yaml")
 @click.option("--jobname", "--jn", "jobname",
               default="ymp.{rulename}.{jobid}.sh")
-@click.option("--drmaa-log-dir", default="log/")
+@click.option("--drmaa-log-dir", default=icfg.dir.log)
 def submit(**kwargs):
     "build target on cluster"
+    if not os.path.exists(kwargs['drmaa_log_dir']):
+        log.warning("Creating directory '%s'", kwargs['drmaa_log_dir'])
+        os.mkdir(kwargs['drmaa_log_dir'])
+
     drmaa = " ".join([
         '-l nodes=1:ppn={threads}',
         '-j oe',
