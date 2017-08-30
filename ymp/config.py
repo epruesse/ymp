@@ -60,6 +60,8 @@ def load_data(cfg):
      - lists of files are concatenated top to bottom
      - dicts must have one value, 'join' and a two-item list
        the two items are joined 'naturally' on shared headers
+     - if a value is a valid path relative to the csv/tsv/xls file's
+       location, it is expanded to a path relative to CWD
 
     Example:
     - top.csv
@@ -69,11 +71,11 @@ def load_data(cfg):
     """
     if isinstance(cfg, str):
         try:
-            return pd.read_csv(cfg, sep=None, engine='python', dtype='str')
+            data = pd.read_csv(cfg, sep=None, engine='python', dtype='str')
         except FileNotFoundError:
             parts = cfg.split('%')
             try:
-                return pd.read_excel(parts[0],
+                data = pd.read_excel(parts[0],
                                      parts[1] if len(parts) > 1 else 0)
             except ImportError:
                 raise YmpConfigNotFound(
@@ -82,6 +84,12 @@ def load_data(cfg):
                     " to install 'xlrd'."
                     "".format(cfg)
                 )
+        rdir = os.path.dirname(cfg)
+        data = data.applymap(lambda s: os.path.join(rdir, s)
+                                       if os.path.exists(os.path.join(rdir, s))
+                                       else s)
+        return data
+
     if isinstance(cfg, list):
         return pd.concat(list(map(load_data, cfg)), ignore_index=True)
     if isinstance(cfg, dict):
@@ -285,12 +293,7 @@ class DatasetConfig(object):
             return f
         fn = self._runs.loc[run][source[pair+1]]
         if kind == 'file':
-            if os.path.isabs(fn):
-                return fn
             return fn
-# FIXME: need to get basedir of mapping file somehow
-#            else:
-#                return os.path.join(self.basedir, fn)
 
         if kind == 'remote':
             return HTTP.remote(fn, keep_local=True)
