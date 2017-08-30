@@ -6,6 +6,7 @@ directories:
     scratch: 'scratch'
     reports: 'reports'
     sra: 'sra'
+    log: 'log'
 
 # Default references FASTAs
 references:
