@@ -89,7 +89,8 @@ rule symlink_raw_reads:
 localrules: symlink_reference_files
 rule symlink_reference_files:
     message: "Preparing {input}"
-    input:   lambda wc: icfg.ref[wc.ref]
+    input:   lambda wc: icfg.ref[wc.ref],
+             refdir = ancient(icfg.dir.references)
     output:  "{:dir.references:}/{ref}.fasta.gz"
     threads: 1
     run:
@@ -163,7 +164,6 @@ rule phyloFlash_makedb:
     output:  "{:dir.references:}/phyloFlash"
     input:   ssu="{:dir.references:}/ssu.fasta.gz",
              univec="{:dir.references:}/UniVec.fasta.gz"
-    params:  dir=icfg.dir.references
     conda:   srcdir("phyloflash.yml")
     shell: """
     CWD="$PWD"
@@ -483,17 +483,17 @@ rule bmtagger_index:
         > {log} 2>&1
     """
 
-
+ruleorder: gunzip > bmtagger_find
 rule bmtagger_find:
     message: "Bmtagger find {wildcards.reference} {wildcards.dir}/{wildcards.sample}"
     input:   "{dir}/{sample}.{:pairnames:}.fq",
              bitmask = "{:dir.references:}/{reference}.bitmask",
-             srprism = "{:dir.references:}/{reference}.srprism"
+             srprism = "{:dir.references:}/{reference}.srprism",
+             tmpdir = ancient(icfg.dir.tmp)
     output:  temp("{dir}.bmtaggerRM{reference}/{sample}.txt"),
              "{dir}.bmtaggerRM{reference}/{sample}.txt.gz"
     log:     "{dir}.bmtaggerRM{reference}/{sample}.bmtagger.log"
     threads: 1
-    params:  tmpdir = icfg.dir.tmp
     conda:   srcdir("bmtagger.yml")
     shell: """
     bmtagger.sh \
@@ -502,7 +502,7 @@ rule bmtagger_find:
         -q 1 \
         -1 {input[0]} \
         -2 {input[1]} \
-        -T {params.tmpdir} \
+        -T {input.tmpdir} \
         -o {output[0]} \
         > {log} 2>&1
     gzip {output[0]} -c > {output[0]}.gz
