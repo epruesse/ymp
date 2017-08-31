@@ -31,10 +31,10 @@ targets = odict[
     'map_bowtie2_grouped': '{}.by_Subject.mhc.bt2/complete',
     'map_bowtie2_joined': '{}.mhc.bt2/complete',
     # blast.rules
-    'blast_gene_find':   '{}.by_Subject.mhc.blast/psa.wcfR.csv',
+    'blast_gene_find':   '{}.by_Subject.mhc.blast/query.q1.csv',
     # coverage rules
-    'coverage':          '{}.by_Subject.mhc.bbm.cov/blast.psa.wcfR.csv',
-    'coverage':          '{}.by_Subject.mhc.bt2.cov/blast.psa.wcfR.csv'
+    'coverage_bbm': '{}.by_Subject.mhc.bbm.cov/blast.query.q1.csv',
+    'coverage_bt2': '{}.by_Subject.mhc.bt2.cov/blast.query.q1.csv'
     # otu.rules
     # 'otu_table':         '{}.by_Subject.mhc.blast.otu/psa.wcfR.otu_table.csv'
 ]
