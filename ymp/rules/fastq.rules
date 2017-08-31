@@ -518,8 +518,7 @@ rule bmtagger_filter:
     output:  "{dir}.bmtagger{filt}{reference}/{sample}.{pairsuff}.fq.gz"
     log:     "{dir}.bmtagger{filt}{reference}/{sample}.{pairsuff}.extract.log"
     threads: 1
-    params:  tmpdir = icfg.dir.tmp,
-             filt = lambda wc: "-remove" if wc.filt == "RM" else "-keep"
+    params:  filt = lambda wc: "-remove" if wc.filt == "RM" else "-keep"
     conda:   srcdir("bmtagger.yml")
     shell: """
     extract_fullseq \
