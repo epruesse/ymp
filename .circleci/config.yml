@@ -41,10 +41,17 @@ jobs:
       ## Test
       - run:
           name: Running Tests
+          no_output_timeout: 20m # default 10m
           command: |
             source activate test_env
             python setup.py test \
             --addopts "-svvv --junit-xml $JUNIT_REPORT_PATH/report.xml -n 2"
+      - run:
+          name: Inspecting Conda Environments
+          when: on_fail
+          command: |
+            tail -n 100 ~/.ymp/conda/*/conda-meta/history
+
       - store_test_results:
           path: /root/reports # does not expand env variables
 
