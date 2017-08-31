@@ -493,7 +493,7 @@ rule bmtagger_find:
              "{dir}.bmtaggerRM{reference}/{sample}.txt.gz"
     log:     "{dir}.bmtaggerRM{reference}/{sample}.bmtagger.log"
     threads: 1
-    params:  tmpdir = "/scratch/$HOME/tmp"
+    params:  tmpdir = icfg.dir.tmp
     conda:   srcdir("bmtagger.yml")
     shell: """
     bmtagger.sh \
@@ -516,7 +516,7 @@ rule bmtagger_remove:
     output:  "{dir}.bmtaggerRM{reference}/{sample}.{pairsuff}.fq.gz"
     log:     "{dir}.bmtaggerRM{reference}/{sample}.extract.log"
     threads: 1
-    params:  tmpdir = "/scratch/$HOME/tmp"
+    params:  tmpdir = icfg.dir.tmp
     conda:   srcdir("bmtagger.yml")
     shell: """
     extract_fullseq \
