@@ -99,7 +99,7 @@ rule symlink_reference_files:
                 input[0] = os.path.join("..", input[0])
             os.symlink(input[0], output[0])
         else: # compress
-            shell("gzip -c {input} > {output}")
+            shell("gzip -c {input[0]} > {output}")
 
 ###
 ### Meta rules
