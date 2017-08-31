@@ -450,7 +450,7 @@ rule bbmap_split:
 
 rule bmtagger_bitmask:
     message: "Bmtool indexing {input}"
-    input:   "{path}.fasta.gz"
+    input:   "{path}.fasta"
     output:  "{path}.bitmask"
     log:     "{path}.bitmask.log"
     threads: 1
