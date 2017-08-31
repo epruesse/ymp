@@ -76,3 +76,16 @@ rule temp_unzip_fq:
     output: temp("{pathx}.fq")
     threads: 4
     shell: "unpigz -k -p {threads} {input}"
+
+
+localrules: mkdir
+rule mkdir:
+    """
+    Auto-create directories listed in ymp config.
+
+    Use these as input:
+    >>> input: tmpdir = ancient(icfg.dir.tmp)
+    """
+    message: "Creating directory '{output}'"
+    output: "{{x,({})}}".format("|".join(list(icfg.dir)))
+    shell: "mkdir -p {output}"
