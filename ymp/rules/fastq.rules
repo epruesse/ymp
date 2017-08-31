@@ -509,22 +509,24 @@ rule bmtagger_find:
     """
 
 
-rule bmtagger_remove:
+rule bmtagger_filter:
     message: "Bmtagger removing {wildcards.reference} {wildcards.dir}/{wildcards.sample}"
+    wildcard_constraints:
+        filt = "(RM|KP)"
     input:   "{dir}/{sample}.{pairsuff}.fq",
              idlist = "{dir}.bmtaggerRM{reference}/{sample}.txt"
-    output:  "{dir}.bmtaggerRM{reference}/{sample}.{pairsuff}.fq.gz"
-    log:     "{dir}.bmtaggerRM{reference}/{sample}.extract.log"
+    output:  "{dir}.bmtagger{filt}{reference}/{sample}.{pairsuff}.fq.gz"
+    log:     "{dir}.bmtagger{filt}{reference}/{sample}.{pairsuff}.extract.log"
     threads: 1
-    params:  tmpdir = icfg.dir.tmp
+    params:  tmpdir = icfg.dir.tmp,
+             filt = lambda wc: "-remove" if wc.filt == "RM" else "-keep"
     conda:   srcdir("bmtagger.yml")
     shell: """
     extract_fullseq \
         {input.idlist} \
-        -remove \
+        {params.filt} \
         -fastq \
         -mate1 {input[0]} | pigz -p {threads} -9 > {output}  2>{log}
-
     """
 
 
