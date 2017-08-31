@@ -65,14 +65,34 @@ rule fasta_to_fastp_gz:
             fasta_dna2aa(inf, outf)
 
 
-rule temp_unzip_fasta:
-    input: "{pathx}.fasta.gz"
-    output: temp("{pathx}.fasta")
-    threads: 4
+rule gunzip:
+    """
+    Generic temporary gunzip
+
+    Use `ruleorder: gunzip > myrule` to prefer gunzipping
+    over re-running a rule. E.g.
+
+    >>> ruleorder: gunzip > myrule
+    >>> rule myrule:
+    >>>   output: temp("some.txt"), "some.txt.gzip"
+    """
+    message: "Uncompressing {input}"
+    wildcard_constraints:
+        path = ".*(?<!\.gz)"
+    input: "{path}.gz"
+    output: temp("{path}")
+    threads: 1
     shell: "unpigz -k -p {threads} {input}"
 
-rule temp_unzip_fq:
-    input: "{pathx}.fq.gz"
-    output: temp("{pathx}.fq")
-    threads: 4
-    shell: "unpigz -k -p {threads} {input}"
+
+localrules: mkdir
+rule mkdir:
+    """
+    Auto-create directories listed in ymp config.
+
+    Use these as input:
+    >>> input: tmpdir = ancient(icfg.dir.tmp)
+    """
+    message: "Creating directory '{output}'"
+    output: "{{x,({})}}".format("|".join(list(icfg.dir)))
+    shell: "mkdir -p {output}"
