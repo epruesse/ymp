@@ -411,7 +411,7 @@ rule bbmap_split:
              reference = "{:dir.references:}/{reference}.bbidx"
     output:  clean="{dir}.bbmRM{reference}/{sample}.{:pairnames:}.fq.gz",
              human="{dir}.bbmKP{reference}/{sample}.{:pairnames:}.fq.gz",
-             stats=expand("{{dir}}.bbdukX{{reference}}/{{sample}}.{x}",x=bbstats)
+             stats=expand("{{dir}}.bbmRM{{reference}}/{{sample}}.{x}",x=bbstats)
     log:     "{dir}.bbmRM{reference}/{sample}.log"
     params:  stats=lambda wc: expand("{x}={dir}.bbdukX{reference}/{sample}.{x}",x=bbstats,**wc),
              minid=0.95,
