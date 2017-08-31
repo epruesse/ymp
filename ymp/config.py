@@ -345,6 +345,8 @@ class ConfigMgr(object):
     KEY_PROJECTS = 'projects'
     KEY_REFERENCES = 'references'
     CONF_FNAME = 'ymp.yml'
+    CONF_DEFAULT_FNAME = resource_filename("ymp", "/etc/defaults.yml")
+    CONF_USER_FNAME = os.path.expanduser("~/.ymp/ymp.yml")
 
     def __init__(self):
         self.clear()
@@ -357,15 +359,21 @@ class ConfigMgr(object):
     def init(self):
         self.clear()
         ExpandableWorkflow.activate()
-        self._conffiles += [resource_filename("ymp", "/etc/defaults.yml")]
         self.find_config()
         self.load_config()
         self.config_expander = ConfigExpander(self)
 
-    def find_config(self, filename):
-        """Locates ymp local config file and sets ymp root"""
-        if not filename:
-            filename = self.CONF_FNAME
+    def find_config(self):
+        """Locates ymp config files and sets ymp root"""
+        # always include defaults
+        self._conffiles += [self.CONF_DEFAULT_FNAME]
+
+        # include user config if present
+        if os.path.exists(self.CONF_USER_FNAME):
+            self._conffiles += [self.CONF_USER_FNAME]
+
+        # try to find an ymp.yml in CWD and upwards
+        filename = self.CONF_FNAME
         log.debug("Trying to find '%s'", filename)
         curpath = os.path.abspath(os.getcwd())
         log.debug("Checking '%s'", curpath)
