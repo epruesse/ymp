@@ -51,6 +51,13 @@ jobs:
           when: on_fail
           command: |
             tail -n 100 ~/.ymp/conda/*/conda-meta/history
+      - run:
+          name: Preparing Conda Environment
+          command: ./ci_conda_prep.sh
+          when: always
+      - save_cache:
+          key: conda-{{ checksum "conda_state.txt" }}
+          paths: /root/miniconda
 
       - store_test_results:
           path: /root/reports # does not expand env variables
