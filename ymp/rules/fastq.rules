@@ -328,6 +328,13 @@ rule trimmomatic_adapter:
     CLIPARG="$CLIPARG:{params.min_adapter_len}"
     CLIPARG="$CLIPARG:{params.keep_both_reads}"
 
+    set -x
+    command -V java
+    echo $PATH
+    echo $JAVA_HOME
+    ls -l $CONDA_PREFIX
+    ls -l $CONDA_PREFIX/bin
+
     trimmomatic PE \
         -threads {threads} \
         -phred33 \
