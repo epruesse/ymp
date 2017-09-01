@@ -82,6 +82,7 @@ rule gunzip:
     input: "{path}.gz"
     output: temp("{path}")
     threads: 1
+    conda: srcdir("pigz.yml")
     shell: "unpigz -k -p {threads} {input}"
 
 
