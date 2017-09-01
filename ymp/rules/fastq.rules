@@ -335,7 +335,7 @@ rule trimmomatic_adapter:
     ls -l $CONDA_PREFIX >>{log}
     ls -l $CONDA_PREFIX/bin >>{log}
 
-    trimmomatic PE \
+    bash -x `which trimmomatic` PE \
         -threads {threads} \
         -phred33 \
         {input} \
