@@ -58,6 +58,7 @@ jobs:
       - save_cache:
           key: conda-{{ checksum "conda_state.txt" }}
           paths: /root/miniconda
+          when: always
 
       - store_test_results:
           path: /root/reports # does not expand env variables
