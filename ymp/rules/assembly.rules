@@ -200,7 +200,15 @@ rule metaquast_part:
           -t {threads} \
           -l {wildcards.sample} \
           --min-contig {params.min_contig_len} \
-          {input}
+          {input} \
+          >{log} 2>&1
+    # workaround for metaquast reverting to quast if no SSUs matching
+    # SILVA were found in assembly:
+    if [ ! -e "{output.report}" ]; then
+      if [ -e "{output.dir}/report.tsv" ]; then
+        cp "{output.dir}/report.tsv" "{output.report}"
+      fi
+    fi
     """
 
 
