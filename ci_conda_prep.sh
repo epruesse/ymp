@@ -76,6 +76,8 @@ if test -e "LOCAL" -o -n "$TRAVIS"; then
 else
     conda clean --yes --tarballs
     (conda info; conda list; ls -1 $MINICONDA/pkgs) >> conda_state.txt
+    cat conda_state.txt
+    md5sum conda_state.txt || true
 fi
 
 
