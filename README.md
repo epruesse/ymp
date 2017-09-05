@@ -16,7 +16,7 @@
 
 2. Create and activate conda environment
   ```
-  conda env create -n ymp -f enironment.yaml
+  conda env create -n ymp -f environment.yaml
   source activate ymp
   ```
 
