@@ -413,7 +413,7 @@ rule bbmap_split:
              human="{dir}.bbmKP{reference}/{sample}.{:pairnames:}.fq.gz",
              stats=expand("{{dir}}.bbmRM{{reference}}/{{sample}}.{x}",x=bbstats)
     log:     "{dir}.bbmRM{reference}/{sample}.log"
-    params:  stats=lambda wc: expand("{x}={dir}.bbdukX{reference}/{sample}.{x}",x=bbstats,**wc),
+    params:  stats=lambda wc: expand("{x}={dir}.bbmRM{reference}/{sample}.{x}",x=bbstats,**wc),
              minid=0.95,
              maxindel=3,
              bwr=0.16,
