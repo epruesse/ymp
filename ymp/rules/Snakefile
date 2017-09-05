@@ -18,5 +18,6 @@ include: "align.rules"
 include: "tree.rules"
 
 include: "anvio.rules"
+include: "humann.rules"
 
 #include: "all.rules"

@@ -1,0 +1,41 @@
+## rules for Huttenhower lab tools
+
+localrules: human_db_download
+rule human_db_download:
+    """
+    Download Humann2 reference databases
+    """
+    output: "{:dir.references:}/humann2/{database}.{build}"
+    threads: 1
+    conda: srcdir("hhtools.yml")
+    shell: """
+    humann2_databases --download {wildcards.database} {wildcards.build} {output}
+    """
+
+localrules: metaphlan_db_download
+rule metaphlan_db_download:
+    output: "{:dir.references:}/metaphlan"
+    threads: 1
+    params:
+        url = "https://depot.galaxyproject.org/software/metaphlan2/metaphlan2_2.6.0_src_all.tar.gz"
+    shell: """
+    """
+
+rule humann2:
+    """
+    """
+    input:
+        "{dir}/{sample}.{:pairnames:}.fq.gz"
+    output:
+        dir = "{dir}.humann2/"
+    threads:
+        8
+    shell:
+        "humann2"
+        " --input {input[0]}" # Humann2 does not support paired end
+        " --output {output.dir}"
+        " --nucleotide-database {input.chocophlan}"
+        " --protein-database {input.uniref}"
+        " --threads {threads}"
+        " --output-basename {wildcards.sample}"
+        #" --taxonomic-profile" metaphlan output
