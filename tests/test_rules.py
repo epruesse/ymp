@@ -5,6 +5,7 @@ import pytest
 
 from .data import targets
 
+del targets['phyloFlash'] ## can't work with our test data
 
 log = logging.getLogger(__name__)
 
