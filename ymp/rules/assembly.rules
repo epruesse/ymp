@@ -10,7 +10,8 @@ rule megahit:
         "(Co-)Assembling {wildcards.target} with megahit"
     input:
         r1 = "{dir}/{: sources :}.{: pairnames[0] :}.fq.gz",
-        r2 = "{dir}/{: sources :}.{: pairnames[1] :}.fq.gz"
+        r2 = "{dir}/{: sources :}.{: pairnames[1] :}.fq.gz",
+        tmpdir = ancient(icfg.dir.tmp)
     output:
         fasta = "{dir}{by}.mhc/{target}.contigs.fasta.gz",
         fastg = "{dir}{by}.mhc/{target}.contigs.fastg.gz"
@@ -18,7 +19,6 @@ rule megahit:
         "{dir}{by}.mhc/{target}.log.gz"
     params:
         workdir = "{dir}{by}.mhc/{target}/",
-        tmpdir  = icfg.expand("{:dir.tmp:}"),
         preset  = "meta-sensitive",
         r1 = lambda wc, input: ",".join([input.r1]
                                         if isinstance(input.r1, str) else input.r1),
@@ -45,7 +45,7 @@ rule megahit:
       --presets {params.preset} \
       --num-cpu-threads {threads} \
       --out-dir {params.workdir} \
-      --tmp-dir {params.tmpdir} \
+      --tmp-dir {input.tmpdir} \
       $CONTINUE
 
     # abort if not finished
