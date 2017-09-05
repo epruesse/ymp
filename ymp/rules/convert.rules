@@ -83,7 +83,13 @@ rule gunzip:
     output: temp("{path}")
     threads: 1
     conda: srcdir("pigz.yml")
-    shell: "unpigz -k -p {threads} {input}"
+    shell: """
+    unpigz \
+      --keep \
+      --force \
+      --processes {threads} \
+      {input}
+    """
 
 
 localrules: mkdir
