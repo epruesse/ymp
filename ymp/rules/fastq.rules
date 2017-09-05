@@ -461,9 +461,9 @@ rule bmtagger_bitmask:
         --fasta-file={input} \
         --output-file={output} \
         --word-size={params.wordsize} \
-        --compress \
         > {log} 2>&1
     """
+    # --compress fails with small references (segfault in bmfilter)
 
 
 rule bmtagger_index:
