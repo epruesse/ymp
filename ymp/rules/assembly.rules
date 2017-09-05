@@ -31,7 +31,7 @@ rule megahit:
     shell: """
     # iff there is an existing opts.txt with an existing megahit temp dir,
     # then we can continue an existing run
-    MHTMP=$(sed -n '/MEGAHIT_TEMP_DIR:/ s/.*:\s*//p' "{params.workdir}/opts.txt" 2>/dev/null)
+    MHTMP=$(sed -n '/MEGAHIT_TEMP_DIR:/ s/.*:\s*//p' "{params.workdir}/opts.txt" 2>/dev/null||true)
     CONTINUE=""
     if [ -e "$MHTMP" ]; then
         echo "YMP: Trying to restart aborted assembly"
