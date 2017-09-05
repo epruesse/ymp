@@ -16,7 +16,7 @@
 
 2. Create and activate conda environment
   ```
-  conda env create -n ymp -f enironment.yaml
+  conda env create -n ymp --file environment.yaml
   source activate ymp
   ```
 
@@ -34,5 +34,5 @@
 5. Update Ymp
   ```
   git pull
-  conda env update -f environment.yaml # usually not necessary
+  conda env update --file environment.yaml # usually not necessary
   ```
