@@ -6,6 +6,24 @@ Rules for mapping reads to assembly
 ### Meta rules
 ###
 
+localrules: map_all_target
+rule map_all_target:
+    input:
+        "{dir}/{target}.contigs.{:sources:}.sorted.bam.bai"
+    output:
+        "{dir}/all_{target}"
+    shell:
+        "touch {output}"
+
+localrules: map_all
+rule map_all:
+    output:
+        "{dir}/all"
+    input:
+        "{dir}/all_{:targets:}"
+    shell:
+        "touch {output}"
+
 ###
 ### Mapping with BBMAP
 ###
@@ -134,21 +152,3 @@ rule sambamba_sort:
         " --nthreads={threads}"
         " {input}"
         " >{log} 2>&1"
-
-
-rule all_mapped:
-    input:
-        "{dir}/{target}.contigs.{:sources:}.sorted.bam.bai"
-    output:
-        "{dir}/complete_{target}"
-    shell:
-        "touch {output}"
-
-
-rule complete_from_targets:
-    output:
-        "{dir}/complete"
-    input:
-        "{dir}/complete_{:targets:}"
-    shell:
-        "touch {output}"
