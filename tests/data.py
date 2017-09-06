@@ -24,12 +24,12 @@ targets = odict[
     'assemble_grouped_sp':  'reports/{}.by_Subject.sp.mq.html',
     'assemble_joined_sp':   'reports/{}.sp.mq.html',
     # mapping.rules
-    'map_bbmap_separate':   '{}.by_ID.mhc.bbm/complete',
-    'map_bbmap_grouped':   '{}.by_Subject.mhc.bbm/complete',
-    'map_bbmap_joined':   '{}.mhc.bbm/complete',
-    'map_bowtie2_separate': '{}.by_ID.mhc.bt2/complete',
-    'map_bowtie2_grouped': '{}.by_Subject.mhc.bt2/complete',
-    'map_bowtie2_joined': '{}.mhc.bt2/complete',
+    'map_bbmap_separate':   '{}.by_ID.mhc.bbm/all',
+    'map_bbmap_grouped':   '{}.by_Subject.mhc.bbm/all',
+    'map_bbmap_joined':   '{}.mhc.bbm/all',
+    'map_bowtie2_separate': '{}.by_ID.mhc.bt2/all',
+    'map_bowtie2_grouped': '{}.by_Subject.mhc.bt2/all',
+    'map_bowtie2_joined': '{}.mhc.bt2/all',
     # blast.rules
     'blast_gene_find':   '{}.by_Subject.mhc.blast/query.q1.csv',
     # coverage rules
