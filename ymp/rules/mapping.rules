@@ -94,39 +94,6 @@ rule bowtie_map_partial_coassembly:
     """
 
 
-rule samtools_sort:
-    message:
-        "Samtools: Sorting BAM file {input}"
-    input:
-        "{path}.bam"
-    output:
-        "{path}.sorted.bam__DISABLED"
-    params:
-        mem=32
-    threads:
-        8
-    conda:
-      srcdir("samtools.yml")
-    shell:"""
-    samtools sort -m {params.mem}G --threads {threads} -o {output} {input}
-    """
-
-
-rule samtools_index:
-    message:
-        "Samtools: Indexing BAM file {input}"
-    input:
-        "{path}.bam"
-    output:
-        "{path}.bam.bai__DISABLED"
-    threads:
-        1
-    conda:
-      srcdir("samtools.yml")
-    shell:"""
-    samtools index {input}
-    """
-
 
 rule sambamba_sort:
     message: "Sambamba: Sorting BAM file {input}"
