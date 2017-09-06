@@ -28,7 +28,7 @@ rule map_all:
 ### Mapping with BBMAP
 ###
 
-rule bbmap:
+rule bbmap_map:
     """Map read from each (co-)assembly read file to the assembly"""
     message:
         "BBMap mapping sample {wildcards.source} to assembly {wildcards.target}"
@@ -72,7 +72,7 @@ rule bbmap:
 
 BT2IDX_SUFFIXES = "1.bt2 2.bt2 3.bt2 4.bt2 rev.1.bt2 rev.2.bt2".split()
 
-rule bowtie_index:
+rule bowtie2_index:
     message:
         "Bowtie2: Indexing {input.contigs}"
     input:
@@ -96,7 +96,7 @@ rule bowtie_index:
     """
 
 
-rule bowtie_map_partial_coassembly:
+rule bowtie2_map:
     message:
         "Bowtie2: Mapping sample {wildcards.source} to assembly {wildcards.target}"
     input:
