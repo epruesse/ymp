@@ -24,9 +24,12 @@ esac
 # Make sure we have conda in the PATH always
 if test -n "$BASH_ENV"; then
     echo "Prepending $MINICONDA/bin to PATH in $BASH_ENV"
-    echo export PATH="$MINICONDA/bin:$PATH" >> $BASH_ENV
+    cat >>$BASH_ENV <<EOF
+if [ -z "\$CONDA_PATH_BACKUP" ]; then
+    export PATH="$MINICONDA/bin:\$PATH"
 fi
-export PATH="$MINICONDA/bin:$PATH" >> $BASH_ENV
+EOF
+fi
 
 # Homemade restore_cache
 if test -e "LOCAL" -o -n "$TRAVIS"; then
