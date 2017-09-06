@@ -36,20 +36,21 @@ rule bbmap:
         " | samtools view -b -o {output.bam} -" # convert to bam
 
 
+BT2IDX_SUFFIXES = "1.bt2 2.bt2 3.bt2 4.bt2 rev.1.bt2 rev.2.bt2".split()
+
 rule bowtie_index:
     message:
         "Bowtie2: Indexing {input.contigs}"
     input:
         contigs="{dir}/{sample}.contigs.fasta"
     output:
-        temp(expand("{{dir}}.bt2/{{sample}}.contigs.{ext}",
-                    ext="1.bt2 2.bt2 3.bt2 4.bt2 rev.1.bt2 rev.2.bt2".split()))
+        temp(expand("{{dir}}.bt2/{{sample}}.contigs.{ext}", ext=BT2IDX_SUFFIXES))
     params:
         bt2_base="{dir}.bt2/{sample}.contigs"
     threads:
         8
     log:
-        "{dir}/{sample}.contigs.btbuild.log"
+        "{dir}.bt2/{sample}.contigs.btbuild.log"
     conda:
       srcdir("bowtie2.yml")
     shell:"""
@@ -66,7 +67,8 @@ rule bowtie_map_partial_coassembly:
         "Bowtie2: Mapping sample {wildcards.source} to assembly {wildcards.target}"
     input:
         contigs = "{dir}{by}.mhc/{target}.contigs.fasta.gz",
-        index   = "{dir}{by}.mhc.bt2/{target}.contigs.1.bt2",
+        index   = expand("{{dir}}{{by}}.mhc.bt2/{{target}}.contigs.{ext}",
+                         ext=BT2IDX_SUFFIXES),
         pairs   = "{dir}/{source}.{: pairnames :}.fq.gz"
     output:
         bam     = temp("{dir}{by}.mhc.bt2/{target}.contigs.{source}.bam"),
@@ -74,7 +76,7 @@ rule bowtie_map_partial_coassembly:
     log:
                   "{dir}{by}.mhc.bt2/{target}.contigs.{source}.log"
     params:
-        bt2_base= "{dir}{by}.mhc/{target}.contigs",
+        bt2_base= "{dir}{by}.mhc.bt2/{target}.contigs",
         maxins = 800,
         k = 100
     threads:
