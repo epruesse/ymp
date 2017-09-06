@@ -1,3 +1,15 @@
+"""
+Rules for mapping reads to assembly
+"""
+
+###
+### Meta rules
+###
+
+###
+### Mapping with BBMAP
+###
+
 rule bbmap:
     """Map read from each (co-)assembly read file to the assembly"""
     message:
@@ -35,6 +47,10 @@ rule bbmap:
         " 2>{log}"              # log error
         " | samtools view -b -o {output.bam} -" # convert to bam
 
+
+###
+### Mapping with Bowtie2
+###
 
 BT2IDX_SUFFIXES = "1.bt2 2.bt2 3.bt2 4.bt2 rev.1.bt2 rev.2.bt2".split()
 
@@ -96,6 +112,9 @@ rule bowtie_map_partial_coassembly:
     """
 
 
+###
+### Sorting
+###
 
 rule sambamba_sort:
     message: "Sambamba: Sorting BAM file {input}"
