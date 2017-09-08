@@ -557,8 +557,8 @@ rule bbmap_dedupe:
         " 2>{log}"
         " |"
         " paste - - - -  - - - - | "
-        " tee >(cut -f 1-4 | tr \"\t\" \"\n\" | pigz -p {threads} > {output[0]}) | "
-        " cut -f 5-8 | tr \"\t\" \"\n\" | "
+        " tee >(cut -f 1-4 | tr \"\t\" \"\\n\" | pigz -p {threads} > {output[0]}) | "
+        " cut -f 5-8 | tr \"\t\" \"\\n\" | "
         " pigz -p {threads} > {output[1]}"
         
 
