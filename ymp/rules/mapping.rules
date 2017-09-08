@@ -11,18 +11,14 @@ rule map_all_target:
     input:
         "{dir}/{target}.contigs.{:sources:}.sorted.bam.bai"
     output:
-        "{dir}/all_{target}"
-    shell:
-        "touch {output}"
+        touch("{dir}/all_{target}")
 
 localrules: map_all
 rule map_all:
-    output:
-        "{dir}/all"
     input:
         "{dir}/all_{:targets:}"
-    shell:
-        "touch {output}"
+    output:
+        touch("{dir}/all")
 
 ###
 ### Mapping with BBMAP
