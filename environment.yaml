@@ -2,6 +2,7 @@ channels:
   - bioconda
   - conda-forge
 dependencies:
+  - python =3.*
   - snakemake
   - rpy2 =2.8.5  # pinned to keep conda from taking for ever
   - click
