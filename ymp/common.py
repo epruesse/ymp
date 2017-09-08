@@ -41,3 +41,29 @@ def update_dict(dst, src):#
         else:
             dst[key] = src[key]
     return dst
+
+def parse_number(s=""):
+    """Basic 1k 1m 1g 1t parsing.
+
+    - assumes base 2
+    - returns "byte" value
+    - accepts "1kib", "1kb" or "1k"
+    """
+    multiplier = 1
+    s = s.strip().upper().rstrip("BI")
+
+    if s.endswith("K"):
+        multiplier = 1024
+    if s.endswith("M"):
+        multiplier = 1024*1024
+    if s.endswith("G"):
+        multiplier = 1024*1024*1024
+    if s.endswith("T"):
+        multiplier = 1024*1024*1024*1024
+
+    s.rstrip("KMGT")
+
+    if "." in s:
+        return float(s)*multiplier
+    else:
+        return int(s)*multiplier
