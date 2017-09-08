@@ -61,7 +61,7 @@ def parse_number(s=""):
     if s.endswith("T"):
         multiplier = 1024*1024*1024*1024
 
-    s.rstrip("KMGT")
+    s = s.rstrip("KMGT")
 
     if "." in s:
         return float(s)*multiplier
