@@ -6,19 +6,23 @@ Rules for mapping reads to assembly
 ### Meta rules
 ###
 
-localrules: map_all_target
-rule map_all_target:
+localrules: map_all_for_target
+rule map_all_for_target:
+    message:
+        "Mapping (with {wildcards.mapper})) {wildcards.target} in {wildcards.dir} done"
     input:
-        "{dir}/{target}.contigs.{:sources:}.sorted.bam.bai"
+        "{dir}.{mapper}/{target}.contigs.{:sources:}.sorted.bam.bai"
     output:
-        touch("{dir}/all_{target}")
+        touch("{dir}.{mapper}/all_{target}")
 
 localrules: map_all
 rule map_all:
+    message:
+        "Mapping (with {wildcards.mapper})) in {wildcards.dir} done"
     input:
-        "{dir}/all_{:targets:}"
+        "{dir}.{mapper}/all_{:targets:}"
     output:
-        touch("{dir}/all")
+        touch("{dir}.{mapper}/all")
 
 ###
 ### Mapping with BBMAP
