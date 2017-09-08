@@ -1,5 +1,22 @@
-from ymp.util import glob_wildcards
 from ymp.config import icfg
+
+###
+### Meta Rules
+###
+
+localrules: assemble_all
+rule assemble_all:
+    message:
+        "Assembly of {wildcards.dir} with {wildcards.assembler} done"
+    input:
+        "{dir}.{assembler}/{:targets:}.contigs.fasta.gz"
+    output:
+        touch("{dir}.{assembler}/all")
+
+
+###
+### Assembly Rules
+###
 
 rule megahit:
     """
