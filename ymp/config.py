@@ -572,7 +572,7 @@ class ConfigMgr(object):
 
         div = parse_number("1"+unit)
 
-        return mem / div
+        return int(mem / div)
 
 
 icfg = ConfigMgr()
