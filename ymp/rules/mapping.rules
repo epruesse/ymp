@@ -137,7 +137,7 @@ rule sambamba_sort:
              "{path}.sorted.bam.bai"
     log:     "{path}.sorted.bam.log"
     benchmark: "benchmarks/sambamba_sort/{path}.txt"
-    params:  mem=32,
+    params:  mem=icfg.mem("32g", unit="g"),
              compress=6
     threads: 8
     conda: srcdir("sambamba.yml")

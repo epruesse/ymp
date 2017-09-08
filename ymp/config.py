@@ -557,15 +557,22 @@ class ConfigMgr(object):
             for prop in self._datasets[dataset].props
         ]
 
-    def mem(self, base="0", per_thread=None):
+    def mem(self, base="0", per_thread=None, unit="b"):
         """Clamp memory to configuration limits
+
+        Params:
+           base:       base memory requested
+           per_thread: additional mem required per allocated thread
+           unit:       output unit (b, k, m, g, t)
         """
         mem = parse_number(base)
         max_mem = parse_number(self.limits.max_mem)
         if mem > max_mem:
             mem = max_mem
 
-        return mem
+        div = parse_number("1"+unit)
+
+        return mem / div
 
 
 icfg = ConfigMgr()
