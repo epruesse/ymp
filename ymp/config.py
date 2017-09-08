@@ -14,7 +14,7 @@ from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
 
 import yaml
 
-from ymp.common import update_dict
+from ymp.common import parse_number, update_dict
 from ymp.snakemake import ColonExpander, ExpandableWorkflow
 from ymp.util import AttrDict
 
@@ -471,6 +471,10 @@ class ConfigMgr(object):
         return AttrDict(self._config['databases'])
 
     @property
+    def limits(self):
+        return AttrDict(self._config['limits'])
+
+    @property
     def allruns(self):
         return self.getRuns()
 
@@ -552,6 +556,16 @@ class ConfigMgr(object):
             for dataset in datasets
             for prop in self._datasets[dataset].props
         ]
+
+    def mem(self, base="0", per_thread=None):
+        """Clamp memory to configuration limits
+        """
+        mem = parse_number(base)
+        max_mem = parse_number(self.limits.max_mem)
+        if mem > max_mem:
+            mem = max_mem
+
+        return mem
 
 
 icfg = ConfigMgr()

@@ -266,7 +266,7 @@ rule trim_bbduk_adapter:
         k=23,
         mink=11,
         hdist=1,
-        mem=80,
+        mem=icfg.mem("80g"),
         flags="pigz unpigz"
     threads: 16
     conda: srcdir("bbmap.yml")
@@ -287,7 +287,7 @@ rule trim_bbduk_adapter:
         'tbo ' # trimbyoverlap -- trim if read runs over other reads' end
         '{params.flags} '                      # processing settings
         'threads={threads} '
-        '-Xmx{params.mem}g '
+        '-Xmx{params.mem} '
         '>{log} 2>&1'
 
 
@@ -426,7 +426,7 @@ rule bbmap_split:
              qtrim="rl",
              flags="quickmatch fast untrim machineout",
              minhits=2,
-             mem=23
+             mem=icfg.mem("23g")
     threads: 16
     conda:   srcdir("bbmap.yml")
     shell:
@@ -440,7 +440,7 @@ rule bbmap_split:
         " path={input.reference} "
         " qtrim={params.qtrim} "
         " trimq={params.trimq} "
-        " -Xmx{params.mem}g "
+        " -Xmx{params.mem} "
         " in={input[0]} "
         " in2={input[1]} "
         " outu={output.clean[0]} "
@@ -543,7 +543,7 @@ rule bbmap_dedupe:
     input:   "{dir}/{sample}.{:pairnames:}.fq.gz"
     output:  "{dir}.ddp/{sample}.{:pairnames:}.fq.gz"
     log:     "{dir}.ddp/{sample}.log"
-    params: mem=80
+    params: mem=icfg.mem("80g")
     threads: 4
     conda:   srcdir("bbmap.yml")
     shell:
@@ -553,7 +553,7 @@ rule bbmap_dedupe:
         " in={input[0]}"
         " in2={input[1]}"
         " out=stdout"
-        " -Xmx{params.mem}g "
+        " -Xmx{params.mem} "
         " 2>{log}"
         " |"
         " paste - - - -  - - - - | "

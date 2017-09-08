@@ -5,3 +5,6 @@ projects:
 
 references:
   ssu: 'ssu.fasta.gz'
+
+limits:
+  max_mem: 3G
