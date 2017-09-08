@@ -390,6 +390,8 @@ bbstats =  "bhist qhist aqhist bqhist lhist ihist ehist qahist "
 bbstats += "indelhist mhist gchist idhist statsfile"
 bbstats = bbstats.split()
 
+bbduk_stats = "bhist qhist qchist aqhist bqhist lhist gchist".split()
+
 rule bbmap_makedb:
     message: "BBMap: preparing index for ref={input}"
     input:   "{path}/{file}.fasta.gz"
@@ -531,6 +533,44 @@ rule bmtagger_filter:
         -fastq \
         -mate1 {input[0]} | pigz -p {threads} -9 > {output}  2>{log}
     """
+
+###
+### Primer Filtering
+###
+
+rule bbduk_primer:
+    """
+    Splits reads based on primer matching into "primermatch" and "primerfail".
+    """
+    message: "BBduk: Filtering {wildcards.sample} for primer set {input.primer}"
+    input:   "{dir}/{sample}.{:pairnames:}.fq.gz",
+             primer = "primers.fasta"
+    output:  match  = "{dir}.primermatch/{sample}.{:pairnames:}.fq.gz",
+             fail   = "{dir}.primerfail/{sample}.{:pairnames:}.fq.gz",
+             stats  = expand("{{dir}}.primermatch/{{sample}}.{x}", x=bbduk_stats)
+    log:     "{dir}.primermatch/{sample}.log"
+    threads: 8
+    params:
+        stats=lambda wc: expand("{x}={dir}.primermatch/{sample}.{x}",x=bbduk_stats,**wc),
+        mem=icfg.mem("80g"),
+        k=12,
+        rl=12
+    conda: srcdir("bbmap.yml")
+    shell:
+        'bbduk.sh'
+        ' in={input[0]} in2={input[1]}'
+        ' outm={output.match[0]} outm2={output.match[1]}'
+        ' outu={output.fail[0]} outu2={output.fail[1]}'
+        ' ref={input.primer}'
+        ' k={params.k}'               # match using k-mers
+        ' restrictleft={params.rl} '  # only match leftmost n bases
+        ' maskmiddle=f'               # don't mask middle base in kmer
+        ' rcomp=f'                    # don't check reverse complement
+        ' copyundefined=t'            # expand wobbles in input
+        ' removeifeitherbad=f'        # "bad" is "match", we want both to match
+        ' pigz unpigz'
+        ' {params.stats}'
+        ' -Xmx{params.mem}'
 
 
 ###
