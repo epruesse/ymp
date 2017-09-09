@@ -15,7 +15,8 @@ targets = odict[
     'sickleQ10':      '{}.sickleQ10/all',
     'sickleL10':      '{}.sickleL10/all',
     'sickleQ10L10':   '{}.sickleQ10L10/all',
-    'bmtagger':       '{}.bmtaggerRMphiX/all',
+    # can't run bmtagger with less than 9GB RAM
+    # 'bmtagger':       '{}.bmtaggerRMphiX/all',
     # assembly.rules
     'assemble_separate_mh': '{}.by_ID.mhc/all',
     'assemble_grouped_mh':  '{}.by_Subject.mhc/all',
