@@ -2,6 +2,9 @@ from ymp.config import icfg
 
 icfg.init()
 
+# make sure rules are executed in bash (not sh, dash or worse)
+shell.executable("/bin/bash")
+
 wildcard_constraints:
     dir      = "[^/]+?",
     dir1     = "[^/]+",
