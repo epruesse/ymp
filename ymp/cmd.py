@@ -7,6 +7,8 @@ import os
 import sys
 import logging
 import functools
+import glob
+import subprocess
 
 from ymp.config import icfg
 icfg.init()
@@ -122,3 +124,77 @@ def start_snakemake(**kwargs):
     return snakemake.snakemake(
         resource_filename("ymp", "rules/Snakefile"),
         **kwargs)
+
+@cli.group()
+def env():
+    "manipulate conda environments"
+    pass
+
+class Env(snakemake.conda.Env):
+    def __init__(self, env_file):
+        self.file = env_file
+        self._env_dir = os.path.expanduser("~/.ymp/conda")
+        self._env_archive_dir = os.path.expanduser("~/.ymp/conda_archive")
+        self._hash = None
+        self._content = None
+        self._path = None
+        self._archive_file = None
+
+@env.command()
+def list():
+    "list conda environments"
+    for env_file in glob.glob(resource_filename("ymp", "rules/*.yml")):
+        env = Env(env_file)
+        name, _ = os.path.splitext(os.path.basename(env_file))
+        print("{:<12} {}".format(name+":", env.path))
+
+@env.command()
+def create():
+    "create conda environments"
+    for env_file in glob.glob(resource_filename("ymp", "rules/*.yml")):
+        env = Env(env_file)
+        name, _ = os.path.splitext(os.path.basename(env_file))
+        env.create()
+
+
+@env.command()
+def update():
+    "update conda environments"
+    for env_file in glob.glob(resource_filename("ymp", "rules/*.yml")):
+        env = Env(env_file)
+        name, _ = os.path.splitext(os.path.basename(env_file))
+        log.warning("Updating %s", name)
+        subprocess.run([
+            "conda",  "env", "update",
+            "-p", env.path, "-f", env_file
+        ])
+
+@env.command()
+@click.argument("envname", nargs=1)
+def activate(envname):
+    """
+    source activate environment
+
+    Usage:
+    $(ymp activate env [ENVNAME])
+    """
+    env_file = resource_filename("ymp", "rules/{}.yml".format(envname))
+    env = Env(env_file)
+    print("source activate {}".format(env.path))
+
+@env.command()
+@click.argument("ENVNAME", nargs=1)
+@click.argument("COMMAND", nargs=-1)
+def run(envname, command):
+    """
+    Execute COMMAND with activated environment ENV
+
+    Usage:
+    ymp env run <ENV> [--] <COMMAND...>
+
+    (Use the "--" if your command line contains option type parameters
+     beginning with - or --)
+    """
+    env_file = resource_filename("ymp", "rules/{}.yml".format(envname))
+    env = Env(env_file)
+    subprocess.run("source activate {}; {}".format(env.path, " ".join(command)), shell=True)
