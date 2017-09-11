@@ -44,7 +44,8 @@ class YmpConfigNoProjects(YmpException):
 
 
 def make_path_reference(path, workdir):
-    if (path.startswith('http://') or path.startswith('https://')):
+    if (path.startswith('http://') or path.startswith('https://')
+        or path.startswith('ftp://')):
         return HTTP.remote(path, keep_local=True)
     elif path.startswith('/'):
         return path
