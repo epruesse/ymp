@@ -1,0 +1,10 @@
+name: metacov
+channels:
+ - conda-forge
+dependencies:
+ - python =3.*
+ - click
+ - numpy
+ - pysam
+ - pip:
+   - git+https://github.com/epruesse/metacov.git

@@ -15,6 +15,8 @@ rule metacov:
         "{dir}.{mapper}.cov/{target}.contigs.{source}.{genefind}.{query}.{gene}.csv"
     log:
         "{dir}.{mapper}.cov/{target}.contigs.{source}.{genefind}.{query}.{gene}.log"
+    conda:
+        srcdir("metacov.yml")
     shell:"""
     metacov {input.bam} {input.csv} {output}.tmp >{log} 2>&1
     sed -e '1 s/^/target,source,/' \
