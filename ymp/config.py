@@ -400,18 +400,24 @@ class ConfigMgr(object):
                 conf = yaml.load(f)
                 update_dict(self._config, conf)
 
+        projects = self._config.get(self.KEY_PROJECTS, {})
+        if projects == None:
+            projects = {}
         self._datasets = {
             project:  DatasetConfig(cfg)
-            for project, cfg in self._config[self.KEY_PROJECTS].items()
+            for project, cfg in projects.items()
         }
 
+        references = self._config.get(self.KEY_REFERENCES, {})
+        if references == None:
+            references == {}
         self._references = {
             ref: make_path_reference(path, self._root)
-            for ref, path in self._config[self.KEY_REFERENCES].items()
+            for ref, path in references.items()
         }
 
         if len(self._datasets) == 0:
-            raise YmpConfigNoProjects()
+            log.warning("No projects found in configuration")
 
     def __len__(self):
         "Our length is the number of datasets"
