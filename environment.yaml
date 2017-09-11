@@ -16,5 +16,6 @@ dependencies:
   - pytest
   - pytest-runner  # run from setup.py
   - pytest-xdist   # parallel testing
+  - pytest-timeout # dump on test timeout
   - yappi          # profiler
 

@@ -21,6 +21,7 @@ setup(
     tests_require=[
         'pytest-xdist',
         'pytest-logging',
+        'pytest-timeout',
         'networkx',
         'pygraphviz',
         'pytest',
