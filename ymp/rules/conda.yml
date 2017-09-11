@@ -1,7 +1,0 @@
-channels:
- - bioconda
-dependencies:
- - fastqc
- - multiqc
- - sra-tools
- - quast
