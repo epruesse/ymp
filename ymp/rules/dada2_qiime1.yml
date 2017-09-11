@@ -1,0 +1,11 @@
+channels:
+ - conda-forge
+ - bioconda
+dependencies:
+ - python =2.*
+ - qiime
+ - rpy2
+ - bioconductor-dada2
+ - r-argparser
+ - pip:
+   - git+https://github.com/shafferm/dada2_qiime1.git
