@@ -5,8 +5,6 @@ import re
 
 from functools import lru_cache
 
-import pandas as pd
-
 from pkg_resources import resource_filename
 
 from snakemake.io import expand, get_wildcard_names
@@ -78,6 +76,8 @@ def load_data(cfg):
       - bottom_left.csv
       - bottom_right.csv
     """
+    import pandas as pd
+
     if isinstance(cfg, str):
         try:
             data = pd.read_csv(cfg, sep=None, engine='python', dtype='str')
@@ -116,6 +116,8 @@ class Context(object):
     RE_BY = re.compile(r"\.by_([^./]*)(?:[./]|$)")
 
     def __init__(self, dcfg, wc):
+        import pandas as pd
+
         self.dcfg = dcfg
         self.wc = wc
 
@@ -186,6 +188,8 @@ class DatasetConfig(object):
         exists and that it is unique. Otherwise chooses the leftmost
         unique column in the data.
         """
+        import pandas as pd
+
         unique_columns = self._runs.columns[
             self._runs.apply(pd.Series.nunique) == self._runs.shape[0]
         ]
@@ -223,6 +227,8 @@ class DatasetConfig(object):
         """
         Configures the columns referencing the fastq sources
         """
+        import pandas as pd
+
         # get only columns containing string data
         string_cols = self._runs.select_dtypes(include=['object'])
         # turn NaN into '' so they don't bother us later
