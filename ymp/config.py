@@ -5,12 +5,9 @@ import re
 
 from functools import lru_cache
 
-import pandas as pd
-
 from pkg_resources import resource_filename
 
 from snakemake.io import expand, get_wildcard_names
-from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
 
 import yaml
 
@@ -20,8 +17,11 @@ from ymp.util import AttrDict
 
 log = logging.getLogger(__name__)
 
-HTTP = HTTPRemoteProvider()
-
+def http_remote(*args, http=[], **kwargs):
+    from snakemake.remote.HTTP import RemoteProvider
+    if len(http) == 0:
+        http.append(RemoteProvider())
+    return http[0].remote(*args, **kwargs)
 
 class YmpException(Exception):
     pass
@@ -46,12 +46,18 @@ class YmpConfigNoProjects(YmpException):
 def make_path_reference(path, workdir):
     if (path.startswith('http://') or path.startswith('https://')
         or path.startswith('ftp://')):
-        return HTTP.remote(path, keep_local=True)
+        return http_remote(path, keep_local=True)
     elif path.startswith('/'):
         return path
     else:
         return os.path.join(workdir, path)
 
+def is_fq(path):
+    return (path.endswith(".fq.gz")
+            or path.endswith(".fastq.gz")
+            or path.endswith(".fq")
+            or path.endswith(".fastq")
+            )
 
 def load_data(cfg):
     """Recursively loads csv/tsv type data as defined by yaml structure
@@ -70,6 +76,8 @@ def load_data(cfg):
       - bottom_left.csv
       - bottom_right.csv
     """
+    import pandas as pd
+
     if isinstance(cfg, str):
         try:
             data = pd.read_csv(cfg, sep=None, engine='python', dtype='str')
@@ -87,7 +95,7 @@ def load_data(cfg):
                 )
         rdir = os.path.dirname(cfg)
         data = data.applymap(lambda s: os.path.join(rdir, s)
-                                       if os.path.exists(os.path.join(rdir, s))
+                                       if is_fq(s) and os.path.exists(os.path.join(rdir, s))
                                        else s)
         return data
 
@@ -108,6 +116,8 @@ class Context(object):
     RE_BY = re.compile(r"\.by_([^./]*)(?:[./]|$)")
 
     def __init__(self, dcfg, wc):
+        import pandas as pd
+
         self.dcfg = dcfg
         self.wc = wc
 
@@ -178,6 +188,8 @@ class DatasetConfig(object):
         exists and that it is unique. Otherwise chooses the leftmost
         unique column in the data.
         """
+        import pandas as pd
+
         unique_columns = self._runs.columns[
             self._runs.apply(pd.Series.nunique) == self._runs.shape[0]
         ]
@@ -215,6 +227,8 @@ class DatasetConfig(object):
         """
         Configures the columns referencing the fastq sources
         """
+        import pandas as pd
+
         # get only columns containing string data
         string_cols = self._runs.select_dtypes(include=['object'])
         # turn NaN into '' so they don't bother us later
@@ -283,7 +297,8 @@ class DatasetConfig(object):
         try:
             source = list(self._source_cfg.loc[run])
         except KeyError:
-            raise YmpException("Internal error")
+            raise YmpException("Internal error. "
+                               "No run '{}' in source config".format(run))
 
         kind = source[0]
         if kind == 'srr':
@@ -297,7 +312,7 @@ class DatasetConfig(object):
             return fn
 
         if kind == 'remote':
-            return HTTP.remote(fn, keep_local=True)
+            return http_remote(fn, keep_local=True)
 
         raise YmpException(
             "Configuration Error: no source for sample {} and read {} found."

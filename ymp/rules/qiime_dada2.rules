@@ -14,7 +14,6 @@ rule qiime_dada2_presplit_samples:
 	params:
 		skip_len=10
 	shell: """
-	echo 'source("https://bioconductor.org/biocLite.R"); if(!require(dada2)){biocLite("dada2")}; if(!require(dada2)){install.packages("argparser", repos="http://cran.us.r-project.org")}' | R --no-save'
 	qiime_dada2.py \
 	-i {input} \
 	-o {output} \
