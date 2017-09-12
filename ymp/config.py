@@ -121,7 +121,7 @@ class Context(object):
         self.dcfg = dcfg
         self.wc = wc
 
-        df = dcfg._runs
+        df = dcfg.run_data
 
         groupbys = []
         # extract groupby column from dir or by key, with by having preference
@@ -139,7 +139,7 @@ class Context(object):
             self.groupby = df.groupby(df.index)
         else:
             try:
-                self.groupby = dcfg._runs.groupby(groupbys[-1])
+                self.groupby = df.groupby(groupbys[-1])
             except KeyError:
                 raise YmpConfigError("Unkown column in groupby: {}"
                                      "".format(groupbys[-1]))
@@ -174,12 +174,36 @@ class DatasetConfig(object):
     def __init__(self, cfg):
         self.cfg = cfg
         self.fieldnames = None
+        self._runs = None
+        self._source_cfg = None
 
         if self.KEY_DATA not in self.cfg:
             raise YmpConfigMalformed("Missing key " + self.KEY_DATA)
-        self._runs = load_data(self.cfg[self.KEY_DATA])
-        self.choose_id_column()
-        self.choose_fq_columns()
+
+
+    @property
+    def run_data(self):
+        """Pandas dataframe of runs
+
+        Lazy loading property, first call may take a while.
+        """
+        if self._runs is None:
+            self._runs = load_data(self.cfg[self.KEY_DATA])
+            self.choose_id_column()
+
+        return self._runs
+
+    @property
+    def runs(self):
+        """Pandas dataframe of runs
+
+        Lazy loading property, first call may take a while.
+        """
+        if self._runs is None:
+            self._runs = load_data(self.cfg[self.KEY_DATA])
+            self.choose_id_column()
+
+        return self._runs.index
 
     def choose_id_column(self):
         """Configures column to use as index on runs
@@ -223,6 +247,14 @@ class DatasetConfig(object):
         self._runs.set_index(self.cfg[self.KEY_IDCOL],
                              drop=False, inplace=True)
 
+
+    @property
+    def source_cfg(self):
+        if self._source_cfg is None:
+            self._source_cfg = self.choose_fq_columns()
+        return self._source_cfg
+
+
     def choose_fq_columns(self):
         """
         Configures the columns referencing the fastq sources
@@ -230,7 +262,7 @@ class DatasetConfig(object):
         import pandas as pd
 
         # get only columns containing string data
-        string_cols = self._runs.select_dtypes(include=['object'])
+        string_cols = self.run_data.select_dtypes(include=['object'])
         # turn NaN into '' so they don't bother us later
         string_cols.fillna('', inplace=True)
 
@@ -246,7 +278,7 @@ class DatasetConfig(object):
                                                e.args))
 
         # select type to use for each row
-        source_cfg = pd.DataFrame(index=self._runs.index,
+        source_cfg = pd.DataFrame(index=self.runs,
                                   columns=['type', 'r1', 'r2'])
 
         for pat, nmax, msg, func in (
@@ -257,8 +289,8 @@ class DatasetConfig(object):
             match = no_type_yet.apply(lambda x: x.str.contains(pat))
             broken_rows = match.sum(axis=1) > nmax
             if any(broken_rows):
-                rows = list(self._runs.index[broken_rows])
-                cols = list(self._runs.columns[match[broken_rows].any])
+                rows = list(self.runs[broken_rows])
+                cols = list(self.run_data.columns[match[broken_rows].any])
                 raise YmpConfigError(
                     "Some rows contain more than two {}. "
                     "Use {} to specify the desired rows. "
@@ -272,15 +304,7 @@ class DatasetConfig(object):
             outm = out.apply(pd.Series, index=source_cfg.columns[0:nmax+1])
             source_cfg.update(outm, overwrite=False)
 
-        self._source_cfg = source_cfg
-
-    @property
-    def runs(self):
-        return self._runs.index
-
-    @property
-    def props(self):
-        return self._runs
+        return source_cfg
 
     @lru_cache()
     def get_context(self, wc):
@@ -295,19 +319,19 @@ class DatasetConfig(object):
         remote: http://...
         """
         try:
-            source = list(self._source_cfg.loc[run])
+            source = list(self.source_cfg.loc[run])
         except KeyError:
             raise YmpException("Internal error. "
                                "No run '{}' in source config".format(run))
 
         kind = source[0]
         if kind == 'srr':
-            srr = self._runs.loc[run][source[1]]
+            srr = self.run_data.loc[run][source[1]]
             f = os.path.join(icfg.scratchdir,
                              "SRR",
                              "{}_{}.fastq.gz".format(srr, pair+1))
             return f
-        fn = self._runs.loc[run][source[pair+1]]
+        fn = self.run_data.loc[run][source[pair+1]]
         if kind == 'file':
             return fn
 
