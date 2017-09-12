@@ -10,7 +10,6 @@ import pandas as pd
 from pkg_resources import resource_filename
 
 from snakemake.io import expand, get_wildcard_names
-from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
 
 import yaml
 
@@ -20,8 +19,11 @@ from ymp.util import AttrDict
 
 log = logging.getLogger(__name__)
 
-HTTP = HTTPRemoteProvider()
-
+def http_remote(*args, http=[], **kwargs):
+    from snakemake.remote.HTTP import RemoteProvider
+    if len(http) == 0:
+        http.append(RemoteProvider())
+    return http[0].remote(*args, **kwargs)
 
 class YmpException(Exception):
     pass
@@ -46,7 +48,7 @@ class YmpConfigNoProjects(YmpException):
 def make_path_reference(path, workdir):
     if (path.startswith('http://') or path.startswith('https://')
         or path.startswith('ftp://')):
-        return HTTP.remote(path, keep_local=True)
+        return http_remote(path, keep_local=True)
     elif path.startswith('/'):
         return path
     else:
@@ -298,7 +300,7 @@ class DatasetConfig(object):
             return fn
 
         if kind == 'remote':
-            return HTTP.remote(fn, keep_local=True)
+            return http_remote(fn, keep_local=True)
 
         raise YmpException(
             "Configuration Error: no source for sample {} and read {} found."
