@@ -1,7 +1,8 @@
 rule qiime_dada2_presplit_samples:
 	"""Use qiime_dada2.py to pick OTUs"""
 	message:
-		"Denoising {input} with dada2"
+		"Denoising {input} with dada2, takes a folder containing one \
+         .fastq file per sample, outputs a directory"
 	input:
 		"{dir}/"
 	output:
@@ -17,7 +18,7 @@ rule qiime_dada2_presplit_samples:
 	qiime_dada2.py \
 	-i {input} \
 	-o {output} \
-	--skip_len {skip_len} \
+	--skip_len {params.skip_len} \
 	--procs {threads} \
 	--skip_split
 	remove_pynast_failures.py \
@@ -27,54 +28,54 @@ rule qiime_dada2_presplit_samples:
 	"""
 
 rule pick_97_closed_otus:
-	"""Pick closed OTUs"""
-	message:
-		"OTU picking on the results of qiime_dada2.py"
-	input:
-	    dada2 = "{dir}.qd2/dada2_no_pynast_failures.fasta"
-	output:
-		"{dir}.c97"
-	conda:
-		srcdir("dada2_qiime1.yml")
-	shell: """
-	pick_otus.py -i {input.dada2} -C -m sortmerna -s .97 -o {output}
-	filter_fasta.py -f {output}/dada2_no_pynast_failures.fasta -s {output_dir}/sortmerna_picked_otus/dada2_failures
-	pick_rep_set.py -i {output}/sortmerna_picked_otus/dada2_otus.txt -o {output_dir}/sortmerna_picked_otus/rep_set.fna -f {output_dir}/dada2.fasta
-	"""
+    """Pick closed OTUs"""
+    message:
+        "OTU picking on the results of qiime_dada2.py"
+    input:
+        dada2 = "{dir}.qd2/dada2_no_pynast_failures.fasta"
+    output:
+        "{dir}.c97"
+    conda:
+        srcdir("dada2_qiime1.yml")
+    shell: """
+    pick_otus.py -i {input.dada2} -C -m sortmerna -s .97 -o {output}
+    filter_fasta.py -f {output}/dada2_no_pynast_failures.fasta -s {output_dir}/sortmerna_picked_otus/dada2_failures
+    pick_rep_set.py -i {output}/sortmerna_picked_otus/dada2_otus.txt -o {output_dir}/sortmerna_picked_otus/rep_set.fna -f {output_dir}/dada2.fasta
+    """
 
 rule pick_97_denovo_otus:
-	"""Pick de novo OTUs"""
-	input:
-		failures = "{dir}.c97/failures.fasta"
-	output:
-		"{dir}.d97"
-	shell: """
-	pick_otus.py -i {input.failures} -s .97 -m sumaclust -o {output}
-	pick_rep_set.py -i {output}/failures_otus.txt -o {output}/rep_set.fna -f {input.failures}
-	"""
+    """Pick de novo OTUs"""
+    input:
+        failures = "{dir}.c97/failures.fasta"
+    output:
+        "{dir}.d97"
+    shell: """
+    pick_otus.py -i {input.failures} -s .97 -m sumaclust -o {output}
+    pick_rep_set.py -i {output}/failures_otus.txt -o {output}/rep_set.fna -f {input.failures}
+    """
 
 rule make_97_open_otus:
-	"""Join closed and de novo OTUs"""
-	message:
-		"Make final outputs of OTU picking combining closed and de novo"
-	input:
-		dada2_otu_table = "{dir}.qd2/dada2.tsv"
-		closed_rep_set = "{dir}.c97/rep_set.fna"
-		denovo_rep_set = "{dir}.d97/rep_set.fna"
-		closed_otu_map = "{dir}.c97/dada2_otus.txt"
-		denovo_otu_map = "{dir}.d97/failures_otus.txt"
-	output:
-		"{dir}.o97"
-	conda:
-		srcdir("dada2_qiime1.yml")
-	shell: """
-	cat {input.closed_rep_set} {input.denovo_rep_set} > {output}/rep_set.fna
-	cat {input.closed_otu_map} {input.denovo_otu_map} > {output}/final_otu_map.txt
-	dada2_to_otu_table.py -i {dada2_otu_table} -m {output}/final_otu_map.txt -o {output}/dada2_otu_table.biom
-	assign_taxonomy.py -i {output}/rep_set.fna -o {output}/assigned_taxonomy
-	biom add-metadata -i {output}/dada2_otu_table.biom --observation-metadata-fp {output}/assigned_taxonomy/rep_set_tax_assignments.txt -o {output}/dada2_otu_table_w_tax.biom --sc-separated taxonomy --observation-header OTUID,taxonomy
-	align_seqs.py -i {output}/rep_set.fna -o {output}/pynast_aligned
-	filter_alignment.py -i {output}/pynast_aligned/rep_set_aligned.fasta -o {output}/rep_set_aligned_filtered.fasta
-	make_phylogeny.py -i {output}/rep_set_aligned_filtered.fasta -o {output}/rep_set.tre
-	remove_pynast_failures.py -f {output}/pynast_aligned/rep_set_failures.fasta -i {output}/dada2_otu_table_w_tax.biom -o {output}/dada2_otu_table_w_tax_no_pynast_failures.biom
-	"""
+    """Join closed and de novo OTUs"""
+    message:
+        "Make final outputs of OTU picking combining closed and de novo"
+    input:
+        dada2_otu_table = "{dir}.qd2/dada2.tsv",
+        closed_rep_set = "{dir}.c97/rep_set.fna",
+        denovo_rep_set = "{dir}.d97/rep_set.fna",
+        closed_otu_map = "{dir}.c97/dada2_otus.txt",
+        denovo_otu_map = "{dir}.d97/failures_otus.txt"
+    output:
+        "{dir}.o97"
+    conda:
+        srcdir("dada2_qiime1.yml")
+    shell: """
+    cat {input.closed_rep_set} {input.denovo_rep_set} > {output}/rep_set.fna
+    cat {input.closed_otu_map} {input.denovo_otu_map} > {output}/final_otu_map.txt
+    dada2_to_otu_table.py -i {dada2_otu_table} -m {output}/final_otu_map.txt -o {output}/dada2_otu_table.biom
+    assign_taxonomy.py -i {output}/rep_set.fna -o {output}/assigned_taxonomy
+    biom add-metadata -i {output}/dada2_otu_table.biom --observation-metadata-fp {output}/assigned_taxonomy/rep_set_tax_assignments.txt -o {output}/dada2_otu_table_w_tax.biom --sc-separated taxonomy --observation-header OTUID,taxonomy
+    align_seqs.py -i {output}/rep_set.fna -o {output}/pynast_aligned
+    filter_alignment.py -i {output}/pynast_aligned/rep_set_aligned.fasta -o {output}/rep_set_aligned_filtered.fasta
+    make_phylogeny.py -i {output}/rep_set_aligned_filtered.fasta -o {output}/rep_set.tre
+    remove_pynast_failures.py -f {output}/pynast_aligned/rep_set_failures.fasta -i {output}/dada2_otu_table_w_tax.biom -o {output}/dada2_otu_table_w_tax_no_pynast_failures.biom
+    """
