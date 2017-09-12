@@ -8,8 +8,8 @@ import sys
 import logging
 import functools
 import glob
-import subprocess
 
+import ymp
 from ymp.config import icfg
 icfg.init()
 
@@ -127,47 +127,60 @@ def start_snakemake(**kwargs):
 
 @cli.group()
 def env():
-    "manipulate conda environments"
+    "Manipulate conda environments"
     pass
 
-class Env(snakemake.conda.Env):
-    def __init__(self, env_file):
-        self.file = env_file
-        self._env_dir = os.path.expanduser("~/.ymp/conda")
-        self._env_archive_dir = os.path.expanduser("~/.ymp/conda_archive")
-        self._hash = None
-        self._content = None
-        self._path = None
-        self._archive_file = None
 
 @env.command()
 def list():
-    "list conda environments"
-    for env_file in glob.glob(resource_filename("ymp", "rules/*.yml")):
-        env = Env(env_file)
-        name, _ = os.path.splitext(os.path.basename(env_file))
-        print("{:<12} {}".format(name+":", env.path))
-
-@env.command()
-def create():
-    "create conda environments"
-    for env_file in glob.glob(resource_filename("ymp", "rules/*.yml")):
-        env = Env(env_file)
-        name, _ = os.path.splitext(os.path.basename(env_file))
-        env.create()
+    "List conda environments"
+    width = max((len(env) for env in ymp.envs))+1
+    for env in sorted(ymp.envs.values()):
+        print("{name:<{width}} {path}".format(
+            name=env.name+":",
+            width=width,
+            path=env.path))
 
 
 @env.command()
-def update():
-    "update conda environments"
-    for env_file in glob.glob(resource_filename("ymp", "rules/*.yml")):
-        env = Env(env_file)
-        name, _ = os.path.splitext(os.path.basename(env_file))
-        log.warning("Updating %s", name)
-        subprocess.run([
-            "conda",  "env", "update",
-            "-p", env.path, "-f", env_file
-        ])
+@click.option("--all", "-a", is_flag=True, help="Create all envs")
+@click.argument("ENVNAME", nargs=-1)
+def create(all, envname):
+    "Create conda environments"
+    fail = False
+    if all:
+        envname = ymp.envs.keys()
+    for env in envname:
+        if env not in ymp.envs:
+            log.error("Environment '%s' unknown", env)
+            fail = True
+        else:
+            ymp.envs[env].create()
+    if fail:
+        exit(1)
+
+
+@env.command()
+@click.option("--all", "-a", is_flag=True, help="Create all envs")
+@click.argument("ENVNAME", nargs=-1)
+def update(all, envname):
+    "Update conda environments"
+    fail = False
+    if all:
+        envname = ymp.envs.keys()
+    for env in envname:
+        if env not in ymp.envs:
+            log.error("Environment '%s' unknown", env)
+            fail = True
+        else:
+            ret = ymp.envs[env].update()
+            if ret != 0:
+                log.error("Updating '%s' failed with return code '%i'",
+                          env, ret)
+                fail = True
+    if fail:
+        exit(1)
+
 
 @env.command()
 @click.argument("envname", nargs=1)
@@ -178,9 +191,12 @@ def activate(envname):
     Usage:
     $(ymp activate env [ENVNAME])
     """
-    env_file = resource_filename("ymp", "rules/{}.yml".format(envname))
-    env = Env(env_file)
-    print("source activate {}".format(env.path))
+    if envname not in ymp.envs:
+        log.error("Environment '%s' unknown", env)
+        exit(1)
+    else:
+        print("source activate {}".format(ymp.envs[envname].path))
+
 
 @env.command()
 @click.argument("ENVNAME", nargs=1)
@@ -195,6 +211,8 @@ def run(envname, command):
     (Use the "--" if your command line contains option type parameters
      beginning with - or --)
     """
-    env_file = resource_filename("ymp", "rules/{}.yml".format(envname))
-    env = Env(env_file)
-    subprocess.run("source activate {}; {}".format(env.path, " ".join(command)), shell=True)
+
+    if envname not in ymp.envs:
+        log.error("Environment '%s' unknown", env)
+    else:
+        exit(ymp.envs[envname].run(command))
