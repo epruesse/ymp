@@ -143,31 +143,36 @@ def list():
 
 
 @env.command()
-@click.option("--all", "-a", is_flag=True, help="Create all envs")
 @click.argument("ENVNAME", nargs=-1)
-def create(all, envname):
+def create(envname):
     "Create conda environments"
     fail = False
-    if all:
+
+    if len(envname) == 0:
         envname = ymp.envs.keys()
+        log.warning("Creating all (%i) environments.", len(envname))
+
     for env in envname:
         if env not in ymp.envs:
             log.error("Environment '%s' unknown", env)
             fail = True
         else:
             ymp.envs[env].create()
+
     if fail:
         exit(1)
 
 
 @env.command()
-@click.option("--all", "-a", is_flag=True, help="Create all envs")
 @click.argument("ENVNAME", nargs=-1)
 def update(all, envname):
     "Update conda environments"
     fail = False
-    if all:
+
+    if len(envname) == 0:
         envname = ymp.envs.keys()
+        log.warning("Updating all (%i) environments.", len(envname))
+
     for env in envname:
         if env not in ymp.envs:
             log.error("Environment '%s' unknown", env)
