@@ -89,8 +89,8 @@ def make(**kwargs):
 @cli.command()
 @snake_params
 @click.option("--cores", "-j", "nodes", default=1024)
-@click.option("--local-cores", default=8)
-@click.option("--cluster-config", "-u", default="cluster.yaml")
+@click.option("--local-cores", default=16)
+@click.option("--cluster-config", "-u", default="cluster.yaml")  # fixme, relative to ymp.yml
 @click.option("--jobname", "--jn", "jobname",
               default="ymp.{rulename}.{jobid}.sh")
 @click.option("--drmaa-log-dir", default=icfg.dir.log)
@@ -164,31 +164,31 @@ def create(envname):
 
 
 @env.command()
-@click.argument("ENVNAME", nargs=-1)
-def update(all, envname):
+@click.argument("ENVNAMES", nargs=-1)
+def update(envnames):
     "Update conda environments"
     fail = False
 
-    if len(envname) == 0:
+    if len(envnames) == 0:
         envname = ymp.envs.keys()
-        log.warning("Updating all (%i) environments.", len(envname))
+        log.warning("Updating all (%i) environments.", len(envnames))
 
-    for env in envname:
-        if env not in ymp.envs:
-            log.error("Environment '%s' unknown", env)
+    for envname in envnames:
+        if envname not in ymp.envs:
+            log.error("Environment '%s' unknown", envname)
             fail = True
         else:
-            ret = ymp.envs[env].update()
+            ret = ymp.envs[envname].update()
             if ret != 0:
                 log.error("Updating '%s' failed with return code '%i'",
-                          env, ret)
+                          envname, ret)
                 fail = True
     if fail:
         exit(1)
 
 
 @env.command()
-@click.argument("envname", nargs=1)
+@click.argument("ENVNAME", nargs=1)
 def activate(envname):
     """
     source activate environment
@@ -197,7 +197,7 @@ def activate(envname):
     $(ymp activate env [ENVNAME])
     """
     if envname not in ymp.envs:
-        log.error("Environment '%s' unknown", env)
+        log.error("Environment '%s' unknown", envname)
         exit(1)
     else:
         print("source activate {}".format(ymp.envs[envname].path))
@@ -218,6 +218,6 @@ def run(envname, command):
     """
 
     if envname not in ymp.envs:
-        log.error("Environment '%s' unknown", env)
+        log.error("Environment '%s' unknown", envname)
     else:
         exit(ymp.envs[envname].run(command))
