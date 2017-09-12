@@ -283,7 +283,8 @@ class DatasetConfig(object):
         try:
             source = list(self._source_cfg.loc[run])
         except KeyError:
-            raise YmpException("Internal error")
+            raise YmpException("Internal error. "
+                               "No run '{}' in source config".format(run))
 
         kind = source[0]
         if kind == 'srr':
