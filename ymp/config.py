@@ -54,6 +54,12 @@ def make_path_reference(path, workdir):
     else:
         return os.path.join(workdir, path)
 
+def is_fq(path):
+    return (path.endswith(".fq.gz")
+            or path.endswith(".fastq.gz")
+            or path.endswith(".fq")
+            or path.endswith(".fastq")
+            )
 
 def load_data(cfg):
     """Recursively loads csv/tsv type data as defined by yaml structure
@@ -89,7 +95,7 @@ def load_data(cfg):
                 )
         rdir = os.path.dirname(cfg)
         data = data.applymap(lambda s: os.path.join(rdir, s)
-                                       if os.path.exists(os.path.join(rdir, s))
+                                       if is_fq(s) and os.path.exists(os.path.join(rdir, s))
                                        else s)
         return data
 
