@@ -30,7 +30,7 @@ def dump_logs(path=None):
             log.error("Dumping logfile %s", f.name)
             with open(f) as fp:
                 for line in fp:
-                    log.error("log: "+line.rstrip())
+                    log.error("%s: %s", f.stem, line.rstrip())
 
 
 @pytest.mark.parametrize("project_dir", ['toy'], indirect=True)
@@ -39,6 +39,8 @@ def test_run_rules(target):
     from ymp.cmd import make as ymp_make
     runner = CliRunner()
     result = runner.invoke(ymp_make, ["-j2", target])
-    if result.exit_code == 1:
+    if result.exit_code != 0:
+        for line in result.output.splitlines():
+            log.error("out: %s", line)
         dump_logs()
     assert result.exit_code == 0, result.output
