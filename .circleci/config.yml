@@ -58,7 +58,7 @@ jobs:
           command: |
             source activate test_env
             python setup.py test \
-            --addopts "-v --junit-xml $JUNIT_REPORT_PATH/report.xml -n 2"
+            --addopts "-vv --junit-xml $JUNIT_REPORT_PATH/report.xml -n 2"
       - run:
           name: Inspecting Conda Environments
           when: on_fail
