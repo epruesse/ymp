@@ -27,10 +27,12 @@ class Env(snakemake.conda.Env):
     def create(self):
         "Create conda environment"
         log.warning("Creating environment '%s'", self.name)
-        super().create()
+        return super().create()
 
     def update(self):
         "Update conda environment"
+        # call create to make sure environment exists
+        self.create()
         log.warning("Updating environment '%s'", self.name)
         return subprocess.run([
             "conda",  "env", "update", "-p", self.path, "-f", self.file
@@ -56,5 +58,19 @@ envs = {
             resource_filename("ymp", "rules/*.yml")
         )
     )
+}
+
+envs_byhash = {
+    env.hash: env for env in envs.values()
+}
+
+envs_bypath = {
+    env.path: env for env in envs.values()
+}
+
+envs_dead = {
+    basename(path): path
+    for path in glob(Env._env_dir + "/*")
+    if path not in envs_bypath
 }
 

@@ -4,6 +4,7 @@ import click
 from pkg_resources import resource_filename
 import snakemake
 import os
+import shutil
 import sys
 import logging
 import functools
@@ -132,7 +133,8 @@ def env():
 
 
 @env.command()
-def list():
+@click.option("--all", "-a", "param_all", is_flag=True, help="List all environments")
+def list(param_all):
     "List conda environments"
     width = max((len(env) for env in ymp.envs))+1
     for env in sorted(ymp.envs.values()):
@@ -140,6 +142,12 @@ def list():
             name=env.name+":",
             width=width,
             path=env.path))
+    if param_all:
+        for envhash, path in sorted(ymp.envs_dead.items()):
+            print("{name:<{width}} {path}".format(
+                name=envhash+":",
+                width=width,
+                path=path))
 
 
 @env.command()
@@ -185,6 +193,21 @@ def update(envnames):
                 fail = True
     if fail:
         exit(1)
+
+
+@env.command()
+@click.option("--all", "-a", "param_all", is_flag=True, help="Delete all environments")
+def clean(param_all):
+    "Remove unused conda environments"
+    if param_all: # remove up-to-date environments
+        for env in ymp.envs.values():
+            log.warning("Removing %s (%s)", env.name, env.path)
+            shutil.rmtree(env.path)
+
+    # remove outdated environments
+    for _, path in ymp.envs_dead.items():
+        log.warning("Removing %s", path)
+        shutil.rmtree(path)
 
 
 @env.command()
