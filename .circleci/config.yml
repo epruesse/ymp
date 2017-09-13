@@ -23,7 +23,9 @@ jobs:
           command: ./ci_conda_prep.sh
       - save_cache:
           key: conda-{{ checksum "conda_state.txt" }}
-          paths: /root/miniconda
+          paths:
+            - /root/miniconda
+            - /rooy/.ymp/conda
 
       - run:
           name: Checking out submodules
@@ -40,15 +42,15 @@ jobs:
             python setup.py install
       ## Update Conda Environments
       - run:
-          name: Creating Conda Environments
-          command: |
-            source activate test_env
-            ymp env create
-      - run:
-          name: Updateing Conda Environments
+          name: Creating and Updating Conda Environments
           command: |
             source activate test_env
             ymp env update
+      - run:
+          name: Cleaning Conda Environments
+          command: |
+            source activate test_env
+            ymp env clean
       ## Test
       - run:
           name: Running Tests
@@ -68,7 +70,9 @@ jobs:
           when: always
       - save_cache:
           key: conda-{{ checksum "conda_state.txt" }}
-          paths: /root/miniconda
+          paths:
+            - /root/miniconda
+            - /rooy/.ymp/conda
           when: always
 
       - store_test_results:
