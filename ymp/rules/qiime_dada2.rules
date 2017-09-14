@@ -2,7 +2,7 @@ rule qiime_dada2_presplit_samples:
     """Use qiime_dada2.py to pick OTUs"""
     message:
         "Denoising {input} with dada2, takes a folder containing one"
-         ".fastq file per sample, outputs a directory"
+        " .fastq file per sample, outputs a directory"
     input:
         "{dir}/"
     output:
@@ -10,6 +10,8 @@ rule qiime_dada2_presplit_samples:
         dada2_biom = "{dir}.qd2/dada2.tsv",
         fasta = "{dir}.qd2/dada2.fasta",
         failures = "{dir}.qd2/pynast_aligned/dada2_failures.fasta"
+    log:
+        "{dir}.qd2/capt_log.txt"
     threads:
         8
     conda:
@@ -23,14 +25,14 @@ rule qiime_dada2_presplit_samples:
     --skip_len {params.skip_len} \
     --procs {threads} \
     --skip_split \
-    --force
+    --force > {log} 2>&1
     """
 
 
 rule remove_pynast_failures_from_dada2:
     """desc"""
     message:
-        "removing pynast failures from {dir}.qd2/dada2.fasta"
+        "removing pynast failures from {input.fasta}"
     input:
         fasta = "{dir}.qd2/dada2.fasta",
         failures = "{dir}.qd2/pynast_aligned/dada2_failures.fasta"
@@ -70,7 +72,7 @@ rule pick_97_closed_otus:
 rule filter_and_pick_rep_set:
     """"""
     message:
-        "Getting failures and picking representative sequences from {dir}.c97"
+        "Getting failures and picking representative sequences from {input.filt_fasta}.c97"
     input:
         filt_fasta = "{dir}.qd2/dada2_no_pynast_failures.fasta",
         otus = "{dir}.c97/dada2_no_pynast_failures_otus.txt",
@@ -89,7 +91,7 @@ rule filter_and_pick_rep_set:
 rule pick_97_denovo_otus:
     """Pick de novo OTUs"""
     message:
-        "Picking denovo OTUs on failues from {dir}.c97"
+        "Picking denovo OTUs on {input.failures_fasta}"
     input:
         failures_fasta = "{dir}.c97/dada2_no_pynast_failures_failures.fasta"
     output:
@@ -107,7 +109,7 @@ rule pick_97_denovo_otus:
 rule make_97_open_otu_table:
     """Join closed and de novo OTUs"""
     message:
-        "Collating {dir.c97} and {dir.d97} to make open reference OTU table"
+        "Collating {input.closed_otu_map} and {input.denovo_otu_map} to make open reference OTU table"
     input:
         dada2_otu_table = "{dir}.qd2/dada2.tsv",
         closed_rep_set = "{dir}.c97/rep_set.fna",
