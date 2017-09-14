@@ -30,6 +30,7 @@ if [ -z "\$CONDA_PATH_BACKUP" ]; then
 fi
 EOF
 fi
+export PATH="$MINICONDA/bin:$PATH"
 
 # Homemade restore_cache
 if test -e "LOCAL" -o -n "$TRAVIS"; then
