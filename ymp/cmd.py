@@ -157,7 +157,7 @@ def create(envname):
     fail = False
 
     if len(envname) == 0:
-        envname = ymp.envs.keys()
+        envnames = ymp.envs.keys()
         log.warning("Creating all (%i) environments.", len(envname))
 
     for env in envname:
@@ -178,7 +178,7 @@ def update(envnames):
     fail = False
 
     if len(envnames) == 0:
-        envname = ymp.envs.keys()
+        envnames = ymp.envs.keys()
         log.warning("Updating all (%i) environments.", len(envnames))
 
     for envname in envnames:
