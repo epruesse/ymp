@@ -43,6 +43,8 @@ rule bbmap_map:
         "{dir}{by}.mhc.bbm/{source}.contigs.{source}.log"
     benchmark:
         "benchmarks/bbmap/{dir}{by}.mhc.bbm/{source}.contigs.{source}.txt"
+    params:
+        mem=icfg.mem("80g")
     threads:
         8
     conda:
@@ -62,6 +64,7 @@ rule bbmap_map:
         " ambiguous=all"        # output all matches
         " mdtag"                # make source recoverable in sam
         " trimreaddescriptions" # use header until space like bowtie2
+        " -Xmx{params.mem}"     # set JVM heap size
         " 2>{log}"              # log error
         " | samtools view -b -o {output.bam} -" # convert to bam
 
