@@ -25,7 +25,7 @@ jobs:
           key: conda-{{ checksum "conda_state.txt" }}
           paths:
             - /root/miniconda
-            - /rooy/.ymp/conda
+            - /root/.ymp/conda
 
       - run:
           name: Checking out submodules
@@ -74,7 +74,7 @@ jobs:
           key: conda-{{ checksum "conda_state.txt" }}
           paths:
             - /root/miniconda
-            - /rooy/.ymp/conda
+            - /root/.ymp/conda
           when: always
 
       - store_test_results:
