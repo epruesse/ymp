@@ -19,19 +19,6 @@ def target(request, project_dir):
             yield request.param.format(ds)
 
 
-def dump_logs(path=None):
-    if path is None:
-        path = Path.cwd()
-    for f in path.iterdir():
-        log.debug(f.name)
-        if f.is_dir() and not f.name.startswith("."):
-            dump_logs(path=f)
-        elif f.name.endswith(".log"):
-            log.error("Dumping logfile %s", f.name)
-            with open(f) as fp:
-                for line in fp:
-                    log.error("%s: %s", f.stem, line.rstrip())
-
 
 @pytest.mark.parametrize("project_dir", ['toy'], indirect=True)
 def test_run_rules(target):
@@ -42,5 +29,4 @@ def test_run_rules(target):
     if result.exit_code != 0:
         for line in result.output.splitlines():
             log.error("out: %s", line)
-        dump_logs()
     assert result.exit_code == 0, result.output
