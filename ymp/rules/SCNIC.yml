@@ -8,4 +8,4 @@ dependencies:
  - pandas
  - scikit-bio
  - pip:
-   - SCNIC >=0.3.2
+   - SCNIC
