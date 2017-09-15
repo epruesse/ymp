@@ -17,15 +17,10 @@ jobs:
 
       - restore_cache:
           keys:
-            - conda
+            - conda_v2
       - run:
           name: Preparing Conda Environment
           command: ./ci_conda_prep.sh
-      - save_cache:
-          key: conda-{{ checksum "conda_state.txt" }}
-          paths:
-            - /root/miniconda
-            - /rooy/.ymp/conda
 
       - run:
           name: Checking out submodules
@@ -34,12 +29,14 @@ jobs:
       - run:
           name: Preparing Directory Structure
           command: mkdir $JUNIT_REPORT_PATH
-      ## Install
+          
+      ## Install YMP
       - run:
           name: Installing
           command: |
             source activate test_env
             python setup.py install
+  
       ## Update Conda Environments
       - run:
           name: Creating and Updating Conda Environments
@@ -51,6 +48,15 @@ jobs:
           command: |
             source activate test_env
             ymp env clean
+      - run:
+          name: Preparing Conda Environment
+          command: ./ci_conda_prep.sh
+      - save_cache:
+          key: conda_v2-{{ checksum "conda_state.txt" }}
+          paths:
+            - /root/miniconda
+            - /root/.ymp/conda
+
       ## Test
       - run:
           name: Running Tests
@@ -59,21 +65,15 @@ jobs:
             source activate test_env
             python setup.py test \
             --addopts "-vv --junit-xml $JUNIT_REPORT_PATH/report.xml -n 2"
+
       - run:
           name: Inspecting Conda Environments
           when: on_fail
           command: |
             tail -n 100 ~/.ymp/conda/*/conda-meta/history
-      - run:
-          name: Preparing Conda Environment
-          command: ./ci_conda_prep.sh
-          when: always
-      - save_cache:
-          key: conda-{{ checksum "conda_state.txt" }}
-          paths:
-            - /root/miniconda
-            - /rooy/.ymp/conda
-          when: always
+
+      - store_artifacts:
+          path: test_failures
 
       - store_test_results:
           path: /root/reports # does not expand env variables

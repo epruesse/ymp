@@ -111,6 +111,10 @@ rule fq_all:
     input: "{dir}/{:runs:}.{:pairnames:}.fq.gz"
     output: touch("{dir}/all")
 
+rule fastqc_all:
+    message: "Finished {wildcards.dir}"
+    input: "{dir}.fastqc/{:runs:}.{:pairnames:}_fastqc.zip"
+    output: touch("{dir}.fastqc/all")
 
 ###
 ###  Quality Reports
@@ -121,42 +125,47 @@ rule fastqc:
     """Run FastQC on read files"""
     message: "Creating QC report for {input}"
     input:   "{dir}/{file}.fq.gz"
-    output:  "{dir}_qc/{file}_fastqc.html",
-             "{dir}_qc/{file}_fastqc.zip"
-    log:     "{dir}_qc/{file}_fastqc.log"
+    output:  "{dir}.fastqc/{file}_fastqc.html",
+             "{dir}.fastqc/{file}_fastqc.zip"
+    log:     "{dir}.fastqc/{file}_fastqc.log"
     threads: 1
     params:  k = 10
     conda:   srcdir("fastqc.yml")
     shell: """
     # override too low memory requested by fastqc 0.11.5 of 256M per thread:
     export _JAVA_OPTIONS="-Xmx$[{threads} * 8 * 1024]m"
-    fastqc -t {threads} -o {wildcards.dir}_qc {input} -k 10 >{log} 2>&1
+    fastqc -t {threads} -o $(dirname {output[0]}) {input} -k 10 >{log} 2>&1
     """
 
 
 rule multiqc:
     """Assemble report on all FQ files in a directory"""
     message: "Aggregating QC reports for {wildcards.dir}"
-    input:   "{dir}_qc/{:runs:}.{:pairnames:}_fastqc.html"
-    output:  "{:reportsdir:}/{dir}_qc.html",
-    log:     "{dir}_qc/multiqc.log"
+    input:   "{dir}.fastqc/{:runs:}.{:pairnames:}_fastqc.zip"
+    output:  "{:reportsdir:}/{dir}.fastqc.html",
+    log:     "{dir}.fastqc/multiqc.log"
     threads: 1
+    params:  dir = "{dir}.fastqc"
     conda:   srcdir("multiqc.yml")
     shell: """
+    cp `which multiqc` {params.dir}
+    python -V > {params.dir}/python.log
+    env > {params.dir}/env.log
     multiqc \
             --module fastqc \
-            --outdir {wildcards.dir}_qc \
+            --outdir {params.dir} \
             --title  {wildcards.dir} \
             --force \
-            {wildcards.dir}_qc \
+            {wildcards.dir}.fastqc \
             > {log} 2>&1
-    if [ -e  {wildcards.dir}_qc/multiqc_report.html ]; then
-        mv {wildcards.dir}_qc/multiqc_report.html {output[0]}
+    if [ -e  {params.dir}/multiqc_report.html ]; then
+        mv {params.dir}/multiqc_report.html {output[0]}
     else
         # never versions of multiqc put title in output file name
-        mv {wildcards.dir}_qc/{wildcards.dir}_multiqc_report.html {output[0]}
+        mv {params.dir}/{wildcards.dir}_multiqc_report.html {output[0]}
     fi
     """
+
 
 rule phyloFlash_makedb:
     """Have phyloFlash build its reference database"""
@@ -418,7 +427,7 @@ rule bbmap_split:
     output:  clean="{dir}.bbmRM{reference}/{sample}.{:pairnames:}.fq.gz",
              human="{dir}.bbmKP{reference}/{sample}.{:pairnames:}.fq.gz",
              stats=expand("{{dir}}.bbmRM{{reference}}/{{sample}}.{x}",x=bbstats)
-    log:     "{dir}.bbmRM{reference}/{sample}.log"
+    log:     "{dir}.bbmRM{reference}/{saPpmple}.log"
     params:  stats=lambda wc: expand("{x}={dir}.bbmRM{reference}/{sample}.{x}",x=bbstats,**wc),
              minid=0.95,
              maxindel=3,
