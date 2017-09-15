@@ -25,7 +25,7 @@ def project_dir(request, tmpdir):
     data_dir.copy(tmpdir)
     log.info("Created project directory {}".format(tmpdir))
     yield tmpdir
-    if request.node.rep_call.failed:
+    if not hasattr(request.node, 'rep_all') or request.node.rep_call.failed:
         name_parts = request.node.name.replace("]","").split("[")
         log.error(name_parts)
         destdir = py.path.local('test_failures').join(*name_parts)
