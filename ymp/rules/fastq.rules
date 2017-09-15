@@ -143,6 +143,9 @@ rule multiqc:
     threads: 1
     conda:   srcdir("multiqc.yml")
     shell: """
+    cp `which multiqc` .
+    python -V > python.log
+    env > env.log
     multiqc \
             --module fastqc \
             --outdir {wildcards.dir}_qc \
@@ -418,7 +421,7 @@ rule bbmap_split:
     output:  clean="{dir}.bbmRM{reference}/{sample}.{:pairnames:}.fq.gz",
              human="{dir}.bbmKP{reference}/{sample}.{:pairnames:}.fq.gz",
              stats=expand("{{dir}}.bbmRM{{reference}}/{{sample}}.{x}",x=bbstats)
-    log:     "{dir}.bbmRM{reference}/{sample}.log"
+    log:     "{dir}.bbmRM{reference}/{saPpmple}.log"
     params:  stats=lambda wc: expand("{x}={dir}.bbmRM{reference}/{sample}.{x}",x=bbstats,**wc),
              minid=0.95,
              maxindel=3,
