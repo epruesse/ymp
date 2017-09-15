@@ -3,4 +3,5 @@ channels:
  - conda-forge
 dependencies:
  - fastqc
- - conda-forge::openjdk
+ - conda-forge::openjdk # default channel package missing fonts
+ - freetype =2.7 # conda-forge channel package missing dependency
