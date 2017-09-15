@@ -23,3 +23,4 @@ include: "humann.rules"
 #include: "all.rules"
 
 include: "qiime_dada2.rules"
+include: "SCNIC.rules"

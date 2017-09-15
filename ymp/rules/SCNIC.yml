@@ -1,0 +1,11 @@
+channels:
+ - bioconda
+dependencies:
+ - numpy
+ - scipy
+ - networkx
+ - biom-format
+ - pandas
+ - scikit-bio
+ - pip:
+   - SCNIC >=0.3.2
