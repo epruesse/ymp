@@ -19,6 +19,6 @@ install:
   - mkdir reports
 script:
   - python setup.py install
-  - python setup.py test --addopts "--junit-xml reports/report.xml -n 2"
+  - pytest --junit-xml reports/report.xml -n 2
 
   
