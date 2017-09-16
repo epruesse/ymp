@@ -1,11 +1,12 @@
 channels:
  - bioconda
 dependencies:
+ - python =2.7
  - numpy
  - scipy
  - networkx
  - biom-format
  - pandas
- - scikit-bio
+ - scikit-bio =0.4.2
  - pip:
    - SCNIC
