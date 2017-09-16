@@ -9,7 +9,9 @@ rule qiime_dada2_presplit_samples:
         dir = "{dir}.qd2/",
         dada2_biom = "{dir}.qd2/dada2.tsv",
         fasta = "{dir}.qd2/dada2.fasta",
-        failures = "{dir}.qd2/pynast_aligned/dada2_failures.fasta"
+        failures = "{dir}.qd2/pynast_aligned/dada2_failures.fasta",
+        dada2_w_tax_no_failures = "{dir}.qd2/dada2_w_tax_no_pynast_failures.biom",
+        dada2_tree = "{dir}.qd2/dada2.tre"
     log:
         "{dir}.qd2/capt_log.txt"
     threads:
@@ -58,15 +60,17 @@ rule pick_97_closed_otus:
         dir = "{dir}.c97",
         otus = "{dir}.c97/dada2_no_pynast_failures_otus.txt",
         failures = "{dir}.c97/dada2_no_pynast_failures_failures.txt"
+    params:
+        method = "sortmerna"
     conda:
         srcdir("dada2_qiime1.yml")
     shell: """
     pick_otus.py \
     -i {input.filt_fasta} \
-    -C \
-    -m sortmerna \
+    -C -m {params.method} \
     -s .97 \
     -o {output.dir}
+    touch {output.otus}
     """
 
 rule filter_and_pick_rep_set:
@@ -166,4 +170,32 @@ rule make_tree_filter_open_otu_table:
     filter_alignment.py -i {output.rep_set_aligned}/rep_set_aligned.fasta -o {output.rep_set_aligned}
     make_phylogeny.py -i {output.rep_set_aligned}/rep_set_aligned_pfiltered.fasta -o {output.tree}
     remove_pynast_failures.py -f {output.rep_set_aligned}/rep_set_failures.fasta -i {input.otu_table_w_tax} -o {output.otu_table_w_tax_no_pynast_failures}
+    """
+
+
+rule get_important_files_only:
+    """"""
+    message:
+        ""
+    input:
+        dada2_biom = "{dir}.qd2/dada2_w_tax_no_pynast_failures.biom",
+        dada2_tree = "{dir}.qd2/dada2.tre",
+        dada2_rep_set = "{dir}.qd2/dada2_no_pynast_failures.fasta",
+        dada2w97_biom = "{dir}.o97/dada2_otu_table_w_tax_no_pynast_failures.biom",
+        dada2w97_tree = "{dir}.o97/rep_set.tre",
+        dada2w97_rep_set = "{dir}.o97/rep_set.fna"
+    output:
+        dada2_biom = "{dir}.corediv/dada2.biom",
+        dada2_tree = "{dir}.corediv/dada2.tre",
+        dada2_rep_set = "{dir}.corediv/dada2.fasta",
+        dada2w97_biom = "{dir}.corediv/dada2w97.biom",
+        dada2w97_tree = "{dir}.corediv/dada2w97.tre",
+        dada2w97_rep_set = "{dir}.corediv/dada2w97.fasta"
+    shell: """
+    cp {input.dada2_biom} {output.dada2_biom}
+    cp {input.dada2_tree} {output.dada2_tree}
+    cp {input.dada2_rep_set} {output.dada2_rep_set}
+    cp {input.dada2w97_biom} {output.dada2w97_biom}
+    cp {input.dada2w97_tree} {output.dada2w97_tree}
+    cp {input.dada2w97_rep_set} {output.dada2w97_rep_set}
     """
