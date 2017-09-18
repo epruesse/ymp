@@ -1,7 +1,8 @@
 from ymp.common import odict
+from collections import OrderedDict
 
 # test subject : build target
-targets = odict[
+targets_all = odict[
     # fastq.rules
     'import':         '{}/all',
     'BBMap_ecco':     '{}.ecco/all',
@@ -16,6 +17,9 @@ targets = odict[
     'sickleQ10':      '{}.sickleQ10/all',
     'sickleL10':      '{}.sickleL10/all',
     'sickleQ10L10':   '{}.sickleQ10L10/all',
+]
+
+targets_metagenome = odict[
     # can't run bmtagger with less than 9GB RAM
     # 'bmtagger':       '{}.bmtaggerRMphiX/all',
     # assembly.rules
@@ -34,6 +38,10 @@ targets = odict[
     'map_bowtie2_separate': '{}.by_ID.mhc.bt2/all',
     'map_bowtie2_grouped': '{}.by_Subject.mhc.bt2/all',
     'map_bowtie2_joined': '{}.mhc.bt2/all',
+]
+
+targets_amplicon = OrderedDict()
+
     # blast.rules
     #'blast_gene_find':   '{}.by_Subject.mhc.blast/query.q1.csv',
     # coverage rules
@@ -41,4 +49,8 @@ targets = odict[
     #'coverage_bt2': '{}.by_Subject.mhc.bt2.cov/blast.query.q1.csv'
     # otu.rules
     # 'otu_table':         '{}.by_Subject.mhc.blast.otu/psa.wcfR.otu_table.csv'
-]
+
+targets = OrderedDict()
+targets.update(targets_all)
+targets.update(targets_metagenome)
+targets.update(targets_amplicon)
