@@ -43,14 +43,22 @@ class YmpConfigNoProjects(YmpException):
     pass
 
 
+class YmpDataParserError(YmpException):
+    pass
+
+
 def make_path_reference(path, workdir):
-    if (path.startswith('http://') or path.startswith('https://')
-        or path.startswith('ftp://')):
+    if (
+            path.startswith('http://')
+            or path.startswith('https://')
+            or path.startswith('ftp://')
+       ):
         return http_remote(path, keep_local=True)
     elif path.startswith('/'):
         return path
     else:
         return os.path.join(workdir, path)
+
 
 def is_fq(path):
     return (path.endswith(".fq.gz")
@@ -59,14 +67,22 @@ def is_fq(path):
             or path.endswith(".fastq")
             )
 
+
 def load_data(cfg):
     """Recursively loads csv/tsv type data as defined by yaml structure
 
     Format:
      - string items are files
      - lists of files are concatenated top to bottom
-     - dicts must have one value, 'join' and a two-item list
-       the two items are joined 'naturally' on shared headers
+     - dicts must have one "command" value:
+       - 'join' contains a two-item list
+         the two items are joined 'naturally' on shared headers
+       - 'table' contains a list of one-item dicts
+         dicts have form "key:value[,value...]"
+         a in-place table is created from the keys
+         list-of-dict is necessary as dicts are unordered
+       - 'paste' contains a list of tables pasted left to right
+         tables pasted must be of equal length or length 1
      - if a value is a valid path relative to the csv/tsv/xls file's
        location, it is expanded to a path relative to CWD
 
@@ -75,8 +91,13 @@ def load_data(cfg):
     - join:
       - bottom_left.csv
       - bottom_right.csv
+    - table:
+      - sample: s1,s2,s3
+      - fq1: s1.1.fq, s2.1.fq, s3.1.fq
+      - fq2: s1.2.fq, s2.2.fq, s3.2.fq
     """
     import pandas as pd
+    from pandas.core.reshape.merge import MergeError
 
     if isinstance(cfg, str):
         try:
@@ -87,24 +108,69 @@ def load_data(cfg):
                 data = pd.read_excel(parts[0],
                                      parts[1] if len(parts) > 1 else 0)
             except ImportError:
-                raise YmpConfigNotFound(
+                raise YmpDataParserError(
                     "Could not load specified data file '{}'."
                     " If this is an Excel file, you might need"
                     " to install 'xlrd'."
                     "".format(cfg)
                 )
+        data = data.assign(ymp_filename=cfg)
         rdir = os.path.dirname(cfg)
-        data = data.applymap(lambda s: os.path.join(rdir, s)
-                                       if is_fq(s) and os.path.exists(os.path.join(rdir, s))
-                                       else s)
+        data = data.applymap(
+            lambda s: os.path.join(rdir, s)
+            if is_fq(s) and os.path.exists(os.path.join(rdir, s))
+            else s)
         return data
 
     if isinstance(cfg, list):
         return pd.concat(list(map(load_data, cfg)), ignore_index=True)
     if isinstance(cfg, dict):
+        # JOIN
         if 'join' in cfg:
             tables = list(map(load_data, cfg['join']))
-            return pd.merge(*tables)
+            try:
+                return pd.merge(*tables)
+            except MergeError as e:
+                log.exception("Failed to `join` configured data.\n"
+                              "Config Fragment:\n{}\n\n"
+                              "Joined table indices:\n{}\n\n"
+                              "".format(yaml.dump(cfg),
+                                        "\n".join(
+                                            [", ".join(table.columns.tolist())
+                                             for table in tables]
+                                        ))
+                              )
+                raise YmpDataParserError(e)
+        # PASTE
+        if 'paste' in cfg:
+            tables = list(map(load_data, cfg['paste']))
+            manyrow = [table for table in tables if len(table) > 1]
+            if len(manyrow) > 0:
+                nrows = len(manyrow[0])
+                if any(len(table) != nrows for table in manyrow[1:]):
+                    raise YmpDataParserError(
+                        "Failed to `paste` configured data. "
+                        "Row counts differ and are not 1."
+                        "Config Fragment:\n{}\n\n"
+                        "Row counts: {}\n"
+                        "".format(yaml.dump(cfg),
+                                  ", ".join((str(len(table))
+                                             for table in manyrow))
+                                  )
+                    )
+                tables = [
+                    table if len(table) > 1
+                    else pd.concat([table]*nrows, ignore_index=True)
+                    for table in tables
+                ]
+            return pd.concat(tables, axis=1)
+        # TABLE
+        if 'table' in cfg:
+            return pd.DataFrame.from_items((
+                (key, value.split(','))
+                for row in cfg['table']
+                for key, value in row.items()
+            ))
     raise YmpConfigMalformed()
 
 
