@@ -57,30 +57,32 @@ rule pick_97_closed_otus:
     input:
         filt_fasta = "{dir}.qd2/dada2_no_pynast_failures.fasta"
     output:
-        dir = "{dir}.c97",
-        otus = "{dir}.c97/dada2_no_pynast_failures_otus.txt",
-        failures = "{dir}.c97/dada2_no_pynast_failures_failures.txt"
-    params:
-        method = "sortmerna"
+        dir = "{dir}.c97/",
+        otus = "{dir}.c97/uclust_ref_picked_otus/dada2_no_pynast_failures_otus.txt",
+        failures = "{dir}.c97/uclust_ref_picked_otus/dada2_no_pynast_failures_failures.txt"
     conda:
         srcdir("dada2_qiime1.yml")
+    params:
+        similarity = "97",
+        method = "uclust_ref"
     shell: """
-    pick_otus.py \
+    echo "pick_otus:similarity\t.{params.similarity}\npick_otus:otu_picking_method\t{params.method}" > qiime_params1.txt
+    pick_closed_reference_otus.py -f \
     -i {input.filt_fasta} \
-    -C -m {params.method} \
-    -s .97 \
-    -o {output.dir}
-    touch {output.otus}
+    -o {output.dir} \
+    -p qiime_params1.txt
+    rm qiime_params1.txt
+    touch -c {output.otus}
     """
 
-rule filter_and_pick_rep_set:
+rule filter_and_pick_rep_set_closed:
     """"""
     message:
         "Getting failures and picking representative sequences from {input.filt_fasta}.c97"
     input:
         filt_fasta = "{dir}.qd2/dada2_no_pynast_failures.fasta",
-        otus = "{dir}.c97/dada2_no_pynast_failures_otus.txt",
-        failures = "{dir}.c97/dada2_no_pynast_failures_failures.txt"
+        otus = "{dir}.c97/uclust_ref_picked_otus/dada2_no_pynast_failures_otus.txt",
+        failures = "{dir}.c97/uclust_ref_picked_otus/dada2_no_pynast_failures_failures.txt"
     output:
         failures_fasta = "{dir}.c97/dada2_no_pynast_failures_failures.fasta",
         rep_set = "{dir}.c97/rep_set.fna"
