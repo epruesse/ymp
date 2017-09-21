@@ -114,7 +114,6 @@ def load_data(cfg):
                     " to install 'xlrd'."
                     "".format(cfg)
                 )
-        data = data.assign(ymp_filename=cfg)
         rdir = os.path.dirname(cfg)
         data = data.applymap(
             lambda s: os.path.join(rdir, s)
