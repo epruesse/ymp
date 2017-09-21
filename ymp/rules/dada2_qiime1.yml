@@ -4,7 +4,7 @@ channels:
 dependencies:
  - python =2.*
  - qiime
- - rpy2 =2.8.0
+ - rpy2 =2.8.5
  - bioconductor-dada2
  - r-argparser
  - pip:
