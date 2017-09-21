@@ -412,7 +412,14 @@ class DatasetConfig(object):
                              "SRR",
                              "{}_{}.fastq.gz".format(srr, pair+1))
             return f
-        fn = self.run_data.loc[run][source[pair+1]]
+
+        fq_col = source[pair+1]
+        if not isinstance(fq_col, str):
+            raise YmpException(
+                "Configuration Error: no source for sample {} and read {}"
+                "found.".format(run, pair+1))
+
+        fn = self.run_data.loc[run][fq_col]
         if kind == 'file':
             return fn
 
@@ -421,7 +428,7 @@ class DatasetConfig(object):
 
         raise YmpException(
             "Configuration Error: no source for sample {} and read {} found."
-            "".format(run, pair))
+            "".format(run, pair+1))
 
     @property
     def fastq_basenames(self):
