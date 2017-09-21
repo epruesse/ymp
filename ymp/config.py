@@ -231,6 +231,7 @@ class DatasetConfig(object):
     KEY_DATA = 'data'
     KEY_IDCOL = 'id_col'
     KEY_READCOLS = 'read_cols'
+    KEY_BCCOL = 'barcode_col'
 
     RE_REMOTE = re.compile(r"^(?:https?|ftp|sftp)://(?:.*)")
     RE_SRR = re.compile(r"^SRR[0-9]+$")
@@ -330,6 +331,10 @@ class DatasetConfig(object):
         string_cols = self.run_data.select_dtypes(include=['object'])
         # turn NaN into '' so they don't bother us later
         string_cols.fillna('', inplace=True)
+
+        # if barcode column specified, omit that
+        if self.KEY_BCCOL in self.cfg:
+            string_cols.drop([self.cfg[self.KEY_BCCOL]], axis=1, inplace=True)
 
         # if read columns specified, constrain to those
         if self.KEY_READCOLS in self.cfg:

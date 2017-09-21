@@ -1,5 +1,6 @@
 projects:
   mpic:
+    barcode_col: barcodes
     data:
       - paste:
           - map.tsv
