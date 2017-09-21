@@ -233,6 +233,10 @@ class DatasetConfig(object):
     KEY_READCOLS = 'read_cols'
     KEY_BCCOL = 'barcode_col'
 
+    # SRR columns:
+    # LibraryLayout_s PAIRED
+    # LibrarySelection_s PCR | RANDOM
+
     RE_REMOTE = re.compile(r"^(?:https?|ftp|sftp)://(?:.*)")
     RE_SRR = re.compile(r"^SRR[0-9]+$")
     RE_FILE = re.compile(r"^(?!http://).*(?:fq|fastq)(?:|\.gz)$")
@@ -245,7 +249,6 @@ class DatasetConfig(object):
 
         if self.KEY_DATA not in self.cfg:
             raise YmpConfigMalformed("Missing key " + self.KEY_DATA)
-
 
     @property
     def run_data(self):
@@ -313,13 +316,11 @@ class DatasetConfig(object):
         self._runs.set_index(self.cfg[self.KEY_IDCOL],
                              drop=False, inplace=True)
 
-
     @property
     def source_cfg(self):
         if self._source_cfg is None:
             self._source_cfg = self.choose_fq_columns()
         return self._source_cfg
-
 
     def choose_fq_columns(self):
         """
@@ -351,12 +352,20 @@ class DatasetConfig(object):
         source_cfg = pd.DataFrame(index=self.runs,
                                   columns=['type', 'r1', 'r2'])
 
+        # prepare array indicating which columns to use for each
+        # row, and what type the row source data is
         for pat, nmax, msg, func in (
                 (self.RE_FILE, 2, "fastq files", "file"),
+                (self.RE_FILE, 1, "fastq files", "file"),
                 (self.RE_REMOTE, 2, "remote URLs", "remote"),
+                (self.RE_REMOTE, 1, "remote URLs", "remote"),
                 (self.RE_SRR, 1, "SRR numbers", "srr")):
+            # collect rows not yet assigned values
             no_type_yet = string_cols[source_cfg['type'].isnull()]
+            # match the regex to each value
             match = no_type_yet.apply(lambda x: x.str.contains(pat))
+            # check if we have more values than allowed for that
+            # data source type
             broken_rows = match.sum(axis=1) > nmax
             if any(broken_rows):
                 rows = list(self.runs[broken_rows])
@@ -367,7 +376,9 @@ class DatasetConfig(object):
                     "Rows in question: {} "
                     "Columns in question: {} "
                     "".format(msg, self.KEY_READCOLS, rows, cols))
+            # collect rows with matched data
             good_rows = match.sum(axis=1).eq(nmax)
+            # prepare output matrix
             out = match[good_rows]
             out = out.apply(lambda x: (func,) + tuple(match.columns[x]),
                             axis=1)
