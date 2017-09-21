@@ -430,11 +430,65 @@ class DatasetConfig(object):
             "Configuration Error: no source for sample {} and read {} found."
             "".format(run, pair+1))
 
+    def get_fq_names(self,
+                     only_fwd=False, only_rev=False,
+                     only_pe=False, only_se=False):
+        """Get pipeline names of fq files"""
+
+        if only_fwd and only_rev:  # pointless, but satisfiable
+            return []
+        if only_pe and only_se:  # equally pointless, zero result
+            return []
+
+        pairs = []
+        if not only_rev:
+            pairs += [0]
+        if not only_fwd:
+            pairs += [1]
+
+        check_rev = only_pe or only_se
+
+        def have_file(run, pair):
+            return (isinstance(self.source_cfg.loc[run][pair+1], str)
+                    or self.source_cfg.loc[run][0] == 'srr')
+
+        return [
+            "{}.{}".format(run, icfg.pairnames[pair])
+            for run in self.runs
+            for pair in pairs
+            if have_file(run, pair)
+            if not check_rev or have_file(run, 1) == only_pe
+        ]
+
     @property
-    def fastq_basenames(self):
-        return ["{}.{}".format(run, icfg.pairnames[pair])
-                for run in self.runs
-                for pair in range(2)]
+    def fq_names(self):
+        "Names of all FastQ files"
+        return self.get_fq_names()
+
+    @property
+    def pe_fq_names(self):
+        "Names of paired end FastQ files"
+        return self.get_fq_names(only_pe=True)
+
+    @property
+    def se_fq_names(self):
+        "Names of single end FastQ files"
+        return self.get_fq_names(only_se=True)
+
+    @property
+    def fwd_pe_fq_names(self):
+        "Names of forward FastQ files part of pair"
+        return self.get_fq_names(only_pe=True, only_fwd=True)
+
+    @property
+    def rev_pe_fq_names(self):
+        "Names of reverse FastQ files part of pair"
+        return self.get_fq_names(only_pe=True, only_rev=True)
+
+    @property
+    def fwd_fq_names(self):
+        "Names of forward FastQ files (se and pe)"
+        return self.get_fq_names(only_fwd=True)
 
 
 class ConfigExpander(ColonExpander):

@@ -19,8 +19,10 @@ rule listrundata:
             pp.pprint(icfg[ds].run_data)
 
 rule listfqnames:
-    """List all FQ file basenames"""
-    message: "FQ file basemanes"
+    """List all FQ file names"""
+    message: "FQ file names"
     run:
         for ds in icfg.datasets:
-            pp.pprint(icfg[ds].fastq_basenames)
+            pp.pprint(icfg[ds].fq_names)
+
+
