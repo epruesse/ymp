@@ -1,0 +1,8 @@
+projects:
+  mpic:
+    data:
+      - paste:
+          - map.tsv
+          - table:
+             - forward_reads: forward_reads.fastq.gz
+             - barcodes: barcodes.fastq.gz
