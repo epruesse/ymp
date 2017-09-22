@@ -86,12 +86,12 @@ rule symlink_raw_reads:
         os.symlink(input[0], output[0])
 
 
-localrules: symlink_reference_files
-rule symlink_reference_files:
+localrules: get_reference_fasta
+rule get_reference_fasta:
     message: "Preparing {input}"
-    input:   lambda wc: icfg.ref[wc.ref],
+    input:   lambda wc: icfg.ref[wc.refname],
              refdir = ancient(icfg.dir.references)
-    output:  "{:dir.references:}/{ref}.fasta.gz"
+    output:  "{:dir.references:}/{refname}.fasta.gz"
     threads: 1
     run:
         if input[0].endswith(".gz"): # just symlink
@@ -100,6 +100,26 @@ rule symlink_reference_files:
             os.symlink(input[0], output[0])
         else: # compress
             shell("gzip -c {input[0]} > {output}")
+
+localrules: get_reference_dir
+rule get_reference_dir:
+    message: "Installing {wildcards.refname} from {input.tar}"
+    input:  tar = lambda wc: icfg.ref[wc.refname],
+            refdir = ancient(icfg.dir.references)
+    output: files ="{:dir.references:}/{refname}/{path}"
+    threads: 1
+    shell: """
+    outdir="{input.refdir}/{wildcards.refname}"
+    tmpdir=$(mktemp -d)
+    tar -xf {input.tar} -C $tmpdir
+    if test "$(ls -1 $tmpdir | wc -l)" == "1"; then
+      cp -a $tmpdir/*/* $outdir
+    else
+      cp -a $tmpdir/* $outdir
+    fi
+    """
+ruleorder: get_reference_dir > gunzip
+
 
 ###
 ### Meta rules

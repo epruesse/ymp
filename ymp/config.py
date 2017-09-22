@@ -17,11 +17,6 @@ from ymp.util import AttrDict
 
 log = logging.getLogger(__name__)
 
-def http_remote(*args, http=[], **kwargs):
-    from snakemake.remote.HTTP import RemoteProvider
-    if len(http) == 0:
-        http.append(RemoteProvider())
-    return http[0].remote(*args, **kwargs)
 
 class YmpException(Exception):
     pass
@@ -45,6 +40,22 @@ class YmpConfigNoProjects(YmpException):
 
 class YmpDataParserError(YmpException):
     pass
+
+
+def http_remote(url, *args, providers={}, **kwargs):
+    from urllib.parse import urlparse
+    scheme = urlparse(url).scheme
+    if scheme not in providers:
+        if scheme == 'http' or scheme == "https":
+            from snakemake.remote.HTTP import RemoteProvider
+            providers['http'] = RemoteProvider()
+            providers['https'] = providers['http']
+        elif scheme == 'ftp':
+            from snakemake.remote.FTP import RemoteProvider
+            providers['ftp'] = RemoteProvider()
+        else:
+            raise YmpConfigError("unknown scheme {}".format(scheme))
+    return providers[scheme].remote(url, *args, **kwargs)
 
 
 def make_path_reference(path, workdir):

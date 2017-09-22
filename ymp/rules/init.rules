@@ -24,6 +24,7 @@ wildcard_constraints:
     SRR = "[EDS]RR[0-9]+",
     rnagene="({})".format("|".join(icfg.db.rrna)),
     project = "({})".format("|".join(icfg.datasets)),
+    refname = str("({})".format("|".join(icfg.ref))),
     assembler = "(mh|mhc|sp)",
     mapper = "(bt2|bbm)",
     genefind = "(blast)",

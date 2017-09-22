@@ -1,7 +1,7 @@
 import logging
 import re
 
-from copy import deepcopy
+from copy import deepcopy, copy
 
 from snakemake.io import AnnotatedString, apply_wildcards
 from snakemake.workflow import Workflow
@@ -88,7 +88,14 @@ class BaseExpander(object):
             updated = self.format(item, **fields)
             if isinstance(item, AnnotatedString):
                 updated = AnnotatedString(updated)
-                updated.flags = deepcopy(item.flags)
+                try:
+                    updated.flags = deepcopy(item.flags)
+                except TypeError as e:
+                    log.debug(
+                        "Failed to deepcopy flags for item {} with flags{}"
+                        "".format(item, item.flags)
+                    )
+                    updated.flags = copy(item.flags)
             item = updated
         elif hasattr(item, '__call__'):  # function
             _item = item
