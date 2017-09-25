@@ -50,42 +50,65 @@ rule remove_pynast_failures_from_dada2:
     """
 
 
-rule pick_97_closed_otus:
+rule download_qiime_reference_files:
+    """"""
+    message:
+        "Download greengenes reference files for use in closed otu picking"
+    output:
+        rep_set_97 = "gg_13_8_otus/rep_set/97_otus.fasta",
+        rep_set_99 = "gg_13_8_otus/rep_set/99_otus.fasta"
+    params:
+        db_loc = "ftp://greengenes.microbio.me/greengenes_release/gg_13_5/gg_13_8_otus.tar.gz"
+    log:
+        "log.txt"
+    shell: """
+    wget {params.db_loc} > {log} 2>&1
+    tar -xzf gg_13_8_otus.tar.gz
+    mv {log} gg_13_8_otus/{log}
+    """
+
+
+rule pick_closed_otus_on_dada2:
     """Pick closed OTUs"""
     message:
         "Closed reference OTU picking on {input.filt_fasta}"
     input:
-        filt_fasta = "{dir}.qd2/dada2_no_pynast_failures.fasta"
+        filt_fasta = "{dir}.qd2/dada2_no_pynast_failures.fasta",
+        ref_fasta = "gg_13_8_otus/rep_set/{similarity}_otus.fasta"
+    wildcard_constraints:
+        similarity = "([0-9][0-9])?"
     output:
-        dir = "{dir}.c97/",
-        otus = "{dir}.c97/uclust_ref_picked_otus/dada2_no_pynast_failures_otus.txt",
-        failures = "{dir}.c97/uclust_ref_picked_otus/dada2_no_pynast_failures_failures.txt"
+        dir = "{dir}.qd2.c{similarity}",
+        otus = "{dir}.qd2.c{similarity}/uclust_ref_picked_otus/dada2_no_pynast_failures_otus.txt",
+        failures = "{dir}.qd2.c{similarity}/uclust_ref_picked_otus/dada2_no_pynast_failures_failures.txt"
     conda:
         srcdir("dada2_qiime1.yml")
     params:
-        similarity = "97",
-        method = "uclust_ref"
+        method = "uclust_ref",
+        similarity = lambda wc: wc.similarity if wc.similarity else 97
     shell: """
-    echo "pick_otus:similarity\t.{params.similarity}\npick_otus:otu_picking_method\t{params.method}" > qiime_params1.txt
+    echo "pick_otus:similarity\t.{params.similarity}\npick_otus:otu_picking_method\t{params.method}" > qiime_params.txt
     pick_closed_reference_otus.py -f \
     -i {input.filt_fasta} \
     -o {output.dir} \
-    -p qiime_params1.txt
-    rm qiime_params1.txt
+    -r  {input.ref_fasta} \
+    -p qiime_params.txt
+    rm qiime_params.txt
     touch -c {output.otus}
     """
 
-rule filter_and_pick_rep_set_closed:
+
+rule filter_and_pick_rep_set_closed_dada2:
     """"""
     message:
-        "Getting failures and picking representative sequences from {input.filt_fasta}.c97"
+        "Getting failures and picking representative sequences from {input.filt_fasta} and {input.otus}"
     input:
         filt_fasta = "{dir}.qd2/dada2_no_pynast_failures.fasta",
-        otus = "{dir}.c97/uclust_ref_picked_otus/dada2_no_pynast_failures_otus.txt",
-        failures = "{dir}.c97/uclust_ref_picked_otus/dada2_no_pynast_failures_failures.txt"
+        otus = "{dir}.qd2.c{similarity}/uclust_ref_picked_otus/dada2_no_pynast_failures_otus.txt",
+        failures = "{dir}.qd2.c{similarity}/uclust_ref_picked_otus/dada2_no_pynast_failures_failures.txt"
     output:
-        failures_fasta = "{dir}.c97/dada2_no_pynast_failures_failures.fasta",
-        rep_set = "{dir}.c97/rep_set.fna"
+        failures_fasta = "{dir}.qd2.c{similarity}/dada2_no_pynast_failures_failures.fasta",
+        rep_set = "{dir}.qd2.c{similarity}/rep_set.fna"
     conda:
         srcdir("dada2_qiime1.yml")
     shell: """
@@ -94,40 +117,44 @@ rule filter_and_pick_rep_set_closed:
     """
 
 
-rule pick_97_denovo_otus:
+rule pick_denovo_otus_on_dada2:
     """Pick de novo OTUs"""
     message:
         "Picking denovo OTUs on {input.failures_fasta}"
     input:
-        failures_fasta = "{dir}.c97/dada2_no_pynast_failures_failures.fasta"
+        failures_fasta = "{dir}.qd2.c{similarity}/dada2_no_pynast_failures_failures.fasta"
+    wildcard_constraints:
+        similarity = "([0-9][0-9])?"
     output:
-        dir = "{dir}.d97",
-        rep_set = "{dir}.d97/rep_set.fna",
-        otus = "{dir}.d97/dada2_no_pynast_failures_failures_otus.txt"
+        dir = "{dir}.qd2.d{similarity}",
+        rep_set = "{dir}.qd2.d{similarity}/rep_set.fna",
+        otus = "{dir}.qd2.d{similarity}/dada2_no_pynast_failures_failures_otus.txt"
     conda:
         srcdir("dada2_qiime1.yml")
     shell: """
-    pick_otus.py -i {input.failures_fasta} -s .97 -o {output.dir}
+    pick_otus.py -i {input.failures_fasta} -s .{wildcards.similarity} -o {output.dir}
     pick_rep_set.py -i {output.otus} -o {output.rep_set} -f {input.failures_fasta}
     """
 
 
-rule make_97_open_otu_table:
+rule make_open_otu_table_dada2:
     """Join closed and de novo OTUs"""
     message:
         "Collating {input.closed_otu_map} and {input.denovo_otu_map} to make open reference OTU table"
     input:
         dada2_otu_table = "{dir}.qd2/dada2.tsv",
-        closed_rep_set = "{dir}.c97/rep_set.fna",
-        denovo_rep_set = "{dir}.d97/rep_set.fna",
-        closed_otu_map = "{dir}.c97/dada2_no_pynast_failures_otus.txt",
-        denovo_otu_map = "{dir}.d97/dada2_no_pynast_failures_failures_otus.txt"
+        closed_rep_set = "{dir}.qd2.c{similarity}/rep_set.fna",
+        denovo_rep_set = "{dir}.qd2.d{similarity}/rep_set.fna",
+        closed_otu_map = "{dir}.qd2.c{similarity}/uclust_ref_picked_otus/dada2_no_pynast_failures_otus.txt",
+        denovo_otu_map = "{dir}.qd2.d{similarity}/dada2_no_pynast_failures_failures_otus.txt"
     output:
-        otu_map = "{dir}.o97/final_otu_map.txt",
-        rep_set = "{dir}.o97/rep_set.fna",
-        otu_table = "{dir}.o97/dada2_otu_table.biom"
+        otu_map = "{dir}.qd2.o{similarity}/final_otu_map.txt",
+        rep_set = "{dir}.qd2.o{similarity}/rep_set.fna",
+        otu_table = "{dir}.qd2.o{similarity}/dada2_otu_table.biom"
     conda:
         srcdir("dada2_qiime1.yml")
+    params:
+        similarity = lambda wc: wc.similarity if wc.similarity else 97
     shell: """
     cat {input.closed_rep_set} {input.denovo_rep_set} > {output.rep_set}
     cat {input.closed_otu_map} {input.denovo_otu_map} > {output.otu_map}
@@ -135,16 +162,16 @@ rule make_97_open_otu_table:
     """
 
 
-rule assign_taxonomy_open_otus:
+rule assign_taxonomy_open_otus_dada2:
     """"""
     message:
         "Assigning taxonomy to {input.rep_set} and adding to {input.otu_table}"
     input:
-        rep_set = "{dir}.o97/rep_set.fna",
-        otu_table = "{dir}.o97/dada2_otu_table.biom"
+        rep_set = "{dir}.qd2.o{similarity}/rep_set.fna",
+        otu_table = "{dir}.qd2.o{similarity}/dada2_otu_table.biom"
     output:
-        taxonomy_dir = "{dir}.o97/assigned_taxonomy",
-        otu_table_w_tax = "{dir}.o97/dada2_otu_table_w_tax.biom"
+        taxonomy_dir = "{dir}.qd2.o{similarity}/assigned_taxonomy",
+        otu_table_w_tax = "{dir}.qd2.o{similarity}/dada2_otu_table_w_tax.biom"
     conda:
         srcdir("dada2_qiime1.yml")
     shell: """
@@ -153,18 +180,18 @@ rule assign_taxonomy_open_otus:
     """
 
 
-rule make_tree_filter_open_otu_table:
+rule make_tree_filter_open_otu_table_dada2:
     """"""
     message:
         "Making {output.tree} and filtering pynast failures from {input.otu_table_w_tax}"
     input:
-        rep_set = "{dir}.o97/rep_set.fna",
-        otu_table_w_tax = "{dir}.o97/dada2_otu_table_w_tax.biom"
+        rep_set = "{dir}.qd2.o{similarity}/rep_set.fna",
+        otu_table_w_tax = "{dir}.qd2.o{similarity}/dada2_otu_table_w_tax.biom"
     output:
-        rep_set_aligned = "{dir}.o97/pynast_aligned",
-        rep_set_aligned_filtered = "{dir}.o97/pynast_aligned/rep_set_aligned_pfiltered.fasta",
-        tree = "{dir}.o97/rep_set.tre",
-        otu_table_w_tax_no_pynast_failures = "{dir}.o97/dada2_otu_table_w_tax_no_pynast_failures.biom"
+        rep_set_aligned = "{dir}.qd2.o{similarity}/pynast_aligned",
+        rep_set_aligned_filtered = "{dir}.qd2.o{similarity}/pynast_aligned/rep_set_aligned_pfiltered.fasta",
+        tree = "{dir}.qd2.o{similarity}/rep_set.tre",
+        otu_table_w_tax_no_pynast_failures = "{dir}.qd2.o{similarity}/dada2_otu_table_w_tax_no_pynast_failures.biom"
     conda:
         srcdir("dada2_qiime1.yml")
     shell: """
@@ -183,16 +210,22 @@ rule get_important_files_only:
         dada2_biom = "{dir}.qd2/dada2_w_tax_no_pynast_failures.biom",
         dada2_tree = "{dir}.qd2/dada2.tre",
         dada2_rep_set = "{dir}.qd2/dada2_no_pynast_failures.fasta",
-        dada2w97_biom = "{dir}.o97/dada2_otu_table_w_tax_no_pynast_failures.biom",
-        dada2w97_tree = "{dir}.o97/rep_set.tre",
-        dada2w97_rep_set = "{dir}.o97/rep_set.fna"
+        dada2w97_biom = "{dir}.qd2.o97/dada2_otu_table_w_tax_no_pynast_failures.biom",
+        dada2w97_tree = "{dir}.qd2.o97/rep_set.tre",
+        dada2w97_rep_set = "{dir}.qd2.o97/rep_set.fna",
+        dada2w99_biom = "{dir}.qd2.o99/dada2_otu_table_w_tax_no_pynast_failures.biom",
+        dada2w99_tree = "{dir}.qd2.o99/rep_set.tre",
+        dada2w99_rep_set = "{dir}.qd2.o99/rep_set.fna"
     output:
         dada2_biom = "{dir}.corediv/dada2.biom",
         dada2_tree = "{dir}.corediv/dada2.tre",
         dada2_rep_set = "{dir}.corediv/dada2.fasta",
         dada2w97_biom = "{dir}.corediv/dada2w97.biom",
         dada2w97_tree = "{dir}.corediv/dada2w97.tre",
-        dada2w97_rep_set = "{dir}.corediv/dada2w97.fasta"
+        dada2w97_rep_set = "{dir}.corediv/dada2w97.fasta",
+        dada2w99_biom = "{dir}.corediv/dada2w99.biom",
+        dada2w99_tree = "{dir}.corediv/dada2w99.tre",
+        dada2w99_rep_set = "{dir}.corediv/dada2w99.fasta"
     shell: """
     cp {input.dada2_biom} {output.dada2_biom}
     cp {input.dada2_tree} {output.dada2_tree}
@@ -200,4 +233,7 @@ rule get_important_files_only:
     cp {input.dada2w97_biom} {output.dada2w97_biom}
     cp {input.dada2w97_tree} {output.dada2w97_tree}
     cp {input.dada2w97_rep_set} {output.dada2w97_rep_set}
+    cp {input.dada2w99_biom} {output.dada2w99_biom}
+    cp {input.dada2w99_tree} {output.dada2w99_tree}
+    cp {input.dada2w99_rep_set} {output.dada2w99_rep_set}
     """
