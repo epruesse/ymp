@@ -11,7 +11,7 @@ dependencies:
   - pandas >=0.20  # need dtype support in python csv engine
   - xlrd         # excel support
   #### for tests: ####
-  - networkx
+  - networkx >= 2.0
   - pygraphviz
   - pytest
   - pytest-runner  # run from setup.py

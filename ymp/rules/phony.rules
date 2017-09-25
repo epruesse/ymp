@@ -4,27 +4,6 @@ import shutil, pprint
 width, height = shutil.get_terminal_size((80, 20))
 pp = pprint.PrettyPrinter(indent=1, compact=True, width=width)
 
-rule cmds:
-    message: "Commands:"
-    run:
-        print("""
-     - showconf
-     - listruns
-     - listprops
-    """)
-    
-rule showconf:
-    "Display contents of config object"
-    message: "Printing config"
-    run:
-        pp.pprint(config)
-
-rule showmap:
-    message: "Dumping Mapfile Data"
-    run:
-        if config['DS']:
-            print(icfg[config['DS']].print_runs())
-
 
 rule listruns:
     """List all configured "run"s"""
@@ -32,15 +11,18 @@ rule listruns:
     run:
         pp.pprint(icfg.allruns)
 
-rule listprops:
-    """List all available run properties"""
-    message: "Run properties"
-    run:
-        pp.pprint(icfg.allprops)
-
-rule listfqnames:
-    """List all FQ file basenames"""
-    message: "FQ file basemanes"
+rule listrundata:
+    """List complete dataset config matrix"""
+    message: "Configured Run Data:"
     run:
         for ds in icfg.datasets:
-            pp.pprint(icfg[ds].fastq_basenames)
+            pp.pprint(icfg[ds].run_data)
+
+rule listfqnames:
+    """List all FQ file names"""
+    message: "FQ file names"
+    run:
+        for ds in icfg.datasets:
+            pp.pprint(icfg[ds].fq_names)
+
+

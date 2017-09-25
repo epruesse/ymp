@@ -17,11 +17,6 @@ from ymp.util import AttrDict
 
 log = logging.getLogger(__name__)
 
-def http_remote(*args, http=[], **kwargs):
-    from snakemake.remote.HTTP import RemoteProvider
-    if len(http) == 0:
-        http.append(RemoteProvider())
-    return http[0].remote(*args, **kwargs)
 
 class YmpException(Exception):
     pass
@@ -45,6 +40,22 @@ class YmpConfigNoProjects(YmpException):
 
 class YmpDataParserError(YmpException):
     pass
+
+
+def http_remote(url, *args, providers={}, **kwargs):
+    from urllib.parse import urlparse
+    scheme = urlparse(url).scheme
+    if scheme not in providers:
+        if scheme == 'http' or scheme == "https":
+            from snakemake.remote.HTTP import RemoteProvider
+            providers['http'] = RemoteProvider()
+            providers['https'] = providers['http']
+        elif scheme == 'ftp':
+            from snakemake.remote.FTP import RemoteProvider
+            providers['ftp'] = RemoteProvider()
+        else:
+            raise YmpConfigError("unknown scheme {}".format(scheme))
+    return providers[scheme].remote(url, *args, **kwargs)
 
 
 def make_path_reference(path, workdir):
@@ -114,7 +125,6 @@ def load_data(cfg):
                     " to install 'xlrd'."
                     "".format(cfg)
                 )
-        data = data.assign(ymp_filename=cfg)
         rdir = os.path.dirname(cfg)
         data = data.applymap(
             lambda s: os.path.join(rdir, s)
@@ -232,6 +242,11 @@ class DatasetConfig(object):
     KEY_DATA = 'data'
     KEY_IDCOL = 'id_col'
     KEY_READCOLS = 'read_cols'
+    KEY_BCCOL = 'barcode_col'
+
+    # SRR columns:
+    # LibraryLayout_s PAIRED
+    # LibrarySelection_s PCR | RANDOM
 
     RE_REMOTE = re.compile(r"^(?:https?|ftp|sftp)://(?:.*)")
     RE_SRR = re.compile(r"^SRR[0-9]+$")
@@ -245,7 +260,6 @@ class DatasetConfig(object):
 
         if self.KEY_DATA not in self.cfg:
             raise YmpConfigMalformed("Missing key " + self.KEY_DATA)
-
 
     @property
     def run_data(self):
@@ -313,13 +327,11 @@ class DatasetConfig(object):
         self._runs.set_index(self.cfg[self.KEY_IDCOL],
                              drop=False, inplace=True)
 
-
     @property
     def source_cfg(self):
         if self._source_cfg is None:
             self._source_cfg = self.choose_fq_columns()
         return self._source_cfg
-
 
     def choose_fq_columns(self):
         """
@@ -331,6 +343,10 @@ class DatasetConfig(object):
         string_cols = self.run_data.select_dtypes(include=['object'])
         # turn NaN into '' so they don't bother us later
         string_cols.fillna('', inplace=True)
+
+        # if barcode column specified, omit that
+        if self.KEY_BCCOL in self.cfg:
+            string_cols.drop([self.cfg[self.KEY_BCCOL]], axis=1, inplace=True)
 
         # if read columns specified, constrain to those
         if self.KEY_READCOLS in self.cfg:
@@ -347,12 +363,20 @@ class DatasetConfig(object):
         source_cfg = pd.DataFrame(index=self.runs,
                                   columns=['type', 'r1', 'r2'])
 
+        # prepare array indicating which columns to use for each
+        # row, and what type the row source data is
         for pat, nmax, msg, func in (
                 (self.RE_FILE, 2, "fastq files", "file"),
+                (self.RE_FILE, 1, "fastq files", "file"),
                 (self.RE_REMOTE, 2, "remote URLs", "remote"),
+                (self.RE_REMOTE, 1, "remote URLs", "remote"),
                 (self.RE_SRR, 1, "SRR numbers", "srr")):
+            # collect rows not yet assigned values
             no_type_yet = string_cols[source_cfg['type'].isnull()]
+            # match the regex to each value
             match = no_type_yet.apply(lambda x: x.str.contains(pat))
+            # check if we have more values than allowed for that
+            # data source type
             broken_rows = match.sum(axis=1) > nmax
             if any(broken_rows):
                 rows = list(self.runs[broken_rows])
@@ -363,7 +387,9 @@ class DatasetConfig(object):
                     "Rows in question: {} "
                     "Columns in question: {} "
                     "".format(msg, self.KEY_READCOLS, rows, cols))
+            # collect rows with matched data
             good_rows = match.sum(axis=1).eq(nmax)
+            # prepare output matrix
             out = match[good_rows]
             out = out.apply(lambda x: (func,) + tuple(match.columns[x]),
                             axis=1)
@@ -397,7 +423,14 @@ class DatasetConfig(object):
                              "SRR",
                              "{}_{}.fastq.gz".format(srr, pair+1))
             return f
-        fn = self.run_data.loc[run][source[pair+1]]
+
+        fq_col = source[pair+1]
+        if not isinstance(fq_col, str):
+            raise YmpException(
+                "Configuration Error: no source for sample {} and read {}"
+                "found.".format(run, pair+1))
+
+        fn = self.run_data.loc[run][fq_col]
         if kind == 'file':
             return fn
 
@@ -406,13 +439,67 @@ class DatasetConfig(object):
 
         raise YmpException(
             "Configuration Error: no source for sample {} and read {} found."
-            "".format(run, pair))
+            "".format(run, pair+1))
+
+    def get_fq_names(self,
+                     only_fwd=False, only_rev=False,
+                     only_pe=False, only_se=False):
+        """Get pipeline names of fq files"""
+
+        if only_fwd and only_rev:  # pointless, but satisfiable
+            return []
+        if only_pe and only_se:  # equally pointless, zero result
+            return []
+
+        pairs = []
+        if not only_rev:
+            pairs += [0]
+        if not only_fwd:
+            pairs += [1]
+
+        check_rev = only_pe or only_se
+
+        def have_file(run, pair):
+            return (isinstance(self.source_cfg.loc[run][pair+1], str)
+                    or self.source_cfg.loc[run][0] == 'srr')
+
+        return [
+            "{}.{}".format(run, icfg.pairnames[pair])
+            for run in self.runs
+            for pair in pairs
+            if have_file(run, pair)
+            if not check_rev or have_file(run, 1) == only_pe
+        ]
 
     @property
-    def fastq_basenames(self):
-        return ["{}.{}".format(run, icfg.pairnames[pair])
-                for run in self.runs
-                for pair in range(2)]
+    def fq_names(self):
+        "Names of all FastQ files"
+        return self.get_fq_names()
+
+    @property
+    def pe_fq_names(self):
+        "Names of paired end FastQ files"
+        return self.get_fq_names(only_pe=True)
+
+    @property
+    def se_fq_names(self):
+        "Names of single end FastQ files"
+        return self.get_fq_names(only_se=True)
+
+    @property
+    def fwd_pe_fq_names(self):
+        "Names of forward FastQ files part of pair"
+        return self.get_fq_names(only_pe=True, only_fwd=True)
+
+    @property
+    def rev_pe_fq_names(self):
+        "Names of reverse FastQ files part of pair"
+        return self.get_fq_names(only_pe=True, only_rev=True)
+
+    @property
+    def fwd_fq_names(self):
+        "Names of forward FastQ files (se and pe)"
+        return self.get_fq_names(only_fwd=True)
 
 
 class ConfigExpander(ColonExpander):
