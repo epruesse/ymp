@@ -20,11 +20,11 @@ references:
   greengenes: ftp://greengenes.microbio.me/greengenes_release/gg_13_5/gg_13_8_otus.tar.gz
 
 # Default limits
-
 limits:
   max_mem: 1T
+  min_mem: 10M
   max_mem_per_thread: 1T
-  min_mem_per_thread: 0
+  min_mem_per_thread: 10M
 
 # Default projects (none)
 projects:
