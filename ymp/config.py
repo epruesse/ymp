@@ -351,6 +351,8 @@ class DatasetConfig(object):
         # if read columns specified, constrain to those
         if self.KEY_READCOLS in self.cfg:
             read_cols = self.cfg[self.KEY_READCOLS]
+            if isinstance(read_cols, str):
+                read_cols = [read_cols]
             try:
                 string_cols = string_cols[read_cols]
             except KeyError as e:
