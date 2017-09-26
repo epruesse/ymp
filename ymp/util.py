@@ -61,8 +61,8 @@ class AttrDict(dict):
             return super().__getattr__(attr)
         except AttributeError:
             val = self[attr]
-            if isinstance(attr, dict):
-                return AttrDict(attr)
+            if isinstance(val, dict):
+                return AttrDict(val)
             else:
                 return val
 
