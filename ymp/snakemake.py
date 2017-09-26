@@ -72,6 +72,22 @@ class ExpandableWorkflow(Workflow):
                 log.exception("exception in output expand")
         return super().output(*paths, **kwpaths)
 
+    def rule(self, *args, **kwargs):
+        """Intercepts "rule:"
+        Here we have the entire ruleinfo object
+        """
+        decorator = super().rule(*args, **kwargs)
+        #log.debug("rule: {}".format(kwargs['name']))
+
+        def decorate(ruleinfo):
+            try:
+                pass
+            except:
+                pass
+            return decorator(ruleinfo)
+
+        return decorate
+
 
 class BaseExpander(object):
     def __init__(self):
