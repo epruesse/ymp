@@ -50,24 +50,6 @@ rule remove_pynast_failures_from_dada2:
     """
 
 
-# rule download_qiime_reference_files:
-#     """"""
-#     message:
-#         "Download greengenes reference files for use in closed otu picking"
-#     output:
-#         rep_set_97 = "gg_13_8_otus/rep_set/97_otus.fasta",
-#         rep_set_99 = "gg_13_8_otus/rep_set/99_otus.fasta"
-#     params:
-#         db_loc = "ftp://greengenes.microbio.me/greengenes_release/gg_13_5/gg_13_8_otus.tar.gz"
-#     log:
-#         "log.txt"
-#     shell: """
-#     wget {params.db_loc} > {log} 2>&1
-#     tar -xzf gg_13_8_otus.tar.gz
-#     mv {log} gg_13_8_otus/{log}
-#     """
-
-
 rule pick_closed_otus_on_dada2:
     """Pick closed OTUs"""
     message:
