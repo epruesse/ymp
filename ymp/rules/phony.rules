@@ -25,4 +25,3 @@ rule listfqnames:
         for ds in icfg.datasets:
             pp.pprint(icfg[ds].fq_names)
 
-
