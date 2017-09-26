@@ -635,6 +635,10 @@ class ConfigMgr(object):
         return AttrDict(self._config['directories'])
 
     @property
+    def absdir(self):
+        return AttrDict({name: os.path.abspath(value)
+                         for name, value in self.dir.items()})
+
     def ref(self):
         return AttrDict(self._references)
 
