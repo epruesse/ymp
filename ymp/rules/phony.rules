@@ -25,5 +25,10 @@ rule listfqnames:
         for ds in icfg.datasets:
             pp.pprint(icfg[ds].fq_names)
 
-rule sleep:
-    shell: "sleep 10"
+rule env_test:
+    message: "Running environment test. Output will be in logdir."
+    shell: """
+    hostname
+    env
+    sleep 10
+    """
