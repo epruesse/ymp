@@ -557,6 +557,7 @@ class ConfigMgr(object):
         self.find_config()
         self.load_config()
         self.config_expander = ConfigExpander(self)
+        ExpandableWorkflow.default_params(mem=self.mem())
 
     def find_config(self):
         """Locates ymp config files and sets ymp root"""

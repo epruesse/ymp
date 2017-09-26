@@ -72,18 +72,25 @@ class ExpandableWorkflow(Workflow):
                 log.exception("exception in output expand")
         return super().output(*paths, **kwpaths)
 
+    @staticmethod
+    def default_params(**kwargs):
+        """Set default params: keys"""
+        ExpandableWorkflow._default_params = kwargs
+
     def rule(self, *args, **kwargs):
         """Intercepts "rule:"
         Here we have the entire ruleinfo object
         """
         decorator = super().rule(*args, **kwargs)
-        #log.debug("rule: {}".format(kwargs['name']))
 
         def decorate(ruleinfo):
-            try:
-                pass
-            except:
-                pass
+            # if we have default params, add them
+            if self._default_params:
+                if not ruleinfo.params:
+                    ruleinfo.params=([],{})
+                for param in self._default_params:
+                    if param not in ruleinfo.params[1]:
+                        ruleinfo.params[1][param] = self._default_params[param]
             return decorator(ruleinfo)
 
         return decorate
