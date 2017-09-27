@@ -13,7 +13,7 @@ rule qiime_dada2_presplit_samples:
         dada2_w_tax_no_failures = "{dir}.qd2/dada2_w_tax_no_pynast_failures.biom",
         dada2_tree = "{dir}.qd2/dada2.tre"
     log:
-        "{dir}.qd2/capt_log.txt"
+        "capt_log.txt"
     threads:
         8
     conda:
@@ -28,6 +28,7 @@ rule qiime_dada2_presplit_samples:
     --procs {threads} \
     --skip_split \
     --force > {log} 2>&1
+    mv {log} {output.dir}
     """
 
 
