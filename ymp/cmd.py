@@ -11,6 +11,8 @@ import functools
 import glob
 
 import ymp
+from ymp.common import update_dict
+from ymp.util import AttrDict
 from ymp.config import icfg
 icfg.init()
 
@@ -43,19 +45,29 @@ def snake_params(func):
     @click.option("--printshellcmds", "-p", default=False, is_flag=True)
     @click.option("--keepgoing", "-k", default=False, is_flag=True)
     @click.option("--verbose", "-v", default=False, is_flag=True)
-    @click.option("--use-conda/--skip-conda", default=True)
     @click.option("--lock/--no-lock")
     @click.option("--rerun-incomplete", "--ri", 'force_incomplete',
                   is_flag=True)
-    @click.option("--latency-wait", "-w", default=0)
     @click.option("--forceall", "-F", is_flag=True, default=False)
     @click.option("--force", "-f", "forcetargets", is_flag=True, default=False)
     @click.option("--conda-prefix", default=os.path.expanduser("~/.ymp/conda"))
     @click.option("--timestamp", "-T", is_flag=True, default=False)
+    @click.option("--notemp", is_flag=True, default=False)
     @functools.wraps(func)
     def decorated(*args, **kwargs):
         return func(*args, **kwargs)
     return decorated
+
+
+def start_snakemake(**kwargs):
+    kwargs['workdir'], prefix = find_root()
+    kwargs['use_conda'] = True
+    if 'targets' in kwargs:
+        kwargs['targets'] = [os.path.join(prefix, t)
+                             for t in kwargs['targets']]
+    return snakemake.snakemake(
+        resource_filename("ymp", "rules/Snakefile"),
+        **kwargs)
 
 
 @click.group()
@@ -89,42 +101,73 @@ def make(**kwargs):
 
 @cli.command()
 @snake_params
-@click.option("--cores", "-j", "nodes", default=1024)
+@click.option("--profile", "-P", default="default")
+@click.option("--config", "-c")
+@click.option("--drmaa", "-d", "use_drmaa", is_flag=True)
+@click.option("--sync", "-s", "qsub_sync", is_flag=True)
+@click.option("--immediate", "-i", is_flag=True)
+@click.option("--command", "qsub_cmd")
+@click.option("--wrapper", "-w")
+@click.option("--max-jobs-per-second", "-m")
+@click.option("--latency-wait", "-l")
+@click.option("--max-cores", "-j", "cores")
 @click.option("--local-cores", default=16)
-@click.option("--cluster-config", "-u", default="cluster.yaml")  # fixme, relative to ymp.yml
-@click.option("--jobname", "--jn", "jobname",
-              default="ymp.{rulename}.{jobid}.sh")
-@click.option("--drmaa-log-dir", default=icfg.dir.log)
-def submit(**kwargs):
-    "build target on cluster"
-    if not os.path.exists(kwargs['drmaa_log_dir']):
-        log.warning("Creating directory '%s'", kwargs['drmaa_log_dir'])
-        os.mkdir(kwargs['drmaa_log_dir'])
+@click.option("--args", "qsub_args")
+@click.option("--scriptname")
+@click.option("--extra-args", "-e")
+def submit(profile, extra_args, **kwargs):
+    # start with default
+    print(icfg.cluster.profiles['default'])
+    cfg = icfg.cluster.profiles.default
+    # select default profile (from cmd or cfg)
+    if profile != "default":
+        update_dict(cfg, icfg.cluster[profile])
+    elif icfg.cluster.profile != "default":
+        update_dict(cfg, icfg.cluster.profiles[icfg.cluster.profile])
 
-    drmaa = " ".join([
-        '-l nodes=1:ppn={threads}',
-        '-j oe',
-        '-M elmar.pruesse@ucdenver.edu',
-        '-l walltime={cluster.walltime}',
-        '-l mem={cluster.mem}',
-        '-q {cluster.queue}'
-    ])
-    rval = start_snakemake(drmaa=drmaa, **kwargs)
+    # udpate with not-none command line options
+    update_dict(cfg, {key: value
+                      for key, value in kwargs.items()
+                      if value is not None})
+
+    # turn into attrdict
+    cfg = AttrDict(cfg)
+
+    # prepare cluster command
+    if cfg.use_drmaa:
+        param = 'drmaa'
+        cfg.qsub_args = [''] + cfg.qsub_args
+    elif cfg.qsub_sync:
+        param = 'cluster_sync'
+        cfg.qsub_args = [cfg.qsub_cmd, cfg.qsub_sync_arg] + cfg.qsub_args
+    else:
+        param = 'cluster'
+        cfg.qsub_args = [cfg.qsub_cmd] + cfg.qsub_args
+    # add extra-args
+    for ea in (icfg.cluster.extra_args, extra_args):
+        if ea is not None:
+            if isinstance(ea, str):
+                ea = [ea]
+            cfg.qsub_args += ea
+    # write to snakemake
+    cfg[param] = icfg.expand(" ".join(cfg.qsub_args))
+    # clean used args
+    for arg in ('use_drmaa', 'qsub_sync', 'qsub_sync_arg',
+                'qsub_cmd', 'qsub_args'):
+        del cfg[arg]
+
+    # rename ymp params to snakemake params
+    for cfg_arg, kw_arg in (('immediate', 'immediate_submit'),
+                            ('wrapper', 'jobscript'),
+                            ('scriptname', 'jobname'),
+                            ('max_cores', 'cores')):
+        cfg[kw_arg] = cfg[cfg_arg]
+        del cfg[cfg_arg]
+
+    rval = start_snakemake(**cfg)
     if not rval:
         sys.exit(1)
 
-
-def start_snakemake(**kwargs):
-    kwargs['workdir'], prefix = find_root()
-    if 'targets' in kwargs:
-        kwargs['targets'] = [os.path.join(prefix, t)
-                             for t in kwargs['targets']]
-    # kwargs['cluster_config'] = os.path.join(kwargs['cluster_config'],
-    #                                         kwargs['workdir'])
-    # log.warning("Snakemake Params: {}".format(kwargs))
-    return snakemake.snakemake(
-        resource_filename("ymp", "rules/Snakefile"),
-        **kwargs)
 
 @cli.group()
 def env():

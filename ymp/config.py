@@ -639,6 +639,11 @@ class ConfigMgr(object):
         return AttrDict({name: os.path.abspath(value)
                          for name, value in self.dir.items()})
 
+    @property
+    def cluster(self):
+        return AttrDict(self._config['cluster'])
+
+    @property
     def ref(self):
         return AttrDict(self._references)
 
