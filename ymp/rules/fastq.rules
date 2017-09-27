@@ -168,9 +168,6 @@ rule multiqc:
     params:  dir = "{dir}.fastqc"
     conda:   srcdir("multiqc.yml")
     shell: """
-    cp `which multiqc` {params.dir}
-    python -V > {params.dir}/python.log
-    env > {params.dir}/env.log
     multiqc \
             --module fastqc \
             --outdir {params.dir} \
@@ -257,10 +254,6 @@ rule bb_ecco:
     threads: 16
     conda:   srcdir("bbmap.yml")
     shell: """
-    set -x
-    java -version
-    echo $PATH
-    command -V java
     bbmerge.sh in={input[0]} in2={input[1]} out={output[0]} out2={output[1]} \
                outadapter={output.adapter} \
                ecco ecctadpole mix vstrict\
