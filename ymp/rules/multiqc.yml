@@ -3,3 +3,4 @@ channels:
  - conda-forge
 dependencies:
  - multiqc >=1.2
+ - networkx =1.11
