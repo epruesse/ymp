@@ -86,10 +86,11 @@ def load_data(cfg):
      - string items are files
      - lists of files are concatenated top to bottom
      - dicts must have one "command" value:
+
        - 'join' contains a two-item list
          the two items are joined 'naturally' on shared headers
        - 'table' contains a list of one-item dicts
-         dicts have form "key:value[,value...]"
+         dicts have form ``key:value[,value...]``
          a in-place table is created from the keys
          list-of-dict is necessary as dicts are unordered
        - 'paste' contains a list of tables pasted left to right
@@ -98,14 +99,17 @@ def load_data(cfg):
        location, it is expanded to a path relative to CWD
 
     Example:
-    - top.csv
-    - join:
-      - bottom_left.csv
-      - bottom_right.csv
-    - table:
-      - sample: s1,s2,s3
-      - fq1: s1.1.fq, s2.1.fq, s3.1.fq
-      - fq2: s1.2.fq, s2.2.fq, s3.2.fq
+     .. code-block:: yaml
+
+      - top.csv
+      - join:
+        - bottom_left.csv
+        - bottom_right.csv
+      - table:
+        - sample: s1,s2,s3
+        - fq1: s1.1.fq, s2.1.fq, s3.1.fq
+        - fq2: s1.2.fq, s2.2.fq, s3.2.fq
+
     """
     import pandas as pd
     from pandas.core.reshape.merge import MergeError
@@ -406,11 +410,6 @@ class DatasetConfig(object):
 
     def FQpath(self, run, pair):
         """Get path for FQ file for `run` and `pair`
-
-        Expandable paths are
-        SRRnnn: :scratch:/SRR/SRRnnn_:pairnames:.fastq.gz
-        fq:     [basedir/]{fn}
-        remote: http://...
         """
         try:
             source = list(self.source_cfg.loc[run])
