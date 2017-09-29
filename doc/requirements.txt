@@ -2,4 +2,6 @@ sphinxcontrib-napoleon
 sphinx_rtd_theme
 sphinx-click
 snakemake
+ftputil
 click
+
