@@ -3,6 +3,14 @@
 [![CircleCI](https://img.shields.io/circleci/project/github/epruesse/ymp.svg?label=CircleCI)](https://circleci.com/gh/epruesse/ymp)
 [![Travis](https://img.shields.io/travis/epruesse/ymp.svg?label=TravisCI)](https://travis-ci.org/epruesse/ymp)
 
+YMP is an omics pipeline designed to simplify processing large numbers of
+read files while remaining flexible and easily extented.
+
+YMP relies upon Bioconda to provide all necessary tools in up-to-date versions
+and Snakemake to handle task execution.
+
+Please refer to the [manual](http://ymp.readthedocs.io/) for more help.
+
 ## Github development version
 
 ### 1. Install from github
@@ -55,7 +63,5 @@ If something changed in `setup.py`, a re-install may be necessary:
   source activate ymp
   pip install -U -e . 
   ```
-
-## Quick Start Tutorial
 
 
