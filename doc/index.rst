@@ -7,8 +7,7 @@ Welcome to YMP
 ===============================
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :hidden:
 
    install
    config
