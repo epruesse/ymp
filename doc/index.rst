@@ -12,6 +12,7 @@ Welcome to YMP
    install
    config
    commandline
+   rules
    api
 
 
