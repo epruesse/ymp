@@ -14,7 +14,12 @@ from snakemake.workflow import Workflow
 from sphinx.util import logging
 
 
-logger = logging.getLogger(__name__)
+try:
+    logger = logging.getLogger(__name__)
+except AttributeError:
+    # Fall back to normal logging
+    import logging as _logging
+    logger = _logging.getLogger(__name__)
 
 
 class SnakefileDirective(rst.Directive):
