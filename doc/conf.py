@@ -23,6 +23,7 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
+import sphinx_bootstrap_theme
 import ymp
 
 
@@ -44,7 +45,8 @@ extensions = [
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
     'sphinxcontrib.napoleon',
-    'sphinx_click.ext'
+    'sphinxcontrib.fulltoc',
+    'sphinx_click.ext',
     'ymp.sphinxext'
 ]
 
@@ -102,24 +104,18 @@ todo_include_todos = True
 # a list of builtin themes.
 #
 #html_theme = 'alabaster'
-html_theme = "sphinx_rtd_theme"
+#html_theme = "sphinx_rtd_theme"
 
-#import sphinx_bootstrap_theme
-#html_theme = 'bootstrap'
-#html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
+html_theme = 'bootstrap'
+html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
 
-# Theme options are theme-specific and customize the look and feel of a theme
-# further.  For a list of options available for each theme, see the
-# documentation.
-#
-# html_theme_options = {}
 
 bootstrap_html_theme_options = {
     # Navigation bar title. (Default: ``project`` value)
-    #'navbar_title': "YMP",
+    'navbar_title': "YMP",
 
     # Tab name for entire site. (Default: "Site")
-    'navbar_site_name': "Contents",
+    'navbar_site_name': "Documentation",
 
     # A list of tuples containing pages or urls to link to.
     # Valid tuples should be in the following forms:
@@ -176,6 +172,14 @@ bootstrap_html_theme_options = {
     # Values: "3" (default) or "2" (in quotes)
     'bootstrap_version': "3",
 }
+
+# Theme options are theme-specific and customize the look and feel of a theme
+# further.  For a list of options available for each theme, see the
+# documentation.
+#
+# html_theme_options = {}
+
+html_theme_options = bootstrap_html_theme_options
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
