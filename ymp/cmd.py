@@ -14,7 +14,6 @@ import ymp
 from ymp.common import update_dict
 from ymp.util import AttrDict
 from ymp.config import icfg
-icfg.init()
 
 log = logging.getLogger(__name__)
 

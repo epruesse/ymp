@@ -786,3 +786,4 @@ class ConfigMgr(object):
 
 
 icfg = ConfigMgr()
+icfg.init()
