@@ -17,12 +17,21 @@ from ymp.config import icfg
 
 log = logging.getLogger(__name__)
 
+CONTEXT_SETTINGS = {
+    'help_option_names': ['-h', '--help']
+}
 
 class YmpException(Exception):
+    """
+    Generic exception raied by YMP
+    """
     pass
 
 
 class YmpConfigNotFound(YmpException):
+    """
+    Exception raised by YMP if no config was found in current path
+    """
     pass
 
 
@@ -39,19 +48,52 @@ def find_root():
 
 
 def snake_params(func):
+    """Default parameters for subcommands launching Snakemake"""
     @click.argument("targets", nargs=-1, metavar="FILES")
-    @click.option("--dryrun", "-n", default=False, is_flag=True)
-    @click.option("--printshellcmds", "-p", default=False, is_flag=True)
-    @click.option("--keepgoing", "-k", default=False, is_flag=True)
-    @click.option("--verbose", "-v", default=False, is_flag=True)
-    @click.option("--lock/--no-lock")
-    @click.option("--rerun-incomplete", "--ri", 'force_incomplete',
-                  is_flag=True)
-    @click.option("--forceall", "-F", is_flag=True, default=False)
-    @click.option("--force", "-f", "forcetargets", is_flag=True, default=False)
-    @click.option("--conda-prefix", default=os.path.expanduser("~/.ymp/conda"))
-    @click.option("--timestamp", "-T", is_flag=True, default=False)
-    @click.option("--notemp", is_flag=True, default=False)
+    @click.option(
+        "--dryrun", "-n", default=False, is_flag=True,
+        help="Only show what would be done; don't actually run any commands"
+    )
+    @click.option(
+        "--printshellcmds", "-p", default=False, is_flag=True,
+        help="Print shell commands to be executed on shell"
+    )
+    @click.option(
+        "--keepgoing", "-k", default=False, is_flag=True,
+        help="Keep going as far as possible after individual stages failed"
+    )
+    @click.option(
+        "--verbose", "-v", default=False, is_flag=True,
+        help="Increase verbosity. May be given multiple times"
+    )
+    @click.option(
+        "--lock/--no-lock",
+        help="Use/don't use locking to prevent clobbering of files"
+        " by parallel instances of YMP running"
+    )
+    @click.option(
+        "--rerun-incomplete", "--ri", 'force_incomplete', is_flag=True,
+        help="Re-run stages left incomplete in last run"
+    )
+    @click.option(
+        "--forceall", "-F", is_flag=True, default=False,
+        help="Force rebuilding of all stages leading to target"
+    )
+    @click.option(
+        "--force", "-f", "forcetargets", is_flag=True, default=False,
+        help="Force rebuilding of target"
+    )
+    @click.option(
+        "--conda-prefix", default=os.path.expanduser("~/.ymp/conda"),
+        help="Override path to conda environments"
+    )
+    @click.option(
+        "--timestamp", "-T", is_flag=True, default=False,
+        help="Add timestamp to logs")
+    @click.option(
+        "--notemp", is_flag=True, default=False,
+        help="Do not remove temporary files"
+    )
     @functools.wraps(func)
     def decorated(*args, **kwargs):
         return func(*args, **kwargs)
@@ -59,6 +101,10 @@ def snake_params(func):
 
 
 def start_snakemake(**kwargs):
+    """Execute Snakemake with given parameters and targets
+
+    Fixes paths of kwargs['targets'] to be relative to YMP root.
+    """
     kwargs['workdir'], prefix = find_root()
     kwargs['use_conda'] = True
     if 'targets' in kwargs:
@@ -70,21 +116,18 @@ def start_snakemake(**kwargs):
 
 
 @click.group()
+@click.version_option(version=ymp.__release__)
 def cli():
+    """
+    Welcome to YMP!
+
+    Please find the full manual at https://ymp.readthedocs.io
+    """
     pass
 
 
-@cli.command()
-@snake_params
-@click.option("--debug", default=False, is_flag=True)
-def prepare(**kwargs):
-    "create conda environments"
-    rval = start_snakemake(create_envs_only=True, **kwargs)
-    if not rval:
-        sys.exit(1)
 
-
-@cli.command()
+@cli.command(context_settings=CONTEXT_SETTINGS)
 @snake_params
 @click.option("--cores", "-j", default=1)
 @click.option("--dag", "printdag", default=False, is_flag=True)
@@ -92,13 +135,13 @@ def prepare(**kwargs):
 @click.option("--debug-dag", default=False, is_flag=True)
 @click.option("--debug", default=False, is_flag=True)
 def make(**kwargs):
-    "build target locally"
+    "Build target(s) locally"
     rval = start_snakemake(**kwargs)
     if not rval:
         sys.exit(1)
 
 
-@cli.command()
+@cli.command(context_settings=CONTEXT_SETTINGS)
 @snake_params
 @click.option("--profile", "-P", default="default")
 @click.option("--config", "-c")
@@ -115,6 +158,7 @@ def make(**kwargs):
 @click.option("--scriptname")
 @click.option("--extra-args", "-e")
 def submit(profile, extra_args, **kwargs):
+    "Build target(s) on cluster"
     # start with default
     print(icfg.cluster.profiles['default'])
     cfg = icfg.cluster.profiles.default
@@ -170,14 +214,32 @@ def submit(profile, extra_args, **kwargs):
 
 @cli.group()
 def env():
-    "Manipulate conda environments"
+    """Manipulate conda software environments
+
+    These commands allow accessing the conda software environments managed
+    by YMP. Use e.g.
+
+    >>> $(ymp env activate multiqc)
+
+    to enter the software environment for ``multiqc``.
+    """
     pass
 
 
-@env.command()
-@click.option("--all", "-a", "param_all", is_flag=True, help="List all environments")
+@env.command(context_settings=CONTEXT_SETTINGS)
+@snake_params
+def prepare(**kwargs):
+    "Create conda environments"
+    rval = start_snakemake(create_envs_only=True, **kwargs)
+    if not rval:
+        sys.exit(1)
+
+@env.command(context_settings=CONTEXT_SETTINGS)
+@click.option(
+    "--all", "-a", "param_all", is_flag=True,
+    help="List all environments, including outdated ones.")
 def list(param_all):
-    "List conda environments"
+    """List conda environments"""
     width = max((len(env) for env in ymp.envs))+1
     for env in sorted(ymp.envs.values()):
         print("{name:<{width}} {path}".format(
@@ -192,10 +254,10 @@ def list(param_all):
                 path=path))
 
 
-@env.command()
+@env.command(context_settings=CONTEXT_SETTINGS)
 @click.argument("ENVNAME", nargs=-1)
-def create(envname):
-    "Create conda environments"
+def install(envname):
+    "Install conda software environments"
     fail = False
 
     if len(envname) == 0:
@@ -213,7 +275,7 @@ def create(envname):
         exit(1)
 
 
-@env.command()
+@env.command(context_settings=CONTEXT_SETTINGS)
 @click.argument("ENVNAMES", nargs=-1)
 def update(envnames):
     "Update conda environments"
@@ -237,7 +299,7 @@ def update(envnames):
         exit(1)
 
 
-@env.command()
+@env.command(context_settings=CONTEXT_SETTINGS)
 @click.option("--all", "-a", "param_all", is_flag=True, help="Delete all environments")
 def clean(param_all):
     "Remove unused conda environments"
@@ -252,7 +314,7 @@ def clean(param_all):
         shutil.rmtree(path)
 
 
-@env.command()
+@env.command(context_settings=CONTEXT_SETTINGS)
 @click.argument("ENVNAME", nargs=1)
 def activate(envname):
     """
@@ -268,7 +330,7 @@ def activate(envname):
         print("source activate {}".format(ymp.envs[envname].path))
 
 
-@env.command()
+@env.command(context_settings=CONTEXT_SETTINGS)
 @click.argument("ENVNAME", nargs=1)
 @click.argument("COMMAND", nargs=-1)
 def run(envname, command):
