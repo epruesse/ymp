@@ -106,9 +106,12 @@ todo_include_todos = True
 #html_theme = 'alabaster'
 #html_theme = "sphinx_rtd_theme"
 
-html_theme = 'bootstrap'
-html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
+#html_theme = 'bootstrap'
+#html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
 
+
+html_theme = 'theme'
+html_theme_path = ['.']
 
 bootstrap_html_theme_options = {
     # Navigation bar title. (Default: ``project`` value)
@@ -132,7 +135,7 @@ bootstrap_html_theme_options = {
     'navbar_sidebarrel': False,
 
     # Render the current pages TOC in the navbar. (Default: true)
-    'navbar_pagenav': True,
+    'navbar_pagenav': False,
 
     # Tab name for the current pages TOC. (Default: "Page")
     #'navbar_pagenav_name': "Page",
