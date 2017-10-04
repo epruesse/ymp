@@ -72,11 +72,12 @@ def make_path_reference(path, workdir):
 
 
 def is_fq(path):
-    return (path.endswith(".fq.gz")
-            or path.endswith(".fastq.gz")
-            or path.endswith(".fq")
-            or path.endswith(".fastq")
-            )
+    return isinstance(path, str) and (
+        path.endswith(".fq.gz")
+        or path.endswith(".fastq.gz")
+        or path.endswith(".fq")
+        or path.endswith(".fastq")
+    )
 
 
 def load_data(cfg):
