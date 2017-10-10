@@ -152,7 +152,7 @@ def make(**kwargs):
 @click.option("--wrapper", "-w")
 @click.option("--max-jobs-per-second", "-m")
 @click.option("--latency-wait", "-l")
-@click.option("--max-cores", "-j", "cores")
+@click.option("--max-cores", "-j")
 @click.option("--local-cores", default=16)
 @click.option("--args", "qsub_args")
 @click.option("--scriptname")
@@ -203,7 +203,7 @@ def submit(profile, extra_args, **kwargs):
     for cfg_arg, kw_arg in (('immediate', 'immediate_submit'),
                             ('wrapper', 'jobscript'),
                             ('scriptname', 'jobname'),
-                            ('max_cores', 'cores')):
+                            ('max_cores', 'nodes')):
         cfg[kw_arg] = cfg[cfg_arg]
         del cfg[cfg_arg]
 
