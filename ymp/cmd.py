@@ -160,7 +160,6 @@ def make(**kwargs):
 def submit(profile, extra_args, **kwargs):
     "Build target(s) on cluster"
     # start with default
-    print(icfg.cluster.profiles['default'])
     cfg = icfg.cluster.profiles.default
     # select default profile (from cmd or cfg)
     if profile != "default":
