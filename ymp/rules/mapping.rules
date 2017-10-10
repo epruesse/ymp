@@ -33,16 +33,16 @@ rule bbmap_map:
     message:
         "BBMap mapping sample {wildcards.source} to assembly {wildcards.target}"
     input:
-        contigs="{dir}{by}.mhc/{target}.contigs.fasta.gz",
+        contigs="{dir}{by}.{assembler}/{target}.contigs.fasta.gz",
         pairs="{dir}/{source}.{: pairnames :}.fq.gz"
     output:
-        bam=temp("{dir}{by}.mhc.bbm/{target}.contigs.{source}.bam"),
-        stats="{dir}{by}.mhc.bbm/{target}.contigs.{source}.stats",
-        ihist="{dir}{by}.mhc.bbm/{target}.contigs.{source}.ihist"
+        bam=temp("{dir}{by}.{assembler}.bbm/{target}.contigs.{source}.bam"),
+        stats="{dir}{by}.{assembler}.bbm/{target}.contigs.{source}.stats",
+        ihist="{dir}{by}.{assembler}.bbm/{target}.contigs.{source}.ihist"
     log:
-        "{dir}{by}.mhc.bbm/{source}.contigs.{source}.log"
+        "{dir}{by}.{assembler}.bbm/{source}.contigs.{source}.log"
     benchmark:
-        "benchmarks/bbmap/{dir}{by}.mhc.bbm/{source}.contigs.{source}.txt"
+        "benchmarks/bbmap/{dir}{by}.{assembler}.bbm/{source}.contigs.{source}.txt"
     params:
         mem=icfg.mem("80g")
     threads:
@@ -103,17 +103,17 @@ rule bowtie2_map:
     message:
         "Bowtie2: Mapping sample {wildcards.source} to assembly {wildcards.target}"
     input:
-        contigs = "{dir}{by}.mhc/{target}.contigs.fasta.gz",
-        index   = expand("{{dir}}{{by}}.mhc.bt2/{{target}}.contigs.{ext}",
+        contigs = "{dir}{by}.{assembler}/{target}.contigs.fasta.gz",
+        index   = expand("{{dir}}{{by}}.{{assembler}}.bt2/{{target}}.contigs.{ext}",
                          ext=BT2IDX_SUFFIXES),
         pairs   = "{dir}/{source}.{: pairnames :}.fq.gz"
     output:
-        bam     = temp("{dir}{by}.mhc.bt2/{target}.contigs.{source}.bam"),
-        stats   = "{dir}{by}.mhc.bt2/{target}.contigs.{source}.stats"
+        bam     = "{dir}{by}.{assembler}.bt2/{target}.contigs.{source}.bam",
+        stats   = "{dir}{by}.{assembler}.bt2/{target}.contigs.{source}.stats"
     log:
-                  "{dir}{by}.mhc.bt2/{target}.contigs.{source}.log"
+                  "{dir}{by}.{assembler}.bt2/{target}.contigs.{source}.log"
     params:
-        bt2_base= "{dir}{by}.mhc.bt2/{target}.contigs",
+        bt2_base= "{dir}{by}.{assembler}.bt2/{target}.contigs",
         maxins = 800,
         k = 100
     threads:
