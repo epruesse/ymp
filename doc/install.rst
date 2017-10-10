@@ -35,6 +35,14 @@ Usually, all you need to do is a pull::
 
    git pull
 
+If environments where updated, you may want to regenerate the local
+installations and clean out the old ones to save disk space::
+
+   source activate ymp
+   ymp env update
+   ymp env clean
+   conda clean -a
+
 If you see errors before jobs are executed, the core requirements may
 have changed. To update the YMP conda environment, enter the folder
 where you installed YMP and run the following::
