@@ -6,6 +6,21 @@ import os
 This file contains the rules dealing with FQ file provisioning and preparation. 
 """
 
+###
+### Meta rules
+###
+
+localrules: fq_all
+rule fq_all:
+    message: "Finished {wildcards.dir}"
+    input: "{dir}/{:fq_names:}.fq.gz"
+    output: touch("{dir}/all")
+
+rule fastqc_all:
+    message: "Finished {wildcards.dir}"
+    input: "{dir}.fastqc/{:fq_names:}_fastqc.zip"
+    output: touch("{dir}.fastqc/all")
+
 
 
 ###
@@ -121,20 +136,6 @@ rule get_reference_dir:
 ruleorder: get_reference_dir > gunzip
 
 
-###
-### Meta rules
-###
-
-localrules: fq_all
-rule fq_all:
-    message: "Finished {wildcards.dir}"
-    input: "{dir}/{:runs:}.{:pairnames:}.fq.gz"
-    output: touch("{dir}/all")
-
-rule fastqc_all:
-    message: "Finished {wildcards.dir}"
-    input: "{dir}.fastqc/{:runs:}.{:pairnames:}_fastqc.zip"
-    output: touch("{dir}.fastqc/all")
 
 ###
 ###  Quality Reports
