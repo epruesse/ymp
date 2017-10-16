@@ -257,7 +257,9 @@ class DatasetConfig(object):
     RE_SRR = re.compile(r"^SRR[0-9]+$")
     RE_FILE = re.compile(r"^(?!http://).*(?:fq|fastq)(?:|\.gz)$")
 
-    def __init__(self, cfg):
+    def __init__(self, cfgmgr, project, cfg):
+        self.project = project
+        self.cfgmgr = cfgmgr
         self.cfg = cfg
         self.fieldnames = None
         self._runs = None
@@ -595,7 +597,7 @@ class ConfigMgr(object):
         if projects == None:
             projects = {}
         self._datasets = {
-            project:  DatasetConfig(cfg)
+            project:  DatasetConfig(self, project, cfg)
             for project, cfg in projects.items()
         }
 
