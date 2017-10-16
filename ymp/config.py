@@ -280,15 +280,11 @@ class DatasetConfig(object):
 
     @property
     def runs(self):
-        """Pandas dataframe of runs
+        """Pandas dataframe index of runs
 
         Lazy loading property, first call may take a while.
         """
-        if self._runs is None:
-            self._runs = load_data(self.cfg[self.KEY_DATA])
-            self.choose_id_column()
-
-        return self._runs.index
+        return self.run_data.index
 
     def choose_id_column(self):
         """Configures column to use as index on runs
