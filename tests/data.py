@@ -38,6 +38,9 @@ targets_metagenome = odict[
     'map_bowtie2_separate': '{}.by_ID.mhc.bt2/all',
     'map_bowtie2_grouped': '{}.by_Subject.mhc.bt2/all',
     'map_bowtie2_joined': '{}.mhc.bt2/all',
+    # mapping vs reference
+    'map_bbmap_reference': '{}.ref_genome.bbm/all',
+    'map_bowtie2_reference': '{}.ref_genome.bt2/all',
 ]
 
 targets_amplicon = OrderedDict()

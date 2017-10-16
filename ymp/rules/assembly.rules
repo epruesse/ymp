@@ -15,6 +15,21 @@ rule assemble_all:
 
 
 ###
+### Pseudo assembly (use reference)
+###
+
+rule reference_as_assembly:
+    message:
+        "Using reference {wildcards.ref} as mapping target"
+    input:
+        "{:dir.references:}/{ref}.fasta.gz"
+    output:
+        "{dir}.ref_{ref}/ALL.contigs.fasta.gz"
+    run:
+        import os
+        os.symlink(os.path.join("..", input[0]), output[0])
+
+###
 ### Assembly Rules
 ###
 

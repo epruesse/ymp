@@ -4,6 +4,8 @@ icfg.init()
 # make sure rules are executed in bash (not sh, dash or worse)
 shell.executable("/bin/bash")
 
+refname = str("({})".format("|".join(icfg.ref)))
+
 wildcard_constraints:
     dir      = "[^/]+?",
     dir1     = "[^/]+",
@@ -23,8 +25,8 @@ wildcard_constraints:
     SRR = "[EDS]RR[0-9]+",
     rnagene="({})".format("|".join(icfg.db.rrna)),
     project = "({})".format("|".join(icfg.datasets)),
-    refname = str("({})".format("|".join(icfg.ref))),
-    assembler = "(mh|mhc|sp)",
+    refname = refname,
+    assembler = "(mh|mhc|sp|ref_{})".format(refname),
     mapper = "(bt2|bbm)",
     genefind = "(blast)",
 

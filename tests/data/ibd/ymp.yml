@@ -5,3 +5,5 @@ projects:
           - 'mapping.csv'
           - 'ibd_runtable.txt'
 
+references:
+  genome: 'query.faa'
