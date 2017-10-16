@@ -80,6 +80,30 @@ rule fastq_dump:
     """
 
 
+rule export_qiime_map_file:
+    message:
+        "Creating Qiime map file for project {wildcards.project}"
+    output:
+        "{project}/qiime_mapping.tsv"
+    run:
+        import pandas as pd
+        df = icfg[wildcards.project].run_data
+        cols = df.columns.tolist()
+
+        try:
+            desc_idx = cols.index("Description")
+            cols = cols[:desc_idx] + cols[desc_idx+1:] + [cols[desc_idx]]
+            df = df[cols]
+        except ValueError:
+            df["Description"] = ""
+
+        df.to_csv(output[0], sep="\t", index=False)
+
+        # TODO: Rename bccol to "BarcodeSequence"
+        #       Fake LinkerPrimerSequence col if not exists
+        #       Make first/index column be called "#SampleID"
+
+
 ###
 ###  Linking into current workspace
 ###
