@@ -92,7 +92,7 @@ rule symlink_raw_reads:
         "Creating symlink {output} -> {input}"
     input:
         # extract path from config file:
-        lambda wc: icfg.FQpath(wc.project, wc.run, wc.pairsuff)
+        lambda wc: icfg[wc.project].FQpath(wc.run, wc.pairsuff)
     output:
         "{project}/{run}.{pairsuff}.fq.gz"
     run:

@@ -733,14 +733,6 @@ class ConfigMgr(object):
         res = expand(template, **fields)
         return res
 
-    def FQpath(self, dataset, run, pairsuff):
-        try:
-            return self._datasets[dataset].FQpath(
-                run, self.pairnames.index(pairsuff))
-        except KeyError:
-            return ":::No such file (ds={}, run={}, pair={}):::".format(
-                dataset, run, pairsuff)
-
     def getRuns(self, datasets=None):
         """Returns list of names of Runs of `dataset`, or names of all
         configured Runs"""
