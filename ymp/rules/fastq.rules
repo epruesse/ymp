@@ -104,6 +104,38 @@ rule export_qiime_map_file:
         #       Make first/index column be called "#SampleID"
 
 
+rule split_libraries:
+    """
+    Splits barcode indexed files into separate fq files
+    """
+    message:
+        "Splitting TODO"
+    input:
+        barcodes = lambda wc: wc.barcodes.replace("__","/"),
+        reads = lambda wc: icfg[wc.project].FQpath(wc.sample, wc.pairname, nosplit=True),
+        mapping = "{project}/qiime_mapping.tsv"
+    output:
+        "{project}.split_libraries/{barcodes}/{sample}.{pairname}.fq.gz"
+    conda:
+        srcdir("qiime.yml")
+    shell: """
+    split_libraries_fastq.py \
+       -b {input.barcodes} \
+       -m {input.mapping} \
+       --store_demultiplexed_fastq \
+       -i {input.reads} \
+       --max_bad_run_length=1000000 \
+       --min_per_read_length_fraction=0.000001 \
+       --sequence_max_n=100000 \
+       --phred_quality_threshold=1 \
+       -o blatmp
+
+    split_sequence_file_on_sample_ids.py \
+       -i seqs.fastq \
+       --file_type fastq \
+       -o out_fastq
+    """
+
 ###
 ###  Linking into current workspace
 ###
