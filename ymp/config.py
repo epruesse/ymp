@@ -407,7 +407,7 @@ class DatasetConfig(object):
     def get_context(self, wc):
         return Context(self, wc)
 
-    def FQpath(self, run, pair):
+    def FQpath(self, run, pair, nosplit=False):
         """Get path for FQ file for `run` and `pair`
         """
         try:
@@ -415,6 +415,21 @@ class DatasetConfig(object):
         except KeyError:
             raise YmpException("Internal error. "
                                "No run '{}' in source config".format(run))
+
+        if isinstance(pair, str):
+            pair = self.cfgmgr.pairnames.index(pair)
+
+        if self.KEY_BCCOL in self.cfg and not nosplit:
+            bccol = self.cfg[self.KEY_BCCOL]
+            barcode_file = self.run_data.loc[run][bccol]
+            if len(barcode_file) > 0:
+                barcode_id = barcode_file.replace("/", "__")
+                return ("{project}.split_libraries/{barcodes}/{run}.{pair}.fq.gz"
+                        "".format(
+                            project = self.project,
+                            barcodes = barcode_id,
+                            run = run,
+                            pair = self.cfgmgr.pairnames[pair]))
 
         kind = source[0]
         if kind == 'srr':
