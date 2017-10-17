@@ -1,7 +1,7 @@
 import pytest
 
 
-@pytest.mark.parametrize("project_dir",
+@pytest.mark.parametrize("project",
                          ['ibd', 'toy', 'mpic', 'complex_data'],
                          indirect=True)
 def test_config(project_dir):
@@ -10,11 +10,11 @@ def test_config(project_dir):
         icfg.init()
 
 
-@pytest.mark.parametrize("project_dir, fq_names",
+@pytest.mark.parametrize("project, fq_names",
                          [('ibd', (738, 738, 0, 369, 369, 369)),
                           ('toy', (2, 2, 0, 1, 1, 1)),
                           ('mpic', (4, 0, 4, 0, 0, 4))],
-                         indirect=['project_dir'])
+                         indirect=['project'])
 def test_fqfiles(project_dir, fq_names):
     with project_dir.as_cwd():
         from ymp.config import icfg

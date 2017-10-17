@@ -19,9 +19,15 @@ def pytest_runtest_makereport(item, call):
     setattr(item, "rep_" + rep.when, rep)
 
 
-@pytest.fixture(params=[])
-def project_dir(request, tmpdir):
-    data_dir = py.path.local(__file__).dirpath('data', request.param)
+@pytest.fixture()
+def project(request):
+    return request.param
+
+
+@pytest.fixture()
+def project_dir(request, project, tmpdir):
+    log.error(project)
+    data_dir = py.path.local(__file__).dirpath('data', project)
     data_dir.copy(tmpdir)
     log.info("Created project directory {}".format(tmpdir))
     yield tmpdir
@@ -36,6 +42,15 @@ def project_dir(request, tmpdir):
         log.error("Saved failed test data to %s", str(destdir))
     else:
         tmpdir.remove()
+
+
+@pytest.fixture()
+def target(request, project_dir):
+    with project_dir.as_cwd():
+        from ymp.config import icfg
+        icfg.init()
+        for ds in icfg:
+            yield request.param.format(ds)
 
 
 @pytest.fixture()

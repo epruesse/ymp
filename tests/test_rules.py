@@ -3,24 +3,12 @@ from pathlib import Path
 
 import pytest
 
-from .data import targets
-
-del targets['phyloFlash'] ## can't work with our test data
+from .data import parametrize_target
 
 log = logging.getLogger(__name__)
 
 
-@pytest.fixture(params=list(targets.values()), ids=list(targets.keys()))
-def target(request, project_dir):
-    with project_dir.as_cwd():
-        from ymp.config import icfg
-        icfg.init()
-        for ds in icfg:
-            yield request.param.format(ds)
-
-
-
-@pytest.mark.parametrize("project_dir", ['toy'], indirect=True)
+@parametrize_target(large=False, exclude_targets=['phyloFlash'])
 def test_run_rules(target):
     from click.testing import CliRunner
     from ymp.cmd import make as ymp_make
