@@ -63,9 +63,8 @@ def test_graph_complete(build_graph):
     assert n_start_nodes >= n_runs
 
     n_symlinks = len(
-        [1 for node, degree in G.in_degree()
-         if degree == 1 and
-         G.node[node]['label'].startswith('symlink_raw_reads')])
+        [1 for node, degree in g.in_degree()
+         if g.node[node]['label'].startswith('symlink_raw_reads')])
     log.info("Testing symlinks ({}) == 2 * runs ({})"
              "".format(n_symlinks, n_runs))
     assert n_symlinks == 2 * n_runs
