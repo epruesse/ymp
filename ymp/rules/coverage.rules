@@ -1,3 +1,46 @@
+"""
+Rules for computing read depth profiles
+"""
+
+
+###
+### Meta rules
+###
+
+localrules: cov_all_for_target
+rule cov_all_for_target:
+    message:
+        "Collected coverages for {wildcards.target}"
+    input:
+        "{dir}.contigcov/{target}.contigs.{:sources:}.csv"
+    output:
+        touch("{dir}.contigcov/all_{target}")
+
+localrules: cov_all
+rule cov_all:
+    message:
+        "Collected coverages in {wildcards.dir}"
+    input:
+        "{dir}.contigcov/all_{:targets:}"
+    output:
+        touch("{dir}.contigcov/all")
+
+rule metacov_by_contig:
+    message:
+        "Calculating Contig Read Depths"
+    input:
+        bam = "{dir}/{target}.contigs.{source}.sorted.bam",
+        bai = "{dir}/{target}.contigs.{source}.sorted.bam.bai"
+    output:
+        csv = "{dir}.contigcov/{target}.contigs.{source}.csv"
+    log:
+        "{dir}.contigcov/{target}.contigs.{source}.log"
+    conda:
+        srcdir("metacov.yml")
+    shell:"""
+    metacov -b {input.bam} -o {output.csv} >{log} 2>&1
+    """
+
 rule metacov:
     """
     Compute coverage for a set of regions. Needs:
