@@ -423,7 +423,7 @@ class DatasetConfig(object):
             bccol = self.cfg[self.KEY_BCCOL]
             barcode_file = self.run_data.loc[run][bccol]
             if len(barcode_file) > 0:
-                barcode_id = barcode_file.replace("/", "__")
+                barcode_id = barcode_file.replace("_","__").replace("/", "_%")
                 return ("{project}.split_libraries/{barcodes}/{run}.{pair}.fq.gz"
                         "".format(
                             project = self.project,
@@ -455,6 +455,21 @@ class DatasetConfig(object):
         raise YmpException(
             "Configuration Error: no source for sample {} and read {} found."
             "".format(run, pair+1))
+
+    def unsplit_path(self, barcode_id, pairname):
+        barcode_file = barcode_id.replace("_%", "/").replace("__", "_")
+        pair = self.cfgmgr.pairnames.index(pairname)
+
+        bccol_name = self.cfg[self.KEY_BCCOL]
+        rows = self.run_data[bccol_name] == barcode_file
+
+        # make sure all rows for this have the same source file
+        source_cols = self.source_cfg.loc[rows].apply(set)
+        if max(source_cols.apply(len)) > 1:
+            raise YmpException("Mixed barcode and read files:\n"
+                               + source_cols.to_string())
+
+        return [barcode_file, self.FQpath(rows.index[0], pair, nosplit=True)]
 
     def get_fq_names(self,
                      only_fwd=False, only_rev=False,
