@@ -139,7 +139,9 @@ class BaseExpander(object):
             return (self.expand(subitem, fields, rec=rec+1)
                     for subitem in item)
         else:
-            raise ValueError("unable to expand item '{}'".format(repr(item)))
+            raise ValueError("unable to expand item '{}' with fields '{}'"
+                             "".format(repr(item),
+                                       repr(fields)))
 
         return item
 
