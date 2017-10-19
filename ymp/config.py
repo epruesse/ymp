@@ -441,7 +441,7 @@ class DatasetConfig(object):
 
         fq_col = source[pair+1]
         if not isinstance(fq_col, str):
-            raise YmpException(
+            return (
                 "Configuration Error: no source for sample {} and read {} "
                 "found.".format(run, pair+1))
 
