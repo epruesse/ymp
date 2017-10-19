@@ -7,6 +7,7 @@ from snakemake.io import AnnotatedString, apply_wildcards
 from snakemake.workflow import Workflow
 
 from ymp.string import ProductFormatter
+import ymp
 
 log = logging.getLogger(__name__)
 
@@ -92,7 +93,12 @@ class ExpandableWorkflow(Workflow):
                 for param in self._default_params:
                     if param not in ruleinfo.params[1]:
                         ruleinfo.params[1][param] = self._default_params[param]
-            return decorator(ruleinfo)
+
+            if ymp.print_rule == 1:
+                log.error("rule input: {}".format(ruleinfo.input))
+                log.error("rule kwargs: {}".format(kwargs))
+                ymp.print_rule = 0
+            decorator(ruleinfo) # does not return anything
 
         return decorate
 
