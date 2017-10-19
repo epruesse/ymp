@@ -231,7 +231,7 @@ rule fastqc:
 rule multiqc:
     """Assemble report on all FQ files in a directory"""
     message: "Aggregating QC reports for {wildcards.dir}"
-    input:   "{dir}.fastqc/{:runs:}.{:pairnames:}_fastqc.zip"
+    input:   "{dir}.fastqc/{:fq_names:}_fastqc.zip"
     output:  "{:reportsdir:}/{dir}.fastqc.html",
     log:     "{dir}.fastqc/multiqc.log"
     threads: 1
