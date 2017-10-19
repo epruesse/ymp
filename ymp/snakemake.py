@@ -50,26 +50,27 @@ class ExpandableWorkflow(Workflow):
         except ImportError:
             pass
 
+    def _apply_expand_funcs(self, name, paths, kwpaths):
+        if name in self.expand_funcs:
+            for func in reversed(self.expand_funcs[name]):
+                try:
+                    (paths, kwpaths) = func(paths, kwpaths)
+                except Exception as e:
+                    log.exception("exception in input expand")
+        return paths, kwpaths
+
     def input(self, *paths, **kwpaths):
         """Intercepts arguments passed to "rule: input:" and passes them
         through registered expander functions.
         """
-        for func in reversed(self.expand_funcs['input']):
-            try:
-                (paths, kwpaths) = func(paths, kwpaths)
-            except Exception as e:
-                log.exception("exception in input expand")
+        paths, kwpaths = self._apply_expand_funcs('input', paths, kwpaths)
         return super().input(*paths, **kwpaths)
 
     def output(self, *paths, **kwpaths):
         """Intercepts arguments passed to "rule: output:" and passes them
         through registered expander functions.
         """
-        for func in reversed(self.expand_funcs['output']):
-            try:
-                (paths, kwpaths) = func(paths, kwpaths)
-            except Exception as e:
-                log.exception("exception in output expand")
+        paths, kwpaths = self._apply_expand_funcs('output', paths, kwpaths)
         return super().output(*paths, **kwpaths)
 
     @staticmethod
