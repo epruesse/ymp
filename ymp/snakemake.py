@@ -93,7 +93,7 @@ class ExpandableWorkflow(Workflow):
             # if we have default params, add them
             if self._default_params:
                 if not ruleinfo.params:
-                    ruleinfo.params=([],{})
+                    ruleinfo.params = ([], {})
                 for param in self._default_params:
                     if param not in ruleinfo.params[1]:
                         ruleinfo.params[1][param] = self._default_params[param]
@@ -103,9 +103,10 @@ class ExpandableWorkflow(Workflow):
                 for attr in dir(ruleinfo):
                     if attr.startswith("__"):
                         continue
-                    log.error("  {}: {}".format(attr, getattr(ruleinfo, attr, "")))
+                    log.error("  {}: {}".format(attr,
+                                                getattr(ruleinfo, attr, "")))
                 ymp.print_rule = 0
-            decorator(ruleinfo) # does not return anything
+            decorator(ruleinfo)  # does not return anything
 
         return decorate
 
