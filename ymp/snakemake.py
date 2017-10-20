@@ -99,8 +99,11 @@ class ExpandableWorkflow(Workflow):
                         ruleinfo.params[1][param] = self._default_params[param]
 
             if ymp.print_rule == 1:
-                log.error("rule input: {}".format(ruleinfo.input))
-                log.error("rule kwargs: {}".format(kwargs))
+                log.error("rule {}".format(kwargs))
+                for attr in dir(ruleinfo):
+                    if attr.startswith("__"):
+                        continue
+                    log.error("  {}: {}".format(attr, getattr(ruleinfo, attr, "")))
                 ymp.print_rule = 0
             decorator(ruleinfo) # does not return anything
 
