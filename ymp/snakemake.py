@@ -1,15 +1,58 @@
 import logging
 import re
 
-from copy import deepcopy, copy
+from collections import Iterable
+from copy import copy, deepcopy
 
-from snakemake.io import AnnotatedString, apply_wildcards
+from snakemake.io import AnnotatedString, Namedlist, apply_wildcards
 from snakemake.workflow import Workflow
 
-from ymp.string import ProductFormatter
 import ymp
+from ymp.string import PartialFormatter, ProductFormatter
+
 
 log = logging.getLogger(__name__)
+
+partial_format = PartialFormatter().format
+
+
+def flatten(l):
+    """Flatten lists without turning strings into letters"""
+    for item in l:
+        if isinstance(item, str):
+            yield item
+        elif isinstance(item, Iterable):
+            for item2 in flatten(item):
+                yield item2
+        else:
+            yield item
+
+
+def recursive_format(ruleinfo):
+    """Expand wildcards within ruleinfo
+
+    This is not fully implemented!
+
+    At this time, only `input` and `output` are expanded within
+    `params`.
+    """
+    args = {}
+    for name in ['input', 'output']:
+        attr = getattr(ruleinfo, name)
+        if attr is None:
+            continue
+        nlist = Namedlist()
+        for item in flatten(attr[0]):
+            nlist.append(item)
+        for key, item in attr[1].items():
+            nlist.append(item)
+            nlist.add_name(key)
+        args[name] = nlist
+    for key, value in ruleinfo.params[1].items():
+        if not isinstance(value, str):
+            continue
+        value = partial_format(value, **args)
+        ruleinfo.params[1][key] = value
 
 
 class ExpandableWorkflow(Workflow):
@@ -97,6 +140,8 @@ class ExpandableWorkflow(Workflow):
                 for param in self._default_params:
                     if param not in ruleinfo.params[1]:
                         ruleinfo.params[1][param] = self._default_params[param]
+
+            recursive_format(ruleinfo)
 
             if ymp.print_rule == 1:
                 log.error("rule {}".format(kwargs))
