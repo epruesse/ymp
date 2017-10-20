@@ -19,6 +19,8 @@ class _odict(object):
     """
 
     def __getitem__(self, keys):
+        if isinstance(keys, slice):
+            return OrderedDict([(keys.start, keys.stop)])
         return OrderedDict([(slice.start, slice.stop) for slice in keys])
 
 odict = _odict() # need only one instance ever
