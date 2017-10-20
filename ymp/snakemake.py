@@ -34,6 +34,7 @@ class ExpandableWorkflow(Workflow):
                     ]
                 }
                 workflow.sm_expander = SnakemakeExpander()
+                workflow._ruleinfos = {}
         except ImportError:
             log.debug("ExpandableWorkflow not installed: "
                       "Failed to import workflow object.")
@@ -86,6 +87,9 @@ class ExpandableWorkflow(Workflow):
         decorator = super().rule(*args, **kwargs)
 
         def decorate(ruleinfo):
+            # save ruleinfo in case `derive_rule` is called
+            self._ruleinfos[kwargs['name']] = ruleinfo
+
             # if we have default params, add them
             if self._default_params:
                 if not ruleinfo.params:
@@ -101,6 +105,60 @@ class ExpandableWorkflow(Workflow):
             decorator(ruleinfo) # does not return anything
 
         return decorate
+
+    def derive_rule(self, name, parent, order=None, **kwargs):
+        """Create derived snakemake rule by overriding rule parameters
+
+        This implements a poor man's OO solution for Snakemake. By overwriting
+        parts of the rule, we can create several similar rules without too
+        much repetition.
+
+        This is mainly necessary for alternative output scenarios, e.g. if
+        the output can be paired end or single end, snakemake syntax does
+        not support expressing this in one rule.
+
+        Arguments:
+           name: name of derived rule
+           parent: name of parent rule
+           order: one of "lesser" or "higher"; creates ruleorder statement
+           input, output, params, ...: override parent arguments
+
+        The active part, ``shell`, ``run``, ``script``, etc. cannot be
+        overriden.
+
+        String and list parameters override the unnamed arguments.
+        Dict arguments override named arguments with ``dict.update`` behavior.
+        Tuples are expected to contain an array *args and a dict *kwargs,
+        overriding as above.
+        """
+        ruleinfo = deepcopy(self._ruleinfos[parent])
+        # log.error("deriving {} from {}".format(name, parent))
+
+        for key, value in kwargs.items():
+            attr = getattr(ruleinfo, key)
+            if isinstance(value, str):
+                value, _ = self._apply_expand_funcs(key, [value], {})
+                attr = (value, attr[1])
+            elif isinstance(value, list):
+                value, _ = self._apply_expand_funcs(key, value, {})
+                attr = (value, attr[1])
+            elif isinstance(value, dict):
+                _, value = self._apply_expand_funcs(key, [], value)
+                attr[1].update(value)
+            elif isinstance(value, tuple):
+                value = self._apply_expand_funcs(key, value[0], value[1])
+                attr[0] = value[0]
+                attr[1].update(value[1])
+
+            setattr(ruleinfo, key, attr)
+
+        self.rule(name=name, snakefile="generated")(ruleinfo)
+
+        if order is not None:
+            if order == "lesser":
+                self.ruleorder(parent, name)
+            elif order == "higher":
+                self.ruleorder(name, parent)
 
 
 class BaseExpander(object):
