@@ -17,8 +17,9 @@ install:
   - hash -r
   - source activate test_env
   - mkdir reports
-script:
   - python setup.py install
-  - pytest --junit-xml reports/report.xml -n 2
+  - ymp env update
+script:
+  - pytest -v --junit-xml reports/report.xml -n 2
 
   
