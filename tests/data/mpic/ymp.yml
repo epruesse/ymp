@@ -7,3 +7,6 @@ projects:
           - table:
              - forward_reads: forward_reads.fastq.gz
              - barcodes: barcodes.fastq.gz
+
+limits:
+  max_mem: 3G
