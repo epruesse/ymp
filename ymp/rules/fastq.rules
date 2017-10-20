@@ -1,4 +1,5 @@
 from ymp.config import icfg
+import ymp
 import os
 
 
@@ -281,6 +282,7 @@ rule phyloFlash:
     log:     "{dir}.pf/{sample}.log"
     threads: 16
     conda:   srcdir("phyloflash.yml")
+    params:  in2="-read2 ../{input[1]}"
     shell: """
     cd {wildcards.dir}.pf
 
@@ -289,12 +291,20 @@ rule phyloFlash:
                   -html \
                   -readlength 301 \
                   -read1 ../{input[0]} \
-                  -read2 ../{input[1]} \
+                  {params.in2} \
                   -lib {wildcards.sample} \
                   -CPUs {threads} \
                   -dbhome ../{input.dbhome}/0 \
                   > ../{log} 2>&1
     """
+
+workflow.derive_rule(
+    name="phyloFlash_se",
+    parent="phyloFlash",
+    input="{dir}/{sample}.{:pairnames[0]:}.fq.gz",
+    params={"in2":""},
+    order="lesser"
+)
 
 
 rule phyloFlash_heatmap:
@@ -322,14 +332,25 @@ rule bb_ecco:
              adapter="{dir}.ecco/{sample}.adapter.fq"
     log:     "{dir}.ecco/{sample}.log"
     threads: 16
+    params:  inout="in={input[0]} out={output[0]}",
+             inout2="in2={input[1]} out2={output[1]}"
     conda:   srcdir("bbmap.yml")
     shell: """
-    bbmerge.sh in={input[0]} in2={input[1]} out={output[0]} out2={output[1]} \
+    bbmerge.sh {params.inout} {params.inout2} \
                outadapter={output.adapter} \
                ecco ecctadpole mix vstrict\
                threads={threads} -Xmx60g \
                > {log} 2>&1
     """
+
+workflow.derive_rule(
+    name   = "bb_ecco_se",
+    parent = "bb_ecco",
+    input  = "{dir}/{sample}.{:pairnames[0]:}.fq.gz",
+    output = "{dir}.ecco/{sample}.{:pairnames[0]:}.fq.gz",
+    params = {'inout2': ""},
+    order  = "lesser"
+)
 
 
 ###
@@ -341,12 +362,12 @@ rule trim_bbduk_adapter:
     message:
         "Trimming with BBduk {wildcards.dir}/wildcards.sample "
         "({params.adapt}Q={params.qual} L={params.length})"
-    input:
-        "{dir}/{sample}.{:pairnames:}.fq.gz"
     wildcard_constraints:
         A = "(A?)",
         Q = "(Q\d+|)",
         L = "(L\d+|)"
+    input:
+        "{dir}/{sample}.{:pairnames:}.fq.gz"
     output:
         "{dir}.trim{A}{Q}{L}/{sample}.{:pairnames:}.fq.gz"
     log:
@@ -359,15 +380,16 @@ rule trim_bbduk_adapter:
         mink=11,
         hdist=1,
         mem=icfg.mem("80g"),
-        flags="pigz unpigz"
+        flags="pigz unpigz",
+        inout="in={input[0]} out={output[0]}",
+        inout2="in2={input[1]} out2={output[1]}" # overriden by child rule
     threads: 16
     conda: srcdir("bbmap.yml")
     shell:
         # find adapter dir:
         'BB_RSRC="$(dirname $(readlink -f $(command -v bbduk.sh)))/resources";'
         'bbduk.sh '
-        'in={input[0]} in2={input[1]} '
-        'out={output[0]} out2={output[1]} '
+        '{params.inout} {params.inout2} '
         'trimq={params.qual} qtrim=r '         # quality trimming
         'minlength={params.length} '           # length filtering
         '{params.adapt}'                       # adapter trimming
@@ -382,6 +404,15 @@ rule trim_bbduk_adapter:
         '-Xmx{params.mem} '
         '>{log} 2>&1'
 
+# Create derived child rule for single ended reads
+workflow.derive_rule(
+    name   = "trim_bbduk_adapter_se",
+    parent = "trim_bbduk_adapter",
+    input  = "{dir}/{sample}.{:pairnames[0]:}.fq.gz",
+    output = "{dir}.trim{A}{Q}{L}/{sample}.{:pairnames[0]:}.fq.gz",
+    params = { 'inout2': "" },
+    order = "lesser"
+)
 
 
 rule trimmomatic_adapter:
@@ -393,8 +424,10 @@ rule trimmomatic_adapter:
     wildcard_constraints:
         adapter="(N|T(2|3|32))"
     output:
-        p  = "{dir}.trimmomatic{adapter}/{sample}.{:pairnames:}.fq.gz",
-        up = "{dir}.trimmomatic{adapter}/{sample}.unpaired.{:pairnames:}.fq.gz"
+        "{dir}.trimmomatic{adapter}/{sample}.{:pairnames[0]:}.fq.gz",
+        "{dir}.trimmomatic{adapter}/{sample}.unpaired.{:pairnames[0]:}.fq.gz",
+        "{dir}.trimmomatic{adapter}/{sample}.{:pairnames[1]:}.fq.gz",
+        "{dir}.trimmomatic{adapter}/{sample}.unpaired.{:pairnames[1]:}.fq.gz"
     log:
         "{dir}.trimmomatic{adapter}/{sample}.log"
     params:
@@ -402,7 +435,8 @@ rule trimmomatic_adapter:
         palindrome_clip_thresh = 30,
         simple_clip_thresh = 10,
         min_adapter_len = 8,
-        keep_both_reads = "true"
+        keep_both_reads = "true",
+        arg_pe="PE"
     conda:
         srcdir("trimmomatic.yml")
     threads:
@@ -424,14 +458,21 @@ rule trimmomatic_adapter:
     CLIPARG="$CLIPARG:{params.min_adapter_len}"
     CLIPARG="$CLIPARG:{params.keep_both_reads}"
 
-    bash -x `which trimmomatic` PE \
+    bash -x `which trimmomatic` {params.arg_pe} \
         -threads {threads} \
         -phred33 \
-        {input} \
-        {output.p[0]} {output.up[0]} \
-        {output.p[1]} {output.up[1]} \
+        {input} {output} \
         $CLIPARG >>{log} 2>&1
     """
+
+workflow.derive_rule(
+    name   = "trimmomatic_adapter_se",
+    parent = "trimmomatic_adapter",
+    input  = "{dir}/{sample}.{:pairnames[0]:}.fq.gz",
+    output = "{dir}.trimmomatic{adapter}/{sample}.{:pairnames[0]:}.fq.gz",
+    params = { 'arg_pe': "SE", 'outargs': "{output}" },
+    order = "lesser"
+)
 
 
 rule sickle:
@@ -440,34 +481,46 @@ rule sickle:
         "(Q={params.qual} L={params.length})"
     input:
         "{dir}/{sample}.{:pairnames:}.fq.gz"
+    output:
+        "{dir}.sickle{Q}{L}/{sample}.{:pairnames:}.fq.gz",
+        "{dir}.sickle{Q}{L}/{sample}.unpaired.fq.gz",
+    log:
+        "{dir}.sickle{Q}{L}/{sample}.log"
     wildcard_constraints:
         Q = "(Q\d+|)",
         L = "(L\d+|)",
-    output:
-        "{dir}.sickle{Q}{L}/{sample}.{:pairnames:}.fq.gz",
-        up = "{dir}.sickle{Q}{L}/{sample}.unpaired.fq.gz"
-    log:
-        "{dir}.sickle{Q}{L}/{sample}.log"
     params:
         length=lambda wc: wc.L[1:] if wc.L else 20,
-        qual=lambda wc: wc.Q[1:] if wc.Q else 20
+        qual=lambda wc: wc.Q[1:] if wc.Q else 20,
+        arg_pe="pe",
+        inout2="-r {input[1]} -p {output[1]} -s {output[2]}"
     threads: 1
     conda:
         srcdir("sickle.yml")
     shell:"""
-    sickle pe \
-        --pe-file1={input[0]} \
-        --pe-file2={input[1]} \
+    sickle {params.arg_pe} \
+        -f {input[0]} \
+        -o {output[0]} \
+        {params.inout2} \
         --qual-type=sanger \
-        --output-pe1={output[0]} \
-        --output-pe2={output[1]} \
-        --output-single={output.up} \
         --length-threshold={params.length} \
         --qual-threshold={params.qual} \
         --gzip-output \
         --no-fiveprime \
         > {log} 2>&1
     """
+
+workflow.derive_rule(
+    name = "sickle_se",
+    parent = "sickle",
+    input = "{dir}/{sample}.{:pairnames[0]:}.fq.gz",
+    output = "{dir}.sickle{Q}{L}/{sample}.{:pairnames[0]:}.fq.gz",
+    params = {
+        "arg_pe": "se",
+        "inout2": ""
+    },
+    order = "lesser"
+)
 
 
 ###
@@ -520,7 +573,8 @@ rule bbmap_split:
              qtrim="rl",
              flags="quickmatch fast untrim machineout",
              minhits=2,
-             mem=icfg.mem("23g")
+             mem=icfg.mem("23g"),
+             inout2="in2={input[1]} outu2={output.clean[1]} outm2={output.human[1]}"
     threads: 16
     conda:   srcdir("bbmap.yml")
     shell:
@@ -536,15 +590,24 @@ rule bbmap_split:
         " trimq={params.trimq} "
         " -Xmx{params.mem} "
         " in={input[0]} "
-        " in2={input[1]} "
         " outu={output.clean[0]} "
-        " outu2={output.clean[1]} "
         " outm={output.human[0]} "
-        " outm2={output.human[1]} "
+        " {params.inout2} "
         " threads={threads} "
         " {params.stats} "
         " > {log} 2>&1"
 
+workflow.derive_rule(
+    name="bbmap_split_se",
+    parent="bbmap_split",
+    input="{dir}/{sample}.{:pairnames[0]:}.fq.gz",
+    output={
+        "clean": ["{dir}.bbmRM{reference}/{sample}.{:pairnames[0]:}.fq.gz"],
+        "human": ["{dir}.bbmKP{reference}/{sample}.{:pairnames[0]:}.fq.gz"]
+    },
+    params={"inout2":""},
+    order="lesser"
+)
 
 rule bmtagger_bitmask:
     message: "Bmtool indexing {input}"
@@ -692,5 +755,26 @@ rule bbmap_dedupe:
         " tee >(cut -f 1-4 | tr \"\t\" \"\\n\" | pigz -p {threads} > {output[0]}) | "
         " cut -f 5-8 | tr \"\t\" \"\\n\" | "
         " pigz -p {threads} > {output[1]}"
-        
+
+rule bbmap_dedupe_se:
+    message: "BBTools dedupe'ing {input}"
+    input:   "{dir}/{sample}.{:pairnames[0]:}.fq.gz"
+    output:  "{dir}.ddp/{sample}.{:pairnames[0]:}.fq.gz"
+    log:     "{dir}.ddp/{sample}.log"
+    params: mem=icfg.mem("80g")
+    threads: 4
+    conda:   srcdir("bbmap.yml")
+    shell:
+        "dedupe.sh"
+        " unpigz"
+        " threads={threads}"
+        " in={input[0]}"
+        " out=stdout"
+        " -Xmx{params.mem} "
+        " 2>{log}"
+        " |"
+        " pigz -p {threads} > {output[0]}"
+
+ruleorder: bbmap_dedupe > bbmap_dedupe_se
+
 
