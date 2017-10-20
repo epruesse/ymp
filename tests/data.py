@@ -9,7 +9,7 @@ dataset_map = {
     'any': ['ibd', 'toy', 'mpic'],
     'metagenome': ['toy', 'ibd'],
     'large': ['ibd'],
-    'amplicon': []
+    'amplicon': ['mpic']
 }
 
 target_map = {
@@ -53,7 +53,7 @@ target_map = {
         'map_bowtie2_reference': '{}.ref_genome.bt2/all',
     ],
     'amplicon': odict[
-        'qiime_map': '{}/qiime_mapping.tsv',
+        'bbduk_primer': '{}.primermatch/all'
     ]
 }
 
