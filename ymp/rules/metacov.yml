@@ -6,5 +6,7 @@ dependencies:
  - click
  - numpy
  - pysam
+ - cython
+ - setuptools
  - pip:
    - git+https://github.com/epruesse/metacov.git
