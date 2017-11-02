@@ -6,12 +6,12 @@ rule qiime_dada2_presplit_samples:
     input:
         "{dir}/"
     output:
-        dir = "{dir}.qd2/",
-        dada2_biom = "{dir}.qd2/dada2.tsv",
-        fasta = "{dir}.qd2/dada2.fasta",
-        failures = "{dir}.qd2/pynast_aligned/dada2_failures.fasta",
-        dada2_w_tax_no_failures = "{dir}.qd2/dada2_w_tax_no_pynast_failures.biom",
-        dada2_tree = "{dir}.qd2/dada2.tre"
+        dir = "{dir}.qd2{skip_len}/",
+        dada2_biom = "{dir}.qd2{skip_len}/dada2.tsv",
+        fasta = "{dir}.qd2{skip_len}/dada2.fasta",
+        failures = "{dir}.qd2{skip_len}/pynast_aligned/dada2_failures.fasta",
+        dada2_w_tax_no_failures = "{dir}.qd2{skip_len}/dada2_w_tax_no_pynast_failures.biom",
+        dada2_tree = "{dir}.qd2{skip_len}/dada2.tre"
     log:
         "capt_log.txt"
     threads:
@@ -19,7 +19,7 @@ rule qiime_dada2_presplit_samples:
     conda:
         srcdir("dada2_qiime1.yml")
     params:
-        skip_len=10
+        skip_len = lambda wc: wc.skip_len[1:] if wc.skip_len else 10
     shell: """
     qiime_dada2.py \
     -i {input} \
@@ -50,6 +50,9 @@ rule remove_pynast_failures_from_dada2:
     -o {output.filt_fasta}
     """
 
+rule:
+   output: "{:dir.references:}/greengenes/gg_13_8_otus/rep_set/{similarity}_otus.fasta"
+   input: "{:dir.references:}/greengenes/gg_13_8_otus/"
 
 rule pick_closed_otus_on_dada2:
     """Pick closed OTUs"""
