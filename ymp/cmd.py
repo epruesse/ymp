@@ -123,8 +123,6 @@ def cli():
 
     Please find the full manual at https://ymp.readthedocs.io
     """
-    pass
-
 
 
 @cli.command(context_settings=CONTEXT_SETTINGS)
