@@ -103,3 +103,19 @@ rule mkdir:
     message: "Creating directory '{output}'"
     output: "{{x,({})}}".format("|".join(list(icfg.dir)))
     shell: "mkdir -p {output}"
+
+
+rule fq2fa:
+    """Unzip and convert fastq to fasta for use by qiime"""
+    message:
+        "Unzipping and converting {input} to fasta"
+    input:
+        seqs = "{path}.fq"
+    output:
+        seqs = "{path}.fa"
+    conda:
+        srcdir("sed.yml")
+    shell: """
+    sed -n '1~4 s/^@/>/p; 2~4p' {input.seqs} > {output.seqs}
+    """
+ruleorder: fq2fa > gunzip
