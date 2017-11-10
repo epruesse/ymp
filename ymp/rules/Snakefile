@@ -46,3 +46,7 @@ for fn in os.listdir(srcdir("")):
     if fn.endswith(".rules"):
         include: fn
 
+if os.path.exists(icfg.dir.rules):
+    for fn in os.listdir(icfg.dir.rules):
+        if fn.endswith(".rules"):
+            include: os.path.abspath(os.path.join(icfg.dir.rules, fn))

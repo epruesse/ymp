@@ -7,6 +7,7 @@ directories:
     reports: 'reports'
     sra: 'sra'
     log: 'log'
+    rules: 'rules'
 
 # Default references FASTAs
 references:
