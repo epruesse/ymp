@@ -72,7 +72,7 @@ rule emirge:
         if props['insert_size_avg'] < 1 or props['insert_size_sd'] < 1:
             shell("""
             mkdir {output.dir}
-            ( 
+            (
                 cat {input.props}
                echo "reads_used 0"
             ) > {output.props}
@@ -124,14 +124,14 @@ rule emirge_rename_fasta:
     sed '/^>/ y/ /;/' | \
     awk -F 'NormPrior=' '
         /^>/ {{
-            size=int($2 * '{props[reads_used]}' * '{props[read_length]}' / '{params.tlen}' * 100 + .5); 
+            size=int($2 * '{props[reads_used]}' * '{props[read_length]}' / '{params.tlen}' * 100 + .5);
             if (size>0) {{
-                P=1; 
+                P=1;
                 print $0 ";size=" size
             }} else {{
                 P=0
             }}
-        }} 
+        }}
         /^[^>]/ {{
             if (P==1) {{
                 print $0

@@ -70,7 +70,7 @@ rule pool_by_column:
         else:
             shell("zcat {input} | gzip > {output}")
 
-    
+
 rule all_pooled:
     message: "Completed all {wildcards.ext} in directory {wildcards.dir}"
     output: "{dir}/all_{ext}"
@@ -84,8 +84,8 @@ rule all_paired:
     output: "{dir}/all_fq.gz"
     input: "{dir}/all_{$PAIRS}.fq.gz"
     shell: "touch {output}"
-    
-                        
+
+
 
 bbfiles="bincov.csv stats.txt".split()
 rule bbmap_coassembly:
@@ -128,7 +128,7 @@ rule combine_bbstats:
         write.csv(tdf, file=unlist(output), row.names=FALSE)
         """, input=input, params=params, output=output)
 
-        
+
 rule combine_bincovs:
     message: "Merging coverage bins into table (in {wildcards.dir})"
     output: "{dir}/coverage.csv"
@@ -172,7 +172,7 @@ rule msg_canopy_cluster:
                --not_processed_points_file {wildcards.dir}.cags/not_processed.txt \
                --filtered_out_points_min_obs_file {output.noobs} \
                --filtered_out_points_max_dominant_obs_file {output.domtop} \
-               --canopy_size_stats_file {output.stats} 
+               --canopy_size_stats_file {output.stats}
     """
 
 rule mgs_canopy_data_to_csv:
@@ -218,7 +218,7 @@ rule summarize_cag_runs__R:
     df <- dcast(molten, Run~variable)
     write.csv(df, "{output}", row.names=FALSE)
     """)
-            
+
 
 rule report_test:
     output:
@@ -353,7 +353,7 @@ rule my_scan_mapped:
     ./scan.py -t bam -k {params.k} -s {params.s} -o {params.o} -n {params.n} \
               {input.bam} {params.basename} >& {log}
     """
-        
+
 rule myscan_all:
     message:
         "Completed all scans for {wildcards.dir}"

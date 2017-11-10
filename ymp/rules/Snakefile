@@ -1,26 +1,48 @@
-include: "init.rules"
-include: "phony.rules"
-include: "convert.rules"
+import os
 
-include: "fastq.rules"
+from ymp.config import icfg
+icfg.init()
 
-include: "assembly.rules"
-include: "mapping.rules"
+# make sure rules are executed in bash (not sh, dash or worse)
+shell.executable("/bin/bash")
 
-include: "genepred.rules"
-include: "cluster.rules"
-include: "blast.rules"
-include: "coverage.rules"
-include: "otu.rules"
+refname = str("({})".format("|".join(icfg.ref)))
 
-#include: "rrna.rules"
-include: "align.rules"
-include: "tree.rules"
+wildcard_constraints:
+    dir      = "[^/]+?",
+    dir1     = "[^/]+",
+    dir2     = "[^/]+",
+    sample   = "[^/]+",
+    file     = "[^/]+",
 
-include: "anvio.rules"
-include: "humann.rules"
+    nodots   = "[^/.]+",
+    query    = "[^/.]+",
+    gene     = "[^/.]+",
 
-#include: "all.rules"
+    fracid   = "[0-9][0-9]",
+    coverage = "[0-9]+",
+    evalue   = "[0-9]+",
+    length   = "[1-9][0-9]*",
 
-include: "qiime_dada2.rules"
-include: "SCNIC.rules"
+    SRR = "[EDS]RR[0-9]+",
+    rnagene="({})".format("|".join(icfg.db.rrna)),
+    project = "({})".format("|".join(icfg.datasets)),
+    pairname = "({})".format("|".join(icfg.pairnames)),
+    refname = refname,
+    assembler = "(mh|mhc|sp|ref_{})".format(refname),
+    mapper = "(bt2|bbm)",
+    genefind = "(blast)",
+
+    fasta = "(fasta|fna|fa)",
+    fastp = "(fastp|faa)",
+    fagz  = "(fasta|fna|fa)(|.gz)",
+    fqgz  = "(fq)(|.gz)",
+
+    by = "(\.by_[^./]*|)",
+    target = "[^/.]+",
+    source = "[^/.]+"
+
+for fn in os.listdir(srcdir("")):
+    if fn.endswith(".rules"):
+        include: fn
+
