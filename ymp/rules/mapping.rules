@@ -64,7 +64,7 @@ rule bbmap_map:
         " ambiguous=all"        # output all matches
         " mdtag"                # make source recoverable in sam
         " trimreaddescriptions" # use header until space like bowtie2
-        " -Xmx{params.mem}"     # set JVM heap size
+        " -Xmx{params.mem}m"     # set JVM heap size
         " 2>{log}"              # log error
         " | samtools view -b -o {output.bam} -" # convert to bam
 
@@ -144,13 +144,13 @@ rule sambamba_sort:
              "{path}.sorted.bam.bai"
     log:     "{path}.sorted.bam.log"
     benchmark: "benchmarks/sambamba_sort/{path}.txt"
-    params:  mem=icfg.mem("32g", unit="g"),
+    params:  mem=icfg.mem("32g"),
              compress=6
     threads: 8
     conda: srcdir("sambamba.yml")
     shell:
         "sambamba sort"
-        " --memory-limit={params.mem}GB"
+        " --memory-limit={params.mem}MB"
         " --compression-level={params.compress}"
         " --nthreads={threads}"
         " {input}"

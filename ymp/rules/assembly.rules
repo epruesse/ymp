@@ -55,7 +55,8 @@ rule megahit:
         r1 = lambda wc, input: ",".join([input.r1]
                                         if isinstance(input.r1, str) else input.r1),
         r2 = lambda wc, input: ",".join([input.r2]
-                                        if isinstance(input.r2, str) else input.r2)
+                                        if isinstance(input.r2, str) else input.r2),
+        mem = icfg.mem("500g")
     threads:
         16
     conda:
@@ -153,7 +154,8 @@ rule metaspades:
     params:
         workdir = "{dir}{by}.sp/{target}/",
         tmpdir  = icfg.expand("{:dir.tmp:}"),
-        memory  = icfg.mem("500g", unit="g")
+        memory  = icfg.mem("500g", unit="g"),
+        mem = icfg.mem("500g")
     conda: srcdir("spades.yml")
     threads:
         16

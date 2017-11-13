@@ -220,11 +220,12 @@ rule fastqc:
              "{dir}.fastqc/{file}_fastqc.zip"
     log:     "{dir}.fastqc/{file}_fastqc.log"
     threads: 1
-    params:  k = 10
+    params:  k=10,
+             mem=icfg.mem("8g")
     conda:   srcdir("fastqc.yml")
     shell: """
     # override too low memory requested by fastqc 0.11.5 of 256M per thread:
-    export _JAVA_OPTIONS="-Xmx$[{threads} * 8 * 1024]m"
+    export _JAVA_OPTIONS="-Xmx{params.mem}m"
     fastqc -t {threads} -o $(dirname {output[0]}) {input} -k 10 >{log} 2>&1
     """
 
@@ -282,7 +283,8 @@ rule phyloFlash:
     log:     "{dir}.pf/{sample}.log"
     threads: 16
     conda:   srcdir("phyloflash.yml")
-    params:  in2="-read2 ../{input[1]}"
+    params:  in2="-read2 ../{input[1]}",
+             mem=icfg.mem("80g")
     shell: """
     cd {wildcards.dir}.pf
 
@@ -333,13 +335,14 @@ rule bb_ecco:
     log:     "{dir}.ecco/{sample}.log"
     threads: 16
     params:  inout="in={input[0]} out={output[0]}",
-             inout2="in2={input[1]} out2={output[1]}"
+             inout2="in2={input[1]} out2={output[1]}",
+             mem=icfg.mem("80g")
     conda:   srcdir("bbmap.yml")
     shell: """
     bbmerge.sh {params.inout} {params.inout2} \
                outadapter={output.adapter} \
                ecco ecctadpole mix vstrict\
-               threads={threads} -Xmx60g \
+               threads={threads} -Xmx{params.mem}m \
                > {log} 2>&1
     """
 
@@ -401,7 +404,7 @@ rule trim_bbduk_adapter:
         'tbo ' # trimbyoverlap -- trim if read runs over other reads' end
         '{params.flags} '                      # processing settings
         'threads={threads} '
-        '-Xmx{params.mem} '
+        '-Xmx{params.mem}m '
         '>{log} 2>&1'
 
 # Create derived child rule for single ended reads
@@ -543,7 +546,8 @@ rule bbmap_makedb:
     output:  "{path}/{file}.bbidx/ref/genome/1/summary.txt",
              "{path}/{file}.bbidx"
     log:     "{path}/{file}.bbidx/bbmap_index.log"
-    params:  path="{path}/{file}.bbidx/"
+    params:  path="{path}/{file}.bbidx/",
+             mem=icfg.mem("80g")
     threads: 8
     conda:   srcdir("bbmap.yml")
     shell: """
@@ -552,6 +556,7 @@ rule bbmap_makedb:
         ref={input} \
         threads={threads} \
         pigz unpigz \
+        -Xmx{params.mem}m \
         >{log} 2>&1
     """
 
@@ -588,7 +593,7 @@ rule bbmap_split:
         " path={input.reference} "
         " qtrim={params.qtrim} "
         " trimq={params.trimq} "
-        " -Xmx{params.mem} "
+        " -Xmx{params.mem}m "
         " in={input[0]} "
         " outu={output.clean[0]} "
         " outm={output.human[0]} "
@@ -634,13 +639,13 @@ rule bmtagger_index:
     log:     "{path}.srprism.log"
     threads: 1
     params:  basename="{path}.srprism",
-             mem = 8
+             mem = icfg.mem("8g")
     conda:   srcdir("bmtagger.yml")
     shell: """
     srprism mkindex \
         --input {input} \
         --output {output} \
-        --memory $(({params.mem} * 1024)) \
+        --memory {params.mem} \
         > {log} 2>&1
     """
 
@@ -725,7 +730,7 @@ rule bbduk_primer:
         ' removeifeitherbad=f'        # "bad" is "match", we want both to match
         ' pigz unpigz'
         ' {params.stats}'
-        ' -Xmx{params.mem}'
+        ' -Xmx{params.mem}m'
 
 
 workflow.derive_rule(
@@ -760,7 +765,7 @@ rule bbmap_dedupe:
         " in={input[0]}"
         " in2={input[1]}"
         " out=stdout"
-        " -Xmx{params.mem} "
+        " -Xmx{params.mem}m "
         " 2>{log}"
         " |"
         " paste - - - -  - - - - | "
@@ -782,7 +787,7 @@ rule bbmap_dedupe_se:
         " threads={threads}"
         " in={input[0]}"
         " out=stdout"
-        " -Xmx{params.mem} "
+        " -Xmx{params.mem}m "
         " 2>{log}"
         " |"
         " pigz -p {threads} > {output[0]}"

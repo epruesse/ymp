@@ -788,7 +788,7 @@ class ConfigMgr(object):
             for prop in self._datasets[dataset].props
         ]
 
-    def mem(self, base="0", per_thread=None, unit="b"):
+    def mem(self, base="0", per_thread=None, unit="m"):
         """Clamp memory to configuration limits
 
         Params:
