@@ -1,10 +1,11 @@
-rule qiime_dada2_presplit_samples:
+rule dada2:
     """Use qiime_dada2.py to pick OTUs"""
     message:
         "Denoising {input} with dada2, takes a folder containing one"
         " .fastq file per sample, outputs a directory"
     input:
-        "{dir}/"
+        not_used = "{dir}/{:fwd_fq_names:}.fq.gz",
+        input_dir = "{dir}"
     output:
         dir = "{dir}.qd2{skip_len}/",
         dada2_biom = "{dir}.qd2{skip_len}/dada2.tsv",
@@ -12,6 +13,8 @@ rule qiime_dada2_presplit_samples:
         failures = "{dir}.qd2{skip_len}/pynast_aligned/dada2_failures.fasta",
         dada2_w_tax_no_failures = "{dir}.qd2{skip_len}/dada2_w_tax_no_pynast_failures.biom",
         dada2_tree = "{dir}.qd2{skip_len}/dada2.tre"
+    wildcard_constraints:
+        skip_len = "s[1-9][0-9]*"
     log:
         "capt_log.txt"
     threads:
@@ -22,7 +25,7 @@ rule qiime_dada2_presplit_samples:
         skip_len = lambda wc: wc.skip_len[1:] if wc.skip_len else 10
     shell: """
     qiime_dada2.py \
-    -i {input} \
+    -i {input.input_dir} \
     -o {output.dir} \
     --skip_len {params.skip_len} \
     --procs {threads} \
@@ -50,9 +53,6 @@ rule remove_pynast_failures_from_dada2:
     -o {output.filt_fasta}
     """
 
-rule:
-   output: "{:dir.references:}/greengenes/gg_13_8_otus/rep_set/{similarity}_otus.fasta"
-   input: "{:dir.references:}/greengenes/gg_13_8_otus/"
 
 rule pick_closed_otus_on_dada2:
     """Pick closed OTUs"""
@@ -77,7 +77,7 @@ rule pick_closed_otus_on_dada2:
     pick_closed_reference_otus.py -f \
     -i {input.filt_fasta} \
     -o {output.dir} \
-    -r  {input.ref_fasta} \
+    -r {input.ref_fasta} \
     -p qiime_params.txt
     rm qiime_params.txt
     touch -c {output.otus}
@@ -185,41 +185,4 @@ rule make_tree_filter_open_otu_table_dada2:
     filter_alignment.py -i {output.rep_set_aligned}/rep_set_aligned.fasta -o {output.rep_set_aligned}
     make_phylogeny.py -i {output.rep_set_aligned}/rep_set_aligned_pfiltered.fasta -o {output.tree}
     remove_pynast_failures.py -f {output.rep_set_aligned}/rep_set_failures.fasta -i {input.otu_table_w_tax} -o {output.otu_table_w_tax_no_pynast_failures}
-    """
-
-
-rule get_important_files_only:
-    """"""
-    message:
-        ""
-    input:
-        dada2_biom = "{dir}.qd2/dada2_w_tax_no_pynast_failures.biom",
-        dada2_tree = "{dir}.qd2/dada2.tre",
-        dada2_rep_set = "{dir}.qd2/dada2_no_pynast_failures.fasta",
-        dada2w97_biom = "{dir}.qd2.o97/dada2_otu_table_w_tax_no_pynast_failures.biom",
-        dada2w97_tree = "{dir}.qd2.o97/rep_set.tre",
-        dada2w97_rep_set = "{dir}.qd2.o97/rep_set.fna",
-        dada2w99_biom = "{dir}.qd2.o99/dada2_otu_table_w_tax_no_pynast_failures.biom",
-        dada2w99_tree = "{dir}.qd2.o99/rep_set.tre",
-        dada2w99_rep_set = "{dir}.qd2.o99/rep_set.fna"
-    output:
-        dada2_biom = "{dir}.corediv/dada2.biom",
-        dada2_tree = "{dir}.corediv/dada2.tre",
-        dada2_rep_set = "{dir}.corediv/dada2.fasta",
-        dada2w97_biom = "{dir}.corediv/dada2w97.biom",
-        dada2w97_tree = "{dir}.corediv/dada2w97.tre",
-        dada2w97_rep_set = "{dir}.corediv/dada2w97.fasta",
-        dada2w99_biom = "{dir}.corediv/dada2w99.biom",
-        dada2w99_tree = "{dir}.corediv/dada2w99.tre",
-        dada2w99_rep_set = "{dir}.corediv/dada2w99.fasta"
-    shell: """
-    cp {input.dada2_biom} {output.dada2_biom}
-    cp {input.dada2_tree} {output.dada2_tree}
-    cp {input.dada2_rep_set} {output.dada2_rep_set}
-    cp {input.dada2w97_biom} {output.dada2w97_biom}
-    cp {input.dada2w97_tree} {output.dada2w97_tree}
-    cp {input.dada2w97_rep_set} {output.dada2w97_rep_set}
-    cp {input.dada2w99_biom} {output.dada2w99_biom}
-    cp {input.dada2w99_tree} {output.dada2w99_tree}
-    cp {input.dada2w99_rep_set} {output.dada2w99_rep_set}
     """
