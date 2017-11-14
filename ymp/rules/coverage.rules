@@ -25,12 +25,34 @@ rule cov_all:
     output:
         touch("{dir}.contigcov/all")
 
+
+rule metacov_scan:
+    message:
+        "MetaCov: Calculating Read Stats"
+    input:
+        bam = "{dir}/{target}.contigs.{source}.sorted.bam",
+        bai = "{dir}/{target}.contigs.{source}.sorted.bam.bai"
+    output:
+        khist = "{dir}.contigcov/{target}.contigs.{source}.kmerhist.csv",
+        bhist = "{dir}.contigcov/{target}.contigs.{source}.basehist.csv"
+    log:
+        "{dir}.contigcov/{target}.contigs.{source}.scan.log"
+    conda:
+        srcdir("metacov.yml")
+    shell:"""
+    metacov scan {input.bam} \
+        -o {output.khist} \
+        -b {output.bhist} \
+         >{log} 2>&1 \
+    """
+
 rule metacov_by_contig:
     message:
         "Calculating Contig Read Depths"
     input:
         bam = "{dir}/{target}.contigs.{source}.sorted.bam",
-        bai = "{dir}/{target}.contigs.{source}.sorted.bam.bai"
+        bai = "{dir}/{target}.contigs.{source}.sorted.bam.bai",
+        khist = "{dir}.contigcov/{target}.contigs.{source}.kmerhist.csv"
     output:
         csv = "{dir}.contigcov/{target}.contigs.{source}.csv"
     log:
@@ -38,7 +60,7 @@ rule metacov_by_contig:
     conda:
         srcdir("metacov.yml")
     shell:"""
-    metacov -b {input.bam} -o {output.csv} >{log} 2>&1
+    metacov pileup -b {input.bam} -o {output.csv} -k {input.khist} >{log} 2>&1
     """
 
 rule metacov:
