@@ -56,6 +56,7 @@ rule remove_pynast_failures_from_dada2:
 
 rule pick_closed_otus_on_dada2:
     """Pick closed OTUs"""
+
     message:
         "Closed reference OTU picking on {input.filt_fasta}"
     input:

@@ -1,33 +1,35 @@
+import time
+
 rule pick_open_otus:
     """Pick open reference OTUs"""
     message:
         "Pick open reference {params.similarity}% OTUs"
     input:
         seqs = "{dir}/{:fwd_fq_names:}.fa",
-        ref_fasta = "{:dir.references:}/greengenes/rep_set/{similarity}_otus.fasta"
+        ref_fasta = "{:dir.references:}/greengenes/gg_13_8_otus/rep_set/{similarity}_otus.fasta"
     wildcard_constraints:
         similarity = "([0-9][0-9])?"
     output:
         otu_table = "{dir}.o{similarity}/otu_table.biom",
         tree = "{dir}.o{similarity}/rep_set.tre",
         rep_set = "{dir}.o{similarity}/rep_set.fa"
-
     conda:
         srcdir("qiime.yml")
     params:
+        time = lambda wc: time.strftime("%d%b%Y%H%M%S"),
         seqs = lambda wc, input: ','.join(input.seqs),
         similarity = lambda wc: wc.similarity if wc.similarity else 97
     shadow: "shallow"
     shell: """
-    echo "pick_otus:similarity\t.{params.similarity}" > qiime_params.txt
+    echo "pick_otus:similarity\t.{params.similarity}" > qiime_params_{params.time}.txt
     pick_open_reference_otus.py \
     -i {params.seqs} \
-    -o qiime_otus \
+    -o qiime_otus_{params.time} \
     -r {input.ref_fasta} \
-    -p qiime_params.txt
-    mv qiime_otus/otu_table_mc2_w_tax_no_pynast_failures.biom {output.otu_table}
-    mv qiime_otus/rep_set.tre {output.tree}
-    mv qiime_otus/rep_set.fna {output.rep_set}
+    -p qiime_params_{params.time}.txt
+    mv qiime_otus_{params.time}/otu_table_mc2_w_tax_no_pynast_failures.biom {output.otu_table}
+    mv qiime_otus_{params.time}/rep_set.tre {output.tree}
+    mv qiime_otus_{params.time}/rep_set.fna {output.rep_set}
     """
 
 
@@ -37,7 +39,7 @@ rule pick_closed_otus:
         "Pick closed reference {params.similarity}% OTUs"
     input:
         seqs = "{dir}/{:fwd_fq_names:}.fa",
-        ref_fasta = "{:dir.references:}/greengenes/rep_set/{similarity}_otus.fasta"
+        ref_fasta = "{:dir.references:}/greengenes/gg_13_8_otus/rep_set/{similarity}_otus.fasta"
     wildcard_constraints:
         similarity = "([0-9][0-9])?"
     output:
@@ -45,16 +47,17 @@ rule pick_closed_otus:
     conda:
         srcdir("qiime.yml")
     params:
+        time = lambda wc: time.strftime("%d%b%Y%H%M%S"),
         seqs = lambda wc, input: ' '.join(input.seqs),
         similarity = lambda wc: wc.similarity if wc.similarity else 97
     shadow: "shallow"
     shell: """
     cat {params.seqs} > temp_seqs.fa
-    echo "pick_otus:similarity\t.{params.similarity}" > qiime_params.txt
+    echo "pick_otus:similarity\t.{params.similarity}" > qiime_params_{params.time}.txt
     pick_closed_reference_otus.py \
     -i temp_seqs.fa \
-    -o qiime_otus \
+    -o qiime_otus_{params.time} \
     -r {input.ref_fasta} \
-    -p qiime_params.txt
-    mv qiime_otus/otu_table.biom {output.otu_table}
+    -p qiime_params_{params.time}.txt
+    mv qiime_otus_{params.time}/otu_table.biom {output.otu_table}
     """
