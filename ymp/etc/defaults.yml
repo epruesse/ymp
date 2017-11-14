@@ -59,18 +59,18 @@ cluster:
         - "-N ymp.{rule}"
         - "-o {:absdir.log:}/"
         - "-l nodes=1:ppn={threads}"
-        - "-l walltime=239:59:59"
+        - "-l walltime=23:59:59"
         - "-l mem={params.mem}"
-      slurm:
-        qsub_cmd: "sbatch"
-        qsub_sync_arg: "--wait"
-        qsub_args:
-          - "--cpus-per-task={threads}"
-          - "--mem={params.mem}"
-          - "--nodes=1"
-          - "--ntasks=1"
-          - "--output={:absdir.log:}/%x_%J.log"
-          - "--time=239:59:59"
+    slurm:
+      qsub_cmd: "sbatch"
+      qsub_sync_arg: "--wait"
+      qsub_args:
+        - "--cpus-per-task={threads}"
+        - "--mem={params.mem}"
+        - "--nodes=1"
+        - "--ntasks=1"
+        - "--output={:absdir.log:}/%x_%J.log"
+        - "--time=23:59:59"
 
   rule_params:
     default:
