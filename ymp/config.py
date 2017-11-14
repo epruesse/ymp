@@ -803,6 +803,9 @@ class ConfigMgr(object):
         max_mem = parse_number(self.limits.max_mem)
         if mem > max_mem:
             mem = max_mem
+        min_mem = parse_number(self.limits.min_mem)
+        if mem < min_mem:
+            mem = min_mem
 
         div = parse_number("1"+unit)
 
