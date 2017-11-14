@@ -1,0 +1,14 @@
+rule download_file:
+    message:
+        "Downloading {params.url}"
+    output:
+        "{:dir.downloads:}/{protocol}/{server}/{path}"
+    wildcard_constraints:
+        protocol="(http|https|ftp|ftps)",
+        server="[^/]+"
+    params:
+        url="{protocol}://{server}/{path}"
+    shell:"""
+        wget -q "{params.url}" -O "{output[0]}"
+    """
+ruleorder: download_file > gunzip

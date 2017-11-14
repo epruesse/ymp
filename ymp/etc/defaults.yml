@@ -8,6 +8,7 @@ directories:
     sra: 'sra'
     log: 'log'
     rules: 'rules'
+    downloads: 'downloads'
 
 # Default references FASTAs
 references:

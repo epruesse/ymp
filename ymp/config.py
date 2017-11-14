@@ -43,6 +43,7 @@ class YmpDataParserError(YmpException):
 
 
 def http_remote(url, *args, providers={}, **kwargs):
+    # unused; remove?
     from urllib.parse import urlparse
     scheme = urlparse(url).scheme
     if scheme not in providers:
@@ -59,12 +60,14 @@ def http_remote(url, *args, providers={}, **kwargs):
 
 
 def make_path_reference(path, workdir):
-    if (
-            path.startswith('http://')
-            or path.startswith('https://')
-            or path.startswith('ftp://')
-       ):
-        return http_remote(path, keep_local=True)
+    url_match = re.match("^(http|https|ftp|ftps)://", path)
+    if url_match:
+        return os.path.join(
+            workdir,
+            icfg.dir.downloads,
+            url_match.group(1),
+            path[url_match.end():]
+        )
     elif path.startswith('/'):
         return path
     else:
@@ -450,7 +453,7 @@ class DatasetConfig(object):
             return fn
 
         if kind == 'remote':
-            return http_remote(fn, keep_local=True)
+            return make_path_reference(fn,"")
 
         raise YmpException(
             "Configuration Error: no source for sample {} and read {} found."
