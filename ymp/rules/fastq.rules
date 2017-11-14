@@ -363,7 +363,7 @@ workflow.derive_rule(
 rule trim_bbduk_adapter:
     """Trimming and Adapter Removal using BBTools BBDuk"""
     message:
-        "Trimming with BBduk {wildcards.dir}/wildcards.sample "
+        "Trimming with BBduk: {wildcards.dir}/{wildcards.sample} "
         "({params.adapt}Q={params.qual} L={params.length})"
     wildcard_constraints:
         A = "(A?)",
