@@ -42,36 +42,15 @@ class YmpDataParserError(YmpException):
     pass
 
 
-def http_remote(url, *args, providers={}, **kwargs):
-    # unused; remove?
-    from urllib.parse import urlparse
-    scheme = urlparse(url).scheme
-    if scheme not in providers:
-        if scheme == 'http' or scheme == "https":
-            from snakemake.remote.HTTP import RemoteProvider
-            providers['http'] = RemoteProvider()
-            providers['https'] = providers['http']
-        elif scheme == 'ftp':
-            from snakemake.remote.FTP import RemoteProvider
-            providers['ftp'] = RemoteProvider()
-        else:
-            raise YmpConfigError("unknown scheme {}".format(scheme))
-    return providers[scheme].remote(url, *args, **kwargs)
-
-
-def make_path_reference(path, workdir):
+def make_path_reference(path):
     url_match = re.match("^(http|https|ftp|ftps)://", path)
     if url_match:
         return os.path.join(
-            workdir,
             icfg.dir.downloads,
             url_match.group(1),
             path[url_match.end():]
         )
-    elif path.startswith('/'):
-        return path
-    else:
-        return os.path.join(workdir, path)
+    return path
 
 
 def is_fq(path):
@@ -453,7 +432,7 @@ class DatasetConfig(object):
             return fn
 
         if kind == 'remote':
-            return make_path_reference(fn,"")
+            return make_path_reference(fn)
 
         raise YmpException(
             "Configuration Error: no source for sample {} and read {} found."
@@ -638,7 +617,7 @@ class ConfigMgr(object):
         if references == None:
             references == {}
         self._references = {
-            ref: make_path_reference(path, self._root)
+            ref: make_path_reference(path)
             for ref, path in references.items()
         }
 
