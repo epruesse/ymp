@@ -28,7 +28,7 @@ rule cov_all:
 
 rule metacov_scan:
     message:
-        "MetaCov: Calculating Read Stats"
+        "MetaCov Scan: {output.khist} + basehist"
     input:
         bam = "{dir}/{target}.contigs.{source}.sorted.bam",
         bai = "{dir}/{target}.contigs.{source}.sorted.bam.bai"
@@ -40,15 +40,16 @@ rule metacov_scan:
     conda:
         srcdir("metacov.yml")
     shell:"""
-    metacov scan {input.bam} \
+    metacov scan \
         -o {output.khist} \
         -b {output.bhist} \
+        {input.bam} \
          >{log} 2>&1 \
     """
 
 rule metacov_by_contig:
     message:
-        "Calculating Contig Read Depths"
+        "MetaCov Pileup: {output.csv}"
     input:
         bam = "{dir}/{target}.contigs.{source}.sorted.bam",
         bai = "{dir}/{target}.contigs.{source}.sorted.bam.bai",
@@ -60,7 +61,11 @@ rule metacov_by_contig:
     conda:
         srcdir("metacov.yml")
     shell:"""
-    metacov pileup -b {input.bam} -o {output.csv} -k {input.khist} >{log} 2>&1
+    metacov pileup \
+        -b {input.bam} \
+        -o {output.csv} \
+        -k {input.khist} \
+        >{log} 2>&1
     """
 
 rule metacov:
@@ -71,7 +76,7 @@ rule metacov:
     - bam with aligned reads
     """
     message:
-        "Calculating coverage"
+        "MetaCov Pileup: {output}"
     input:
         csv = "{dir}.{genefind}/{target}.contigs.{query}.{gene}.csv",
         bam = "{dir}.{mapper}/{target}.contigs.{source}.sorted.bam",
