@@ -1,11 +1,175 @@
+#channels:
+# - conda-forge
+# - bioconda
+#dependencies:
+# - python =2.*
+# - qiime
+# - rpy2 =2.8.5
+# - bioconductor-dada2
+# - r-argparser
+# - pip:
+#   - git+https://github.com/shafferm/dada2_qiime1.git
 channels:
- - conda-forge
- - bioconda
+- conda-forge
+- bioconda
+- defaults
 dependencies:
- - python =2.*
- - qiime
- - rpy2 =2.8.5
- - bioconductor-dada2
- - r-argparser
- - pip:
-   - git+https://github.com/shafferm/dada2_qiime1.git
+- bioconductor-biobase=2.34.0=r3.3.2_0
+- bioconductor-biocgenerics=0.22.0=r3.3.2_0
+- bioconductor-biocparallel=1.6.6=r3.3.2_1
+- bioconductor-biostrings=2.42.1=r3.3.2_0
+- bioconductor-dada2=1.4.0=r3.3.2_0
+- bioconductor-genomeinfodb=1.10.3=r3.3.2_0
+- bioconductor-genomicalignments=1.10.0=r3.3.2_0
+- bioconductor-genomicranges=1.26.4=r3.3.2_0
+- bioconductor-iranges=2.8.2=r3.3.2_0
+- bioconductor-rsamtools=1.26.1=r3.3.2_0
+- bioconductor-s4vectors=0.12.2=r3.3.2_0
+- bioconductor-shortread=1.32.0=r3.3.2_0
+- bioconductor-summarizedexperiment=1.4.0=r3.3.2_2
+- bioconductor-xvector=0.14.1=r3.3.2_0
+- bioconductor-zlibbioc=1.20.0=r3.3.2_1
+- biom-format=2.1.5=py27_3
+- burrito=0.9.1=py27r3.3.2_1
+- burrito-fillings=0.1.1=py27_0
+- cogent=1.5.3=py27_0
+- emperor=0.9.51=py27_0
+- pynast=1.2.2=py27_0
+- pyqi=0.3.2=py27_0
+- qcli=0.1.1=py27_0
+- qiime=1.9.1=np112py27_1
+- qiime-default-reference=0.1.3=py27_0
+- scikit-bio=0.2.3=np112py27_0
+- appnope=0.1.0=py27_0
+- backports.shutil_get_terminal_size=1.0.0=py_2
+- backports_abc=0.5=py27_0
+- ca-certificates=2017.7.27.1=0
+- cairo=1.14.6=4
+- certifi=2017.7.27.1=py27_0
+- click=6.7=py27_0
+- curl=7.54.1=0
+- cycler=0.10.0=py27_0
+- decorator=4.1.2=py27_0
+- enum34=1.1.6=py27_1
+- fontconfig=2.12.1=4
+- freetype=2.7=1
+- funcsigs=1.0.2=py_2
+- functools32=3.2.3.2=py27_1
+- future=0.16.0=py27_0
+- gettext=0.19.8.1=0
+- glib=2.51.4=0
+- graphite2=1.3.9=0
+- gsl=2.1=2
+- h5py=2.7.1=py27_1
+- harfbuzz=1.4.3=0
+- hdf5=1.8.18=1
+- icu=58.1=1
+- ipython=5.5.0=py27_0
+- ipython_genutils=0.2.0=py27_0
+- jpeg=9b=1
+- krb5=1.14.2=0
+- libffi=3.2.1=3
+- libgfortran=3.0.0=0
+- libiconv=1.14=4
+- libpng=1.6.28=1
+- libssh2=1.8.0=1
+- libtiff=4.0.7=0
+- libuuid=1.0.3=1
+- libxcb=1.12=1
+- libxml2=2.9.5=0
+- matplotlib=1.5.3=np112py27_8
+- mock=2.0.0=py27_0
+- ncurses=5.9=10
+- nose=1.3.7=py27_2
+- openssl=1.0.2l=0
+- pandas=0.20.3=py27_1
+- pango=1.40.4=0
+- pathlib2=2.3.0=py27_0
+- pbr=3.1.1=py27_0
+- pcre=8.39=0
+- pexpect=4.2.1=py27_0
+- pickleshare=0.7.4=py27_0
+- pip=9.0.1=py27_0
+- pixman=0.34.0=0
+- prompt_toolkit=1.0.15=py27_0
+- ptyprocess=0.5.2=py27_0
+- pygments=2.2.0=py27_0
+- pyparsing=2.2.0=py27_0
+- python=2.7.13=1
+- python-dateutil=2.6.1=py27_0
+- pytz=2017.2=py27_0
+- r-argparser=0.4=r3.3.2_0
+- r-base=3.3.2=5
+- r-bh=1.62.0_1=r3.3.2_0
+- r-bitops=1.0_6=r3.3.2_0
+- r-colorspace=1.3_2=r3.3.2_0
+- r-data.table=1.10.4=r3.3.2_0
+- r-dichromat=2.0_0=r3.3.2_0
+- r-digest=0.6.12=r3.3.2_0
+- r-futile.logger=1.4.3=r3.3.2_0
+- r-futile.options=1.0.0=r3.3.2_0
+- r-ggplot2=2.2.1=r3.3.2_0
+- r-gtable=0.2.0=r3.3.2_0
+- r-hwriter=1.3.2=r3.3.2_0
+- r-labeling=0.3=r3.3.2_0
+- r-lambda.r=1.1.9=r3.3.2_0
+- r-lattice=0.20_34=r3.3.2_0
+- r-latticeextra=0.6_28=r3.3.2_0
+- r-lazyeval=0.2.0=r3.3.2_0
+- r-magrittr=1.5=r3.3.2_0
+- r-mass=7.3_45=r3.3.2_0
+- r-matrix=1.2_7.1=r3.3.2_0
+- r-munsell=0.4.3=r3.3.2_0
+- r-plyr=1.8.4=r3.3.2_0
+- r-rcolorbrewer=1.1_2=r3.3.2_0
+- r-rcpp=0.12.10=r3.3.2_0
+- r-rcppparallel=4.3.20=r3.3.2_0
+- r-rcurl=1.95_4.8=r3.3.2_0
+- r-reshape2=1.4.2=r3.3.2_0
+- r-rlang=0.1.2=r3.3.2_0
+- r-scales=0.4.1=r3.3.2_0
+- r-snow=0.4_2=r3.3.2_0
+- r-stringi=1.1.2=r3.3.2_0
+- r-stringr=1.2.0=r3.3.2_0
+- r-tibble=1.3.3=r3.3.2_0
+- readline=6.2=0
+- rpy2=2.8.5=py27r3.3.2_0
+- scandir=1.5=py27_1
+- setuptools=36.3.0=py27_0
+- simplegeneric=0.8.1=py27_0
+- singledispatch=3.4.0.3=py27_0
+- six=1.11.0=py27_1
+- sqlite=3.13.0=1
+- ssl_match_hostname=3.5.0.1=py27_1
+- subprocess32=3.2.7=py27_0
+- tk=8.5.19=2
+- tornado=4.5.2=py27_0
+- traitlets=4.3.2=py27_0
+- wcwidth=0.1.7=py27_0
+- wheel=0.30.0=py_1
+- xorg-kbproto=1.0.7=1
+- xorg-libice=1.0.9=2
+- xorg-libsm=1.2.2=2
+- xorg-libx11=1.6.4=6
+- xorg-libxau=1.0.8=3
+- xorg-libxdmcp=1.1.2=3
+- xorg-libxext=1.3.3=2
+- xorg-libxrender=0.9.10=0
+- xorg-renderproto=0.11.1=1
+- xorg-xextproto=7.3.0=1
+- xorg-xproto=7.0.31=6
+- xz=5.2.3=0
+- zlib=1.2.8=3
+- gdata=2.0.18=py27_0
+- libgcc=4.8.5=1
+- mkl=2017.0.3=0
+- natsort=3.5.0=py27_0
+- numpy=1.12.1=py27_0
+- scipy=0.19.1=np112py27_0
+- pip:
+  - backports-abc==0.5
+  - backports.shutil-get-terminal-size==1.0.0
+  - backports.ssl-match-hostname==3.5.0.1
+  - git+https://github.com/shafferm/dada2_qiime1.git
+  - ipython-genutils==0.2.0
+  - prompt-toolkit==1.0.15

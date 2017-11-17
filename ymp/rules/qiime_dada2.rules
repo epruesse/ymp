@@ -7,183 +7,127 @@ rule dada2:
         not_used = "{dir}/{:fwd_fq_names:}.fq.gz",
         input_dir = "{dir}"
     output:
-        dir = "{dir}.qd2{skip_len}/",
-        dada2_biom = "{dir}.qd2{skip_len}/dada2.tsv",
-        fasta = "{dir}.qd2{skip_len}/dada2.fasta",
-        failures = "{dir}.qd2{skip_len}/pynast_aligned/dada2_failures.fasta",
-        dada2_w_tax_no_failures = "{dir}.qd2{skip_len}/dada2_w_tax_no_pynast_failures.biom",
-        dada2_tree = "{dir}.qd2{skip_len}/dada2.tre"
+        otu_table = "{dir}.qd2{skip_len}/otu_table.biom",
+        fasta = "{dir}.qd2{skip_len}/rep_set.fa",
+        tree = "{dir}.qd2{skip_len}/rep_set.tre"
     wildcard_constraints:
         skip_len = "s[1-9][0-9]*"
     log:
-        "capt_log.txt"
+        "{dir}.qd2{skip_len}/log.txt"
     threads:
         8
     conda:
         srcdir("dada2_qiime1.yml")
     params:
-        skip_len = lambda wc: wc.skip_len[1:] if wc.skip_len else 10
+        skip_len = lambda wc: wc.skip_len[1:] if wc.skip_len else 10,
+        output = "qd2"
+    shadow: "shallow"
     shell: """
     qiime_dada2.py \
     -i {input.input_dir} \
-    -o {output.dir} \
+    -o {params.output} \
     --skip_len {params.skip_len} \
     --procs {threads} \
-    --skip_split \
-    --force > {log} 2>&1
-    mv {log} {output.dir}
+    --skip_split > {log} 2>&1
+    mv {params.output}/dada2_w_tax_no_pynast_failures.biom {output.otu_table}
+    mv {params.output}/dada2_no_pynast_failures.fasta {output.fasta}
+    mv {params.output}/dada2.tre {output.tree}
     """
 
 
-rule remove_pynast_failures_from_dada2:
-    """desc"""
-    message:
-        "removing pynast failures from {input.fasta}"
-    input:
-        fasta = "{dir}.qd2/dada2.fasta",
-        failures = "{dir}.qd2/pynast_aligned/dada2_failures.fasta"
-    output:
-        filt_fasta = "{dir}.qd2/dada2_no_pynast_failures.fasta"
-    conda:
-        srcdir("dada2_qiime1.yml")
-    shell: """
-    remove_pynast_failures.py \
-    -i {input.fasta} \
-    -f {input.failures} \
-    -o {output.filt_fasta}
-    """
-
-
-rule pick_closed_otus_on_dada2:
+rule pick_open_otus_on_dada2:
     """Pick closed OTUs"""
-
     message:
-        "Closed reference OTU picking on {input.filt_fasta}"
+        "Open reference OTU picking on {input.fasta}"
     input:
-        filt_fasta = "{dir}.qd2/dada2_no_pynast_failures.fasta",
-        ref_fasta = "{:dir.references:}/greengenes/rep_set/{similarity}_otus.fasta"
+        otu_table = "{dir}.qd2{skip_len}/otu_table.biom",
+        fasta = "{dir}.qd2{skip_len}/rep_set.fa",
+        ref_fasta = "{:dir.references:}/greengenes/gg_13_8_otus/rep_set/{similarity}_otus.fasta"
     wildcard_constraints:
         similarity = "([0-9][0-9])?"
     output:
-        dir = "{dir}.qd2.c{similarity}",
-        otus = "{dir}.qd2.c{similarity}/uclust_ref_picked_otus/dada2_no_pynast_failures_otus.txt",
-        failures = "{dir}.qd2.c{similarity}/uclust_ref_picked_otus/dada2_no_pynast_failures_failures.txt"
+        otu_table = "{dir}.qd2{skip_len}.o{similarity}/otu_table.biom",
+        tree = "{dir}.qd2{skip_len}.o{similarity}/rep_set.tre",
+        rep_set = "{dir}.qd2{skip_len}.o{similarity}/rep_set.fa"
     conda:
         srcdir("dada2_qiime1.yml")
     params:
         method = "uclust_ref",
-        similarity = lambda wc: wc.similarity if wc.similarity else 97
+        similarity = lambda wc: wc.similarity if wc.similarity else 97,
+        output = "qd2.o{similarity}"
+    shadow: "shallow"
     shell: """
     echo "pick_otus:similarity\t.{params.similarity}\npick_otus:otu_picking_method\t{params.method}" > qiime_params.txt
-    pick_closed_reference_otus.py -f \
-    -i {input.filt_fasta} \
-    -o {output.dir} \
+
+    pick_closed_reference_otus.py \
+    -i {input.fasta} \
+    -o {params.output} \
     -r {input.ref_fasta} \
     -p qiime_params.txt
-    rm qiime_params.txt
-    touch -c {output.otus}
-    """
 
+    filter_fasta.py \
+    -f {input.fasta} \
+    -s {params.output}/uclust_ref_picked_otus/rep_set_failures.txt \
+    -o {params.output}/uclust_ref_picked_otus/rep_set_failures.fa
 
-rule filter_and_pick_rep_set_closed_dada2:
-    """"""
-    message:
-        "Getting failures and picking representative sequences from {input.filt_fasta} and {input.otus}"
-    input:
-        filt_fasta = "{dir}.qd2/dada2_no_pynast_failures.fasta",
-        otus = "{dir}.qd2.c{similarity}/uclust_ref_picked_otus/dada2_no_pynast_failures_otus.txt",
-        failures = "{dir}.qd2.c{similarity}/uclust_ref_picked_otus/dada2_no_pynast_failures_failures.txt"
-    output:
-        failures_fasta = "{dir}.qd2.c{similarity}/dada2_no_pynast_failures_failures.fasta",
-        rep_set = "{dir}.qd2.c{similarity}/rep_set.fna"
-    conda:
-        srcdir("dada2_qiime1.yml")
-    shell: """
-    filter_fasta.py -f {input.filt_fasta} -s {input.failures} -o {output.failures_fasta}
-    pick_rep_set.py -i {input.otus} -o {output.rep_set} -f {input.filt_fasta}
-    """
+    pick_rep_set.py \
+    -i {params.output}/uclust_ref_picked_otus/rep_set_otus.txt \
+    -f {input.fasta} \
+    -o {params.output}/uclust_ref_picked_otus/rep_set_otus.fa
 
+    pick_otus.py \
+    -i {params.output}/uclust_ref_picked_otus/rep_set_failures.fa \
+    -s .{params.similarity} \
+    -o {params.output}/denovo_otus
 
-rule pick_denovo_otus_on_dada2:
-    """Pick de novo OTUs"""
-    message:
-        "Picking denovo OTUs on {input.failures_fasta}"
-    input:
-        failures_fasta = "{dir}.qd2.c{similarity}/dada2_no_pynast_failures_failures.fasta"
-    wildcard_constraints:
-        similarity = "([0-9][0-9])?"
-    output:
-        dir = "{dir}.qd2.d{similarity}",
-        rep_set = "{dir}.qd2.d{similarity}/rep_set.fna",
-        otus = "{dir}.qd2.d{similarity}/dada2_no_pynast_failures_failures_otus.txt"
-    conda:
-        srcdir("dada2_qiime1.yml")
-    shell: """
-    pick_otus.py -i {input.failures_fasta} -s .{wildcards.similarity} -o {output.dir}
-    pick_rep_set.py -i {output.otus} -o {output.rep_set} -f {input.failures_fasta}
-    """
+    pick_rep_set.py \
+    -i {params.output}/denovo_otus/rep_set_failures_otus.txt \
+    -f {params.output}/uclust_ref_picked_otus/rep_set_failures.fa \
+    -o {params.output}/denovo_otus/rep_set_failures_otus.fa
 
+    cat {params.output}/uclust_ref_picked_otus/rep_set_otus.txt \
+    {params.output}/denovo_otus/rep_set_failures_otus.txt > \
+    {params.output}/otu_map.txt
 
-rule make_open_otu_table_dada2:
-    """Join closed and de novo OTUs"""
-    message:
-        "Collating {input.closed_otu_map} and {input.denovo_otu_map} to make open reference OTU table"
-    input:
-        dada2_otu_table = "{dir}.qd2/dada2.tsv",
-        closed_rep_set = "{dir}.qd2.c{similarity}/rep_set.fna",
-        denovo_rep_set = "{dir}.qd2.d{similarity}/rep_set.fna",
-        closed_otu_map = "{dir}.qd2.c{similarity}/uclust_ref_picked_otus/dada2_no_pynast_failures_otus.txt",
-        denovo_otu_map = "{dir}.qd2.d{similarity}/dada2_no_pynast_failures_failures_otus.txt"
-    output:
-        otu_map = "{dir}.qd2.o{similarity}/final_otu_map.txt",
-        rep_set = "{dir}.qd2.o{similarity}/rep_set.fna",
-        otu_table = "{dir}.qd2.o{similarity}/dada2_otu_table.biom"
-    conda:
-        srcdir("dada2_qiime1.yml")
-    params:
-        similarity = lambda wc: wc.similarity if wc.similarity else 97
-    shell: """
-    cat {input.closed_rep_set} {input.denovo_rep_set} > {output.rep_set}
-    cat {input.closed_otu_map} {input.denovo_otu_map} > {output.otu_map}
-    dada2_to_otu_table.py -i {input.dada2_otu_table} -m {output.otu_map} -o {output.otu_table}
-    """
+    cat {params.output}/uclust_ref_picked_otus/rep_set_otus.fa \
+    {params.output}/denovo_otus/rep_set_failures_otus.fa > \
+    {params.output}/rep_set.fa
 
+    dada2_to_otu_table.py \
+    -i {input.otu_table} \
+    -m {params.output}/otu_map.txt \
+    -o {params.output}/open_otu_table.biom
 
-rule assign_taxonomy_open_otus_dada2:
-    """"""
-    message:
-        "Assigning taxonomy to {input.rep_set} and adding to {input.otu_table}"
-    input:
-        rep_set = "{dir}.qd2.o{similarity}/rep_set.fna",
-        otu_table = "{dir}.qd2.o{similarity}/dada2_otu_table.biom"
-    output:
-        taxonomy_dir = "{dir}.qd2.o{similarity}/assigned_taxonomy",
-        otu_table_w_tax = "{dir}.qd2.o{similarity}/dada2_otu_table_w_tax.biom"
-    conda:
-        srcdir("dada2_qiime1.yml")
-    shell: """
-    assign_taxonomy.py -i {input.rep_set} -o {output.taxonomy_dir}
-    biom add-metadata -i {input.otu_table} --observation-metadata-fp {output.taxonomy_dir}/rep_set_tax_assignments.txt -o {output.otu_table_w_tax} --sc-separated taxonomy --observation-header OTUID,taxonomy
-    """
+    assign_taxonomy.py \
+    -i {params.output}/rep_set.fa \
+    -o {params.output}/assigned_taxonomy
 
+    biom add-metadata \
+    -i {params.output}/open_otu_table.biom \
+    --observation-metadata-fp {params.output}/assigned_taxonomy/rep_set_tax_assignments.txt \
+    -o {params.output}/open_otu_table_w_tax.biom \
+    --sc-separated taxonomy \
+    --observation-header OTUID,taxonomy
 
-rule make_tree_filter_open_otu_table_dada2:
-    """"""
-    message:
-        "Making {output.tree} and filtering pynast failures from {input.otu_table_w_tax}"
-    input:
-        rep_set = "{dir}.qd2.o{similarity}/rep_set.fna",
-        otu_table_w_tax = "{dir}.qd2.o{similarity}/dada2_otu_table_w_tax.biom"
-    output:
-        rep_set_aligned = "{dir}.qd2.o{similarity}/pynast_aligned",
-        rep_set_aligned_filtered = "{dir}.qd2.o{similarity}/pynast_aligned/rep_set_aligned_pfiltered.fasta",
-        tree = "{dir}.qd2.o{similarity}/rep_set.tre",
-        otu_table_w_tax_no_pynast_failures = "{dir}.qd2.o{similarity}/dada2_otu_table_w_tax_no_pynast_failures.biom"
-    conda:
-        srcdir("dada2_qiime1.yml")
-    shell: """
-    align_seqs.py -i {input.rep_set} -o {output.rep_set_aligned}
-    filter_alignment.py -i {output.rep_set_aligned}/rep_set_aligned.fasta -o {output.rep_set_aligned}
-    make_phylogeny.py -i {output.rep_set_aligned}/rep_set_aligned_pfiltered.fasta -o {output.tree}
-    remove_pynast_failures.py -f {output.rep_set_aligned}/rep_set_failures.fasta -i {input.otu_table_w_tax} -o {output.otu_table_w_tax_no_pynast_failures}
+    align_seqs.py \
+    -i {params.output}/rep_set.fa \
+    -o {params.output}/pynast_aligned
+
+    filter_alignment.py \
+    -i {params.output}/pynast_aligned/rep_set_aligned.fasta \
+    -o {params.output}/pynast_aligned/
+
+    make_phylogeny.py \
+    -i {params.output}/pynast_aligned/rep_set_aligned_pfiltered.fasta \
+    -o {output.tree}
+
+    remove_pynast_failures.py \
+    -i {params.output}/open_otu_table_w_tax.biom \
+    -f {params.output}/pynast_aligned/rep_set_failures.fasta \
+    -o {output.otu_table}
+    
+    remove_pynast_failures.py \
+    -i {params.output}/rep_set.fa \
+    -f {params.output}/pynast_aligned/rep_set_failures.fasta \
+    -o {output.rep_set}
     """
