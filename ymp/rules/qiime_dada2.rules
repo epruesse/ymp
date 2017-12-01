@@ -3,8 +3,7 @@ from os.path import dirname
 rule dada2:
     """Use qiime_dada2.py to pick OTUs"""
     message:
-        "Denoising {input} with dada2, takes a folder containing one"
-        " .fastq file per sample, outputs a directory"
+        "Denoising with dada2"
     input:
         fastqs = "{dir}/{:fwd_fq_names:}.fq.gz",
     output:
@@ -20,13 +19,16 @@ rule dada2:
     conda:
         srcdir("dada2_qiime1.yml")
     params:
+        temp_dir="ymp_dada2_tmp",
+        fastqs = lambda wc, input: ' '.join(input.fastqs),
         skip_len = lambda wc: wc.skip_len[1:] if wc.skip_len else 10,
-        input_dir = lambda wc, input: dirname(input.fastqs[0]),
         output = "qd2"
     shadow: "shallow"
     shell: """
+    mkdir {params.temp_dir}
+    cp {params.fastqs} {params.temp_dir}/
     qiime_dada2.py \
-    -i {params.input_dir} \
+    -i {params.temp_dir} \
     -o {params.output} \
     --skip_len {params.skip_len} \
     --procs {threads} \
@@ -40,7 +42,7 @@ rule dada2:
 rule pick_open_otus_on_dada2:
     """Pick closed OTUs"""
     message:
-        "Open reference OTU picking on {input.fasta}"
+        "Open reference OTU picking on dada2 selected sequences"
     input:
         otu_table = "{dir}.qd2{skip_len}/otu_table.biom",
         fasta = "{dir}.qd2{skip_len}/rep_set.fa",
