@@ -40,7 +40,7 @@ rule dada2:
 
 
 rule pick_open_otus_on_dada2:
-    """Pick closed OTUs"""
+    """Pick open OTUs on dada2"""
     message:
         "Open reference OTU picking on dada2 selected sequences"
     input:
