@@ -1,9 +1,7 @@
-import time
-
 rule pick_open_otus:
     """Pick open reference OTUs"""
     message:
-        "Pick open reference {params.similarity}% OTUs"
+        "Pick open reference {params.similarity}% OTUs on forward reads"
     input:
         seqs = "{dir}/{:fwd_fq_names:}.fa",
         ref_fasta = "{:dir.references:}/greengenes/gg_13_8_otus/rep_set/{similarity}_otus.fasta"
@@ -16,27 +14,32 @@ rule pick_open_otus:
     conda:
         srcdir("qiime.yml")
     params:
-        time = lambda wc: time.strftime("%d%b%Y%H%M%S"),
         seqs = lambda wc, input: ','.join(input.seqs),
         similarity = lambda wc: wc.similarity if wc.similarity else 97
+    log:
+        "{dir}.o{similarity}/log.txt"
+    threads:
+        8
     shadow: "shallow"
     shell: """
-    echo "pick_otus:similarity\t.{params.similarity}" > qiime_params_{params.time}.txt
+    echo "pick_otus:similarity\t.{params.similarity}" > qiime_params.txt
     pick_open_reference_otus.py \
     -i {params.seqs} \
-    -o qiime_otus_{params.time} \
+    -o qiime_otus \
     -r {input.ref_fasta} \
-    -p qiime_params_{params.time}.txt
-    mv qiime_otus_{params.time}/otu_table_mc2_w_tax_no_pynast_failures.biom {output.otu_table}
-    mv qiime_otus_{params.time}/rep_set.tre {output.tree}
-    mv qiime_otus_{params.time}/rep_set.fna {output.rep_set}
+    -a -O {threads} \
+    -p qiime_params.txt
+    mv qiime_otus/otu_table_mc2_w_tax_no_pynast_failures.biom {output.otu_table}
+    mv qiime_otus/rep_set.tre {output.tree}
+    mv qiime_otus/rep_set.fna {output.rep_set}
+    mv qiime_otus/log_*.txt {log}
     """
 
 
 rule pick_closed_otus:
     """Pick closed reference OTUs"""
     message:
-        "Pick closed reference {params.similarity}% OTUs"
+        "Pick closed reference {params.similarity}% OTUs on forward reads"
     input:
         seqs = "{dir}/{:fwd_fq_names:}.fa",
         ref_fasta = "{:dir.references:}/greengenes/gg_13_8_otus/rep_set/{similarity}_otus.fasta"
@@ -47,17 +50,22 @@ rule pick_closed_otus:
     conda:
         srcdir("qiime.yml")
     params:
-        time = lambda wc: time.strftime("%d%b%Y%H%M%S"),
         seqs = lambda wc, input: ' '.join(input.seqs),
         similarity = lambda wc: wc.similarity if wc.similarity else 97
+    log:
+        "{dir}.o{similarity}/log.txt"
+    threads:
+        8
     shadow: "shallow"
     shell: """
     cat {params.seqs} > temp_seqs.fa
-    echo "pick_otus:similarity\t.{params.similarity}" > qiime_params_{params.time}.txt
+    echo "pick_otus:similarity\t.{params.similarity}" > qiime_params.txt
     pick_closed_reference_otus.py \
     -i temp_seqs.fa \
-    -o qiime_otus_{params.time} \
+    -o qiime_otus \
     -r {input.ref_fasta} \
-    -p qiime_params_{params.time}.txt
-    mv qiime_otus_{params.time}/otu_table.biom {output.otu_table}
+    -a -O {threads} \
+    -p qiime_params.txt
+    mv qiime_otus/otu_table.biom {output.otu_table}
+    mv qiime_otus/log_*.txt {log}
     """
