@@ -1,3 +1,31 @@
+
+rule anvio_makedb:
+    """
+    Create the initial Anvi'o database
+    """
+    message: "Creating Anvi'o database"
+    input:   fasta = "{project}.{dir}.anvio/{target}.fa",
+             calls = "{project}.{dir}.anvio/{target}.genecalls.tsv"
+    output:  db    = "{project}.{dir}.anvio/{target}.db"
+    log:             "{project}.{dir}.anvio/{target}.db.log"
+    threads: 1
+    conda:   srcdir("anvio.yml")
+    params:  split_length = 20000,
+             kmer_size = 4
+    shell: """
+    anvi-gen-contigs-database \
+    --contigs-fasta {input.fasta} \
+    --project-name {wildcards.project} \
+    --output-db-path {output.db} \
+    --split-length {params.split_length} \
+    --kmer-size {params.kmer_size} \
+    --external-gene-calls {input.calls} \
+    >{log} 2>&1
+    """
+    # project description? --description TEXT_FILE
+
+
+
 rule anvio_convert_input_fasta:
     message:
         "Preparing contigs for Anvio import"
@@ -55,18 +83,6 @@ rule anvio_convert_gff:
                 tsvwriter.writerow(row)
                 
 
-rule anvio_makedb:
-    message:
-        "Creating Anvi'o database"
-    input:
-        fasta = "{dir}.anvio/{sample}.fa",
-        calls = "{dir}.anvio/{sample}.genecalls.tsv"
-    output:
-        db = "{dir}.anvio/{sample}.db"
-    shell: """
-    anvi-gen-contigs-database -f {input.fasta} -o {output.db} \
-    --external-gene-calls {input.calls}
-    """
 
 rule anvio_hmm:
     " needs hmmscan"
