@@ -58,7 +58,7 @@ rule megahit:
                                         if isinstance(input.r2, str) else input.r2),
         mem = icfg.mem("500g")
     threads:
-        16
+        32
     conda:
         srcdir("megahit.yml")
     shell: """
@@ -158,7 +158,7 @@ rule metaspades:
         mem = icfg.mem("500g")
     conda: srcdir("spades.yml")
     threads:
-        16
+        32
     shell: """
     CONTINUE=""
     if [ -e "{params.workdir}" ]; then
