@@ -30,3 +30,63 @@ rule humann2:
         " --threads {threads}"
         " --output-basename {wildcards.sample}"
         #" --taxonomic-profile" metaphlan output
+
+rule metaphlan2_map:
+    """
+    """
+    message: ""
+    input:   fq = "{dir}/{sample}.{:pairnames:}.fq.gz",
+             ref = "{:dir.references:}/metaphlan/db_v20"
+    output:  "{dir}.metaphlan2/{sample}.bam"
+    log:     "{dir}.metaphlan2/{sample}.bam.log"
+    conda:   srcdir("bowtie2.yml")
+    threads: 16
+    params:  bt2_base = "{input.ref}/mpa_v20_m200",
+             mem=icfg.mem("128G")
+    shell: """
+    bowtie2 \
+    --threads {threads} \
+    -x {params.bt2_base} \
+    --no-unal \
+    --very-sensitive \
+    -U {input.fq[0]} -U {input.fq[1]} \
+    2>{log} \
+    | samtools view -b -o {output} -
+    """
+
+localrules: metaphlan2
+rule metaphlan2:
+    """
+    """
+    message: ""
+    input:  bam = "{dir}.metaphlan2/{sample}.bam",
+            ref = "{:dir.references:}/metaphlan/db_v20"
+    output:       "{dir}.metaphlan2/{sample}_profile.txt"
+    log:          "{dir}.metaphlan2/{sample}_profile.log"
+    params: mka = "{input.ref}/mpa_v20_m200.pkl"
+    conda: srcdir("hhtools.yml")
+    threads: 1
+    shell: """
+    samtools view {input.bam} | \
+    metaphlan2.py \
+    --mpa_pkl {params.mka} \
+    --input_type sam \
+    -o {output} \
+    --nproc {threads} \
+    --sample_id {wildcards.sample} \
+    >{log} 2>&1
+    """
+
+localrules: metaphlan2_merge
+rule metaphlan2_merge:
+    """
+    """
+    message: ""
+    input:   "{dir}.metaphlan2/{:runs:}_profile.txt"
+    output:  "{dir}.metaphlan2/merged_abundance_table.txt"
+    log:     "{dir}.metaphlan2/merged_abundance_table.txt.log"
+    conda:   srcdir("hhtools.yml")
+    threads: 1
+    shell: """
+    merge_metaphlan_tables.py {input} > {output} 2>{log}
+    """
