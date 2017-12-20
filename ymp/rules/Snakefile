@@ -12,7 +12,6 @@ wildcard_constraints:
     dir      = "[^/]+?",
     dir1     = "[^/]+",
     dir2     = "[^/]+",
-    sample   = "[^/]+",
     file     = "[^/]+",
 
     nodots   = "[^/.]+",
@@ -28,6 +27,8 @@ wildcard_constraints:
     rnagene="({})".format("|".join(icfg.db.rrna)),
     project = "({})".format("|".join(icfg.datasets)),
     pairname = "({})".format("|".join(icfg.pairnames)),
+    sample   = "(ALL|{})".format("|".join(icfg.allruns)),
+    reference = refname,
     refname = refname,
     assembler = "(mh|mhc|sp|ref_{})".format(refname),
     mapper = "(bt2|bbm)",
