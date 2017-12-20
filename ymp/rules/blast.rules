@@ -70,6 +70,38 @@ rule makeblastdb:
                 &> {log} 2>&1
     """
 
+rule blastx_query_all:
+    input:
+        b7 = "{dir}.refblast/{:targets:}.{ref}.csv"
+    output:
+        touch("{dir}.refblast/all_{ref}")
+
+rule blastx_query:
+    input:
+        contigs="{dir}/{target}.contigs.fasta.gz",
+        db =  temp(expand("{{:dir.references:}}.blast/{{ref}}.fasta.{ext}", ext=DBEXT))
+    output:
+        "{dir}.refblast/{target}.{ref}.csv"
+    log:
+        "{dir}.refblast/{target}.{ref}.log"
+    params:
+        db_name = icfg.dir.references + ".blast/{{ref}}.fasta",
+        blastfmt = BLASTFMT
+    threads:
+        4
+    conda:   srcdir("blast.yml")
+    shell: """
+    gunzip -c {input.contigs} |
+    blastn \
+    -query - \
+    -db {params.db_name} \
+    -out {output} \
+    -outfmt "{params.blastfmt}" \
+    -evalue 0.001 \
+    -num_alignments 20 \
+    -num_threads {threads} \
+    > {log} 2>&1
+    """
 
 rule tblastn_query:
     """
