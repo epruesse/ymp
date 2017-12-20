@@ -9,5 +9,7 @@ dependencies:
  - cython
  - gcc
  - setuptools
+ - pandas
+ - scipy
  - pip:
    - git+https://github.com/epruesse/metacov.git
