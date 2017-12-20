@@ -4,7 +4,7 @@ rule anvio_convert_input_fasta:
     input:
         "{dir}/{sample}.contigs.fasta.gz"
     output:
-        "{dir}.anvio/{sample}.fa"
+        temp("{dir}.anvio/{sample}.fa")
     shell:"""
     unpigz -c {input} | sed '/^>/ s/ .*//' > {output}
     """
