@@ -10,7 +10,7 @@ rule pick_open_otus:
     output:
         otu_table = "{dir}.o{similarity}/otu_table.biom",
         tree = "{dir}.o{similarity}/rep_set.tre",
-        rep_set = "{dir}.o{similarity}/rep_set.fa"
+        rep_set = "{dir}.o{similarity}/rep_set.fa.gz"
     conda:
         srcdir("qiime.yml")
     params:
@@ -31,7 +31,7 @@ rule pick_open_otus:
     -p qiime_params.txt
     mv qiime_otus/otu_table_mc2_w_tax_no_pynast_failures.biom {output.otu_table}
     mv qiime_otus/rep_set.tre {output.tree}
-    mv qiime_otus/rep_set.fna {output.rep_set}
+    cat qiime_otus/rep_set.fna | gzip > {output.rep_set}
     mv qiime_otus/log_*.txt {log}
     """
 

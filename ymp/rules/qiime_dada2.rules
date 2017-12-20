@@ -8,7 +8,7 @@ rule dada2:
         fastqs = "{dir}/{:fwd_fq_names:}.fq.gz",
     output:
         otu_table = "{dir}.qd2{skip_len}/otu_table.biom",
-        fasta = "{dir}.qd2{skip_len}/rep_set.fa",
+        fasta = "{dir}.qd2{skip_len}/rep_set.fa.gz",
         tree = "{dir}.qd2{skip_len}/rep_set.tre"
     wildcard_constraints:
         skip_len = "s[1-9][0-9]*"
@@ -34,7 +34,7 @@ rule dada2:
     --procs {threads} \
     --skip_split > {log} 2>&1
     mv {params.output}/dada2_w_tax_no_pynast_failures.biom {output.otu_table}
-    mv {params.output}/dada2_no_pynast_failures.fasta {output.fasta}
+    cat {params.output}/dada2_no_pynast_failures.fasta | gzip > {output.fasta}
     mv {params.output}/dada2.tre {output.tree}
     """
 
@@ -52,7 +52,7 @@ rule pick_open_otus_on_dada2:
     output:
         otu_table = "{dir}.qd2{skip_len}.o{similarity}/otu_table.biom",
         tree = "{dir}.qd2{skip_len}.o{similarity}/rep_set.tre",
-        rep_set = "{dir}.qd2{skip_len}.o{similarity}/rep_set.fa"
+        rep_set = "{dir}.qd2{skip_len}.o{similarity}/rep_set.fa.gz"
     conda:
         srcdir("dada2_qiime1.yml")
     params:
@@ -132,6 +132,5 @@ rule pick_open_otus_on_dada2:
     
     remove_pynast_failures.py \
     -i {params.output}/rep_set.fa \
-    -f {params.output}/pynast_aligned/rep_set_failures.fasta \
-    -o {output.rep_set}
+    -f {params.output}/pynast_aligned/rep_set_failures.fasta | gzip > {output.rep_set}
     """
