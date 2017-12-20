@@ -12,15 +12,6 @@ rule human_db_download:
     humann2_databases --download {wildcards.database} {wildcards.build} {output}
     """
 
-localrules: metaphlan_db_download
-rule metaphlan_db_download:
-    output: "{:dir.references:}/metaphlan"
-    threads: 1
-    params:
-        url = "https://depot.galaxyproject.org/software/metaphlan2/metaphlan2_2.6.0_src_all.tar.gz"
-    shell: """
-    """
-
 rule humann2:
     """
     """

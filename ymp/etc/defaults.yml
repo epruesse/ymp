@@ -20,6 +20,7 @@ references:
   mothur_SEED: https://www.mothur.org/w/images/a/a4/Silva.seed_v128.tgz
   ssu: https://www.arb-silva.de/fileadmin/silva_databases/release_128/Exports/SILVA_128_SSURef_Nr99_tax_silva_trunc.fasta.gz
   greengenes: ftp://greengenes.microbio.me/greengenes_release/gg_13_5/gg_13_8_otus.tar.gz
+  metaphlan: https://depot.galaxyproject.org/software/metaphlan2/metaphlan2_2.6.0_src_all.tar.gz
 
 # Default limits
 limits:
