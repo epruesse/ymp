@@ -16,7 +16,6 @@ DBEXT = "nin nhr nsi nsd nsq nog".split(" ")
 
 blast_query_file  = "{query}.faa"
 
-blast_db_source   = "{dir}/{sample}.fasta"
 blast_db_files    = temp(expand("{{dir}}.blast/{{sample}}.fasta.{ext}", ext=DBEXT))
 blast_db_name     = "{dir}.blast/{sample}.fasta"
 blast_db_title    = "{sample}"
@@ -55,7 +54,7 @@ rule makeblastdb:
     Builds a (temporary) blast index from a fasta file.
     """
     message: "BLAST building db {params.db_name}"
-    input:   blast_db_source
+    input:   "{dir}/{sample}.fasta"
     output:  blast_db_files
     log:     blast_db_name+".log"
     params:  db_name   = blast_db_name,
