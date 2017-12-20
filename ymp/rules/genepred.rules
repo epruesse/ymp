@@ -1,53 +1,21 @@
-rule prodigal_single:
-    """Predict genes using prodigal"""
-    message:
-        "Gene prediction (Prodigal): {input}"
-    input:
-        "{dir}/contigs.fasta"
-    output:
-        gff="{dir}.genes/prodigal.gff",
-        fna="{dir}.genes/prodigal.fna",
-        faa="{dir}.genes/prodigal.faa",
-    log:
-        "{dir}.genes/prodigal.log"
-    threads: 1
-    shell: """
-    module load prodigal
-    
-    prodigal -p meta \
-        -i {input}  \
-        -f gff -o {output.gff} \
-        -d {output.fna} \
-        -a {output.faa} \
-      >{log} 2>&1
-        
-    """
-
 rule prodigal:
     """Predict genes using prodigal"""
-    message:
-        "Gene prediction (Prodigal): {input}"
-    input:
-        "{dir}/{sample}.contigs.fasta.gz"
-    output:
-        gff="{dir}.genes/{sample}.prodigal.gff.gz",
-        fna="{dir}.genes/{sample}.prodigal.fna.gz",
-        faa="{dir}.genes/{sample}.prodigal.faa.gz",
-    log:
-        "{dir}.genes/{sample}.prodigal.log"
+    message: "Gene prediction (Prodigal): {input}"
+    input:         "{dir}/{sample}.contigs.fasta.gz"
+    output:  gff = "{dir}.genes/{sample}.prodigal.gff.gz",
+             fna = "{dir}.genes/{sample}.prodigal.fna.gz",
+             faa = "{dir}.genes/{sample}.prodigal.faa.gz",
+    log:           "{dir}.genes/{sample}.prodigal.log"
     threads: 1
+    conda:   srcdir("prodigal.yml")
     shell: """
-    #module load prodigal
-    
     zcat {input} | \
     prodigal -p meta \
         -f gff -o >(gzip -c9 > {output.gff}) \
         -d >(gzip -c9 > {output.fna}) \
         -a >(gzip -c9 > {output.faa}) \
       >{log} 2>&1
-
     gzip -9 {log}
-        
     """
 
 rule prodigal_all:
