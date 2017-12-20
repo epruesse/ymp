@@ -79,7 +79,7 @@ rule bowtie2_index:
     message:
         "Bowtie2: Indexing {input.contigs}"
     input:
-        contigs="{dir}/{sample}.contigs.fasta"
+        contigs="{dir}/{sample}.contigs.fasta.gz"
     output:
         temp(expand("{{dir}}.bt2/{{sample}}.contigs.{ext}", ext=BT2IDX_SUFFIXES))
     params:
@@ -115,7 +115,7 @@ rule bowtie2_map:
     params:
         bt2_base= "{dir}{by}.{assembler}.bt2/{target}.contigs",
         maxins = 800,
-        k = 100
+        k = 100  # max number of secondary alignments
     threads:
         16
     conda:
