@@ -51,13 +51,14 @@ rule metacov_by_contig:
     message:
         "MetaCov Pileup: {output.csv}"
     input:
-        bam = "{dir}/{target}.contigs.{source}.sorted.bam",
-        bai = "{dir}/{target}.contigs.{source}.sorted.bam.bai",
-        khist = "{dir}.contigcov/{target}.contigs.{source}.kmerhist.csv"
+        bam = "{dir}.{mapper}/{target}.contigs.{source}.sorted.bam",
+        bai = "{dir}.{mapper}/{target}.contigs.{source}.sorted.bam.bai",
+        khist = "{dir}.{mapper}.contigcov/{target}.contigs.{source}.kmerhist.csv",
+        ref = "{dir}/{target}.contigs.fasta"
     output:
-        csv = "{dir}.contigcov/{target}.contigs.{source}.csv"
+        csv = "{dir}.{mapper}.contigcov/{target}.contigs.{source}.csv"
     log:
-        "{dir}.contigcov/{target}.contigs.{source}.log"
+        "{dir}.{mapper}.contigcov/{target}.contigs.{source}.log"
     conda:
         srcdir("metacov.yml")
     shell:"""
@@ -65,6 +66,7 @@ rule metacov_by_contig:
         -b {input.bam} \
         -o {output.csv} \
         -k {input.khist} \
+        -f {input.ref} \
         >{log} 2>&1
     """
 
