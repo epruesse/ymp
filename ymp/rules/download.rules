@@ -11,4 +11,6 @@ rule download_file:
     shell:"""
         wget -q "{params.url}" -O "{output[0]}"
     """
+
 ruleorder: download_file > gunzip
+ruleorder: download_file > fq2fa
