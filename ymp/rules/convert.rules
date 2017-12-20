@@ -106,16 +106,16 @@ rule mkdir:
 
 
 rule fq2fa:
-    """Unzip and convert fastq to fasta for use by qiime"""
+    """Unzip and convert fastq to fasta"""
     message:
-        "Unzipping and converting {input} to fasta"
+        "Converting {input} to fasta"
     input:
         seqs = "{path}.fq"
     output:
-        seqs = "{path}.fa"
+        seqs = "{path}.fa.gz"
     conda:
-        srcdir("sed.yml")
+        srcdir("fa2fq.yml")
     shell: """
-    sed -n '1~4 s/^@/>/p; 2~4p' {input.seqs} > {output.seqs}
+    sed -n '1~4 s/^@/>/p; 2~4p' {input.seqs} | gzip > {output.seqs}
     """
 ruleorder: fq2fa > gunzip
