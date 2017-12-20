@@ -68,7 +68,7 @@ rule makeblastdb:
                 -in {input} \
                 -out {params.db_name} \
                 -title {params.db_title} \
-                &> {log}
+                &> {log} 2>&1
     """
 
 
@@ -91,7 +91,7 @@ rule tblastn_query:
       -outfmt "{params.blastfmt}" \
       -out {output} \
       -num_threads {threads} \
-      &> {log}
+      &> {log} 2>&1
     """
 
 
