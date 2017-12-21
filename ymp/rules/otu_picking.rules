@@ -3,7 +3,7 @@ rule pick_open_otus:
     message:
         "Pick open reference {params.similarity}% OTUs on forward reads"
     input:
-        seqs = "{dir}/{:fwd_fq_names:}.fa",
+        seqs = "{dir}/{:fwd_fq_names:}.fq.gz",
         ref_fasta = "{:dir.references:}/greengenes/gg_13_8_otus/rep_set/{similarity}_otus.fasta"
     wildcard_constraints:
         similarity = "([0-9][0-9])?"
@@ -15,6 +15,7 @@ rule pick_open_otus:
         srcdir("qiime.yml")
     params:
         seqs = lambda wc, input: ','.join(input.seqs),
+        seq_ids = lambda wc, input: ','.join([i.split('/')[-1].split('.')[0] for i in input.seqs]),
         similarity = lambda wc: wc.similarity if wc.similarity else 97
     log:
         "{dir}.o{similarity}/log.txt"
@@ -22,9 +23,15 @@ rule pick_open_otus:
         8
     shadow: "shallow"
     shell: """
+    split_libraries_fastq.py \
+    -i {params.seqs} \
+    -o slout \
+    --barcode_type 'not-barcoded' \
+    --sample_ids {params.seq_ids} \
+    -n 0 -q 3 -r 3 -p .75 --phred_offset 33 
     echo "pick_otus:similarity\t.{params.similarity}" > qiime_params.txt
     pick_open_reference_otus.py \
-    -i {params.seqs} \
+    -i slout/seqs.fna \
     -o qiime_otus \
     -r {input.ref_fasta} \
     -a -O {threads} \
@@ -32,7 +39,7 @@ rule pick_open_otus:
     mv qiime_otus/otu_table_mc2_w_tax_no_pynast_failures.biom {output.otu_table}
     mv qiime_otus/rep_set.tre {output.tree}
     cat qiime_otus/rep_set.fna | gzip > {output.rep_set}
-    mv qiime_otus/log_*.txt {log}
+    cat slout/split_library_log.txt qiime_otus/log_*.txt > {log}
     """
 
 
@@ -41,7 +48,7 @@ rule pick_closed_otus:
     message:
         "Pick closed reference {params.similarity}% OTUs on forward reads"
     input:
-        seqs = "{dir}/{:fwd_fq_names:}.fa",
+        seqs = "{dir}/{:fwd_fq_names:}.fq.gz",
         ref_fasta = "{:dir.references:}/greengenes/gg_13_8_otus/rep_set/{similarity}_otus.fasta"
     wildcard_constraints:
         similarity = "([0-9][0-9])?"
@@ -50,7 +57,8 @@ rule pick_closed_otus:
     conda:
         srcdir("qiime.yml")
     params:
-        seqs = lambda wc, input: ' '.join(input.seqs),
+        seqs = lambda wc, input: ','.join(input.seqs),
+        seq_ids = lambda wc, input: ','.join([i.split('/')[-1].split('.')[0] for i in input.seqs]),
         similarity = lambda wc: wc.similarity if wc.similarity else 97
     log:
         "{dir}.o{similarity}/log.txt"
@@ -58,14 +66,19 @@ rule pick_closed_otus:
         8
     shadow: "shallow"
     shell: """
-    cat {params.seqs} > temp_seqs.fa
+    split_libraries_fastq.py \
+    -i {params.seqs} \
+    -o slout \
+    --barcode_type 'not-barcoded' \
+    --sample_ids {params.seq_ids} \
+    -n 0 -q 3 -r 3 -p .75 --phred_offset 33 
     echo "pick_otus:similarity\t.{params.similarity}" > qiime_params.txt
     pick_closed_reference_otus.py \
-    -i temp_seqs.fa \
+    -i slout/seqs.fna \
     -o qiime_otus \
     -r {input.ref_fasta} \
     -a -O {threads} \
     -p qiime_params.txt
     mv qiime_otus/otu_table.biom {output.otu_table}
-    mv qiime_otus/log_*.txt {log}
+    cat slout/split_library_log.txt qiime_otus/log_*.txt > {log}
     """
