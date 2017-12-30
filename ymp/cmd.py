@@ -46,6 +46,55 @@ def find_root():
         prefix = os.path.join(right, prefix)
     return (curpath, prefix)
 
+def nohup():
+    """
+    Make YMP continue after the shell dies.
+
+    - redirects stdout and stderr into pipes and sub process that won't
+      die if it can't write to either anymore
+    - closes stdin
+
+    """
+    import signal
+    from select import select
+    from multiprocessing import Process
+
+    # ignore sighup
+    signal.signal(signal.SIGHUP, signal.SIG_IGN)
+
+    # sighup is actually only sent by bash if bash gets it itself, so not if
+    # `exit` is called with ymp in the background. What usually kills that type
+    # of process is trying to write to stdout or stderr. We need to catch that.
+
+    # close stdin (don't need that anyway)
+    sys.stdin.close()
+
+    # redirect stdout and err into a pipe and save original target
+    pipes = {}
+    for fd in (sys.stdout, sys.stderr):
+        # save original std fd
+        saved = os.dup(fd.fileno())
+        # create a pipe
+        pipe = os.pipe()
+        # overwrite std fd with one end of pipeo
+        os.dup2(pipe[1], fd.fileno())
+        # save other end and target std fd
+        pipes[pipe[0]] = saved
+
+    def watcher():
+        while True:
+            r, w, x = select(pipes.keys(), [], [], 60)
+            for pipe in pipes:
+                if pipe in r:
+                    data = os.read(pipe, 4096)
+                    try:
+                        os.write(pipes[pipe], data)
+                    except IOError:
+                        pass
+
+    p = Process(target=watcher)
+    p.start()
+
 
 def snake_params(func):
     """Default parameters for subcommands launching Snakemake"""
@@ -94,6 +143,12 @@ def snake_params(func):
         "--notemp", is_flag=True, default=False,
         help="Do not remove temporary files"
     )
+    @click.option(
+        "--nohup", "-N", is_flag=True,
+        help="Don't die once the terminal goes away.",
+        callback=lambda ctx, param, val: nohup() if val else None
+    )
+
     @functools.wraps(func)
     def decorated(*args, **kwargs):
         return func(*args, **kwargs)
@@ -134,6 +189,8 @@ def cli():
 @click.option("--debug", default=False, is_flag=True)
 def make(**kwargs):
     "Build target(s) locally"
+    for arg in ('nohup',):
+        del kwargs[arg]
     rval = start_snakemake(**kwargs)
     if not rval:
         sys.exit(1)
@@ -193,7 +250,7 @@ def submit(profile, extra_args, **kwargs):
     cfg[param] = icfg.expand(" ".join(cfg.qsub_args))
     # clean used args
     for arg in ('use_drmaa', 'qsub_sync', 'qsub_sync_arg',
-                'qsub_cmd', 'qsub_args'):
+                'qsub_cmd', 'qsub_args', 'nohup'):
         del cfg[arg]
 
     # rename ymp params to snakemake params
