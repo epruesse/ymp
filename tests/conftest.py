@@ -26,14 +26,12 @@ def project(request):
 
 @pytest.fixture()
 def project_dir(request, project, tmpdir):
-    log.error(project)
     data_dir = py.path.local(__file__).dirpath('data', project)
     data_dir.copy(tmpdir)
     log.info("Created project directory {}".format(tmpdir))
     yield tmpdir
-    if not hasattr(request.node, 'rep_all') or request.node.rep_call.failed:
+    if not hasattr(request.node, 'rep_call') or request.node.rep_call.failed:
         name_parts = request.node.name.replace("]","").split("[")
-        log.error(name_parts)
         destdir = py.path.local('test_failures').join(*name_parts)
         if destdir.check(exists=1):
             destdir.remove(rec=True)
