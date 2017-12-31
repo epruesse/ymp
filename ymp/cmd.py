@@ -13,7 +13,6 @@ import glob
 import ymp
 from ymp.common import update_dict
 from ymp.util import AttrDict
-from ymp.config import icfg
 
 log = logging.getLogger(__name__)
 
@@ -188,6 +187,7 @@ def cli():
 @click.option("--debug-dag", default=False, is_flag=True)
 @click.option("--debug", default=False, is_flag=True)
 def make(**kwargs):
+    from ymp.config import icfg
     "Build target(s) locally"
     for arg in ('nohup',):
         del kwargs[arg]
@@ -215,6 +215,7 @@ def make(**kwargs):
 def submit(profile, extra_args, **kwargs):
     "Build target(s) on cluster"
     # start with default
+    from ymp.config import icfg
     cfg = icfg.cluster.profiles.default
     # select default profile (from cmd or cfg)
     if profile != "default":
