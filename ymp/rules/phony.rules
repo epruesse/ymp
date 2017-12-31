@@ -32,3 +32,13 @@ rule env_test:
     env
     sleep 10
     """
+
+rule ticktock:
+    message: "Printing dots to STDOUT and STDERR for 10 min"
+    shell: """
+    for n in `seq 1 600`; do
+     echo "."
+     echo "/" >&2
+     sleep 1
+    done
+    """
