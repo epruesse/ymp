@@ -116,7 +116,7 @@ rule metaspades_input_yaml:
     using conda environments.
     """
     message:
-        "Preparing Config YAML for MetaSpades"
+        "Preparing Config YAML for MetaSpades: {output}"
     input:
         r1 = "{dir}/{: sources :}.{: pairnames[0] :}.fq.gz",
         r2 = "{dir}/{: sources :}.{: pairnames[1] :}.fq.gz"
@@ -144,6 +144,7 @@ rule metaspades:
     """
     message:
         "(Co-)Assembling {wildcards.target} with MetaSpades"
+        " in {wildcards.dir}{wildcards.by}"
     input:
         conf = "{dir}{by}.sp/{target}.yaml"
     output:
@@ -154,11 +155,11 @@ rule metaspades:
     params:
         workdir = "{dir}{by}.sp/{target}/",
         tmpdir  = icfg.expand("{:dir.tmp:}"),
-        memory  = icfg.mem("500g", unit="g"),
-        mem = icfg.mem("500g")
+        memory  = icfg.mem("1000g", unit="g"),
+        mem = icfg.mem("1000g")
     conda: srcdir("spades.yml")
     threads:
-        32
+        24
     shell: """
     CONTINUE=""
     if [ -e "{params.workdir}" ]; then
