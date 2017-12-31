@@ -337,10 +337,13 @@ def list(param_all):
     """List conda environments"""
     width = max((len(env) for env in ymp.envs))+1
     for env in sorted(ymp.envs.values()):
+        path = env.path
+        if not os.path.exists(path):
+            path += " (NOT INSTALLED)"
         print("{name:<{width}} {path}".format(
             name=env.name+":",
             width=width,
-            path=env.path))
+            path=path))
     if param_all:
         for envhash, path in sorted(ymp.envs_dead.items()):
             print("{name:<{width}} {path}".format(
