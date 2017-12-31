@@ -171,15 +171,15 @@ rule anvio_profile_partial_coassembly:
         stamp="{dir}.anvio/{target}.stamp_profile_{source}",
         dir="{dir}.anvio/{target}_{source}.d",
         runinfo="{dir}.anvio/{target}_{source}.d/RUNINFO.cp"
+    params:
+        sample_name = lambda wc: "s"+wc.source.replace("-","_")
     conda:  srcdir("anvio.yml")
-    run:
-        sample_name = "s"+wildcards.source.replace("-","_")
-        shell("""
-        rm -rf {output.dir}
-        anvi-profile -i {input.bam} -c {input.db} -o {output.dir} \
-        --sample-name {sample_name} --cluster-contigs
-        touch {output.stamp}
-        """)
+    shell: """
+    rm -rf {output.dir}
+    anvi-profile -i {input.bam} -c {input.db} -o {output.dir} \
+    --sample-name {params.sample_name} --cluster-contigs
+    touch {output.stamp}
+    """
 
 rule anvio_all_for_target:
     input:
