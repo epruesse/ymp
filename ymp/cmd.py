@@ -428,6 +428,11 @@ def activate(envname):
         log.critical("Environment '%s' unknown", envname)
         exit(1)
 
+    env = ymp.env.by_name[envname]
+    if not os.path.exists(env.path):
+        log.warning("Environment not yet installed")
+        env.create()
+
     print("source activate {}".format(ymp.env.by_name[envname].path))
 
 
@@ -448,5 +453,10 @@ def run(envname, command):
     if envname not in ymp.env.by_name:
         log.critical("Environment '%s' unknown", envname)
         sys.exit(1)
+
+    env = ymp.env.by_name[envname]
+    if not os.path.exists(env.path):
+        log.warning("Environment not yet installed")
+        env.create()
 
     sys.exit(ymp.env.by_name[envname].run(command))
