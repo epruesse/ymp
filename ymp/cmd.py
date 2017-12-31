@@ -169,7 +169,7 @@ def start_snakemake(**kwargs):
         **kwargs)
 
 
-@click.group()
+@click.group(context_settings=CONTEXT_SETTINGS)
 @click.version_option(version=ymp.__release__)
 def cli():
     """
