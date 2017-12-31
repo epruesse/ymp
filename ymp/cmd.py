@@ -398,13 +398,15 @@ def update(envnames):
 
 
 @env.command(context_settings=CONTEXT_SETTINGS)
-@click.option("--all", "-a", "param_all", is_flag=True, help="Delete all environments")
+@click.option("--all", "-a", "param_all", is_flag=True,
+              help="Delete all environments")
 def clean(param_all):
     "Remove unused conda environments"
     if param_all: # remove up-to-date environments
         for env in ymp.envs.values():
-            log.warning("Removing %s (%s)", env.name, env.path)
-            shutil.rmtree(env.path)
+            if os.path.exists(env.path):
+                log.warning("Removing %s (%s)", env.name, env.path)
+                shutil.rmtree(env.path)
 
     # remove outdated environments
     for _, path in ymp.envs_dead.items():
