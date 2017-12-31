@@ -6,30 +6,57 @@ rule human_db_download:
     Download Humann2 reference databases
     """
     output: "{:dir.references:}/humann2/{database}.{build}"
+    wildcard_constraints:
+      database = "[^.]*",
+      build = "[^.]*"
     threads: 1
     conda: srcdir("hhtools.yml")
     shell: """
     humann2_databases --download {wildcards.database} {wildcards.build} {output}
     """
+ruleorder: human_db_download > gunzip
 
 rule humann2:
     """
+    Humann2 does not support paired end
     """
     input:
-        "{dir}/{sample}.{:pairnames:}.fq.gz"
+        reads      = "{dir}/{sample}.{:pairnames:}.fq.gz",
+        chocophlan = "{:dir.references:}/humann2/chocophlan.full",
+        uniref     = "{:dir.references:}/humann2/uniref.uniref90_diamond",
+        metaphlan  = "{dir}.metaphlan2/{sample}_profile.txt"
     output:
-        dir = "{dir}.humann2/"
-    threads:
-        8
+        genefam   = "{dir}.humann2/{sample}_genefamilies.tsv",
+        pathabu   = "{dir}.humann2/{sample}_pathabundance.tsv",
+        pathcov   = "{dir}.humann2/{sample}_pathcoverage.tsv",
+        tempdir   = "{dir}.humann2/{sample}_humann2_temp"
+    params:
+        outpath   = "{dir}.humann2",
+        mem       = icfg.mem("128G")
+    log:
+                    "{dir}.humann2/{sample}.log"
+    threads: 16
+    conda: srcdir("hhtools.yml")
     shell:
+        "mkdir -p {output.tempdir};"
+        "cat {input.reads} > {output.tempdir}/temp.fq.gz;"
         "humann2"
-        " --input {input[0]}" # Humann2 does not support paired end
-        " --output {output.dir}"
-        " --nucleotide-database {input.chocophlan}"
-        " --protein-database {input.uniref}"
-        " --threads {threads}"
+        " --input-format fastq.gz"
+        " --input {output.tempdir}/temp.fq.gz"
+        " --taxonomic-profile {input.metaphlan}"
         " --output-basename {wildcards.sample}"
-        #" --taxonomic-profile" metaphlan output
+        " --output {params.outpath}"
+        " --nucleotide-database {input.chocophlan}/chocophlan"
+        " --protein-database {input.uniref}/uniref"
+        " --threads {threads};"
+        " --o-log {log};"
+        "rm {output.tempdir}/temp.fq.gz;"
+
+
+rule humann2_all:
+    input: "{dir}.humann2/{:runs:}_pathabundance.tsv"
+    output: touch("{dir}.humann2/all")
+
 
 rule metaphlan2_map:
     """
