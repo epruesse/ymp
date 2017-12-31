@@ -35,7 +35,10 @@ class Env(snakemake.conda.Env):
         self.create()
         log.warning("Updating environment '%s'", self.name)
         return subprocess.run([
-            "conda",  "env", "update", "-p", self.path, "-f", self.file
+            "conda",  "env", "update",
+            "--prune",
+            "-p", self.path,
+            "-f", self.file
         ]).returncode
 
     def run(self, command):
