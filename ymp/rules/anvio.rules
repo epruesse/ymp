@@ -1,3 +1,6 @@
+"""
+Rules for visualizing results in Anvi'o
+"""
 
 rule anvio_makedb:
     """
@@ -25,19 +28,27 @@ rule anvio_makedb:
     # project description? --description TEXT_FILE
 
 
-
 rule anvio_convert_input_fasta:
-    message:
-        "Preparing contigs for Anvio import"
-    input:
-        "{dir}/{sample}.contigs.fasta.gz"
-    output:
-        temp("{dir}.anvio/{sample}.fa")
-    shell:"""
+    """
+    Anvi'o insists on having only one word in the fasta headers, so we need
+    to unpack the sequences and modify the headers.
+    """
+    message:      "Preparing contigs for Anvio import"
+    input:        "{dir}/{sample}.contigs.fasta.gz"
+    output:  temp("{dir}.anvio/{sample}.fa")
+    threads: 1
+    conda:   srcdir("pigz.yml")
+    shell: """
     unpigz -c {input} | sed '/^>/ s/ .*//' > {output}
     """
 
+
+localrules: anvio_convert_gff
 rule anvio_convert_gff:
+    """
+    We'd like to use our own gene calling results in Anvi'o, so here we
+    convert them into a format liked by Anvi'o.
+    """
     message:
         "Preparing gene predictions for Anvio import"
     input:
@@ -45,7 +56,8 @@ rule anvio_convert_gff:
     output:
         "{dir}.anvio/{sample}.genecalls.tsv"
     run:
-        import gzip, gff, csv
+        import gzip, csv
+        from ymp import gff
         with gzip.GzipFile(input[0], "r") as inf,\
              open(output[0], "w") as outf:
             gffreader = gff.reader(inf)
@@ -83,53 +95,49 @@ rule anvio_convert_gff:
                 tsvwriter.writerow(row)
                 
 
-
 rule anvio_hmm:
-    " needs hmmscan"
-    message:
-        "Running Anvio HMMs"
-    input:
-        db="{dir}.anvio/{sample}.db"
-    output:
-        stamp="{dir}.anvio/{sample}.stamp_hmm"
-    threads:
-        2
+    """
+    Running Anvio's HMMscan task.
+    TODO: Should we run that ourselves?
+    """
+    message:       "Running Anvio HMMs"
+    input:         "{dir}.anvio/{sample}.db"
+    output:  touch("{dir}.anvio/{sample}.stamp_hmm")
+    threads: 2
+    conda:   srcdir("anvio.yml")
     shell: """
-    anvi-run-hmms -c {input.db} \
-                  --num-threads {threads}
-    touch {output.stamp}
+    anvi-run-hmms -c {input} --num-threads {threads}
     """
 
+
 rule anvio_export_genes:
-    input:
-        "{dir}.anvio/{sample}.db"
-    output:
-        temp("{dir}.anvio/{sample}.gene-calls.fa")
+    message:     "Anvi'o exporting gene calls"
+    input:       "{dir}.anvio/{sample}.db"
+    output: temp("{dir}.anvio/{sample}.gene-calls.fa")
+    conda:  srcdir("anvio.yml")
     shell: """
     anvi-get-dna-sequences-for-gene-calls -c {input} -o {output}
     """
 
+
 rule anvio_centrifuge:
-    input:
-        "{dir}.anvio/{sample}.gene-calls.fa"
-    output:
-        hits=temp("{dir}.anvio/{sample}.centrifuge-hits.tsv"),
-        report=temp("{dir}.anvio/{sample}.centrifuge-report.tsv")
-    log:
-        "{dir}.anvio/{sample}.centrifuge.log"
-    shadow:
-        "shallow"
-    threads:
-        1
-    params:
-        cfdb = "/Users/elpr2080/dbs/centrifuge/p+h+v"
+    input:                "{dir}.anvio/{sample}.gene-calls.fa",
+            cfdbf       = "{:dir.references:}/centrifuge_phv/p+h+v.1.cf",
+            cfdb        = "{:dir.references:}/centrifuge_phv/"
+    output: hits   = temp("{dir}.anvio/{sample}.centrifuge-hits.tsv"),
+            report = temp("{dir}.anvio/{sample}.centrifuge-report.tsv")
+    log:                  "{dir}.anvio/{sample}.centrifuge.log"
+    shadow:  "shallow"
+    threads: 1
+    conda:  srcdir("anvio.yml")
     shell: """
-    centrifuge -f -x {params.cfdb} {input} -S {output.hits} \
+    centrifuge -f -x {input.cfdb} {input} -S {output.hits} \
       -p {threads} -t &> {log}
     ls -la
     pwd
     mv centrifuge_report.tsv {output.report}
     """
+
 
 rule anvio_import_centrifuge:
     input:
@@ -142,15 +150,15 @@ rule anvio_import_centrifuge:
         "{dir}.anvio/{sample}.centrifuge_import.log"
     shadow:
         "shallow"
+    conda:  srcdir("anvio.yml")
     shell: """
     ln -s {input.hits} centrifuge_hits.tsv
     ln -s {input.report} centrifuge_report.tsv
     anvi-import-taxonomy -c {input.db} -i centrifuge_report.tsv centrifuge_hits.tsv -p centrifuge
     touch {output.stamp}
     """
-                    
-    
-    
+
+
 rule anvio_profile_partial_coassembly:
     message:
         "Importing BAM files into Anvio"
@@ -163,6 +171,7 @@ rule anvio_profile_partial_coassembly:
         stamp="{dir}.anvio/{target}.stamp_profile_{source}",
         dir="{dir}.anvio/{target}_{source}.d",
         runinfo="{dir}.anvio/{target}_{source}.d/RUNINFO.cp"
+    conda:  srcdir("anvio.yml")
     run:
         sample_name = "s"+wildcards.source.replace("-","_")
         shell("""
@@ -189,6 +198,7 @@ rule anvio_merge:
         dir = "{dir}{by}.mhc.anvio/{target}.d"
     params:
         sample_name = "s{target}"
+    conda:  srcdir("anvio.yml")
     shell: """
     anvi-merge \
     -c {input.db} \
