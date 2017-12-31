@@ -316,7 +316,8 @@ def env():
 
     to enter the software environment for ``multiqc``.
     """
-    pass
+    import ymp.env  # imported for subcommands
+    ymp.env  # silence flake8 warning re above line
 
 
 @env.command(context_settings=CONTEXT_SETTINGS)
@@ -335,8 +336,8 @@ def prepare(**kwargs):
 )
 def list(param_all):
     """List conda environments"""
-    width = max((len(env) for env in ymp.envs))+1
-    for env in sorted(ymp.envs.values()):
+    width = max((len(env) for env in ymp.env.by_name))+1
+    for env in sorted(ymp.env.by_name.values()):
         path = env.path
         if not os.path.exists(path):
             path += " (NOT INSTALLED)"
@@ -345,7 +346,7 @@ def list(param_all):
             width=width,
             path=path))
     if param_all:
-        for envhash, path in sorted(ymp.envs_dead.items()):
+        for envhash, path in sorted(ymp.env.dead.items()):
             print("{name:<{width}} {path}".format(
                 name=envhash+":",
                 width=width,
@@ -359,15 +360,15 @@ def install(envname):
     fail = False
 
     if len(envname) == 0:
-        envnames = ymp.envs.keys()
+        envname = ymp.env.by_name.keys()
         log.warning("Creating all (%i) environments.", len(envname))
 
     for env in envname:
-        if env not in ymp.envs:
+        if env not in ymp.env.by_name:
             log.error("Environment '%s' unknown", env)
             fail = True
         else:
-            ymp.envs[env].create()
+            ymp.env.by_name[env].create()
 
     if fail:
         exit(1)
@@ -380,15 +381,15 @@ def update(envnames):
     fail = False
 
     if len(envnames) == 0:
-        envnames = ymp.envs.keys()
+        envnames = ymp.env.by_name.keys()
         log.warning("Updating all (%i) environments.", len(envnames))
 
     for envname in envnames:
-        if envname not in ymp.envs:
+        if envname not in ymp.env.by_name:
             log.error("Environment '%s' unknown", envname)
             fail = True
         else:
-            ret = ymp.envs[envname].update()
+            ret = ymp.env.by_name[envname].update()
             if ret != 0:
                 log.error("Updating '%s' failed with return code '%i'",
                           envname, ret)
@@ -402,15 +403,15 @@ def update(envnames):
               help="Delete all environments")
 def clean(param_all):
     "Remove unused conda environments"
-    if param_all: # remove up-to-date environments
-        for env in ymp.envs.values():
+    if param_all:  # remove up-to-date environments
+        for env in ymp.env.by_name.values():
             if os.path.exists(env.path):
                 log.warning("Removing %s (%s)", env.name, env.path)
                 shutil.rmtree(env.path)
 
     # remove outdated environments
-    for _, path in ymp.envs_dead.items():
-        log.warning("Removing %s", path)
+    for _, path in ymp.env.dead.items():
+        log.warning("Removing (dead) %s", path)
         shutil.rmtree(path)
 
 
@@ -423,11 +424,11 @@ def activate(envname):
     Usage:
     $(ymp activate env [ENVNAME])
     """
-    if envname not in ymp.envs:
-        log.error("Environment '%s' unknown", envname)
+    if envname not in ymp.env.by_name:
+        log.critical("Environment '%s' unknown", envname)
         exit(1)
-    else:
-        print("source activate {}".format(ymp.envs[envname].path))
+
+    print("source activate {}".format(ymp.env.by_name[envname].path))
 
 
 @env.command(context_settings=CONTEXT_SETTINGS)
@@ -444,7 +445,8 @@ def run(envname, command):
      beginning with - or --)
     """
 
-    if envname not in ymp.envs:
-        log.error("Environment '%s' unknown", envname)
-    else:
-        exit(ymp.envs[envname].run(command))
+    if envname not in ymp.env.by_name:
+        log.critical("Environment '%s' unknown", envname)
+        sys.exit(1)
+
+    sys.exit(ymp.env.by_name[envname].run(command))
