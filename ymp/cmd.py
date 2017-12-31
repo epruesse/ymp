@@ -7,6 +7,7 @@ import os
 import shutil
 import sys
 import logging
+from coloredlogs import ColoredFormatter
 import functools
 import glob
 
@@ -14,7 +15,28 @@ import ymp
 from ymp.common import update_dict
 from ymp.util import AttrDict
 
-log = logging.getLogger(__name__)
+## Set up Logging
+
+log = logging.getLogger("ymp")
+log.setLevel(logging.WARNING)
+log_handler = logging.StreamHandler()
+log_handler.setLevel(logging.DEBUG) # no filtering here
+formatter = ColoredFormatter("YMP: %(message)s")
+log_handler.setFormatter(formatter)
+log.addHandler(log_handler)
+
+# We could get snakemake's logging output like so:
+# slog = logging.getLogger("snakemake")
+# slog.parent = log
+#
+# Or use the log_handler parameter to snakemake to override
+# turning log events into messages. That would take some rewriting
+# of snakemake code though.
+#
+# There seems to be no good way of redirecting snakemakes logging
+# in a python-logging style way as it installs its own stream
+# handlers once control has passed to snakemake.
+
 
 CONTEXT_SETTINGS = {
     'help_option_names': ['-h', '--help']
@@ -97,7 +119,7 @@ def nohup():
 
 def snake_params(func):
     """Default parameters for subcommands launching Snakemake"""
-    @click.argument("targets", nargs=-1, metavar="FILES")
+    @click.argument("targets", nargs=-1, metavar="TARGET_FILES")
     @click.option(
         "--dryrun", "-n", default=False, is_flag=True,
         help="Only show what would be done; don't actually run any commands"
@@ -109,10 +131,6 @@ def snake_params(func):
     @click.option(
         "--keepgoing", "-k", default=False, is_flag=True,
         help="Keep going as far as possible after individual stages failed"
-    )
-    @click.option(
-        "--verbose", "-v", default=False, is_flag=True,
-        help="Increase verbosity. May be given multiple times"
     )
     @click.option(
         "--lock/--no-lock",
@@ -147,7 +165,18 @@ def snake_params(func):
         help="Don't die once the terminal goes away.",
         callback=lambda ctx, param, val: nohup() if val else None
     )
-
+    @click.option(
+        "--verbose", "-v", count=True,
+        help="Increase verbosity. May be specified multiple times.",
+        callback=lambda ctx, param, val: log.setLevel(max(log.getEffectiveLevel() - 10 * val,
+                                                          logging.DEBUG))
+    )
+    @click.option(
+        "--quiet", "-q", count=True,
+        help="Decrease verbosity. May be specified multiple times.",
+        callback=lambda ctx, param, val: log.setLevel(min(log.getEffectiveLevel() + 10 * val,
+                                                          logging.CRITICAL))
+    )
     @functools.wraps(func)
     def decorated(*args, **kwargs):
         return func(*args, **kwargs)
@@ -160,6 +189,10 @@ def start_snakemake(**kwargs):
     Fixes paths of kwargs['targets'] to be relative to YMP root.
     """
     kwargs['workdir'], prefix = find_root()
+    if log.getEffectiveLevel() > logging.WARNING:
+        kwargs['quiet'] = True
+    if log.getEffectiveLevel() < logging.WARNING:
+        kwargs['verbose'] = True
     kwargs['use_conda'] = True
     if 'targets' in kwargs:
         kwargs['targets'] = [os.path.join(prefix, t)

@@ -31,6 +31,7 @@ def make_graph(target, rulegraph=False):
     from networkx import DiGraph
     runner = CliRunner()
     result = runner.invoke(ymp_make, [
+        '--quiet',
         '--dag' if not rulegraph else '--rulegraph',
         target])
     assert result.exit_code == 0, result.output
