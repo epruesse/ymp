@@ -79,15 +79,15 @@ rule bowtie2_index:
     message:
         "Bowtie2: Indexing {input.contigs}"
     input:
-        contigs="{dir}/{sample}.contigs.fasta.gz"
+        contigs="{dir}/{source}.contigs.fasta.gz"
     output:
-        temp(expand("{{dir}}.bt2/{{sample}}.contigs.{ext}", ext=BT2IDX_SUFFIXES))
+        temp(expand("{{dir}}.bt2/{{source}}.contigs.{ext}", ext=BT2IDX_SUFFIXES))
     params:
-        bt2_base="{dir}.bt2/{sample}.contigs"
+        bt2_base="{dir}.bt2/{source}.contigs"
     threads:
         8
     log:
-        "{dir}.bt2/{sample}.contigs.btbuild.log"
+        "{dir}.bt2/{source}.contigs.btbuild.log"
     conda:
       srcdir("bowtie2.yml")
     shell:"""
