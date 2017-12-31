@@ -36,6 +36,7 @@ def make_graph(target, rulegraph=False):
     assert result.exit_code == 0, result.output
     with open("rulegraph.dot", "w") as out:
         out.write(result.output)
+    assert result.output.startswith("digraph")
 
     return DiGraph(AGraph(result.output))
 
