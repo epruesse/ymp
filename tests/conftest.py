@@ -6,6 +6,7 @@ import pytest
 
 log = logging.getLogger(__name__)
 
+
 # from docs; add "rep_setup", "rep_call" and "rep_teardown"
 # to request.node
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
@@ -31,7 +32,7 @@ def project_dir(request, project, tmpdir):
     log.info("Created project directory {}".format(tmpdir))
     yield tmpdir
     if not hasattr(request.node, 'rep_call') or request.node.rep_call.failed:
-        name_parts = request.node.name.replace("]","").split("[")
+        name_parts = request.node.name.replace("]", "").split("[")
         destdir = py.path.local('test_failures').join(*name_parts)
         if destdir.check(exists=1):
             destdir.remove(rec=True)
@@ -54,7 +55,7 @@ def target(request, project_dir):
 @pytest.fixture()
 def dump_logs(path=None):
     if path is None:
-        path = Path.cwd()
+        path = py.Path.cwd()
     for f in path.iterdir():
         log.debug(f.name)
         if f.is_dir() and not f.name.startswith("."):
