@@ -9,18 +9,18 @@ import sys
 import logging
 from coloredlogs import ColoredFormatter
 import functools
-import glob
 
 import ymp
 from ymp.common import update_dict
 from ymp.util import AttrDict
 
-## Set up Logging
+
+# Set up Logging
 
 log = logging.getLogger("ymp")
 log.setLevel(logging.WARNING)
 log_handler = logging.StreamHandler()
-log_handler.setLevel(logging.DEBUG) # no filtering here
+log_handler.setLevel(logging.DEBUG)  # no filtering here
 formatter = ColoredFormatter("YMP: %(message)s")
 log_handler.setFormatter(formatter)
 log.addHandler(log_handler)
@@ -41,6 +41,7 @@ log.addHandler(log_handler)
 CONTEXT_SETTINGS = {
     'help_option_names': ['-h', '--help']
 }
+
 
 class YmpException(Exception):
     """
@@ -66,6 +67,7 @@ def find_root():
         curpath = left
         prefix = os.path.join(right, prefix)
     return (curpath, prefix)
+
 
 def nohup():
     """
@@ -168,14 +170,18 @@ def snake_params(func):
     @click.option(
         "--verbose", "-v", count=True,
         help="Increase verbosity. May be specified multiple times.",
-        callback=lambda ctx, param, val: log.setLevel(max(log.getEffectiveLevel() - 10 * val,
-                                                          logging.DEBUG))
+        callback=lambda ctx, param, val: log.setLevel(
+            max(log.getEffectiveLevel() - 10 * val,
+                logging.DEBUG)
+        )
     )
     @click.option(
         "--quiet", "-q", count=True,
         help="Decrease verbosity. May be specified multiple times.",
-        callback=lambda ctx, param, val: log.setLevel(min(log.getEffectiveLevel() + 10 * val,
-                                                          logging.CRITICAL))
+        callback=lambda ctx, param, val: log.setLevel(
+            min(log.getEffectiveLevel() + 10 * val,
+                logging.CRITICAL)
+        )
     )
     @functools.wraps(func)
     def decorated(*args, **kwargs):
@@ -189,6 +195,12 @@ def start_snakemake(**kwargs):
     Fixes paths of kwargs['targets'] to be relative to YMP root.
     """
     kwargs['workdir'], prefix = find_root()
+
+    for arg in ('use_drmaa', 'qsub_sync', 'qsub_sync_arg',
+                'qsub_cmd', 'qsub_args', 'nohup'):
+        if arg in kwargs:
+            del kwargs[arg]
+
     if log.getEffectiveLevel() > logging.WARNING:
         kwargs['quiet'] = True
     if log.getEffectiveLevel() < logging.WARNING:
@@ -220,10 +232,7 @@ def cli():
 @click.option("--debug-dag", default=False, is_flag=True)
 @click.option("--debug", default=False, is_flag=True)
 def make(**kwargs):
-    from ymp.config import icfg
     "Build target(s) locally"
-    for arg in ('nohup',):
-        del kwargs[arg]
     rval = start_snakemake(**kwargs)
     if not rval:
         sys.exit(1)
@@ -282,10 +291,6 @@ def submit(profile, extra_args, **kwargs):
             cfg.qsub_args += ea
     # write to snakemake
     cfg[param] = icfg.expand(" ".join(cfg.qsub_args))
-    # clean used args
-    for arg in ('use_drmaa', 'qsub_sync', 'qsub_sync_arg',
-                'qsub_cmd', 'qsub_args', 'nohup'):
-        del cfg[arg]
 
     # rename ymp params to snakemake params
     for cfg_arg, kw_arg in (('immediate', 'immediate_submit'),
@@ -322,10 +327,12 @@ def prepare(**kwargs):
     if not rval:
         sys.exit(1)
 
+
 @env.command(context_settings=CONTEXT_SETTINGS)
 @click.option(
     "--all", "-a", "param_all", is_flag=True,
-    help="List all environments, including outdated ones.")
+    help="List all environments, including outdated ones."
+)
 def list(param_all):
     """List conda environments"""
     width = max((len(env) for env in ymp.envs))+1
