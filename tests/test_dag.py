@@ -29,6 +29,9 @@ def make_graph(target, rulegraph=False):
     from ymp.cmd import make as ymp_make
     from pygraphviz import AGraph
     from networkx import DiGraph
+    with open("target.txt", "w") as out:
+        out.write(target)
+
     runner = CliRunner()
     result = runner.invoke(ymp_make, [
         '--quiet',
