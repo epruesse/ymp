@@ -8,6 +8,7 @@ rule download_file:
         server="[^/]+"
     params:
         url="{protocol}://{server}/{path}"
+    conda: source_dir("wget.yml")
     shell:"""
         wget -q "{params.url}" -O "{output[0]}"
     """
