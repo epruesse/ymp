@@ -3,13 +3,16 @@ rule download_file:
         "Downloading {params.url}"
     output:
         "{:dir.downloads:}/{protocol}/{server}/{path}"
+    log:
+        "{:dir.downloads:}/{protocol}/{server}/{path}.log"
     wildcard_constraints:
         protocol="(http|https|ftp|ftps)",
         server="[^/]+"
     params:
         url="{protocol}://{server}/{path}"
+    conda: srcdir("wget.yml")
     shell:"""
-        wget -q "{params.url}" -O "{output[0]}"
+    wget  "{params.url}" -O "{output[0]}" > {log} 2>&1
     """
 
 ruleorder: download_file > gunzip

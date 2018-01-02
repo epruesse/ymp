@@ -186,16 +186,15 @@ rule get_reference_fasta:
         else: # compress
             shell("gzip -c {input[0]} > {output}")
 
+
 localrules: get_reference_dir
 rule get_reference_dir:
     message: "Installing {wildcards.refname} from {input.tar}"
     input:  tar = lambda wc: icfg.ref[wc.refname],
             refdir = ancient(icfg.dir.references)
     output: "{:dir.references:}/{refname}/",
-
     threads: 1
     shell: """
-    outdir="{input.refdir}/{wildcards.refname}"
     tmpdir=$(mktemp -d)
     tar -xf {input.tar} -C $tmpdir
     if test $(ls -1 $tmpdir | wc -l) == 1; then
@@ -205,6 +204,7 @@ rule get_reference_dir:
     fi
     """
 ruleorder: get_reference_dir > gunzip
+
 
 ###
 ###  Quality Reports

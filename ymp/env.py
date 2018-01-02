@@ -35,7 +35,10 @@ class Env(snakemake.conda.Env):
         self.create()
         log.warning("Updating environment '%s'", self.name)
         return subprocess.run([
-            "conda",  "env", "update", "-p", self.path, "-f", self.file
+            "conda",  "env", "update",
+            "--prune",
+            "-p", self.path,
+            "-f", self.file
         ]).returncode
 
     def run(self, command):
@@ -44,7 +47,7 @@ class Env(snakemake.conda.Env):
         Returns exit code of command run.
         """
         return subprocess.run(
-            "source activate {}; {}"
+            "$SHELL -c '. activate {}; {}'"
             "".format(self.path, " ".join(command)),
             shell=True).returncode
 
@@ -52,7 +55,8 @@ class Env(snakemake.conda.Env):
         "Comparator for sorting"
         return self.name < other.name
 
-envs = {
+
+by_name = {
     env.name: env for env in (
         Env(fname) for fname in glob(
             resource_filename("ymp", "rules/*.yml")
@@ -60,17 +64,16 @@ envs = {
     )
 }
 
-envs_byhash = {
-    env.hash: env for env in envs.values()
+by_hash = {
+    env.hash: env for env in by_name.values()
 }
 
-envs_bypath = {
-    env.path: env for env in envs.values()
+by_path = {
+    env.path: env for env in by_name.values()
 }
 
-envs_dead = {
+dead = {
     basename(path): path
     for path in glob(Env._env_dir + "/*")
-    if path not in envs_bypath
+    if path not in by_path
 }
-

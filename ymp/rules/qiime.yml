@@ -4,3 +4,4 @@ channels:
 dependencies:
  - python =2.*
  - qiime
+ - scipy =1.*  # scipy 0.16 missing libgfortran1 installed otherwise

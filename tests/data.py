@@ -6,8 +6,8 @@ import pytest
 data_types = ['any', 'metagenome', 'amplicon']
 
 dataset_map = {
-    'any': ['ibd', 'toy', 'mpic'],
-    'metagenome': ['toy', 'ibd'],
+    'any': ['toy', 'mpic'],
+    'metagenome': ['toy'],
     'large': ['ibd'],
     'amplicon': ['mpic']
 }

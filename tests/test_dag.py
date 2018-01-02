@@ -29,13 +29,18 @@ def make_graph(target, rulegraph=False):
     from ymp.cmd import make as ymp_make
     from pygraphviz import AGraph
     from networkx import DiGraph
+    with open("target.txt", "w") as out:
+        out.write(target)
+
     runner = CliRunner()
     result = runner.invoke(ymp_make, [
+        '--quiet',
         '--dag' if not rulegraph else '--rulegraph',
         target])
     assert result.exit_code == 0, result.output
     with open("rulegraph.dot", "w") as out:
         out.write(result.output)
+    assert result.output.startswith("digraph")
 
     return DiGraph(AGraph(result.output))
 

@@ -34,7 +34,8 @@ setup(
         'PyYAML',
         'drmaa',
         'rpy2',
-        'pandas>=0.20'
+        'pandas>=0.20',
+        'coloredlogs'
     ],
     entry_points='''
         [console_scripts]

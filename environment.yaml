@@ -10,6 +10,7 @@ dependencies:
   - python-drmaa
   - pandas >=0.20  # need dtype support in python csv engine
   - xlrd         # excel support
+  - coloredlogs
   #### for tests: ####
   - networkx >= 2.0
   - pygraphviz

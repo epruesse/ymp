@@ -71,7 +71,22 @@ jobs:
           command: |
             tail -n 100 ~/.ymp/conda/*/conda-meta/history
 
+      - run:
+          name: Exporting Conda Environments
+          when: on_fail
+          command: |
+            source activate test_env
+            mkdir envs
+            ymp env list | \
+            xargs -n 2 -P8 -i \
+            bash -c 'set -- $@; conda env export -p $2 > envs/${1%:}.txt' -- {}
+
       - store_artifacts:
+          when: on_fail
+          path: envs
+
+      - store_artifacts:
+          when: on_fail
           path: test_failures
 
       - store_test_results:
