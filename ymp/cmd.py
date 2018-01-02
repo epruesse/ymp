@@ -80,7 +80,7 @@ def nohup():
     """
     import signal
     from select import select
-    from multiprocessing import Process
+    from threading import Thread
 
     # ignore sighup
     signal.signal(signal.SIGHUP, signal.SIG_IGN)
@@ -115,8 +115,9 @@ def nohup():
                     except IOError:
                         pass
 
-    p = Process(target=watcher)
-    p.start()
+    t = Thread(target=watcher)
+    t.daemon = True
+    t.start()
 
 
 def snake_params(func):
