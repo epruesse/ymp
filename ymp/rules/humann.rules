@@ -53,8 +53,65 @@ rule humann2:
         "rm {output.tempdir}/temp.fq.gz;"
 
 
+localrules: humann2_renorm_table
+rule humann2_renorm_table:
+    message:
+        "HUMANn2: renormalizing table {input} to {wildcards.unit}/{wildcards.mode}"
+    input:
+        "{dir}.humann2/{sample}_{type}.tsv"
+    wildcard_constraints:
+        type = "(genefamilies|pathabundance|pathcoverage)",
+        unit = "(cpm|relab)",
+        mode = "(community|levelwise)"
+    output:
+        "{dir}.humann2/{sample}_{type}_{mode}_{unit}_single.tsv"
+    log:
+        "{dir}.humann2/{sample}_{type}_{mode}_{unit}_single.log"
+    params:
+        special = "y"
+    conda:
+        srcdir("hhtools.yml")
+    shell:
+        "humann2_renorm_table"
+        " --input {input}"
+        " --output {output}"
+        " --units {wildcards.unit}"
+        " --mode {wildcards.mode}"
+        " --special {params.special}"
+        " --update-snames"
+        " >{log} 2>&1"
+
+
+localrules: humann2_join_tables
+rule humann2_join_tables:
+    message:
+        "HUMANn2: joining tables into {output}"
+    input:
+        "{dir}.humann2/{:runs:}_{type}_{mode}_{unit}_single.tsv"
+    wildcard_constraints:
+        type = "(genefamilies|pathabundance|pathcoverage)",
+        unit = "(cpm|relab)",
+        mode = "(community|levelwise)"
+    params:
+        pattern = "{type}_{mode}_{unit}_single.tsv"
+    output:
+        "{dir}.humann2/{type}_{mode}_{unit}.tsv"
+    conda:
+        srcdir("hhtools.yml")
+    shell:
+        "humann2_join_tables"
+        " --input {wildcards.dir}.humann2"
+        " --file_name {params.pattern}"
+        " --output {output}"
+
+localrules: humann2_all
 rule humann2_all:
-    input: "{dir}.humann2/{:runs:}_pathabundance.tsv"
+    message:
+        "HUMANn2: Finished processing {wildcards.dir}/humann2"
+    input: expand("{{dir}}.humann2/{type}_{mode}_{unit}.tsv", \
+                  type=("genefamilies","pathabundance","pathcoverage"), \
+                  mode=("community", "levelwise"), \
+                  unit=("cpm", "relab"))
     output: touch("{dir}.humann2/all")
 
 
