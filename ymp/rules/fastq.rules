@@ -191,21 +191,20 @@ rule get_reference_dir:
     message: "Installing {wildcards.refname} from {input.tar}"
     input:  tar = lambda wc: icfg.ref[wc.refname],
             refdir = ancient(icfg.dir.references)
-    output: files ="{:dir.references:}/{refname}/{path}"
+    output: "{:dir.references:}/{refname}/",
+
     threads: 1
     shell: """
     outdir="{input.refdir}/{wildcards.refname}"
     tmpdir=$(mktemp -d)
     tar -xf {input.tar} -C $tmpdir
-    if test "$(ls -1 $tmpdir | wc -l)" == "1"; then
-      cp -a $tmpdir/*/* $outdir
+    if test $(ls -1 $tmpdir | wc -l) == 1; then
+      cp -a $tmpdir/*/* {output}
     else
-      cp -a $tmpdir/* $outdir
+      cp -a $tmpdir/* {output}
     fi
     """
 ruleorder: get_reference_dir > gunzip
-
-
 
 ###
 ###  Quality Reports

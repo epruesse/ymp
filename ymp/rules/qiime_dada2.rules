@@ -5,7 +5,7 @@ rule dada2:
     message:
         "Denoising with dada2"
     input:
-        fastqs = "{dir}/{:fwd_fq_names:}.fq.gz",
+        fastqs = "{dir}/{:fwd_fq_names:}.fq.gz"
     output:
         otu_table = "{dir}.qd2{skip_len}/otu_table.biom",
         fasta = "{dir}.qd2{skip_len}/rep_set.fa.gz",
@@ -46,7 +46,7 @@ rule pick_open_otus_on_dada2:
     input:
         otu_table = "{dir}.qd2{skip_len}/otu_table.biom",
         fasta = "{dir}.qd2{skip_len}/rep_set.fa",
-        ref_fasta = "{:dir.references:}/greengenes/gg_13_8_otus/rep_set/{similarity}_otus.fasta"
+        gg = "{:dir.references:}/greengenes/"
     wildcard_constraints:
         similarity = "([0-9][0-9])?"
     output:
@@ -56,17 +56,23 @@ rule pick_open_otus_on_dada2:
     conda:
         srcdir("dada2_qiime1.yml")
     params:
+        ref_fasta = lambda wc, input: input.gg + "/rep_set/{similarity}_otus.fasta".format(**wc),
         method = "uclust_ref",
         similarity = lambda wc: wc.similarity if wc.similarity else 97,
         output = "qd2.o{similarity}"
     shadow: "shallow"
     shell: """
+    if [ ! -e "{params.ref_fasta}" ]; then
+      echo Failed to find GreenGenes reference file {params.ref_fasta}.
+      exit 1
+    fi
+
     echo "pick_otus:similarity\t.{params.similarity}\npick_otus:otu_picking_method\t{params.method}" > qiime_params.txt
 
     pick_closed_reference_otus.py \
     -i {input.fasta} \
     -o {params.output} \
-    -r {input.ref_fasta} \
+    -r {params.ref_fasta} \
     -p qiime_params.txt
 
     filter_fasta.py \

@@ -23,8 +23,7 @@ rule scnic_within_minsamp:
     -o $(dirname {output.modules}) \
     -s {params.min_samples} \
     --min_r 0.{params.min_r} \
-    -m {params.method} \
-    --procs {threads}
+    -m {params.method}
     touch {output.modules}
     """
 

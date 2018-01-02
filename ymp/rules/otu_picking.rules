@@ -4,7 +4,7 @@ rule pick_open_otus:
         "Pick open reference {params.similarity}% OTUs on forward reads"
     input:
         seqs = "{dir}/{:fwd_fq_names:}.fq.gz",
-        ref_fasta = "{:dir.references:}/greengenes/gg_13_8_otus/rep_set/{similarity}_otus.fasta"
+        gg   = "{:dir.references:}/greengenes/"
     wildcard_constraints:
         similarity = "([0-9][0-9])?"
     output:
@@ -14,6 +14,7 @@ rule pick_open_otus:
     conda:
         srcdir("qiime.yml")
     params:
+        ref_fasta = lambda wc, input: input.gg+"/rep_set/{similarity}_otus.fasta".format(**wc),
         seqs = lambda wc, input: ','.join(input.seqs),
         seq_ids = lambda wc, input: ','.join([i.split('/')[-1].split('.')[0] for i in input.seqs]),
         similarity = lambda wc: wc.similarity if wc.similarity else 97
@@ -23,6 +24,10 @@ rule pick_open_otus:
         8
     shadow: "shallow"
     shell: """
+    if [ ! -e "{params.ref_fasta}" ]; then
+      echo Failed to find GreenGenes reference file {params.ref_fasta}.
+      exit 1
+    fi
     split_libraries_fastq.py \
     -i {params.seqs} \
     -o slout \
@@ -33,7 +38,7 @@ rule pick_open_otus:
     pick_open_reference_otus.py \
     -i slout/seqs.fna \
     -o qiime_otus \
-    -r {input.ref_fasta} \
+    -r {params.ref_fasta} \
     -a -O {threads} \
     -p qiime_params.txt
     mv qiime_otus/otu_table_mc2_w_tax_no_pynast_failures.biom {output.otu_table}
@@ -49,7 +54,7 @@ rule pick_closed_otus:
         "Pick closed reference {params.similarity}% OTUs on forward reads"
     input:
         seqs = "{dir}/{:fwd_fq_names:}.fq.gz",
-        ref_fasta = "{:dir.references:}/greengenes/gg_13_8_otus/rep_set/{similarity}_otus.fasta"
+        gg   = "{:dir.references:}/greengenes/"
     wildcard_constraints:
         similarity = "([0-9][0-9])?"
     output:
@@ -59,13 +64,18 @@ rule pick_closed_otus:
     params:
         seqs = lambda wc, input: ','.join(input.seqs),
         seq_ids = lambda wc, input: ','.join([i.split('/')[-1].split('.')[0] for i in input.seqs]),
-        similarity = lambda wc: wc.similarity if wc.similarity else 97
+        similarity = lambda wc: wc.similarity if wc.similarity else 97,
+        ref_fasta = lambda wc, input: input.gg + "/rep_set/{similarity}_otus.fasta".format(**wc)
     log:
         "{dir}.o{similarity}/log.txt"
     threads:
         8
     shadow: "shallow"
     shell: """
+    if [ ! -e "{params.ref_fasta}" ]; then
+      echo Failed to find GreenGenes reference file {params.ref_fasta}.
+      exit 1
+    fi
     split_libraries_fastq.py \
     -i {params.seqs} \
     -o slout \
@@ -76,7 +86,7 @@ rule pick_closed_otus:
     pick_closed_reference_otus.py \
     -i slout/seqs.fna \
     -o qiime_otus \
-    -r {input.ref_fasta} \
+    -r {params.ref_fasta} \
     -a -O {threads} \
     -p qiime_params.txt
     mv qiime_otus/otu_table.biom {output.otu_table}
