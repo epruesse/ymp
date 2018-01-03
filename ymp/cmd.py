@@ -210,6 +210,7 @@ def start_snakemake(**kwargs):
     if 'targets' in kwargs:
         kwargs['targets'] = [os.path.join(prefix, t)
                              for t in kwargs['targets']]
+    log.debug("Running snakemake.snakemake with args: {}".format(kwargs))
     return snakemake.snakemake(
         resource_filename("ymp", "rules/Snakefile"),
         **kwargs)
