@@ -42,6 +42,16 @@ class YmpDataParserError(YmpException):
     pass
 
 
+class MkdirDict(AttrDict):
+    "Creates directories as they are requested"
+    def __getattr__(self, attr):
+        dirname = super().__getattr__(attr)
+        if not os.path.exists(dirname):
+            log.warning("Creating directory {}".format(dirname))
+            os.makedirs(dirname)
+        return dirname
+
+
 def make_path_reference(path):
     url_match = re.match("^(http|https|ftp|ftps)://", path)
     if url_match:
@@ -642,11 +652,19 @@ class ConfigMgr(object):
 
     @property
     def dir(self):
+        """
+        Access relative paths to YMP directories.
+        """
         return AttrDict(self._config['directories'])
 
     @property
     def absdir(self):
-        return AttrDict({name: os.path.abspath(value)
+        """
+        Access absolute paths to YMP directories.
+
+        Directories will be created on the fly as they are requested.
+        """
+        return MkdirDict({name: os.path.abspath(value)
                          for name, value in self.dir.items()})
 
     @property
