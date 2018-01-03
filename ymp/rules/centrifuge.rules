@@ -1,0 +1,37 @@
+rule centrifuge:
+    message:
+        "Centrifuge: Classifying reads in {wildcards.sample}"
+    input:
+        db     = "{:dir.references:}/centrifuge_phv",
+        reads  = "{dir}/{sample}.{:pairnames:}.fq.gz"
+    output:
+        hits   = "{dir}.centrifuge/{sample}.hits.tsv",
+        report = "{dir}.centrifuge/{sample}.report.tsv",
+    log:
+                 "{dir}.centrifuge/{sample}.log",
+    threads:
+        16
+    conda:
+        srcdir("centrifuge.yml")
+    params:
+        mem = icfg.mem("32G")
+    shell:
+        "centrifuge"
+        " -x {input.db}/p+h+v"
+        " -1 {input.reads[0]}"
+        " -2 {input.reads[1]}"
+        " --report-file {output.report}"
+        " -S {output.hits}"
+        " --threads {threads}"
+        " --time" # print timings
+        " --mm" # use mmap so that multiple instances share idx
+        " >{log} 2>&1"
+        
+
+rule centrifuge_all:
+    message:
+        "Centrifuge: completed {wildcards.dir}"
+    input:
+              "{dir}.centrifuge/{:runs:}.hits.tsv"
+    output:
+        touch("{dir}.centrifuge/all")
