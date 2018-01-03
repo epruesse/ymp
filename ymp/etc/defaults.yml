@@ -70,6 +70,7 @@ cluster:
       qsub_cmd: "sbatch"
       qsub_sync_arg: "--wait"
       qsub_args:
+        - "--parsable"
         - "--cpus-per-task={threads}"
         - "--mem={params.mem}"
         - "--nodes=1"
