@@ -16,7 +16,7 @@ rule pick_open_otus:
     params:
         ref_fasta = lambda wc, input: input.gg+"/rep_set/{similarity}_otus.fasta".format(**wc),
         seqs = lambda wc, input: ','.join(input.seqs),
-        seq_ids = lambda wc, input: ','.join([i.split('/')[-1].split('.')[0] for i in input.seqs]),
+        seq_ids = lambda wc, input: ','.join(['.'.join(i.split('/')[-1].split('.')[:-2]) for i in input.seqs]),
         similarity = lambda wc: wc.similarity if wc.similarity else 97
     log:
         "{dir}.o{similarity}/log.txt"
