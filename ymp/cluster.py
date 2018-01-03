@@ -44,7 +44,7 @@ class Slurm(ClusterMS):
         startup and half by calling sacct. Using `scontrol show job` instead of 
         `sacct -pbs` is faster by 80ms, but finished jobs are purged after unknown
         time window.
-        "
+        """
         
         header = None
         jobs = []
