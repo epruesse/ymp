@@ -195,12 +195,14 @@ rule get_reference_dir:
     output: "{:dir.references:}/{refname}/",
     threads: 1
     shell: """
-    tmpdir=$(mktemp -d)
-    tar -xf {input.tar} -C $tmpdir
-    if test $(ls -1 $tmpdir | wc -l) == 1; then
-      cp -a $tmpdir/*/* {output}
+    rm -rf {output}
+    mkdir -p {output}_temp
+    tar -xf {input.tar} -C {output}_temp
+    if test $(ls -1 {output}_temp | wc -l) -eq 1; then
+      mv {output}_temp/* {output}
+      rmdir {output}_temp
     else
-      cp -a $tmpdir/* {output}
+      mv {output}_temp {output}
     fi
     """
 ruleorder: get_reference_dir > gunzip
