@@ -28,7 +28,7 @@ def flatten(l):
             yield item
 
 
-def recursive_format(ruleinfo):
+def recursive_format(rule, ruleinfo):
     """Expand wildcards within ruleinfo
 
     This is not fully implemented!
@@ -123,15 +123,40 @@ class ExpandableWorkflow(Workflow):
         """Set default params: keys"""
         ExpandableWorkflow._default_params = kwargs
 
-    def rule(self, *args, **kwargs):
+    def add_rule(self, name=None, lineno=None, snakefile=None):
+        """Add a rule.
+
+        Arguments:
+          name: name of the rule
+          lineno: line number within the snakefile where the rule was defined
+          snakefile: name of file in which rule was defined
+        """
+        # super().add_rule() dynamically creates a name if `name` is None
+        # stash the name so we can access it from `get_rule`
+        self._last_rule_name = super().add_rule(name, lineno, snakefile)
+        return self._last_rule_name
+
+    def get_rule(self, name=None):
+        """
+        Get rule by name. If name is none, the last created rule is returned.
+
+        Arguments:
+          name: the name of the rule
+        """
+        if name is None:
+            name = self._last_rule_name
+        return super().get_rule(name)
+
+    def rule(self, name=None, lineno=None, snakefile=None):
         """Intercepts "rule:"
         Here we have the entire ruleinfo object
         """
-        decorator = super().rule(*args, **kwargs)
+        decorator = super().rule(name, lineno, snakefile)
+        rule = self.get_rule(name)
 
         def decorate(ruleinfo):
-            # save ruleinfo in case `derive_rule` is called
-            self._ruleinfos[kwargs['name']] = ruleinfo
+            # save original ruleinfo in case `derive_rule` is called
+            self._ruleinfos[name] = ruleinfo
 
             # if we have default params, add them
             if self._default_params:
@@ -141,16 +166,20 @@ class ExpandableWorkflow(Workflow):
                     if param not in ruleinfo.params[1]:
                         ruleinfo.params[1][param] = self._default_params[param]
 
-            recursive_format(ruleinfo)
+            recursive_format(rule, ruleinfo)
 
+            # Conditionaly dump rule after YMP formatting
             if ymp.print_rule == 1:
-                log.error("rule {}".format(kwargs))
+                log.error("rule {}".format({'n': name,
+                                            'l': lineno,
+                                            's': snakefile}))
                 for attr in dir(ruleinfo):
                     if attr.startswith("__"):
                         continue
                     log.error("  {}: {}".format(attr,
                                                 getattr(ruleinfo, attr, "")))
                 ymp.print_rule = 0
+            # register rule with snakemake
             decorator(ruleinfo)  # does not return anything
 
         return decorate
