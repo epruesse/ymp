@@ -21,14 +21,16 @@ rule predict_metagenome:
     input:
         biom = "{dir}/{table}.biom"
     output:
-        biom = "{dir}/{table}.ko.biom"
+        biom = "{dir}/{table}.ko.biom",
+        NSTI = "{dir}/{table}.NSTI.txt"
     conda:
         srcdir("picrust.yml")
     shell: """
     download_picrust_files.py > /dev/null 2>&1
     predict_metagenomes.py \
     -i {input.biom} \
-    -o {output.biom}
+    -o {output.biom} \
+    -a {output.NSTI}
     """
 
 rule categorize_by_function:
