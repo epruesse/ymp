@@ -1,0 +1,48 @@
+rule normalize_16S:
+    """Normalize 16S by copy number using picrust, must be run with closed reference OTU table"""
+    message:
+        "Normalize {input.biom} by 16S copy number"
+    input:
+        biom = "{dir}/{table}.biom"
+    output:
+        biom = "{dir}/{table}.norm.biom"
+    conda:
+        srcdir("picrust.yml")
+    shell: """
+    download_picrust_files.py > /dev/null 2>&1
+    normalize_by_copy_number.py -i {input.biom} -o {output.biom}
+    """
+
+# TODO: Make work with other functional groups (e.g. COG + rfam)
+rule predict_metagenome:
+    """Predict metagenome using picrust"""
+    message:
+        "Predict metagenome from {input.biom}"
+    input:
+        biom = "{dir}/{table}.biom"
+    output:
+        biom = "{dir}/{table}.ko.biom"
+    conda:
+        srcdir("picrust.yml")
+    shell: """
+    download_picrust_files.py > /dev/null 2>&1
+    predict_metagenomes.py \
+    -i {input.biom} \
+    -o {output.biom}
+    """
+
+rule categorize_by_function:
+    """Categorize PICRUSt KOs into pathways"""
+    message:
+        "Collapse KO's present in {input.biom} to pathways at level {params.level}"
+    input:
+        biom = "{dir}/{table}.ko.biom"
+    output:
+        biom = "{dir}/{table}.ko.l{level}.biom"
+    conda:
+        srcdir("picrust.yml")
+    params:
+        level = lambda wc: wc.level
+    shell: """
+    categorize_by_function.py -i {input.biom} -c KEGG_Pathways -l {params.level} -o {output.biom}
+    """

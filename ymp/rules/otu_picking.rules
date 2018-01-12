@@ -92,3 +92,23 @@ rule pick_closed_otus:
     mv qiime_otus/otu_table.biom {output.otu_table}
     cat slout/split_library_log.txt qiime_otus/log_*.txt > {log}
     """
+
+
+rule convert_to_closed_ref:
+    """Convert open reference otu table to closed reference"""
+    message:
+        "Convert open reference otu picked table {input.biom} to closed reference"
+    input:
+        biom = "{dir}/{table}.biom",
+        gg   = "{:dir.references:}/greengenes/"
+    output:
+        biom = "{dir}/{table}.closed.biom"
+    conda:
+        srcdir("qiime.yml")
+    params:
+        ref_fasta = lambda wc, input: input.gg+"rep_set/99_otus.fasta"
+    shell: """
+    filter_otus_from_otu_table.py \
+    -i {input.biom} -o {output.biom} \
+    --negate_ids_to_exclude -e {params.ref_fasta}
+    """
