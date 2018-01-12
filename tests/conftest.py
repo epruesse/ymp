@@ -46,6 +46,7 @@ def project_dir(request, project, tmpdir):
 @pytest.fixture()
 def target(request, project_dir):
     with project_dir.as_cwd():
+        log.info("Switched to directory {}".format(project_dir))
         from ymp.config import icfg
         icfg.init()
         for ds in icfg:
