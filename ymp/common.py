@@ -1,4 +1,4 @@
-from collections import Mapping, OrderedDict
+from collections import Iterable, Mapping, OrderedDict
 
 
 class OrderedDictMaker(object):
@@ -74,3 +74,19 @@ def parse_number(s=""):
         return float(s)*multiplier
     else:
         return int(s)*multiplier
+
+
+def flatten(item):
+    """Flatten lists without turning strings into letters"""
+    if isinstance(item, str):
+        yield item
+    elif isinstance(item, Iterable):
+        for item2 in item:
+            yield from flatten(item2)
+    else:
+        yield item
+
+
+def is_container(obj):
+    """Check if object is container, considering strings not containers"""
+    return not isinstance(obj, str) and isinstance(obj, Iterable)
