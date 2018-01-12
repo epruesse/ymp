@@ -4,6 +4,12 @@ from itertools import product
 from string import Formatter
 
 
+class GetNameFormatter(Formatter):
+    def get_names(self, pattern):
+        for val in self.parse(pattern):
+            if val[1] is not None:
+                yield val[1]
+
 class OverrideJoinFormatter(Formatter):
     """Formatter with overridable join method
 
@@ -173,7 +179,7 @@ def make_formatter(product=None, regex=None, partial=None):
             (product, ProductFormatter, 'Product'),
             (regex, RegexFormatter, 'Regex'),
             (partial, PartialFormatter, 'Partial'),
-            (formatter, Formatter, 'Formatter')
+            (formatter, GetNameFormatter, 'Formatter')
              ):
         if arg is not None:
             types += [cls]
