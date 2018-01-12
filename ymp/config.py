@@ -217,6 +217,13 @@ class Context(object):
                 raise YmpConfigError("Unkown column in groupby: {}"
                                      "".format(groupbys[-1]))
 
+    def __repr__(self):
+        return "{}(wc={},groups={})".format(self.__class__.__name__,
+                                          list(self.wc.allitems()),
+                                          self.groupby.groups
+        )
+
+
     @property
     def targets(self):
         """
@@ -231,6 +238,17 @@ class Context(object):
         """
         Returns the runs associated with the current target
         """
+        try:
+            target = self.wc.target
+        except AttributeError:
+            raise YmpException("Using '{:sources:}' requires '{target}' wildcard")
+
+        try:
+            sources = self.groupby.groups[target]
+        except KeyError:
+            log.debug(list(self.wc.allitems()))
+            raise YmpException("Target '{}' not available. Possible choices are '{}'"
+                               "".format(target, list(self.groupby.groups.keys())))
         return self.groupby.groups[self.wc.target]
 
 
@@ -259,6 +277,9 @@ class DatasetConfig(object):
 
         if self.KEY_DATA not in self.cfg:
             raise YmpConfigMalformed("Missing key " + self.KEY_DATA)
+
+    def __repr__(self):
+        return "{}(project={})".format(self.__class__.__name__, self.project)
 
     @property
     def run_data(self):
@@ -552,8 +573,18 @@ class ConfigExpander(ColonExpander):
             except AttributeError:
                 pass
 
-            return super().get_value(field_name, args, kwargs)
-
+            try:
+                return super().get_value(field_name, args, kwargs)
+            except KeyError:
+                data = [args, kwargs]
+                if ds:
+                    data.append(ds)
+                if ct:
+                    data.append(ct)
+                if 'wc' in kwargs:
+                    data.append(list(kwargs['wc'].allitems()))
+                raise YmpException("Unable to expand '{}' given {}"
+                                   "".format(field_name, data))
 
 class ConfigMgr(object):
     """Interface to configuration. Singleton as "icfg" """
