@@ -6,6 +6,12 @@ from string import Formatter
 import snakemake.utils
 
 
+class FormattingError(AttributeError):
+    def __init__(self, message, fieldname):
+        super().__init__(message)
+        self.attr = fieldname
+
+
 class GetNameFormatter(Formatter):
     def get_names(self, pattern):
         for val in self.parse(pattern):
