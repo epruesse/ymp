@@ -1,14 +1,14 @@
 import logging
 import re
 
-from collections import Iterable
 from copy import copy, deepcopy
 
 from snakemake.io import AnnotatedString, Namedlist, apply_wildcards
 from snakemake.workflow import Workflow
 
 import ymp
-from ymp.string import PartialFormatter, ProductFormatter
+from ymp.common import flatten, is_container
+from ymp.string import FormattingError, ProductFormatter, make_formatter
 
 
 log = logging.getLogger(__name__)
@@ -16,16 +16,6 @@ log = logging.getLogger(__name__)
 partial_format = PartialFormatter().format
 
 
-def flatten(l):
-    """Flatten lists without turning strings into letters"""
-    for item in l:
-        if isinstance(item, str):
-            yield item
-        elif isinstance(item, Iterable):
-            for item2 in flatten(item):
-                yield item2
-        else:
-            yield item
 
 
 def recursive_format(rule, ruleinfo):
