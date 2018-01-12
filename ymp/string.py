@@ -3,12 +3,15 @@ import re
 from itertools import product
 from string import Formatter
 
+import snakemake.utils
+
 
 class GetNameFormatter(Formatter):
     def get_names(self, pattern):
         for val in self.parse(pattern):
             if val[1] is not None:
                 yield val[1]
+
 
 class OverrideJoinFormatter(Formatter):
     """Formatter with overridable join method
@@ -158,6 +161,12 @@ class RegexFormatter(Formatter):
                    for match in self._regex.finditer(format_string))
 
 
+class QuotedElementFormatter(snakemake.utils.SequenceFormatter):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.element_formatter = snakemake.utils.QuotedFormatter()
+
+
 class PartialFormatter(Formatter):
     """
     Formats what it can and leaves the remainder untouched
@@ -170,7 +179,7 @@ class PartialFormatter(Formatter):
             return super().get_value(key, args, kwargs)
 
 
-def make_formatter(product=None, regex=None, partial=None):
+def make_formatter(product=None, regex=None, partial=None, quoted=None):
     formatter = 1
     types = []
     class_name = ""
@@ -179,6 +188,7 @@ def make_formatter(product=None, regex=None, partial=None):
             (product, ProductFormatter, 'Product'),
             (regex, RegexFormatter, 'Regex'),
             (partial, PartialFormatter, 'Partial'),
+            (quoted, QuotedElementFormatter, 'QuotedElement'),
             (formatter, GetNameFormatter, 'Formatter')
              ):
         if arg is not None:
