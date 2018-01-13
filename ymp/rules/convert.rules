@@ -81,6 +81,8 @@ rule gunzip:
         path = ".*(?<!\.gz)"
     input: "{path}.gz"
     output: temp("{path}")
+    params:
+        mem = icfg.mem("1G")
     threads: 1
     conda: srcdir("pigz.yml")
     shell: """
