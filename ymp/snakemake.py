@@ -3,7 +3,11 @@ import re
 
 from copy import copy, deepcopy
 
-from snakemake.io import AnnotatedString, Namedlist, apply_wildcards
+import networkx
+
+from snakemake.exceptions import RuleException
+from snakemake.io import AnnotatedString, apply_wildcards
+from snakemake.io import Namedlist as _Namedlist
 from snakemake.workflow import Workflow
 
 import ymp
@@ -13,36 +17,248 @@ from ymp.string import FormattingError, ProductFormatter, make_formatter
 
 log = logging.getLogger(__name__)
 
-partial_format = PartialFormatter().format
+partial_formatter = make_formatter(partial=True, quoted=True)
+partial_format = partial_formatter.format
+get_names = partial_formatter.get_names
 
 
+class CircularReferenceException(RuleException):
+    """Exception raised if parameters in rule contain a circular reference"""
+    def __init__(self, deps, rule, include=None, lineno=None, snakefile=None):
+        nodes = [n[0] for n in networkx.find_cycle(deps)]
+        message = "Circular reference in rule {}:\n{}".format(
+            rule, " => ".join(nodes + [nodes[0]]))
+        super().__init__(message=message,
+                         include=include,
+                         lineno=lineno,
+                         snakefile=snakefile,
+                         rule=rule)
+
+
+class NamedList(_Namedlist):
+    """Extended version of Snakemake's io.namedlist
+
+    - Fixes array assignment operator:
+      Writing a field via `[]` operator updates the value accessed
+      via `.` operator.
+    - Adds `fromtuple` to constructor:
+      Builds from Snakemake's typial `(args, kwargs)` tuples as
+      present in ruleinfo structures.
+    - Adds update_tuple method:
+      Updates values in `(args,kwargs)` tuples as present in ruleinfo
+      structures.
+    """
+    def __init__(self, fromtuple=None, **kwargs):
+        super().__init__(**kwargs)
+        self._fromtuple = fromtuple
+        if fromtuple:
+            for value in fromtuple[0]:
+                self.append(value)
+            for key, value in fromtuple[1].items():
+                if is_container(value):
+                    start = len(self)
+                    for subvalue in value:
+                        self.append(subvalue)
+                    self.set_name(key, start, len(self))
+                else:
+                    self.append(value)
+                    self.add_name(key)
+
+    def __setitem__(self, idx, value):
+        # set value in list
+        super().__setitem__(idx, value)
+        # set value in attributes (copied references)
+        for name, (i, j) in self.get_names():
+            if idx >= i and (j is None or idx < j):
+                self.set_name(name, i, j)
+
+    def update_tuple(self, totuple):
+        """Update values in `(args, kwargs)` tuple.
+        The tuple must be the same as used in the constructor and
+        must not have been modified.
+        """
+        args, kwargs = totuple
+        for n, value in enumerate(args):
+            if args[n] != self[n]:
+                args[n] = self[n]
+        for key, value in kwargs.items():
+            start, end = self._names[key]
+            if end:
+                assert is_container(value)
+                for k, j in enumerate(range(start, end)):
+                    if kwargs[key][k] != self[j]:
+                        kwargs[key][k] = self[j]
+            else:
+                if kwargs[key] != self[start]:
+                    kwargs[key] = self[start]
+
+
+ruleinfo_fields = {
+    'wildcard_constraints': {
+        'format': 'argstuple',  # len(t[0]) must be == 0
+    },
+    'input': {
+        'format': 'argstuple',
+        'funcparams': ('wildcards',),
+        'apply_wildcards': True,
+    },
+    'output': {
+        'format': 'argstuple',
+        'apply_wildcards': True,
+    },
+    'threads': {
+        'format': 'int',
+        'funcparams': ('input', 'attempt', 'threads')
+        # stored as resources._cores
+    },
+    'resources': {
+        'format': 'argstuple',  # len(t[0]) must be == 0, t[1] must be ints
+        'funcparams': ('input', 'attempt', 'threads'),
+    },
+    'params': {
+        'format': 'argstuple',
+        'funcparams': ('wildcards', 'input', 'resources', 'output', 'threads'),
+        'apply_wildcards': True,
+    },
+    'shadow_depth': {
+        'format': 'string_or_true',
+    },
+    'priority': {
+        'format': 'numeric',
+    },
+    'version': {
+        'format': 'object',
+    },
+    'log': {
+        'format': 'argstuple',
+        'apply_wildcards': True,
+    },
+    'message': {
+        'format': 'string',
+        'format_wildcards': True,
+    },
+    'benchmark': {
+        'format': 'string',
+        'apply_wildcards': True,
+    },
+    'wrapper': {
+        'format': 'string',
+        # sets conda_env
+    },
+    'conda_env': {
+        'format': 'string',  # path, relative to cwd or abs
+        'apply_wildcards': True,
+        # works only with shell/script/wrapper, not run
+    },
+    'singularity_img': {
+        'format': 'string',
+        # works ony with shell/script/wrapper, not run
+    },
+    'shellcmd': {
+        'format': 'string',
+        'format_wildcards': True
+    },
+    'docstring': {
+        'format': 'string',
+    },
+    # func
+    # norun
+    # script
+    # restart_times
+}
 
 
 def recursive_format(rule, ruleinfo):
     """Expand wildcards within ruleinfo
-
-    This is not fully implemented!
-
-    At this time, only `input` and `output` are expanded within
-    `params`.
     """
+    excluded_fields = (
+        'shellcmd',
+        'message',
+        'wildcard_constraints'
+    )
+    fields = [field for field in ruleinfo_fields.keys()
+              if field not in excluded_fields
+              if getattr(ruleinfo, field) is not None]
+
+    # normalize field values and create namedlist dictionary
     args = {}
-    for name in ['input', 'output']:
+    for field in fields:
+        attr = getattr(ruleinfo, field)
+        if isinstance(attr, tuple):
+            if len(attr) != 2:
+                raise Exception("Internal Error")
+            # flatten named lists
+            for key in attr[1]:
+                if is_container(attr[1][key]):
+                    attr[1][key] = list(flatten(attr[1][key]))
+            # flatten unnamed and overwrite tuples
+            # also turn attr[0] into a list, making it mutable
+            attr = (list(flatten(attr[0])), attr[1])
+
+            setattr(ruleinfo, field, attr)
+            args[field] = NamedList(fromtuple=attr)
+        else:
+            args[field] = NamedList()
+            args[field].append(attr)
+
+    # build graph of expansion dependencies
+    deps = networkx.DiGraph()
+    for field, nlist in args.items():
+        for n, value in enumerate(nlist):
+            if not isinstance(value, str):  # only strings can be expanded
+                continue
+            s = "{}[{}]".format(field, n)
+            # create node for value itself
+            deps.add_node(s, core=True, name=field, idx=n)
+            # node depends on wildcards contained in value
+            deps.add_edges_from((s, t)
+                                for t in get_names(value)
+                                if t.split(".")[0].split("[")[0] in fields)
+            # field node depends on all it's value nodes
+            deps.add_edge(field, s)
+        # create edges field.name -> field[n]
+        for name, (i, j) in nlist.get_names():
+            s = "{}.{}".format(field, name)
+            if j is None:
+                j = i + 1
+            deps.add_edges_from((s, "{}[{}]".format(field, n))
+                                for n in range(i, j))
+
+    # sort variables so that they can be expanded in order
+    try:
+        nodes = list(reversed([
+            node for node in networkx.algorithms.dag.topological_sort(deps)
+            if deps.out_degree(node) > 0 and 'core' in deps.nodes[node]
+        ]))
+    except networkx.NetworkXUnfeasible:
+        raise CircularReferenceException(deps, rule)
+
+    # expand variables
+    for node in nodes:
+        name = deps.nodes[node]['name']
+        idx = deps.nodes[node]['idx']
+        value = args[name][idx]
+        if isinstance(value, str):
+            try:
+                value2 = partial_format(value, **args)
+            except FormattingError as e:
+                raise RuleException(
+                    "Unable to resolve wildcard '{{{}}}' in parameter {} in"
+                    "rule {}".format(e.attr, node, rule.name))
+            args[name][idx] = value2
+            if ymp.print_rule == 1:
+                log.error("{}::{}: {} => {}".format(rule.name,
+                                                    node, value, value2))
+
+    # update ruleinfo
+    for name in fields:
         attr = getattr(ruleinfo, name)
-        if attr is None:
-            continue
-        nlist = Namedlist()
-        for item in flatten(attr[0]):
-            nlist.append(item)
-        for key, item in attr[1].items():
-            nlist.append(item)
-            nlist.add_name(key)
-        args[name] = nlist
-    for key, value in ruleinfo.params[1].items():
-        if not isinstance(value, str):
-            continue
-        value = partial_format(value, **args)
-        ruleinfo.params[1][key] = value
+        if isinstance(attr, tuple):
+            if len(attr) != 2:
+                raise Exception("Internal Error")
+            args[name].update_tuple(attr)
+        else:
+            setattr(ruleinfo, name, args[name][0])
 
 
 class ExpandableWorkflow(Workflow):
