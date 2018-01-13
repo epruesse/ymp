@@ -101,14 +101,14 @@ rule bowtie2_index:
 
 rule bowtie2_map:
     message:
-        "Bowtie2: Mapping sample {wildcards.source} to assembly {wildcards.target}"
+        "Bowtie2: Mapping sample {wildcards.source} to reference {wildcards.target}"
     input:
         contigs = "{dir}{by}.{assembler}/{target}.contigs.fasta.gz",
         index   = expand("{{dir}}{{by}}.{{assembler}}.bt2/{{target}}.contigs.{ext}",
                          ext=BT2IDX_SUFFIXES),
         pairs   = "{dir}/{source}.{: pairnames :}.fq.gz"
     output:
-        bam     = "{dir}{by}.{assembler}.bt2/{target}.contigs.{source}.bam",
+        bam     = temp("{dir}{by}.{assembler}.bt2/{target}.contigs.{source}.bam"),
         stats   = "{dir}{by}.{assembler}.bt2/{target}.contigs.{source}.stats"
     log:
                   "{dir}{by}.{assembler}.bt2/{target}.contigs.{source}.log"
@@ -131,6 +131,54 @@ rule bowtie2_map:
         2>{log} \
         | samtools view -b -o {output.bam} -
     """
+
+###
+### Mapping with Hisat2
+###
+
+rule hisat2_all:
+    input: "{dir}.ht2/{:runs:}.sorted.bam.bai"
+    output: touch("{dir}.ht2/all")
+
+
+rule hisat2:
+    """
+    For hisat we always assume a pre-build index as providing SNPs and haplotypes
+    etc is beyond this pipelines scope.
+
+    TODO: allow choosing different references
+    """
+    message: "Hisat2: mapping "
+    input:
+        pairs = "{dir}/{source}.{: pairnames :}.fq.gz",
+        index = "{:dir.references:}/hisat_GRCh38_snp_tran"
+    output:
+        bam   = temp("{dir}.ht2/{source}.bam"),
+        stats = "{dir}.ht2/{source}.stats",
+        unal  = "{dir}.ht2RMgrhc38/{source}.{:pairnames:}.fq.gz"
+    log:
+                "{dir}.ht2/{source}.log"
+    params:
+        mem   = icfg.mem("16G"),
+        unal  = "{dir}.ht2RMgrhc38/{source}"
+    threads:
+        16
+    conda:
+        srcdir("hisat2.yml")
+    shell:
+        "hisat2"
+        " -1 {input.pairs[0]}"
+        " -2 {input.pairs[1]}"
+        " -x {input.index}/genome_snp_tran"
+        " --new-summary"
+        " --summary-file {output.stats}"
+        " --downstream-transcriptome-assembly" #  require longer anchors for de novo splice
+        " -p {threads} "
+        " --un-conc-gz {params.unal}"
+        " 2>{log}"
+        " | samtools view -b -o {output.bam} -;"
+        "mv {params.unal}.1 {output.unal[0]};"
+        "mv {params.unal}.2 {output.unal[1]};"
 
 
 ###

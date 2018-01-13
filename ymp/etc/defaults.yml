@@ -25,6 +25,8 @@ references:
   centrifuge_nt: ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/nt.tar.gz
   centrifuge_pchv: ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/p_compressed+h+v.tar.gz
   centrifuge_pc: ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/p_compressed.tar.gz
+  hisat_GRCh38_snp_tran: ftp://ftp.ccb.jhu.edu/pub/infphilo/hisat2/data/grch38_snp_tran.tar.gz
+  hisat_GRCh38_gtf: ftp://ftp.ensembl.org/pub/release-84/gtf/homo_sapiens/Homo_sapiens.GRCh38.84.gtf.gz
 
 # Default limits
 limits:
