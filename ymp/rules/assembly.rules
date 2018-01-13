@@ -275,3 +275,105 @@ rule quast_report:
       --filename {output} \
       --verbose > {log} 2>&1
     """
+
+
+rule stringtie:
+    message:
+        "Stringtie: Assembling transcripts ({log})"
+    input:
+        bam = "{dir}.ht2/{sample}.sorted.bam",
+        gtf = "{:dir.references:}/hisat_GRCh38_gtf.gtf"
+    output:
+        gtf = "{dir}.ht2.st/{sample}.transscripts.gtf",
+        abd = "{dir}.ht2.st/{sample}.gene_abundances.tsv",
+        bgn = "{dir}.ht2.st/indidivdual_{sample}.ballgown"
+    log:
+              "{dir}.ht2.st/{sample}.log"
+    threads:
+        16
+    params:
+        mem = icfg.mem("16G")
+    conda:
+        srcdir("stringtie.yml")
+    shell:
+        "stringtie"
+        " {input.bam}"
+        " -G {input.gtf}"
+        " -p {threads}"
+        " -A {output.abd}"
+        " -o {output.gtf}"
+        " -b {output.bgn}"
+        " >{log} 2>&1"
+
+
+rule stringtie_merge:
+    message:
+        "Stringtie: Merging transcript assemblies ({log})"
+    input:
+        gtf = "{dir}.ht2.st/{:sources:}.transscripts.gtf",
+        ref = "{:dir.references:}/hisat_GRCh38_gtf.gtf"
+    output:
+        gtf = "{dir}.ht2.st/{target}_merged.gtf"
+    log:
+              "{dir}.ht2.st/{target}_merged.log"
+    threads:
+        16
+    params:
+        mem = icfg.mem("16G")
+    conda:
+        srcdir("stringtie.yml")
+    shell:
+        "stringtie --merge"
+        " {input.gtf}"
+        " -G {input.ref}"
+        " -o {output.gtf}"
+        " -p {threads}"
+        " >{log} 2>&1"
+
+
+rule stringtie_abundance:
+    message:
+        "Stringtie: Estimating abundances ({log})"
+    input:
+        bam = "{dir}.ht2/{sample}.sorted.bam",
+        ref = "{dir}.ht2.st/{target}_merged.gtf"
+    output:
+        bgn = "{dir}.ht2.st/{target}_{sample}.ballgown",
+        abd = "{dir}.ht2.st/{target}_{sample}.gene_abundances.tsv",
+        gtf = "{dir}.ht2.st/{target}_{sample}.gtf"
+    log:
+              "{dir}.ht2.st/{target}_{sample}.log"
+    threads:
+        16
+    params:
+        mem = icfg.mem("16G")
+    conda:
+        srcdir("stringtie.yml")
+    shell:
+        "stringtie"
+        " {input.bam}"
+        " -G {input.ref}"
+        " -e"
+        " -b {output.bgn}"
+        " -A {output.abd}"
+        " -p {threads}"
+        " -o {output.gtf}"
+        " >{log} 2>&1"
+
+
+rule stringtie_all_target:
+    message:
+        "Stringtie: finished all for {wildcards.target} in {wildcards.dir}"
+    input:
+        "{dir}.ht2.st/{target}_{:sources:}.ballgown",
+    output:
+        touch("{dir}.ht2.st/all_{target}")
+
+
+rule stringtie_all:
+    message:
+        "Stringtie: finished all in {wildcards.dir}"
+    input:
+        touch("{dir}.ht2.st/all_{:targets:}")
+    output:
+        touch("{dir}.ht2.st/all")
