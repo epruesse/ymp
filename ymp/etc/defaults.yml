@@ -79,6 +79,7 @@ cluster:
         - "--ntasks=1"
         - "--output={:absdir.log:}/%x_%J.log"
         - "--time=23:59:59"
+#      cluster_status: "python -m ymp.cluster slurm status"
 
   rule_params:
     default:
