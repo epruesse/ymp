@@ -1,0 +1,16 @@
+rule test:
+    input:
+        lambda wc: "ymp.yml",
+        "test/all"
+    output:
+        "outfile"
+    shell:
+        "touch {output}"
+
+rule test2:
+    input:
+        fq = "{dir}/{:sources:}.{:pairnames:}.fq.gz"
+    output:
+        "{dir}/{target}"
+    shell:
+        "echo {input} > {output}"

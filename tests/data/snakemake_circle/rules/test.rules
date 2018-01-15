@@ -1,0 +1,5 @@
+rule circular_reference:
+    output: "{params}"
+    params: "{output}"
+    
+    
