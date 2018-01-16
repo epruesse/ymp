@@ -24,7 +24,6 @@ wildcard_constraints:
     length   = "[1-9][0-9]*",
 
     SRR = "[EDS]RR[0-9]+",
-    rnagene="({})".format("|".join(icfg.db.rrna)),
     project = "({})".format("|".join(icfg.datasets)),
     pairname = "({})".format("|".join(icfg.pairnames)),
     sample   = "(ALL|{})".format("|".join(icfg.allruns)),

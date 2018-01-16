@@ -258,7 +258,7 @@ rule blast7_all:
 
 rule blast7_reports:
     input:
-        "{:reportsdir:}/{dir}.blast.{query}.{gene}.html"
+        "{:dir.reports:}/{dir}.blast.{query}.{gene}.html"
     output:
         touch("{dir}.blast/reports_{query}_{gene}")
 
@@ -303,7 +303,7 @@ rule blast7_eval_plot:
         rmd=srcdir("../R/blast.Rmd"),
         rmdrun=srcdir("../R/RmdRunner.R")
     output:
-        "{:reportsdir:}/{dir}.blast.{query}.html"
+        "{:dir.reports:}/{dir}.blast.{query}.html"
     params:
         names=lambda wc: fasta_names(wc.query+".faa")
     shell: """

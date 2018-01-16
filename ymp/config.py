@@ -447,7 +447,7 @@ class DatasetConfig(object):
         kind = source[0]
         if kind == 'srr':
             srr = self.run_data.loc[run][source[1]]
-            f = os.path.join(icfg.scratchdir,
+            f = os.path.join(icfg.dir.scratch,
                              "SRR",
                              "{}_{}.fastq.gz".format(srr, pair+1))
             return f
@@ -684,14 +684,16 @@ class ConfigMgr(object):
     @property
     def dir(self):
         """
-        Access relative paths to YMP directories.
+        Dictionary of relative paths of named YMP directories
+
+        The directory paths are relative to the YMP root workdir.
         """
         return AttrDict(self._config['directories'])
 
     @property
     def absdir(self):
         """
-        Access absolute paths to YMP directories.
+        Dictionary of absolute paths of named YMP directories
 
         Directories will be created on the fly as they are requested.
         """
@@ -700,6 +702,9 @@ class ConfigMgr(object):
 
     @property
     def cluster(self):
+        """
+        The YMP cluster configuration.
+        """
         return AttrDict(self._config['cluster'])
 
     @property
@@ -707,50 +712,25 @@ class ConfigMgr(object):
         return AttrDict(self._references)
 
     @property
-    def scratchdir(self):
-        try:
-            return self._config['directories']['scratch']
-        except:
-            raise KeyError("Missing directories/scratch in config")
-
-    @property
-    def scratch(self):
-        return self.scratchdir
-
-    @property
-    def reportsdir(self):
-        try:
-            return self._config['directories']['reports']
-        except:
-            raise KeyError("Missing directories/reports in config")
-
-    @property
-    def sra(self):
-        try:
-            return self._config['directories']['sra']
-        except:
-            raise KeyError("Missing directories/reports in config")
-
-    @property
     def datasets(self):
-        """Returns list of all configured datasets"""
+        """
+        Names of all configured datasets
+        """
         return self._datasets.keys()
 
     @property
-    def db(self):
-        return AttrDict(self._config['databases'])
-
-    @property
     def limits(self):
+        """
+        The YMP limits configuration.
+        """
         return AttrDict(self._config['limits'])
 
     @property
     def allruns(self):
+        """
+        Names of all configured runs
+        """
         return self.getRuns()
-
-    @property
-    def allprops(self):
-        return self.getProps()
 
     def getDatasetFromDir(self, dirname):
         try:
@@ -805,18 +785,6 @@ class ConfigMgr(object):
             run
             for dataset in datasets
             for run in self._datasets[dataset].runs
-        ]
-
-    def getProps(self, datasets=None):
-        """Returns list of properties of `dataset` runs"""
-        if not datasets:
-            datasets = self.datasets
-        if isinstance(datasets, str):
-            datasets = [datasets]
-        return [
-            prop
-            for dataset in datasets
-            for prop in self._datasets[dataset].props
         ]
 
     def mem(self, base="0", per_thread=None, unit="m"):

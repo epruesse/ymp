@@ -117,5 +117,5 @@ rule cluster_report:
     message: "Generating Cluster Report"
     input:   clusters="{dir}/{file}.NR.clstr.csv",
              hits="{dir}/{file}.csv"
-    output:  "{:reportsdir:}/{dir}.{file}.cluster.html"
+    output:  "{:dir.reports:}/{dir}.{file}.cluster.html"
     script:  srcdir("../R/cluster.Rmd")

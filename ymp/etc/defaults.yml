@@ -94,24 +94,3 @@ pairnames:
     - R2
 
 
-#### To Clean Out: ####
-databases:
-  rrna:
-    - ssu
-    - lsu
-    
-
-rrna:
-    genes:
-        - 'LSU'
-        - 'SSU'
-    references:
-        fasta:
-            LSU: '/Users/elpr2080/dbs/SILVA_123.1_LSURef_tax_silva_trunc.ge1200bp.le2000bp.0.97.fixed.fasta'
-            SSU: '/Users/elpr2080/dbs/SILVA_123.1_SSURef_Nr99_tax_silva_trunc.ge1200bp.le2000bp.0.97.fixed.fasta'
-        bowtie:
-            LSU: '/Users/elpr2080/dbs/SILVA_123.1_LSURef_tax_silva_trunc.ge1200bp.le2000bp.0.97.fixed'
-            SSU: '/Users/elpr2080/dbs/SILVA_123.1_SSURef_Nr99_tax_silva_trunc.ge1200bp.le2000bp.0.97.fixed'
-        arb:
-            LSU: '/Users/elpr2080/dbs/LSURef_123.1_SILVA_10_07_15_opt.arb'
-            SSU: '/Users/elpr2080/dbs/SSURef_Nr99_123.1_SILVA_03_03_16_opt.arb'

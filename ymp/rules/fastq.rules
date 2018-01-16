@@ -37,7 +37,7 @@ rule prefetch:
     message:
         "Pre-Fetching {wildcards.SRR}"
     output:
-        "{:sra:}/{SRR}.sra"
+        "{:dir.sra:}/{SRR}.sra"
     conda:
         srcdir("sratools.yml")
     shell: """
@@ -51,13 +51,11 @@ rule fastq_dump:
     """
     message:
         "Extracting FastQ from {wildcards.SRR}"
-#    input:
-#        "{:sra:}/{SRR}.sra"
     output:
-        "{:scratch:}/SRR/{SRR}_1.fastq.gz",
-        "{:scratch:}/SRR/{SRR}_2.fastq.gz"
+        "{:dir.scratch:}/SRR/{SRR}_1.fastq.gz",
+        "{:dir.scratch:}/SRR/{SRR}_2.fastq.gz"
     params:
-        outdir = icfg.scratchdir + "/SRR",
+        outdir = icfg.dir.scratch + "/SRR",
         p = lambda wc,threads: int(threads/2+.5)
     conda:
         srcdir("sratools.yml")
@@ -199,7 +197,7 @@ rule multiqc:
     """Assemble report on all FQ files in a directory"""
     message: "Aggregating QC reports for {wildcards.dir}"
     input:   "{dir}.fastqc/{:fq_names:}_fastqc.zip"
-    output:  "{:reportsdir:}/{dir}.fastqc.html",
+    output:  "{:dir.reports:}/{dir}.fastqc.html",
     log:     "{dir}.fastqc/multiqc.log"
     threads: 1
     params:  dir = "{dir}.fastqc"
@@ -277,7 +275,7 @@ workflow.derive_rule(
 rule phyloFlash_heatmap:
     message: "PhyloFlash Heatmap {wildcards.dir}"
     input:   "{dir}.pf/{:runs:}.phyloFlash.NTUabundance.csv"
-    output:  "{:reportsdir:}/{dir}_heatmap.pdf"
+    output:  "{:dir.reports:}/{dir}_heatmap.pdf"
     log:     "{dir}.pf/phyloFlash_heatmap.log"
     threads: 1
     conda:   srcdir("phyloflash.yml")
