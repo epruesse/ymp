@@ -277,17 +277,29 @@ class ExpandableWorkflow(Workflow):
 
             if workflow.__class__ != ExpandableWorkflow:
                 workflow.__class__ = ExpandableWorkflow
-                workflow.expand_funcs = {
-                    'input': [
-                    ],
-                    'output': [
-                    ]
-                }
-                workflow.sm_expander = SnakemakeExpander()
-                workflow._ruleinfos = {}
+                workflow._init()
+
         except ImportError:
             log.debug("ExpandableWorkflow not installed: "
                       "Failed to import workflow object.")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._init()
+
+    def _init(self):
+        """Constructor for ExpandableWorkflow overlay attributes
+
+        This is called on an already initialized Workflow object.
+        """
+        self.expand_funcs = {
+            'input': [
+            ],
+            'output': [
+            ]
+        }
+        self._sm_expander = SnakemakeExpander()
+        self._ruleinfos = {}
 
     @staticmethod
     def register_expandfuncs(expand_input=None, expand_output=None):
@@ -312,6 +324,7 @@ class ExpandableWorkflow(Workflow):
         return paths, kwpaths
 
     def conda(self, conda_env):
+        """Implements search path for conda env"""
         for path in reversed(self.included_stack):
             try_path = os.path.join(path, conda_env)
             if os.path.exists(try_path):
