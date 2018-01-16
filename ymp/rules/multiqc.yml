@@ -5,3 +5,4 @@ dependencies:
  - multiqc =1.2
  - networkx =1.11
  - click
+ - colormath =2.1.1
