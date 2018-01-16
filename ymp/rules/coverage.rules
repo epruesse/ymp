@@ -38,7 +38,7 @@ rule metacov_scan:
     log:
         "{dir}.contigcov/{target}.contigs.{source}.scan.log"
     conda:
-        srcdir("metacov.yml")
+        "metacov.yml"
     shell:"""
     metacov scan \
         -o {output.khist} \
@@ -60,7 +60,7 @@ rule metacov_by_contig:
     log:
         "{dir}.{mapper}.contigcov/{target}.contigs.{source}.log"
     conda:
-        srcdir("metacov.yml")
+        "metacov.yml"
     shell:"""
     metacov pileup \
         -b {input.bam} \
@@ -88,7 +88,7 @@ rule metacov:
     log:
         "{dir}.{mapper}.cov/{target}.contigs.{source}.{genefind}.{query}.{gene}.log"
     conda:
-        srcdir("metacov.yml")
+        "metacov.yml"
     shell:"""
     metacov {input.bam} {input.csv} {output}.tmp >{log} 2>&1
     sed -e '1 s/^/target,source,/' \

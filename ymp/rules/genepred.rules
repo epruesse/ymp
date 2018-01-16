@@ -7,7 +7,7 @@ rule prodigal:
              faa = "{dir}.genes/{sample}.prodigal.faa.gz",
     log:           "{dir}.genes/{sample}.prodigal.log"
     threads: 1
-    conda:   srcdir("prodigal.yml")
+    conda:   "prodigal.yml"
     shell: """
     zcat {input} | \
     prodigal -p meta \

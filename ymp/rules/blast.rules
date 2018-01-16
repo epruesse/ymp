@@ -60,7 +60,7 @@ rule makeblastdb:
     params:  db_name   = blast_db_name,
              db_title = blast_db_title
     threads: 1
-    conda:   srcdir("blast.yml")
+    conda:   "blast.yml"
     shell: """
     makeblastdb -dbtype nucl \
                 -parse_seqids \
@@ -89,7 +89,7 @@ rule blastx_query:
         blastfmt = BLASTFMT
     threads:
         4
-    conda:   srcdir("blast.yml")
+    conda:   "blast.yml"
     shell: """
     gunzip -c {input.contigs} |
     blastn \
@@ -116,7 +116,7 @@ rule tblastn_query:
     params:  db_name  = blast_db_name,
              blastfmt = BLASTFMT
     threads: 8
-    conda:   srcdir("blast.yml")
+    conda:   "blast.yml"
     shell: """
     tblastn -db {params.db_name} -query {input.query} \
       -outfmt "{params.blastfmt}" \

@@ -10,7 +10,7 @@ rule human_db_download:
       database = "[^.]*",
       build = "[^.]*"
     threads: 1
-    conda: srcdir("hhtools.yml")
+    conda: "hhtools.yml"
     shell: """
     humann2_databases --download {wildcards.database} {wildcards.build} {output}
     """
@@ -36,7 +36,7 @@ rule humann2:
     log:
                     "{dir}.humann2/{sample}.log"
     threads: 16
-    conda: srcdir("hhtools.yml")
+    conda: "hhtools.yml"
     shell:
         "mkdir -p {output.tempdir};"
         "cat {input.reads} > {output.tempdir}/temp.fq.gz;"
@@ -70,7 +70,7 @@ rule humann2_renorm_table:
     params:
         special = "y"
     conda:
-        srcdir("hhtools.yml")
+        "hhtools.yml"
     shell:
         "humann2_renorm_table"
         " --input {input}"
@@ -97,7 +97,7 @@ rule humann2_join_tables:
     output:
         "{dir}.humann2/{type}_{mode}_{unit}.tsv"
     conda:
-        srcdir("hhtools.yml")
+        "hhtools.yml"
     shell:
         "humann2_join_tables"
         " --input {wildcards.dir}.humann2"
@@ -123,7 +123,7 @@ rule metaphlan2_map:
              ref = "{:dir.references:}/metaphlan/db_v20"
     output:  "{dir}.metaphlan2/{sample}.bam"
     log:     "{dir}.metaphlan2/{sample}.bam.log"
-    conda:   srcdir("bowtie2.yml")
+    conda:   "bowtie2.yml"
     threads: 16
     params:  bt2_base = "{input.ref}/mpa_v20_m200",
              mem=icfg.mem("128G")
@@ -148,7 +148,7 @@ rule metaphlan2:
     output:       "{dir}.metaphlan2/{sample}_profile.txt"
     log:          "{dir}.metaphlan2/{sample}_profile.log"
     params: mka = "{input.ref}/mpa_v20_m200.pkl"
-    conda: srcdir("hhtools.yml")
+    conda: "hhtools.yml"
     threads: 1
     shell: """
     samtools view {input.bam} | \
@@ -169,7 +169,7 @@ rule metaphlan2_merge:
     input:   "{dir}.metaphlan2/{:runs:}_profile.txt"
     output:  "{dir}.metaphlan2/merged_abundance_table.txt"
     log:     "{dir}.metaphlan2/merged_abundance_table.txt.log"
-    conda:   srcdir("hhtools.yml")
+    conda:   "hhtools.yml"
     threads: 1
     shell: """
     merge_metaphlan_tables.py {input} > {output} 2>{log}

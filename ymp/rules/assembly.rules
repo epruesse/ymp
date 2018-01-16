@@ -60,7 +60,7 @@ rule megahit:
     threads:
         32
     conda:
-        srcdir("megahit.yml")
+        "megahit.yml"
     shell: """
     # iff there is an existing opts.txt with an existing megahit temp dir,
     # then we can continue an existing run
@@ -157,7 +157,7 @@ rule metaspades:
         tmpdir  = icfg.expand("{:dir.tmp:}"),
         memory  = icfg.mem("1000g", unit="g"),
         mem = icfg.mem("1000g")
-    conda: srcdir("spades.yml")
+    conda: "spades.yml"
     threads:
         24
     shell: """
@@ -199,7 +199,7 @@ rule metaquast_all_at_once:
         targets = icfg.expand("{:targets:}"),
         min_contig_len = 500
     conda:
-        srcdir("quast.yml")
+        "quast.yml"
     threads:
         16
     shell:"""
@@ -226,7 +226,7 @@ rule metaquast_part:
     params:
         min_contig_len = 500
     conda:
-        srcdir("quast.yml")
+        "quast.yml"
     threads:
         8
     shell:"""
@@ -258,7 +258,7 @@ rule quast_report:
     params:
         dir = "{dir}.mq"
     conda:
-        srcdir("multiqc.yml")
+        "multiqc.yml"
     threads:
         1
     shell: """
@@ -294,7 +294,7 @@ rule stringtie:
     params:
         mem = icfg.mem("16G")
     conda:
-        srcdir("stringtie.yml")
+        "stringtie.yml"
     shell:
         "stringtie"
         " {input.bam}"
@@ -321,7 +321,7 @@ rule stringtie_merge:
     params:
         mem = icfg.mem("16G")
     conda:
-        srcdir("stringtie.yml")
+        "stringtie.yml"
     shell:
         "stringtie --merge"
         " {input.gtf}"
@@ -348,7 +348,7 @@ rule stringtie_abundance:
     params:
         mem = icfg.mem("16G")
     conda:
-        srcdir("stringtie.yml")
+        "stringtie.yml"
     shell:
         "stringtie"
         " {input.bam}"

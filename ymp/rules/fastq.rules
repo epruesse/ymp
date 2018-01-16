@@ -39,7 +39,7 @@ rule prefetch:
     output:
         "{:dir.sra:}/{SRR}.sra"
     conda:
-        srcdir("sratools.yml")
+        "sratools.yml"
     shell: """
     prefetch {wildcards.SRR}
     """
@@ -58,7 +58,7 @@ rule fastq_dump:
         outdir = icfg.dir.scratch + "/SRR",
         p = lambda wc,threads: int(threads/2+.5)
     conda:
-        srcdir("sratools.yml")
+        "sratools.yml"
     threads:
         4
     # FIXME
@@ -116,7 +116,7 @@ rule split_library:
     output:
         outdir  = temp("{project}.split_libraries/{barcodes}/{pairname}/")
     conda:
-        srcdir("qiime.yml")
+        "qiime.yml"
     shell: """
     split_libraries_fastq.py \
        -b {input[0]} \
@@ -143,7 +143,7 @@ rule split_library_compress_sample:
     output:
         "{project}.split_libraries/{barcodes}/{sample}.{pairname}.fq.gz"
     conda:
-        srcdir("pigz.yml")
+        "pigz.yml"
     shell: """
     pigz -6 -c <{input}/{wildcards.sample}.fastq >{output}
     """
@@ -185,7 +185,7 @@ rule fastqc:
     threads: 1
     params:  k=10,
              mem=icfg.mem("8g")
-    conda:   srcdir("fastqc.yml")
+    conda:   "fastqc.yml"
     shell: """
     # override too low memory requested by fastqc 0.11.5 of 256M per thread:
     export _JAVA_OPTIONS="-Xmx{params.mem}m"
@@ -201,7 +201,7 @@ rule multiqc:
     log:     "{dir}.fastqc/multiqc.log"
     threads: 1
     params:  dir = "{dir}.fastqc"
-    conda:   srcdir("multiqc.yml")
+    conda:   "multiqc.yml"
     shell: """
     multiqc \
             --module fastqc \
@@ -225,7 +225,7 @@ rule phyloFlash_makedb:
     output:  "{:dir.references:}/phyloFlash"
     input:   ssu="{:dir.references:}/ssu.fasta.gz",
              univec="{:dir.references:}/UniVec.fasta.gz"
-    conda:   srcdir("phyloflash.yml")
+    conda:   "phyloflash.yml"
     shell: """
     CWD="$PWD"
     mkdir -p {output}
@@ -245,7 +245,7 @@ rule phyloFlash:
     output:  "{dir}.pf/{sample}.phyloFlash.NTUabundance.csv"
     log:     "{dir}.pf/{sample}.log"
     threads: 16
-    conda:   srcdir("phyloflash.yml")
+    conda:   "phyloflash.yml"
     params:  in2="-read2 ../{input[1]}",
              mem=icfg.mem("80g")
     shell: """
@@ -278,7 +278,7 @@ rule phyloFlash_heatmap:
     output:  "{:dir.reports:}/{dir}_heatmap.pdf"
     log:     "{dir}.pf/phyloFlash_heatmap.log"
     threads: 1
-    conda:   srcdir("phyloflash.yml")
+    conda:   "phyloflash.yml"
     shell: """
     phyloFlash_heatmap.R {input[0]} {input} --out {output} >{log} 2>&1
     """
@@ -300,7 +300,7 @@ rule bb_ecco:
     params:  inout="in={input[0]} out={output[0]}",
              inout2="in2={input[1]} out2={output[1]}",
              mem=icfg.mem("80g")
-    conda:   srcdir("bbmap.yml")
+    conda:   "bbmap.yml"
     shell: """
     bbmerge.sh {params.inout} {params.inout2} \
                outadapter={output.adapter} \
@@ -350,7 +350,7 @@ rule trim_bbduk_adapter:
         inout="in={input[0]} out={output[0]}",
         inout2="in2={input[1]} out2={output[1]}" # overriden by child rule
     threads: 16
-    conda: srcdir("bbmap.yml")
+    conda: "bbmap.yml"
     shell:
         # find adapter dir:
         'BB_RSRC="$(dirname $(readlink -f $(command -v bbduk.sh)))/resources";'
@@ -404,7 +404,7 @@ rule trimmomatic_adapter:
         keep_both_reads = "true",
         arg_pe="PE"
     conda:
-        srcdir("trimmomatic.yml")
+        "trimmomatic.yml"
     threads:
         1
     shell:"""
@@ -462,7 +462,7 @@ rule sickle:
         inout2="-r {input[1]} -p {output[1]} -s {output[2]}"
     threads: 1
     conda:
-        srcdir("sickle.yml")
+        "sickle.yml"
     shell:"""
     sickle {params.arg_pe} \
         -f {input[0]} \
@@ -512,7 +512,7 @@ rule bbmap_makedb:
     params:  path="{path}/{file}.bbidx/",
              mem=icfg.mem("80g")
     threads: 8
-    conda:   srcdir("bbmap.yml")
+    conda:   "bbmap.yml"
     shell: """
     bbmap.sh \
         path={params.path} \
@@ -544,7 +544,7 @@ rule bbmap_split:
              mem=icfg.mem("23g"),
              inout2="in2={input[1]} outu2={output.clean[1]} outm2={output.human[1]}"
     threads: 16
-    conda:   srcdir("bbmap.yml")
+    conda:   "bbmap.yml"
     shell:
         "bbmap.sh "
         " minid={params.minid} "
@@ -586,7 +586,7 @@ rule bmtagger_bitmask:
     threads: 1
     params:  wordsize = 18,
              mem = icfg.mem("16g")
-    conda:   srcdir("bmtagger.yml")
+    conda:   "bmtagger.yml"
     shell: """
     bmtool \
         --fasta-file={input} \
@@ -605,7 +605,7 @@ rule bmtagger_index:
     threads: 1
     params:  basename="{path}.srprism",
              mem = icfg.mem("8g")
-    conda:   srcdir("bmtagger.yml")
+    conda:   "bmtagger.yml"
     shell: """
     srprism mkindex \
         --input {input} \
@@ -626,7 +626,7 @@ rule bmtagger_find:
     log:     "{dir}.bmtaggerRM{reference}/{sample}.bmtagger.log"
     threads: 1
     params:  mem = icfg.mem("8g")
-    conda:   srcdir("bmtagger.yml")
+    conda:   "bmtagger.yml"
     shell: """
     bmtagger.sh \
         -b {input.bitmask} \
@@ -652,7 +652,7 @@ rule bmtagger_filter:
     threads: 8
     params:  filt = lambda wc: "-remove" if wc.filt == "RM" else "-keep",
              mem = icfg.mem("8g")
-    conda:   srcdir("bmtagger.yml")
+    conda:   "bmtagger.yml"
     shell: """
     extract_fullseq \
         {input.idlist} \
@@ -683,7 +683,7 @@ rule bbduk_primer:
         k=12,
         rl=12,
         inout2="in2={input[1]} outm2={output.match[1]} outu2={output.fail[1]}"
-    conda: srcdir("bbmap.yml")
+    conda: "bbmap.yml"
     shell:
         'bbduk.sh'
         ' in={input[0]} outm={output.match[0]} outu={output.fail[0]} '
@@ -724,7 +724,7 @@ rule bbmap_dedupe:
     log:     "{dir}.ddp/{sample}.log"
     params: mem=icfg.mem("80g")
     threads: 4
-    conda:   srcdir("bbmap.yml")
+    conda:   "bbmap.yml"
     shell:
         "dedupe.sh"
         " unpigz"
@@ -747,7 +747,7 @@ rule bbmap_dedupe_se:
     log:     "{dir}.ddp/{sample}.log"
     params: mem=icfg.mem("80g")
     threads: 4
-    conda:   srcdir("bbmap.yml")
+    conda:   "bbmap.yml"
     shell:
         "dedupe.sh"
         " unpigz"

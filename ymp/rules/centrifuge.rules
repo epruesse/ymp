@@ -12,7 +12,7 @@ rule centrifuge:
     threads:
         16
     conda:
-        srcdir("centrifuge.yml")
+        "centrifuge.yml"
     params:
         mem = icfg.mem("32G")
     shell:

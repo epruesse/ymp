@@ -12,7 +12,7 @@ rule pick_open_otus:
         tree = "{dir}.o{similarity}/rep_set.tre",
         rep_set = "{dir}.o{similarity}/rep_set.fa.gz"
     conda:
-        srcdir("qiime.yml")
+        "qiime.yml"
     params:
         ref_fasta = lambda wc, input: input.gg+"/rep_set/{similarity}_otus.fasta".format(**wc),
         seqs = lambda wc, input: ','.join(input.seqs),
@@ -60,7 +60,7 @@ rule pick_closed_otus:
     output:
         otu_table = "{dir}.c{similarity}/otu_table.biom",
     conda:
-        srcdir("qiime.yml")
+        "qiime.yml"
     params:
         seqs = lambda wc, input: ','.join(input.seqs),
         seq_ids = lambda wc, input: ','.join([i.split('/')[-1].split('.')[0] for i in input.seqs]),
@@ -104,7 +104,7 @@ rule convert_to_closed_ref:
     output:
         biom = "{dir}/{table}.closed.biom"
     conda:
-        srcdir("qiime.yml")
+        "qiime.yml"
     params:
         ref_fasta = lambda wc, input: input.gg+"rep_set/99_otus.fasta"
     shell: """

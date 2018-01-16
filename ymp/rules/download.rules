@@ -10,7 +10,7 @@ rule download_file:
         server="[^/]+"
     params:
         url="{protocol}://{server}/{path}"
-    conda: srcdir("wget.yml")
+    conda: "wget.yml"
     shell:"""
     wget  "{params.url}" -O "{output[0]}" > {log} 2>&1
     """

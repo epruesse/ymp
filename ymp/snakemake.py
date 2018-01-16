@@ -1,4 +1,5 @@
 import logging
+import os
 import re
 
 from copy import copy, deepcopy
@@ -309,6 +310,14 @@ class ExpandableWorkflow(Workflow):
                 except Exception as e:
                     log.exception("exception in input expand")
         return paths, kwpaths
+
+    def conda(self, conda_env):
+        for path in reversed(self.included_stack):
+            try_path = os.path.join(path, conda_env)
+            if os.path.exists(try_path):
+                conda_env = try_path
+                break
+        return super().conda(conda_env)
 
     def input(self, *paths, **kwpaths):
         """Intercepts arguments passed to "rule: input:" and passes them
