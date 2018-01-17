@@ -12,7 +12,8 @@ from snakemake.io import expand, get_wildcard_names
 import yaml
 
 from ymp.common import parse_number, update_dict
-from ymp.snakemake import ColonExpander, ExpandableWorkflow, RecursiveExpander
+from ymp.snakemake import ColonExpander, ExpandableWorkflow, RecursiveExpander, \
+    CondaPathExpander
 from ymp.util import AttrDict
 
 log = logging.getLogger(__name__)
@@ -612,6 +613,7 @@ class ConfigMgr(object):
         self.load_config()
         self.recursive_expander = RecursiveExpander()
         self.config_expander = ConfigExpander(self)
+        self.conda_path_expander = CondaPathExpander(self.search_paths.conda_env)
         ExpandableWorkflow.default_params(mem=self.mem())
 
     def find_config(self):
@@ -684,6 +686,10 @@ class ConfigMgr(object):
     @property
     def pairnames(self):
         return self._config['pairnames']
+
+    @property
+    def search_paths(self):
+        return AttrDict(self._config['search_paths'])
 
     @property
     def dir(self):

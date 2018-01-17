@@ -10,6 +10,11 @@ directories:
     rules: 'rules'
     downloads: 'downloads'
 
+search_paths:
+  conda_env:
+    10: "."
+    20: "../conda_envs"
+
 # Default references FASTAs
 references:
   hs37: https://ftp.ncbi.nlm.nih.gov/pub/agarwala/bmtagger/hs37.fa

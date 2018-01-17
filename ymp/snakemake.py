@@ -214,15 +214,6 @@ class ExpandableWorkflow(Workflow):
             # Silently fail if workflow object doesn't exist
             pass
 
-    def conda(self, conda_env):
-        """Implements search path for conda env"""
-        for path in reversed(self.included_stack):
-            try_path = os.path.join(path, conda_env)
-            if os.path.exists(try_path):
-                conda_env = try_path
-                break
-        return super().conda(conda_env)
-
     @staticmethod
     def default_params(**kwargs):
         """Set default params: keys"""
@@ -584,4 +575,25 @@ class RecursiveExpander(BaseExpander):
                 args[name].update_tuple(attr)
             else:
                 setattr(ruleinfo, name, args[name][0])
+
+
+class CondaPathExpander(BaseExpander):
+    def __init__(self, search_paths, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from snakemake.workflow import workflow
+        self._workflow = workflow
+        self._search_paths = search_paths
+
+    def expands_field(self, field):
+        return field == 'conda_env'
+
+    def format(self, conda_env, *args, **kwargs):
+        for snakefile in reversed(self._workflow.included_stack):
+            basepath = os.path.dirname(snakefile)
+            for _, relpath in sorted(self._search_paths.items()):
+                searchpath = os.path.join(basepath, relpath)
+                abspath = os.path.abspath(os.path.join(searchpath, conda_env))
+                if os.path.exists(abspath):
+                    return abspath
+        return conda_env
 
