@@ -154,7 +154,7 @@ rule metaspades:
         "{dir}{by}.sp/{target}.log.gz"
     params:
         workdir = "{dir}{by}.sp/{target}/",
-        tmpdir  = icfg.expand("{:dir.tmp:}"),
+        tmpdir  = icfg.dir.tmp,
         memory  = icfg.mem("1000g", unit="g"),
         mem = icfg.mem("1000g")
     conda: "spades.yml"
@@ -196,7 +196,7 @@ rule metaquast_all_at_once:
     log:
         "{dir}.mqc/metaquast.log"
     params:
-        targets = icfg.expand("{:targets:}"),
+        targets = "{:targets:}",
         min_contig_len = 500
     conda:
         "quast.yml"

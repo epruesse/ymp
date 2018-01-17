@@ -12,7 +12,7 @@ from snakemake.io import expand, get_wildcard_names
 import yaml
 
 from ymp.common import parse_number, update_dict
-from ymp.snakemake import ColonExpander, ExpandableWorkflow
+from ymp.snakemake import ColonExpander, ExpandableWorkflow, RecursiveExpander
 from ymp.util import AttrDict
 
 log = logging.getLogger(__name__)
@@ -550,6 +550,9 @@ class ConfigExpander(ColonExpander):
         super().__init__()
         self.config_mgr = config_mgr
 
+    def expands_field(self, field):
+        return field in ('input', 'output')
+
     class Formatter(ColonExpander.Formatter):
         def get_value(self, field_name, args, kwargs):
             # try to resolve variable as property of the config_mgr
@@ -607,6 +610,7 @@ class ConfigMgr(object):
         ExpandableWorkflow.activate()
         self.find_config()
         self.load_config()
+        self.recursive_expander = RecursiveExpander()
         self.config_expander = ConfigExpander(self)
         ExpandableWorkflow.default_params(mem=self.mem())
 
@@ -739,39 +743,8 @@ class ConfigMgr(object):
         except:
             raise KeyError("no dataset found matching '{}'".format(dirname))
 
-    def expand(self, *args, **kwargs):
-        # FIXME:
-        res = self.config_expander.expand_input(args, kwargs)[0][0]
-        return res
-        # return lambda wc: self._expand(template, wc)
-
-    def _expand(self, template, wc=None):
-        if wc is None:
-            wc = {}
-        if isinstance(template, str):
-            template = [template]
-        names = set()
-        for item in template:
-            names |= get_wildcard_names(item)
-
-        sources = [wc]
-        try:
-            ds = self.getDatasetFromDir(wc.dir)
-            sources += [ds]
-        except:
-            pass
-        sources += [self]
-
-        fields = {}
-        for name in names:
-            for source in sources:
-                if name in dir(source):
-                    fields[name] = getattr(source, name)
-                    break
-            if name not in fields:
-                fields[name] = "{{{}}}".format(name)
-
-        res = expand(template, **fields)
+    def expand(self, item, **kwargs):
+        res = self.config_expander.expand(None, item, kwargs)
         return res
 
     def getRuns(self, datasets=None):
