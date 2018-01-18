@@ -579,9 +579,13 @@ class RecursiveExpander(BaseExpander):
 
 class CondaPathExpander(BaseExpander):
     def __init__(self, search_paths, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        from snakemake.workflow import workflow
-        self._workflow = workflow
+        try:
+            from snakemake.workflow import workflow
+            self._workflow = workflow
+            super().__init__(*args, **kwargs)
+        except:
+            log.debug("CondaPathExpander not registered -- needs snakemake")
+
         self._search_paths = search_paths
 
     def expands_field(self, field):
