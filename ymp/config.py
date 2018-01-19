@@ -552,7 +552,7 @@ class ConfigExpander(ColonExpander):
         self.config_mgr = config_mgr
 
     def expands_field(self, field):
-        return field in ('input', 'output')
+        return True
 
     class Formatter(ColonExpander.Formatter):
         def get_value(self, field_name, args, kwargs):

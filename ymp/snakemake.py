@@ -4,6 +4,7 @@ import re
 
 from copy import copy, deepcopy
 
+import functools
 import networkx
 
 from snakemake.exceptions import RuleException
@@ -378,11 +379,14 @@ class BaseExpander(object):
             try:
                 item = self._format_annotated(item, expand_args)
             except KeyError:
+                # try expanding once we have wildcards
                 _item = item
                 item = lambda wc: self.expand(rule, _item, {'wc': wc})
         elif hasattr(item, '__call__'):
+            # continue expansion of function later by wrapping it
             _item = item
 
+            @functools.wraps(item)
             def late_expand(*args, **kwargs):
                 if debug:
                     log.debug("{}{} late {} {} "
