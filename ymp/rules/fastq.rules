@@ -223,6 +223,7 @@ rule phyloFlash_makedb:
     """Have phyloFlash build its reference database"""
     message: "PhyloFlash running makedb.pl"
     output:  "{:dir.references:}/phyloFlash"
+    log:     "{:dir.references:}/phyloFlash/build.log"
     input:   ssu="{:dir.references:}/ssu.fasta.gz",
              univec="{:dir.references:}/UniVec.fasta.gz"
     conda:   "phyloflash.yml"
@@ -233,7 +234,7 @@ rule phyloFlash_makedb:
     ln -s "$CWD/{input.ssu}" SILVA_0_SSU.fasta.gz
     phyloFlash_makedb.pl \
       --silva_file SILVA_0_SSU.fasta.gz \
-      --univec_file "$CWD/{input.univec}"
+      --univec_file "$CWD/{input.univec} >{log} 2>&1"
     """
 
 
