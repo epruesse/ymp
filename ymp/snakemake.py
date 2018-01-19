@@ -1,9 +1,11 @@
+"""
+Extends Snakemake Features
+"""
+
 import logging
 import os
 import re
-
 from copy import copy, deepcopy
-
 import functools
 import networkx
 
@@ -173,6 +175,8 @@ ruleinfo_fields = {
 
 class ExpandableWorkflow(Workflow):
     """Adds hook for additional wildcard expansion methods to Snakemake"""
+    global_workflow = None
+
     @staticmethod
     def activate():
         """Installs the ExpandableWorkflow
@@ -186,34 +190,35 @@ class ExpandableWorkflow(Workflow):
 
             if workflow.__class__ != ExpandableWorkflow:
                 workflow.__class__ = ExpandableWorkflow
-                workflow._init()
+                ExpandableWorkflow.global_workflow = workflow
+                ExpandableWorkflow.global_workflow.__init__()
 
         except ImportError:
             log.debug("ExpandableWorkflow not installed: "
                       "Failed to import workflow object.")
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._init()
-
-    def _init(self):
         """Constructor for ExpandableWorkflow overlay attributes
 
         This is called on an already initialized Workflow object.
         """
+        if not self.__dict__:
+            # only call constructor if this object hasn't been initialized yet
+            super().__init__(*args, **kwargs)
         self._expanders = []
         self._sm_expander = SnakemakeExpander()
         self._ruleinfos = {}
+        self._last_rule_name = None
 
     @staticmethod
     def register_expander(expander):
+        """
+        Register an object the expand() function of which will be called
+        on each RuleInfo object before it is passed on to snakemake.
+        """
         ExpandableWorkflow.activate()
-        try:
-            from snakemake.workflow import workflow
-            workflow._expanders.append(expander)
-        except ImportError:
-            # Silently fail if workflow object doesn't exist
-            pass
+        if ExpandableWorkflow.global_workflow:
+            ExpandableWorkflow.global_workflow._expanders.append(expander)
 
     @staticmethod
     def default_params(**kwargs):
