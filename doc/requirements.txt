@@ -6,4 +6,5 @@ sphinx-click
 snakemake
 ftputil
 click
-
+coloredlogs
+networkx
