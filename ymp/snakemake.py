@@ -392,7 +392,7 @@ class BaseExpander(object):
                               "".format(" "*rec*4, res))
                 return res
             item = late_expand
-        elif isinstance(item, int):
+        elif isinstance(item, int) or isinstance(item, float):
             pass
         elif isinstance(item, dict):
             for key, value in item.items():
