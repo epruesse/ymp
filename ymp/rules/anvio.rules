@@ -133,8 +133,6 @@ rule anvio_centrifuge:
     shell: """
     centrifuge -f -x {input.cfdb} {input} -S {output.hits} \
       -p {threads} -t &> {log}
-    ls -la
-    pwd
     mv centrifuge_report.tsv {output.report}
     """
 
