@@ -360,24 +360,27 @@ class BaseExpander(object):
     def expands_field(self, field):
         return False
 
-    def expand(self, rule, item, expand_args={}, rec=0):
+    def expand(self, rule, item, expand_args={}, rec=-1):
+        rec = rec + 1
         debug = ymp.print_rule or getattr(rule, "_ymp_print_rule", False)
         if debug:
             log.debug("{}{} {} {} in rule {} with args {}"
-                      "".format(" "*rec*4,type(self).__name__, type(item).__name__, item, rule, expand_args))
+                      "".format(" "*rec*4, type(self).__name__,
+                                type(item).__name__, item, rule, expand_args))
         if item is None:
             item = None
         elif isinstance(item, RuleInfo):
             for field in filter(self.expands_field, ruleinfo_fields):
                 attr = getattr(item, field)
-                setattr(item, field, self.expand(rule, attr, expand_args, rec=rec+1))
+                setattr(item, field, self.expand(rule, attr,
+                                                 expand_args, rec=rec))
         elif isinstance(item, str):
             try:
                 item = self._format_annotated(item, expand_args)
             except KeyError:
                 _item = item
-                item = lambda wc: self.expand(rule, _item, {'wc':wc})
-        elif hasattr(item, '__call__'):  # function
+                item = lambda wc: self.expand(rule, _item, {'wc': wc})
+        elif hasattr(item, '__call__'):
             _item = item
 
             def late_expand(*args, **kwargs):
@@ -386,7 +389,7 @@ class BaseExpander(object):
                               "".format(" "*rec*4, type(self).__name__,
                                         args, kwargs))
                 res = self.expand(rule, _item(*args, **kwargs),
-                                  {'wc': args[0]}, rec=rec+1)
+                                  {'wc': args[0]}, rec=rec)
                 if debug:
                     log.debug("{}=> {}"
                               "".format(" "*rec*4, res))
@@ -396,13 +399,13 @@ class BaseExpander(object):
             pass
         elif isinstance(item, dict):
             for key, value in item.items():
-                item[key] = self.expand(rule, value, expand_args, rec=rec+1)
+                item[key] = self.expand(rule, value, expand_args, rec=rec)
         elif isinstance(item, list):
             for i, subitem in enumerate(item):
-                item[i] = self.expand(rule, subitem, expand_args, rec=rec+1)
+                item[i] = self.expand(rule, subitem, expand_args, rec=rec)
         elif isinstance(item, tuple):
-            item = tuple(self.expand(rule, subitem, expand_args, rec=rec+1)
-                    for subitem in item)
+            item = tuple(self.expand(rule, subitem, expand_args, rec=rec)
+                         for subitem in item)
         else:
             raise ValueError("unable to expand item '{}' with args '{}'"
                              "".format(repr(item),
@@ -410,7 +413,7 @@ class BaseExpander(object):
 
         if debug:
             log.debug("{}=> {} {}"
-                      "".format(" "*(rec*4),type(item).__name__, item))
+                      "".format(" "*(rec*4), type(item).__name__, item))
 
         return item
 
