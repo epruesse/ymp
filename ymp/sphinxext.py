@@ -22,9 +22,9 @@ except AttributeError:
     logger = _logging.getLogger(__name__)
 
 
-class SnakefileDirective(rst.Directive):
+class AutoSnakefileDirective(rst.Directive):
     """
-    rST Directive ``.. snakefile [filename]``
+    rST Directive ``.. autosnake [filename]``
 
     Extracts docstrings from rules in snakefile and auto-generates
     documentation.
@@ -75,4 +75,4 @@ class SnakefileDirective(rst.Directive):
 
 
 def setup(app):
-    app.add_directive('snakefile', SnakefileDirective)
+    app.add_directive('autosnake', AutoSnakefileDirective)

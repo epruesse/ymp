@@ -1,4 +1,6 @@
 Rules
 =====
 
-.. snakefile:: ../ymp/rules/fastq.rules
+.. autosnake:: ../ymp/rules/Snakefile
+
+
