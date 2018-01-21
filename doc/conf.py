@@ -20,8 +20,11 @@
 
 import os
 import sys
-sys.path.insert(0, os.path.dirname(__file__))
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
+docdir = os.path.dirname(__file__)
+ympdir = os.path.dirname(docdir)
+sys.path.insert(0, docdir)
+sys.path.insert(0, ympdir)
 
 import sphinx_bootstrap_theme
 import ymp
@@ -169,7 +172,7 @@ bootstrap_html_theme_options = {
     #
     # Options are nothing (default) or the name of a valid theme
     # such as "cosmo" or "sandstone".
-    #'bootswatch_theme': "united",
+    # 'bootswatch_theme': "united",
 
     # Choose Bootstrap version.
     # Values: "3" (default) or "2" (in quotes)
@@ -202,7 +205,7 @@ html_sidebars = {
        'searchbox.html'
    ],
 }
-#html_sidebars = {
+# html_sidebars = {
 #    '**': [
 #        'about.html',
 #        'navigation.html',
@@ -210,7 +213,7 @@ html_sidebars = {
 #        'searchbox.html',
 #        'donate.html',
 #    ]
-#}
+# }
 
 # -- Options for HTMLHelp output ------------------------------------------
 
@@ -273,6 +276,23 @@ texinfo_documents = [
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
-    'https://docs.python.org/': None
+    'https://docs.python.org/3/': None
     #'snakemake': ('http://snakemake.readthedocs.org/', None),
 }
+
+
+def run_apidoc(_):
+    from sphinx.apidoc import main
+    main(['','--output-dir', docdir,
+          '--doc-project', 'API',
+          '--force',
+#          '--no-toc',
+#          '--no-headings',
+          '--separate',
+          '--module-first',
+          os.path.join(ympdir, 'ymp')])
+
+
+def setup(app):
+    app.connect('builder-inited', run_apidoc)
+

@@ -22,7 +22,7 @@ mapping.
    config
    commandline
    rules
-   api
+   modules
 
 
 
