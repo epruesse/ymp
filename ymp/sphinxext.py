@@ -9,7 +9,7 @@ rules into the Sphinx doctree.
 from docutils import nodes, statemachine
 from docutils.parsers import rst
 
-from snakemake.workflow import Workflow
+from ymp.snakemake import ExpandableWorkflow
 
 from sphinx.util import logging
 
@@ -45,7 +45,7 @@ class SnakefileDirective(rst.Directive):
     def _load_snakefile(self, file_path):
         """Load the Snakefile"""
         logger.error("loading snakefile {}".format(file_path))
-        workflow = Workflow(snakefile=file_path)
+        workflow = ExpandableWorkflow(snakefile=file_path)
         workflow.include(file_path)
         return workflow.rules
 
