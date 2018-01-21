@@ -192,6 +192,38 @@ class AutoSnakefileDirective(rst.Directive):
         return [section]
 
 
+def collect_pages(app):
+    if not hasattr(app.env, '_snakefiles'):
+        return
+
+    highlight_block = app.builder.highlighter.highlight_block
+    urito = app.builder.get_relative_uri
+
+    for snakefile in app.env._snakefiles:
+        try:
+            with open(os.path.join("..", snakefile), 'r') as f:
+                code = f.read()
+        except IOError:
+            logger.error("failed to open {}".format(snakefile))
+            continue
+        highlighted = highlight_block(code, 'snakemake')
+        context = {
+            'title': snakefile,
+            'body': '<h1>Snakefile "{}"</h1>'.format(snakefile) +
+            highlighted
+        }
+        yield (os.path.join('_snakefiles', snakefile), context, 'page.html')
+
+    html = ['\n']
+    context = {
+        'title': ('Overview: Snakemake rule files'),
+        'body': '<h1>All Snakemake rule files</h1>' +
+        ''.join(html)
+    }
+    yield ('_snakefiles/index', context, 'page.html')
+
+
 def setup(app):
     app.add_domain(SnakemakeDomain)
     app.add_directive('autosnake', AutoSnakefileDirective)
+    app.connect('html-collect-pages', collect_pages)
