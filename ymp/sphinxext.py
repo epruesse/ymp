@@ -12,6 +12,7 @@ from docutils import nodes, statemachine
 from docutils.parsers import rst
 
 from ymp.snakemake import ExpandableWorkflow
+from ymp.snakemakelexer import SnakemakeLexer
 
 from sphinx import addnodes
 from sphinx.util import logging, ws_re
@@ -224,6 +225,7 @@ def collect_pages(app):
 
 
 def setup(app):
+    app.add_lexer('snakemake', SnakemakeLexer())
     app.add_domain(SnakemakeDomain)
     app.add_directive('autosnake', AutoSnakefileDirective)
     app.connect('html-collect-pages', collect_pages)
