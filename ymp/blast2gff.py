@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-import blast
-import gff
+from ymp import blast
+from ymp import gff
 import click
 
 
