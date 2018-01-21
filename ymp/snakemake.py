@@ -305,14 +305,14 @@ class ExpandableWorkflow(Workflow):
            name: name of derived rule
            parent: name of parent rule
            order: one of "lesser" or "higher"; creates ruleorder statement
-           input, output, params, ...: override parent arguments
+           \*\*kwargs: override parent arguments
 
-        The active part, ``shell`, ``run``, ``script``, etc. cannot be
+        The active part, `shell`, `run`, `script`, etc. cannot be
         overriden.
 
         String and list parameters override the unnamed arguments.
-        Dict arguments override named arguments with ``dict.update`` behavior.
-        Tuples are expected to contain an array *args and a dict *kwargs,
+        Dict arguments override named arguments with `dict.update` behavior.
+        Tuples are expected to contain an array \*args and a dict \*\*kwargs,
         overriding as above.
         """
         ruleinfo = deepcopy(self._ruleinfos[parent])
