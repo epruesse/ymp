@@ -35,7 +35,6 @@ class AutoSnakefileDirective(rst.Directive):
 
     def run(self):
         """Entry point"""
-        logger.error("running SnakefileDirective")
         snakefile = self.arguments[0]
 
         rules = self._load_snakefile(snakefile)
@@ -44,7 +43,6 @@ class AutoSnakefileDirective(rst.Directive):
 
     def _load_snakefile(self, file_path):
         """Load the Snakefile"""
-        logger.error("loading snakefile {}".format(file_path))
         workflow = ExpandableWorkflow(snakefile=file_path)
         workflow.include(file_path)
         return workflow.rules
