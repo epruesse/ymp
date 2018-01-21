@@ -80,18 +80,19 @@ class SnakemakeRule(ObjectDescription):
                                         self.env.doc2path(objects[key]),
                                         self.lineno))
             objects[key] = self.env.docname
+
+        # register rule in index
         indextext = self.get_index_text(self.objtype, name)
         if indextext:
             self.indexnode['entries'].append((
                 'single',
-                indextext + "asd",
+                indextext,
                 targetname,
                 '',
                 None))
 
     def get_index_text(self, objectname, name):
-        name = "({}) {}".format(objectname, name)
-        return name
+        return "{} ({})".format(name, objectname)
 
 
 class SnakemakeDomain(Domain):
