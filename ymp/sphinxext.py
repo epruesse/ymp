@@ -47,17 +47,25 @@ class SnakemakeRule(ObjectDescription):
         signode += addnodes.desc_name(rawsource, text)
 
         if 'source' in self.options:
-            onlynode = addnodes.only(expr='html')  # show only in html
-            onlynode += nodes.reference('', refuri="refuri")
-            onlynode[0] += nodes.inline('', '[source]',
-                                        classes=['viewcode-link'])
-            signode += onlynode
-            if not hasattr(self.env, '_snakefiles'):
-                self.env._snakefiles = set()
-            self.env._snakefiles.add(self.options['source'].split(':')[0])
+            self.add_source_link(signode)
 
         sigid = ws_re.sub('', sig)
         return sigid
+
+    def add_source_link(self, signode):
+        filename, lineno = self.options['source'].split(':')
+        if not hasattr(self.env, '_snakefiles'):
+            self.env._snakefiles = set()
+        self.env._snakefiles.add(filename)
+
+        onlynode = addnodes.only(expr='html')  # show only in html
+        onlynode += nodes.reference(
+            '',
+            refuri='_snakefiles/{}.html#line-{}'.format(filename, lineno)
+        )
+        onlynode[0] += nodes.inline('', '[source]',
+                                    classes=['viewcode-link'])
+        signode += onlynode
 
     def add_target_and_index(self, name, sig, signode):
         """
@@ -208,7 +216,7 @@ def collect_pages(app):
         except IOError:
             logger.error("failed to open {}".format(snakefile))
             continue
-        highlighted = highlight_block(code, 'snakemake')
+        highlighted = highlight_block(code, 'snakemake', lineanchors="line")
         context = {
             'title': snakefile,
             'body': '<h1>Snakefile "{}"</h1>'.format(snakefile) +
