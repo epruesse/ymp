@@ -6,13 +6,19 @@ Sphinx extension automatically inserting docstrings from snakemake
 rules into the Sphinx doctree.
 """
 
+import os
+
 from docutils import nodes, statemachine
 from docutils.parsers import rst
 
 from ymp.snakemake import ExpandableWorkflow
 
-from sphinx.util import logging
-
+from sphinx import addnodes
+from sphinx.util import logging, ws_re
+from sphinx.domains import Domain, ObjType, Index
+from sphinx.directives import ObjectDescription
+from sphinx.util.nodes import make_refnode
+from sphinx.roles import XRefRole
 
 try:
     logger = logging.getLogger(__name__)
@@ -20,6 +26,115 @@ except AttributeError:
     # Fall back to normal logging
     import logging as _logging
     logger = _logging.getLogger(__name__)
+
+
+class SnakemakeRule(ObjectDescription):
+    option_spec = {
+        'source': rst.directives.unchanged
+    }
+
+    def handle_signature(self, sig, signode):
+        """
+        Parse rule signature *sig* into RST nodes and append them
+        to *signode*.
+
+        The retun value identifies the object and is passed to
+        :meth:`add_target_and_index()` unchanged
+        """
+        rawsource = sig
+        text = "rule {}".format(sig)
+        signode += addnodes.desc_name(rawsource, text)
+
+        if 'source' in self.options:
+            onlynode = addnodes.only(expr='html')  # show only in html
+            onlynode += nodes.reference('', refuri="refuri")
+            onlynode[0] += nodes.inline('', '[source]',
+                                        classes=['viewcode-link'])
+            signode += onlynode
+            if not hasattr(self.env, '_snakefiles'):
+                self.env._snakefiles = set()
+            self.env._snakefiles.add(self.options['source'].split(':')[0])
+
+        sigid = ws_re.sub('', sig)
+        return sigid
+
+    def add_target_and_index(self, name, sig, signode):
+        """
+        Add cross-reference IDs and entries to self.indexnode
+        """
+        targetname = "-".join((self.objtype, name))
+        if targetname not in self.state.document.ids:
+            signode['names'].append(targetname)
+            signode['ids'].append(targetname)
+            signode['first'] = (not self.names)
+            self.state.document.note_explicit_target(signode)
+
+            objects = self.env.domaindata[self.domain]['objects']
+            key = (self.objtype, name)
+            if key in objects:
+                self.env.warn(self.env.docname,
+                              'duplicate description of {} {}, '
+                              'other instance in {}:{}'
+                              ''.format(self.objtype, name,
+                                        self.env.doc2path(objects[key]),
+                                        self.lineno))
+            objects[key] = self.env.docname
+        indextext = self.get_index_text(self.objtype, name)
+        if indextext:
+            self.indexnode['entries'].append((
+                'single',
+                indextext + "asd",
+                targetname,
+                '',
+                None))
+
+    def get_index_text(self, objectname, name):
+        name = "({}) {}".format(objectname, name)
+        return name
+
+
+class SnakemakeDomain(Domain):
+    """Snakemake language domain."""
+    name = "sm"
+    label = "Snakemake"
+
+    object_types = {
+        # ObjType(name, *roles, **attrs)
+        'rule': ObjType('rule', 'rule'),
+    }
+    directives = {
+        'rule': SnakemakeRule,
+    }
+    roles = {
+        'rule': XRefRole(),
+    }
+    initial_data = {
+        'objects': {},  # (type, name) -> docname, labelid
+    }
+
+    data_version = 0
+
+    def clear_doc(self, docname):
+        if 'objects' in self.data:
+            for key, dn in self.data['objects'].items():
+                if dn == docname:
+                    del self.data['objects'][key]
+
+    def resolve_xref(self, env, fromdocname, builder,
+                     typ, target, node, contnode):
+        objects = self.data['objects']
+        objtypes = self.objtypes_for_role(typ)
+        for objtype in objtypes:
+            if (objtype, target) in objects:
+                return make_refnode(builder, fromdocname,
+                                    objects[objtype, target],
+                                    objtype + "-" + target,
+                                    contnode, target + ' ' + objtype)
+
+    def get_objects(self):
+        for (typ, name), docname in self.data['objects'].items():
+            # name, dispname, type, docname, anchor, searchprio
+            yield name, name, typ, docname, typ + '-' + name, 1
 
 
 class AutoSnakefileDirective(rst.Directive):
@@ -60,12 +175,17 @@ class AutoSnakefileDirective(rst.Directive):
         result = statemachine.ViewList()
 
         for rule in rules:
-            result.append(".. class:: {}".format(rule.name), snakefile)
+            fn = os.path.relpath(rule.snakefile, "..")
+            line = rule.lineno
+            name = rule.name
+            result.append(".. sm:rule:: {}".format(name), snakefile)
+            result.append("   :source: {}:{}".format(fn, line), snakefile)
             result.append("", snakefile)
             if rule.docstring:
                 for line in rule.docstring.splitlines():
                     result.append("   " + line, snakefile)
                 result.append("", snakefile)
+        result.append("", snakefile)
 
         self.state.nested_parse(result, 0, section)
 
@@ -73,4 +193,5 @@ class AutoSnakefileDirective(rst.Directive):
 
 
 def setup(app):
+    app.add_domain(SnakemakeDomain)
     app.add_directive('autosnake', AutoSnakefileDirective)
