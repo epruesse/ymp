@@ -15,20 +15,3 @@ mapping.
 .. _Bioconda: https://bioconda.github.io
 
 
-.. toctree::
-   :hidden:
-
-   install
-   config
-   commandline
-   rules
-   modules
-
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

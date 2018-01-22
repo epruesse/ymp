@@ -1,7 +1,7 @@
+sphinx
+cloud_sptheme
 sphinxcontrib-napoleon
 sphinxcontrib-fulltoc
-sphinx_bootstrap_theme
-sphinx_rtd_theme
 sphinx-click
 snakemake
 ftputil
