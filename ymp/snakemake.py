@@ -97,6 +97,7 @@ class NamedList(_Namedlist):
                     kwargs[key] = self[start]
 
 
+#: describes attributes of :class:snakemake.workflow.RuleInfo
 ruleinfo_fields = {
     'wildcard_constraints': {
         'format': 'argstuple',  # len(t[0]) must be == 0
@@ -172,9 +173,8 @@ ruleinfo_fields = {
 }
 
 
-
 class ExpandableWorkflow(Workflow):
-    """Adds hook for additional wildcard expansion methods to Snakemake"""
+    """Adds hook for additional rule expansion methods to Snakemake"""
     global_workflow = None
 
     @staticmethod
@@ -316,7 +316,6 @@ class ExpandableWorkflow(Workflow):
         overriding as above.
         """
         ruleinfo = deepcopy(self._ruleinfos[parent])
-        # log.error("deriving {} from {}".format(name, parent))
 
         for key, value in kwargs.items():
             attr = getattr(ruleinfo, key)
@@ -343,13 +342,28 @@ class ExpandableWorkflow(Workflow):
 
 
 class BaseExpander(object):
+    """
+    Base class for Snakemake expansion modules.
+
+    Subclasses should override the :meth:expand method if they need to
+    work on the entire RuleInfo object or the :meth:format and
+    :meth:expands_field methods if they intend to modify specific fields.
+    """
     def __init__(self):
         ExpandableWorkflow.register_expander(self)
 
     def format(self, item, *args, **kwargs):
+        """Format *item* using *\*args* and *\*\*kwargs*"""
         return item
 
-    def _format_annotated(self, item, expand_args):
+    def format_annotated(self, item, expand_args):
+        """Wrapper for :meth:format preserving *AnnotatedString* flags
+
+        Calls :meth:format to format *item* into a new string and copies
+        flags from original item.
+
+        This is used by :meth:expand
+        """
         updated = self.format(item, **expand_args)
         if isinstance(item, AnnotatedString):
             updated = AnnotatedString(updated)
@@ -364,9 +378,36 @@ class BaseExpander(object):
         return updated
 
     def expands_field(self, field):
+        """Checks if this expander should expand a Rule field type
+
+        Arguments:
+           field: the field to check
+        Returns:
+           True if *field* should be expanded.
+        """
         return False
 
     def expand(self, rule, item, expand_args={}, rec=-1):
+        """Expands RuleInfo object and children recursively.
+
+        Will call :meth:format (via :meth:format_annotated) on `str` items
+        encountered in the tree and wrap encountered functions to be called
+        once the wildcards object is available.
+
+        Set `ymp.print_rule = 1` before a `rule:` statement in snakefiles
+        to enable debug logging of recursion.
+
+        Arguments:
+          rule: The :class:snakemake.rules.Rule object to be populated with
+            the data from the RuleInfo object passed from *item*
+          item: The item to be expanded. Initially a
+            :class:snakemake.workflow.RuleInfo object into which is recursively
+            decendet. May ultimately be `None`, `str`, `function`, `int`,
+            `float`, `dict`, `list` or `tuple`.
+          expand_args: Parameters passed on late expansion (when the `dag`
+            tries to instantiate the `rule` into a `job`.
+          rec: Recursion level
+        """
         rec = rec + 1
         debug = ymp.print_rule or getattr(rule, "_ymp_print_rule", False)
         if debug:
@@ -382,11 +423,13 @@ class BaseExpander(object):
                                                  expand_args, rec=rec))
         elif isinstance(item, str):
             try:
-                item = self._format_annotated(item, expand_args)
+                item = self.format_annotated(item, expand_args)
             except KeyError:
                 # try expanding once we have wildcards
                 _item = item
-                item = lambda wc: self.expand(rule, _item, {'wc': wc})
+
+                def item(wc):
+                    return self.expand(rule, _item, {'wc': wc})
         elif hasattr(item, '__call__'):
             # continue expansion of function later by wrapping it
             _item = item
@@ -428,8 +471,15 @@ class BaseExpander(object):
 
 
 class SnakemakeExpander(BaseExpander):
+    """Expand wildcards in strings returned from functions.
+
+    Snakemake does not do this by default, leaving wildcard expansion to
+    the functions provided themselves. Since we never want `{input}` to be
+    in a string returned as a file, we expand those always.
+    """
     def expands_field(self, field):
         return field in ('input', 'output')
+
     def format(self, item, *args, **kwargs):
         if 'wc' in kwargs:
             return apply_wildcards(item, kwargs['wc'])
@@ -437,6 +487,9 @@ class SnakemakeExpander(BaseExpander):
 
 
 class FormatExpander(BaseExpander):
+    """
+    Expander using a custom formatter object.
+    """
     _regex = re.compile(
         r"""
         \{
@@ -477,6 +530,9 @@ class FormatExpander(BaseExpander):
 
 
 class ColonExpander(FormatExpander):
+    """
+    Expander using `{:xyz:}` formatted variables.
+    """
     _regex = re.compile(
         r"""
         \{:
@@ -493,7 +549,17 @@ class ColonExpander(FormatExpander):
 
 
 class RecursiveExpander(BaseExpander):
+    """Recursively expands `{xyz}` wildcards in Snakemake rules."""
     def expands_field(self, field):
+        """
+        Returns true for all fields but `shell:`, `message:` and
+        `wildcard_constraints`.
+
+        We don't want to mess with the regular expressions in the fields
+        in `wildcard_constraints:`, and there is little use in expanding
+        `message` or `shell` as these already have all wildcards applied
+        just before job execution (by `format_wildcards()`).
+        """
         return field not in (
             'shellcmd',
             'message',
@@ -501,8 +567,7 @@ class RecursiveExpander(BaseExpander):
         )
 
     def expand(self, rule, ruleinfo):
-        """Expand wildcards within ruleinfo
-        """
+        """Recursively expand wildcards within RuleInfo object"""
         fields = list(filter(None.__ne__,
                              filter(self.expands_field, ruleinfo_fields)))
         # normalize field values and create namedlist dictionary
@@ -590,6 +655,15 @@ class RecursiveExpander(BaseExpander):
 
 
 class CondaPathExpander(BaseExpander):
+    """Applies search path for conda environment specifications
+
+    File names supplied via `rule: conda: "some.yml"` are replaced with
+    absolute paths if they are found in any searched directory.
+    Each `search_paths` entry is appended to the directory
+    containing the top level Snakefile and the directory checked for
+    the filename. Thereafter, the stack of including Snakefiles is traversed
+    backwards. If no file is found, the original name is returned.
+    """
     def __init__(self, search_paths, *args, **kwargs):
         try:
             from snakemake.workflow import workflow
@@ -612,4 +686,3 @@ class CondaPathExpander(BaseExpander):
                 if os.path.exists(abspath):
                     return abspath
         return conda_env
-
