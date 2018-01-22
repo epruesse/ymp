@@ -77,9 +77,9 @@ html_theme_options = {
     'roottarget': index_doc,
     'borderless_decor': True,
     'sidebarwidth': "3in",
-    'hyphenation_language': 'en'
+    'hyphenation_language': 'en',
+    #'rubricbgcolor': '#b3b3b3',
 }
-
 # html_title
 # html_short_title
 # html_logo
