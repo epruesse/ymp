@@ -686,3 +686,94 @@ class CondaPathExpander(BaseExpander):
                 if os.path.exists(abspath):
                     return abspath
         return conda_env
+
+
+class InheritanceExpander(BaseExpander):
+    """Adds class-like inheritance to Snakemake rules
+
+    Create derived snakemake rule by overriding rule parameters
+
+    This implements a poor man's OO solution for Snakemake. By overwriting
+    parts of the rule, we can create several similar rules without too
+    much repetition.
+
+    This is mainly necessary for alternative output scenarios, e.g. if
+    the output can be paired end or single end, snakemake syntax does
+    not support expressing this in one rule.
+
+    Arguments:
+       name: name of derived rule
+       parent: name of parent rule
+       order: one of "lesser" or "higher"; creates ruleorder statement
+       \*\*kwargs: override parent arguments
+
+    The active part, `shell`, `run`, `script`, etc. cannot be
+    overriden.
+
+    String and list parameters override the unnamed arguments.
+    Dict arguments override named arguments with `dict.update` behavior.
+    Tuples are expected to contain an array \*args and a dict \*\*kwargs,
+    overriding as above.
+    """
+
+    #: Comment keyword enabling inheritance
+    KEYWORD = "ymp: extends"
+
+    def __init__(self):
+        super().__init__()
+        self.ruleinfos = {}
+        self.snakefiles = {}
+        self.linemaps = None
+        log.debug("Ineritance Enabled")
+
+    def expand(self, rule, ruleinfo):
+        if rule.snakefile == "generated":
+            return
+        self.ruleinfos[rule.name] = ruleinfo
+        if rule.snakefile not in self.snakefiles:
+            try:
+                with open(rule.snakefile, "r") as sf:
+                    self.snakefiles[rule.snakefile] = sf.readlines()
+            except IOError:
+                raise Exception("Can't parse ...")
+        if self.linemaps is None:
+            self.linemaps = ExpandableWorkflow.global_workflow.linemaps
+        real_lineno = self.linemaps[rule.snakefile][rule.lineno]
+        line = self.snakefiles[rule.snakefile][real_lineno - 1]
+        if "#" not in line:
+            return
+        comment = line.split("#")[1].strip()
+        if not comment.startswith(self.KEYWORD):
+            return
+        superrule_name = comment[len(self.KEYWORD):].strip()
+        try:
+            superrule = self.ruleinfos[superrule_name]
+        except KeyError:
+            raise Exception("superrule '{}' not found".format(superrule_name))
+
+        self.derrive_rule
+        log.error("{}: {}".format(rule.name, superrule))
+
+        super_ruleinfo = deepcopy(self._ruleinfos[superrule])
+
+        for key, value in kwargs.items():
+            attr = getattr(ruleinfo, key)
+            if isinstance(value, str):
+                attr = ([value], attr[1])
+            elif isinstance(value, list):
+                attr = (value, attr[1])
+            elif isinstance(value, dict):
+                attr[1].update(value)
+            elif isinstance(value, tuple):
+                attr[0] = value[0]
+                attr[1].update(value[1])
+
+            setattr(ruleinfo, key, attr)
+
+        if order is not None:
+            if order == "lesser":
+                self.ruleorder(parent, name)
+                log.debug("{} > {}".format(parent, name))
+            elif order == "higher":
+                self.ruleorder(name, parent)
+

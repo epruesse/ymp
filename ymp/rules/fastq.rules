@@ -310,15 +310,10 @@ rule bb_ecco:
                > {log} 2>&1
     """
 
-workflow.derive_rule(
-    name   = "bb_ecco_se",
-    parent = "bb_ecco",
-    input  = "{dir}/{sample}.{:pairnames[0]:}.fq.gz",
-    output = "{dir}.ecco/{sample}.{:pairnames[0]:}.fq.gz",
-    params = {'inout2': ""},
-    order  = "lesser"
-)
-
+rule bb_ecco_se2:  # ymp: extends bb_ecco
+    input:   "{dir}/{sample}.{:pairnames[0]:}.fq.gz",
+    output:  "{dir}.ecco/{sample}.{:pairnames[0]:}.fq.gz",
+    params:   inout2 = ""
 
 ###
 ###  Trimming
