@@ -115,6 +115,9 @@ rule split_library:
         tmpdir  = ancient(icfg.dir.tmp)
     output:
         outdir  = temp("{project}.split_libraries/{barcodes}/{pairname}/")
+    log:
+        "{project}.split_libraries/{barcodes}/{pairname}/split_library_log.txt",
+        "{project}.split_libraries/{barcodes}/{pairname}/split_seq_file_log.txt",
     conda:
         "qiime.yml"
     shell: """
@@ -132,7 +135,8 @@ rule split_library:
     split_sequence_file_on_sample_ids.py \
        -i {output}/seqs.fastq \
        --file_type fastq \
-       -o {output}
+       -o {output} \
+       > {log[1]} 2>&1
     """
 
 rule split_library_compress_sample:
@@ -264,13 +268,10 @@ rule phyloFlash:
                   > ../{log} 2>&1
     """
 
-workflow.derive_rule(
-    name="phyloFlash_se",
-    parent="phyloFlash",
-    input="{dir}/{sample}.{:pairnames[0]:}.fq.gz",
-    params={"in2":""},
-    order="lesser"
-)
+
+rule phyloFlash_se:  # ymp: extends phyloFlash
+    input: ["{dir}/{sample}.{:pairnames[0]:}.fq.gz"],
+    params: in2 = ""
 
 
 rule phyloFlash_heatmap:
@@ -310,14 +311,16 @@ rule bb_ecco:
                > {log} 2>&1
     """
 
-rule bb_ecco_se2:  # ymp: extends bb_ecco
-    input:   "{dir}/{sample}.{:pairnames[0]:}.fq.gz",
-    output:  "{dir}.ecco/{sample}.{:pairnames[0]:}.fq.gz",
+
+rule bb_ecco_se:  # ymp: extends bb_ecco
+    input:   ["{dir}/{sample}.{:pairnames[0]:}.fq.gz"],
+    output:  ["{dir}.ecco/{sample}.{:pairnames[0]:}.fq.gz"],
     params:   inout2 = ""
 
 ###
 ###  Trimming
 ###
+
 
 rule trim_bbduk_adapter:
     """Trimming and Adapter Removal using BBTools BBDuk"""
@@ -366,15 +369,11 @@ rule trim_bbduk_adapter:
         '-Xmx{params.mem}m '
         '>{log} 2>&1'
 
-# Create derived child rule for single ended reads
-workflow.derive_rule(
-    name   = "trim_bbduk_adapter_se",
-    parent = "trim_bbduk_adapter",
-    input  = "{dir}/{sample}.{:pairnames[0]:}.fq.gz",
-    output = "{dir}.trim{A}{Q}{L}/{sample}.{:pairnames[0]:}.fq.gz",
-    params = { 'inout2': "" },
-    order = "lesser"
-)
+
+rule trim_bbduk_adapter_se:  # ymp: extends trim_bbduk_adapter
+    input:  ["{dir}/{sample}.{:pairnames[0]:}.fq.gz"]
+    output: ["{dir}.trim{A}{Q}{L}/{sample}.{:pairnames[0]:}.fq.gz"]
+    params: inout2 = ""
 
 
 rule trimmomatic_adapter:
@@ -427,14 +426,12 @@ rule trimmomatic_adapter:
         $CLIPARG >>{log} 2>&1
     """
 
-workflow.derive_rule(
-    name   = "trimmomatic_adapter_se",
-    parent = "trimmomatic_adapter",
-    input  = "{dir}/{sample}.{:pairnames[0]:}.fq.gz",
-    output = "{dir}.trimmomatic{adapter}/{sample}.{:pairnames[0]:}.fq.gz",
-    params = { 'arg_pe': "SE", 'outargs': "{output}" },
-    order = "lesser"
-)
+
+rule trimmomatic_adapter_se:  # ymp: extends trimmomatic_adapter
+    input:  "{dir}/{sample}.{:pairnames[0]:}.fq.gz"
+    output: "{dir}.trimmomatic{adapter}/{sample}.{:pairnames[0]:}.fq.gz"
+    params: arg_pe  = "SE",
+            outargs = "{output}"
 
 
 rule sickle:
@@ -472,17 +469,12 @@ rule sickle:
         > {log} 2>&1
     """
 
-workflow.derive_rule(
-    name = "sickle_se",
-    parent = "sickle",
-    input = "{dir}/{sample}.{:pairnames[0]:}.fq.gz",
-    output = "{dir}.sickle{Q}{L}/{sample}.{:pairnames[0]:}.fq.gz",
-    params = {
-        "arg_pe": "se",
-        "inout2": ""
-    },
-    order = "lesser"
-)
+
+rule sickle_se:  # ymp: extends sickle
+    input:  "{dir}/{sample}.{:pairnames[0]:}.fq.gz"
+    output: "{dir}.sickle{Q}{L}/{sample}.{:pairnames[0]:}.fq.gz"
+    params: arg_pe = "se",
+            inout2 = ""
 
 
 ###
@@ -561,17 +553,12 @@ rule bbmap_split:
         " {params.stats} "
         " > {log} 2>&1"
 
-workflow.derive_rule(
-    name="bbmap_split_se",
-    parent="bbmap_split",
-    input="{dir}/{sample}.{:pairnames[0]:}.fq.gz",
-    output={
-        "clean": ["{dir}.bbmRM{reference}/{sample}.{:pairnames[0]:}.fq.gz"],
-        "human": ["{dir}.bbmKP{reference}/{sample}.{:pairnames[0]:}.fq.gz"]
-    },
-    params={"inout2":""},
-    order="lesser"
-)
+
+rule bbmap_split_se:  # ymp: extends bbmap_split
+    input:          "{dir}/{sample}.{:pairnames[0]:}.fq.gz"
+    output: clean = ["{dir}.bbmRM{reference}/{sample}.{:pairnames[0]:}.fq.gz"],
+            human = ["{dir}.bbmKP{reference}/{sample}.{:pairnames[0]:}.fq.gz"]
+    params: inout2 = ""
 
 
 rule bmtagger_bitmask:
@@ -696,17 +683,12 @@ rule bbduk_primer:
         ' -Xmx{params.mem}m'
 
 
-workflow.derive_rule(
-    name="bbduk_primer_se",
-    parent="bbduk_primer",
-    input="{dir}/{sample}.{:pairnames[0]:}.fq.gz",
-    output={
-        "match": ["{dir}.primermatch/{sample}.{:pairnames[0]:}.fq.gz"],
-        "fail":  ["{dir}.primerfail/{sample}.{:pairnames[0]:}.fq.gz"]
-    },
-    params={"inout2":""},
-    order="lesser"
-)
+
+rule bbduk_primer_se:  # ymp: extends bbduk_primer
+    input:          "{dir}/{sample}.{:pairnames[0]:}.fq.gz"
+    output: match = ["{dir}.primermatch/{sample}.{:pairnames[0]:}.fq.gz"],
+            fail  = ["{dir}.primerfail/{sample}.{:pairnames[0]:}.fq.gz"]
+    params: inout2 = ""
 
 ###
 ### De-duplication
