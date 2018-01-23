@@ -1,7 +1,6 @@
 channels:
- - r
  - bioconda
  - conda-forge
 dependencies:
- - phyloflash =2.*
+ - phyloflash
 
