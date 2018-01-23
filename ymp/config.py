@@ -12,8 +12,8 @@ from snakemake.io import expand, get_wildcard_names
 import yaml
 
 from ymp.common import parse_number, update_dict
-from ymp.snakemake import ColonExpander, ExpandableWorkflow, RecursiveExpander, \
-    CondaPathExpander
+from ymp.snakemake import ColonExpander, ExpandableWorkflow, RecursiveExpander,\
+    CondaPathExpander, InheritanceExpander, DefaultExpander
 from ymp.util import AttrDict
 
 log = logging.getLogger(__name__)
@@ -552,7 +552,7 @@ class ConfigExpander(ColonExpander):
         self.config_mgr = config_mgr
 
     def expands_field(self, field):
-        return True
+        return field not in 'func'
 
     class Formatter(ColonExpander.Formatter):
         def get_value(self, field_name, args, kwargs):
@@ -605,6 +605,7 @@ class ConfigMgr(object):
         self._datasets = {}
         self._config = {}
         self._conffiles = []
+        ExpandableWorkflow.clear()
 
     def init(self):
         self.clear()
@@ -614,7 +615,8 @@ class ConfigMgr(object):
         self.recursive_expander = RecursiveExpander()
         self.config_expander = ConfigExpander(self)
         self.conda_path_expander = CondaPathExpander(self.search_paths.conda_env)
-        ExpandableWorkflow.default_params(mem=self.mem())
+        self.default_expander = DefaultExpander(params = ([],{'mem': self.mem()}))
+        self.inheritance_expander = InheritanceExpander()
 
     def find_config(self):
         """Locates ymp config files and sets ymp root"""

@@ -2,17 +2,21 @@
 Extends Snakemake Features
 """
 
+import functools
 import logging
 import os
 import re
 from copy import copy, deepcopy
-import functools
+
+from typing import Optional
+
 import networkx
 
 from snakemake.exceptions import RuleException
 from snakemake.io import AnnotatedString, apply_wildcards
 from snakemake.io import Namedlist as _Namedlist
-from snakemake.workflow import Workflow, RuleInfo
+from snakemake.rules import Rule
+from snakemake.workflow import RuleInfo, Workflow
 
 import ymp
 from ymp.common import flatten, is_container
@@ -26,12 +30,44 @@ partial_format = partial_formatter.format
 get_names = partial_formatter.get_names
 
 
+def print_ruleinfo(rule: Rule, ruleinfo: RuleInfo, func=log.debug):
+    """Logs contents of Rule and RuleInfo objects.
+
+    Arguments:
+      rule: Rule object to be printed
+      ruleinfo: Matching RuleInfo object to be printed
+      func: Function used for printing (default is log.error)
+    """
+    func("rule {}".format({'n': rule.name,
+                           'l': rule.lineno,
+                           's': rule.snakefile}))
+    for attr in dir(ruleinfo):
+        if attr.startswith("__"):
+            continue
+        func("  {}: {}".format(attr,
+                               getattr(ruleinfo, attr, "")))
+    func(ruleinfo.func.__code__)
+
+
 class CircularReferenceException(RuleException):
     """Exception raised if parameters in rule contain a circular reference"""
     def __init__(self, deps, rule, include=None, lineno=None, snakefile=None):
         nodes = [n[0] for n in networkx.find_cycle(deps)]
         message = "Circular reference in rule {}:\n{}".format(
             rule, " => ".join(nodes + [nodes[0]]))
+        super().__init__(message=message,
+                         include=include,
+                         lineno=lineno,
+                         snakefile=snakefile,
+                         rule=rule)
+
+
+class InheritanceException(RuleException):
+    """Exception raised for errors during rule inheritance"""
+    def __init__(self, msg, rule, parent,
+                 include=None, lineno=None, snakefile=None):
+        message = "'{}' when deriving {} from {}".format(
+            msg, rule.name, parent)
         super().__init__(message=message,
                          include=include,
                          lineno=lineno,
@@ -97,7 +133,7 @@ class NamedList(_Namedlist):
                     kwargs[key] = self[start]
 
 
-#: describes attributes of :class:snakemake.workflow.RuleInfo
+#: describes attributes of :py:class:`snakemake.workflow.RuleInfo`
 ruleinfo_fields = {
     'wildcard_constraints': {
         'format': 'argstuple',  # len(t[0]) must be == 0
@@ -166,9 +202,15 @@ ruleinfo_fields = {
     'docstring': {
         'format': 'string',
     },
-    # func
-    # norun
-    # script
+    'norun': {  # does the rule have executable data?
+        'format': 'bool',
+    },
+    'func': {
+        'format': 'callable',
+    },
+    'script': {
+        'format': 'string',
+    }
     # restart_times
 }
 
@@ -218,12 +260,15 @@ class ExpandableWorkflow(Workflow):
         """
         ExpandableWorkflow.activate()
         if ExpandableWorkflow.global_workflow:
-            ExpandableWorkflow.global_workflow._expanders.append(expander)
+            workflow = ExpandableWorkflow.global_workflow
+            workflow._expanders.append(expander)
+            return workflow
+        return None
 
     @staticmethod
-    def default_params(**kwargs):
-        """Set default params: keys"""
-        ExpandableWorkflow._default_params = kwargs
+    def clear():
+        if ExpandableWorkflow.global_workflow:
+            ExpandableWorkflow.global_workflow.__init__()
 
     def add_rule(self, name=None, lineno=None, snakefile=None):
         """Add a rule.
@@ -257,88 +302,32 @@ class ExpandableWorkflow(Workflow):
         rule = self.get_rule(name)
 
         def decorate(ruleinfo):
-            # save original ruleinfo in case `derive_rule` is called
-            self._ruleinfos[name] = ruleinfo
 
-            # if we have default params, add them
-            if self._default_params:
-                if not ruleinfo.params:
-                    ruleinfo.params = ([], {})
-                for param in self._default_params:
-                    if param not in ruleinfo.params[1]:
-                        ruleinfo.params[1][param] = self._default_params[param]
+            if ymp.print_rule == 1:
+                log.error("#### BEGIN expansion")
+                print_ruleinfo(rule, ruleinfo, log.error)
+                rule._ymp_print_rule = True
 
             for expander in reversed(self._expanders):
                 expander.expand(rule, ruleinfo)
+                if ymp.print_rule == 1:
+                    log.error("### expanded with " + type(expander).__name__)
+                    print_ruleinfo(rule, ruleinfo, log.error)
+            if ymp.print_rule:
+                log.error("#### END expansion")
 
             # Conditionaly dump rule after YMP formatting
             if ymp.print_rule == 1:
-                log.error("rule {}".format({'n': name,
-                                            'l': lineno,
-                                            's': snakefile}))
-                for attr in dir(ruleinfo):
-                    if attr.startswith("__"):
-                        continue
-                    log.error("  {}: {}".format(attr,
-                                                getattr(ruleinfo, attr, "")))
-
-                rule._ymp_print_rule = True
                 ymp.print_rule = 0
 
             # register rule with snakemake
-            decorator(ruleinfo)  # does not return anything
+            try:
+                decorator(ruleinfo)  # does not return anything
+            except AttributeError:
+                print_ruleinfo(rule, ruleinfo, log.error)
+                raise
 
         return decorate
-
-    def derive_rule(self, name, parent, order=None, **kwargs):
-        """Create derived snakemake rule by overriding rule parameters
-
-        This implements a poor man's OO solution for Snakemake. By overwriting
-        parts of the rule, we can create several similar rules without too
-        much repetition.
-
-        This is mainly necessary for alternative output scenarios, e.g. if
-        the output can be paired end or single end, snakemake syntax does
-        not support expressing this in one rule.
-
-        Arguments:
-           name: name of derived rule
-           parent: name of parent rule
-           order: one of "lesser" or "higher"; creates ruleorder statement
-           \*\*kwargs: override parent arguments
-
-        The active part, `shell`, `run`, `script`, etc. cannot be
-        overriden.
-
-        String and list parameters override the unnamed arguments.
-        Dict arguments override named arguments with `dict.update` behavior.
-        Tuples are expected to contain an array \*args and a dict \*\*kwargs,
-        overriding as above.
-        """
-        ruleinfo = deepcopy(self._ruleinfos[parent])
-
-        for key, value in kwargs.items():
-            attr = getattr(ruleinfo, key)
-            if isinstance(value, str):
-                attr = ([value], attr[1])
-            elif isinstance(value, list):
-                attr = (value, attr[1])
-            elif isinstance(value, dict):
-                attr[1].update(value)
-            elif isinstance(value, tuple):
-                attr[0] = value[0]
-                attr[1].update(value[1])
-
-            setattr(ruleinfo, key, attr)
-
-        self.rule(name=name, snakefile="generated")(ruleinfo)
-
-        if order is not None:
-            if order == "lesser":
-                self.ruleorder(parent, name)
-                log.debug("{} > {}".format(parent, name))
-            elif order == "higher":
-                self.ruleorder(name, parent)
 
 
 class BaseExpander(object):
@@ -350,7 +339,7 @@ class BaseExpander(object):
     :meth:expands_field methods if they intend to modify specific fields.
     """
     def __init__(self):
-        ExpandableWorkflow.register_expander(self)
+        self.workflow = ExpandableWorkflow.register_expander(self)
 
     def format(self, item, *args, **kwargs):
         """Format *item* using *\*args* and *\*\*kwargs*"""
@@ -633,8 +622,8 @@ class RecursiveExpander(BaseExpander):
                     value2 = partial_format(value, **args)
                 except FormattingError as e:
                     raise RuleException(
-                        "Unable to resolve wildcard '{{{}}}' in parameter {} in"
-                        "rule {}".format(e.attr, node, rule.name))
+                        "Unable to resolve wildcard '{{{}}}' in parameter {}"
+                        "in rule {}".format(e.attr, node, rule.name))
                 except IndexError as e:
                     raise RuleException(
                         "Unable to format '{}' using '{}'".format(value, args))
@@ -686,3 +675,145 @@ class CondaPathExpander(BaseExpander):
                 if os.path.exists(abspath):
                     return abspath
         return conda_env
+
+
+class InheritanceExpander(BaseExpander):
+    """Adds class-like inheritance to Snakemake rules
+
+    To avoid redundancy between closely related rules, e.g. rules for
+    single ended and paired end data, YMP allows Snakemake rules
+    to inherit from another rule.
+
+    Example:
+     .. code-block: snakemake
+      rule count_reads:
+        input: "{file}.R1.fq.gz", "{file}.R2.fq.gz"
+        output: "{file}.readcount.txt"
+        shell: "gunzip -c {input} | wc -l > {output}"
+
+      rule count_reads_SE:  # ymp: extends count_reads
+        input: "{file}.fq.gz"
+
+    Derived rules are always created with an implicit ``ruleorder`` statement,
+    making Snakemake prefer the parent rule if either parent or child rule
+    could be used to generate the requested output file(s).
+
+    Derived rules initially contain the same attributes as the parent rule.
+    Each attribute assigned to the child rule overrides the matching attribute
+    in the parent. Where attributes may contain named and unnamed values,
+    specifying a named value overrides only the value of that name while
+    specifying an unnamed value overrides all unnamed values in the parent
+    attribute.
+    """
+    # FIXME: link to http://snakemake.readthedocs.io/en/latest/snakefiles/
+    #                rules.html#handling-ambiguous-rules
+
+    #: Comment keyword enabling inheritance
+    KEYWORD = "ymp: extends"
+
+    def __init__(self):
+        super().__init__()
+        self.ruleinfos = {}
+        self.snakefiles = {}
+        self.linemaps = None
+        log.debug("Ineritance Enabled")
+
+    def get_code_line(self, rule: Rule) -> str:
+        """Returns the source line defining *rule*"""
+        # Load and cache Snakefile
+        if rule.snakefile not in self.snakefiles:
+            try:
+                with open(rule.snakefile, "r") as sf:
+                    self.snakefiles[rule.snakefile] = sf.readlines()
+            except IOError:
+                raise Exception("Can't parse ...")
+
+        # `rule.lineno` refers to compiled code. Convert to source line number.
+        if self.linemaps is None:
+            self.linemaps = ExpandableWorkflow.global_workflow.linemaps
+        real_lineno = self.linemaps[rule.snakefile][rule.lineno]
+
+        return self.snakefiles[rule.snakefile][real_lineno - 1]
+
+    def get_super(self, rule: Rule, ruleinfo: RuleInfo) -> Optional[RuleInfo]:
+        self.ruleinfos[rule.name] = ruleinfo  # stash original ruleinfos
+
+        line = self.get_code_line(rule)
+
+        if "#" in line:
+            comment = line.split("#")[1].strip()
+            if comment.startswith(self.KEYWORD):
+                superrule_name = comment[len(self.KEYWORD):].strip()
+                try:
+                    return superrule_name, self.ruleinfos[superrule_name]
+                except:
+                    raise InheritanceException("Unable to find parent",
+                                               rule, superrule_name)
+        return None, None
+
+    def expand(self, rule, ruleinfo):
+        super_name, super_ruleinfo = self.get_super(rule, ruleinfo)
+        if super_ruleinfo is None:
+            return
+
+        base_ruleinfo = deepcopy(super_ruleinfo)
+
+        if not ruleinfo.norun:  # deriving rule is runnable, clear out base
+            base_ruleinfo.shellcmd = None
+            base_ruleinfo.wrapper = None
+            base_ruleinfo.script = None
+            base_ruleinfo.func = None
+        elif not base_ruleinfo.norun:  # base is runnable, clear our deriving
+            ruleinfo.norun = False
+            ruleinfo.shellcmd = None
+            ruleinfo.wrapper = None
+            ruleinfo.script = None
+            ruleinfo.func = None
+
+        for field in dir(ruleinfo):
+            if field.startswith("__"):
+                continue
+
+            base_attr = getattr(base_ruleinfo, field)
+            override_attr = getattr(ruleinfo, field)
+
+            if isinstance(override_attr, tuple):
+                if base_attr is None:
+                    base_attr = ([], {})
+                if override_attr[0]:
+                    base_attr = (override_attr[0], base_attr[1])
+                if override_attr[1]:
+                    base_attr[1].update(override_attr[1])
+            elif override_attr is not None:
+                base_attr = override_attr
+
+            setattr(ruleinfo, field, base_attr)
+
+        if not super_ruleinfo.norun:
+            if super_name in self.ruleinfos:
+                self.workflow.ruleorder(super_name, rule.name)
+
+
+class DefaultExpander(InheritanceExpander):
+    """
+    Adds default values to rules
+
+    The implementation simply makes all rules inherit from a defaults
+    rule.
+    """
+    def __init__(self, **kwargs):
+        """
+        Creates DefaultExpander
+
+        Each parameter passed is considered a RuleInfo default value. Where
+        applicable, Snakemake's argtuples `([],{})` must be passed.
+        """
+        super().__init__()
+        self.defaults = RuleInfo(None)
+        self.defaults.norun = True
+
+        for key, value in kwargs.items():
+            setattr(self.defaults, key, value)
+
+    def get_super(self, rule: Rule, ruleinfo: RuleInfo) -> RuleInfo:
+        return ("__default__", self.defaults)
