@@ -115,6 +115,9 @@ rule split_library:
         tmpdir  = ancient(icfg.dir.tmp)
     output:
         outdir  = temp("{project}.split_libraries/{barcodes}/{pairname}/")
+    log:
+        "{project}.split_libraries/{barcodes}/{pairname}/split_library_log.txt",
+        "{project}.split_libraries/{barcodes}/{pairname}/split_seq_file_log.txt",
     conda:
         "qiime.yml"
     shell: """
@@ -132,7 +135,8 @@ rule split_library:
     split_sequence_file_on_sample_ids.py \
        -i {output}/seqs.fastq \
        --file_type fastq \
-       -o {output}
+       -o {output} \
+       > {log[1]} 2>&1
     """
 
 rule split_library_compress_sample:
