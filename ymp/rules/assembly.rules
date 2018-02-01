@@ -377,3 +377,38 @@ rule stringtie_all:
         touch("{dir}.ht2.st/all_{:targets:}")
     output:
         touch("{dir}.ht2.st/all")
+
+
+rule trinity:
+    message:
+        "Trinity: assembling {wildcards.target} in {wildcards.dir}"
+    input:
+        r1 = "{dir}/{:sources:}.{:pairnames[0]:}.fq.gz",
+        r2 = "{dir}/{:sources:}.{:pairnames[0]:}.fq.gz"
+    output:
+        "{dir}{by}.trinity/{target}.fasta.gz"
+    log:
+        "{dir}{by}.trinity/{target}.log"
+    params:
+        mem = icfg.mem("100g"),
+        mem_gb = icfg.mem("100g", unit="g"),
+        reads = "--left {params.r1} --right {params.r2}",
+        r1 = lambda wc, input: ",".join([input.r1]
+                                        if isinstance(input.r1, str) else input.r1),
+        r2 = lambda wc, input: ",".join([input.r2]
+                                        if isinstance(input.r2, str) else input.r2),
+        min_contig_length = 200,
+        outdir = "{dir}{by}.trinity/trinity_{target}"
+    threads:
+        32
+    conda:
+        "trinity.yml"
+    shell:
+        "Trinity"
+        " --seqType fq"
+        " --max_memory {params.mem_gb}G"
+        " --left {params.r1} --right {params.r2}"
+        " --CPU {threads}"
+        " --min_contig_length {params.min_contig_length}"
+        " --output {params.outdir}"
+        " >{log} 2>&1"
