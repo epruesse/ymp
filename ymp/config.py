@@ -556,39 +556,43 @@ class ConfigExpander(ColonExpander):
 
     class Formatter(ColonExpander.Formatter):
         def get_value(self, field_name, args, kwargs):
+            cfg = self.expander.config_mgr
+
             # try to resolve variable as property of the config_mgr
-            try:
-                return getattr(self.expander.config_mgr, field_name)
-            except AttributeError:
-                pass
+            res = getattr(cfg, field_name, None)
+            if res:
+                return res
 
-            # try to resolve as part of dataset
-            try:
-                ds = self.expander.config_mgr.getDatasetFromDir(
-                    kwargs['wc'].dir)
-                return getattr(ds, field_name)
-            except AttributeError:
-                pass
+            ds = "no ds"
+            ct = "no ct"
+            dirname ="no dir"
+            wc = "no wc"
+            if "wc" in kwargs:
+                wc = kwargs["wc"]
+                if hasattr(wc, "dir"):
+                    # Called late with "{dir}" in wildcards
+                    dirname = wc.dir
 
-            # try to resolve as part of dataset in directory context
-            try:
-                ct = ds.get_context(kwargs['wc'])
-                return getattr(ct, field_name)
-            except AttributeError:
-                pass
+                    # try to resolve as part of dataset
+                    ds = cfg.getDatasetFromDir(dirname)
+                    res = getattr(ds, field_name, None)
+                    if res is not None:
+                        return res
 
+                    # try to resolve as part of context
+                    ct = ds.get_context(kwargs['wc'])
+                    res = getattr(ct, field_name, None)
+                    if res is not None:
+                        return res
+
+            # fallback
             try:
                 return super().get_value(field_name, args, kwargs)
             except KeyError:
-                data = [args, kwargs]
-                if ds:
-                    data.append(ds)
-                if ct:
-                    data.append(ct)
-                if 'wc' in kwargs:
-                    data.append(list(kwargs['wc'].allitems()))
-                raise YmpException("Unable to expand '{}' given {}"
-                                   "".format(field_name, data))
+                log.debug("{}".format([
+                    args, kwargs, ds, ct, dirname, wc
+                ]))
+                raise
 
 class ConfigMgr(object):
     """Interface to configuration. Singleton as "icfg" """
