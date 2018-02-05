@@ -1,7 +1,6 @@
 # ymp - flexible omics pipeline
 
 [![CircleCI](https://img.shields.io/circleci/project/github/epruesse/ymp.svg?label=CircleCI)](https://circleci.com/gh/epruesse/ymp)
-[![Travis](https://img.shields.io/travis/epruesse/ymp.svg?label=TravisCI)](https://travis-ci.org/epruesse/ymp)
 
 YMP is an omics pipeline designed to simplify processing large numbers of
 read files while remaining flexible and easily extented.
