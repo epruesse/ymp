@@ -29,7 +29,7 @@ wildcard_constraints:
     sample   = "(ALL|{})".format("|".join(icfg.allruns)),
     reference = refname,
     refname = refname,
-    assembler = "(mh|mhc|sp|ref_{})".format(refname),
+    assembler = "(mh|mhc|sp|trinity|ref_{})".format(refname),
     mapper = "(bt2|bbm)",
     genefind = "(blast)",
 
