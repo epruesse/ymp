@@ -115,7 +115,8 @@ rule bowtie2_map:
     params:
         bt2_base= "{dir}{by}.{assembler}.bt2/{target}.contigs",
         maxins = 800,
-        k = 100  # max number of secondary alignments
+        k = 100,  # max number of secondary alignments
+        mem = icfg.mem("8g")
     threads:
         16
     conda:
