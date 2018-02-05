@@ -386,7 +386,9 @@ rule trinity:
         r1 = "{dir}/{:sources:}.{:pairnames[0]:}.fq.gz",
         r2 = "{dir}/{:sources:}.{:pairnames[0]:}.fq.gz"
     output:
-        "{dir}{by}.trinity/{target}.fasta.gz"
+        fa = "{dir}{by}.trinity/{target}.contigs.fasta.gz",
+        tm = "{dir}{by}.trinity/{target}.timing",
+        mp = "{dir}{by}.trinity/{target}.fasta.gene_trans_map"
     log:
         "{dir}{by}.trinity/{target}.log"
     params:
@@ -398,6 +400,7 @@ rule trinity:
         r2 = lambda wc, input: ",".join([input.r2]
                                         if isinstance(input.r2, str) else input.r2),
         min_contig_length = 200,
+        lib_type = "FR",
         outdir = "{dir}{by}.trinity/trinity_{target}"
     threads:
         32
@@ -406,12 +409,17 @@ rule trinity:
     shell:
         "Trinity"
         " --seqType fq"
+        " --SS_lib_type {params.lib_type}"
         " --max_memory {params.mem_gb}G"
         " --left {params.r1} --right {params.r2}"
         " --CPU {threads}"
         " --min_contig_length {params.min_contig_length}"
         " --output {params.outdir}"
-        " >{log} 2>&1"
+        " >{log} 2>&1;"
+        "gzip -c {params.outdir}/Trinity.fasta > {output.fa};"
+        "mv {params.outdir}/Trinity.timing {output.tm};"
+        "mv {params.outdir}/Trinity.fasta.gene_trans_map {output.mp};"
+        "rm -rf {params.outdir}"
 
 rule trinity_stats:
     message:
