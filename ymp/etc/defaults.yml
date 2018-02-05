@@ -32,6 +32,11 @@ references:
   centrifuge_pc: ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/p_compressed.tar.gz
   hisat_GRCh38_snp_tran: ftp://ftp.ccb.jhu.edu/pub/infphilo/hisat2/data/grch38_snp_tran.tar.gz
   hisat_GRCh38_gtf: ftp://ftp.ensembl.org/pub/release-84/gtf/homo_sapiens/Homo_sapiens.GRCh38.84.gtf.gz
+  rsem_hg18: http://deweylab.biostat.wisc.edu/rsem/human_refseq_NMonly_125bpPolyATail_extractedFromHumanGenome_hg18.tar.gz
+  GRCh38: ftp://ftp.ensembl.org/pub/release-91/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.toplevel.fa.gz
+  GRCh38_gtf: ftp://ftp.ensembl.org/pub/release-91/gtf/homo_sapiens/Homo_sapiens.GRCh38.91.chr.gtf.gz
+  SwissProt: ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz
+  TrEMBL: ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_trembl.fasta.gz
 
 # Default limits
 limits:
