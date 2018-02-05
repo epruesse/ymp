@@ -412,3 +412,15 @@ rule trinity:
         " --min_contig_length {params.min_contig_length}"
         " --output {params.outdir}"
         " >{log} 2>&1"
+
+rule trinity_stats:
+    message:
+        "Trinity: collecting assembly stats"
+    input:
+        "{dir}.trinity/{target}.contigs.fasta.gz"
+    output:
+        "{dir}.trinity{target}.stats"
+    conda:
+        "trinity.yml"
+    shell:
+        "TrinityStats.pl {input} > {output}"
