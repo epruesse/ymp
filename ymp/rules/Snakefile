@@ -9,6 +9,7 @@ shell.executable("/bin/bash")
 refname = str("({})".format("|".join(icfg.ref)))
 
 wildcard_constraints:
+    _YMP_DIR = "({})(\.[^./]+)*".format("|".join(icfg.datasets)),
     dir      = "[^/]+?",
     dir1     = "[^/]+",
     dir2     = "[^/]+",

@@ -751,14 +751,14 @@ class ConfigMgr(object):
         """
         Directory of previous stage
         """
-        return "{project}.{dir}"
+        return "{_YMP_DIR}"
 
     @property
     def this(self):
         """
         Directory of current stage
         """
-        return "{project}.{dir}." + Stage.active.name
+        return "{_YMP_DIR}." + Stage.active.name
 
     def getDatasetFromDir(self, dirname):
         try:
