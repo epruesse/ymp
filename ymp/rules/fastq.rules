@@ -296,59 +296,6 @@ rule phyloFlash_heatmap:
 ###
 
 
-rule trim_bbduk_adapter:
-    """Trimming and Adapter Removal using BBTools BBDuk"""
-    message:
-        "Trimming with BBduk: {wildcards.dir}/{wildcards.sample} "
-        "({params.adapt}Q={params.qual} L={params.length})"
-    wildcard_constraints:
-        A = "(A?)",
-        Q = "(Q\d+|)",
-        L = "(L\d+|)"
-    input:
-        "{dir}/{sample}.{:pairnames:}.fq.gz"
-    output:
-        "{dir}.trim{A}{Q}{L}/{sample}.{:pairnames:}.fq.gz"
-    log:
-        "{dir}.trim{A}{Q}{L}/{sample}.log"
-    params:
-        length=lambda wc: wc.L[1:] if wc.L else 20,
-        qual=lambda wc: wc.Q[1:] if wc.Q else 20,
-        adapt=lambda wc: 'ref=$BB_RSRC/adapters.fa ' if wc.A else '',
-        k=23,
-        mink=11,
-        hdist=1,
-        mem=icfg.mem("80g"),
-        flags="pigz unpigz",
-        inout="in={input[0]} out={output[0]}",
-        inout2="in2={input[1]} out2={output[1]}" # overriden by child rule
-    threads: 16
-    conda: "bbmap.yml"
-    shell:
-        # find adapter dir:
-        'BB_RSRC="$(dirname $(readlink -f $(command -v bbduk.sh)))/resources";'
-        'bbduk.sh '
-        '{params.inout} {params.inout2} '
-        'trimq={params.qual} qtrim=r '         # quality trimming
-        'minlength={params.length} '           # length filtering
-        '{params.adapt}'                       # adapter trimming
-        'ktrim=r '                             # 3' side only
-        'k={params.k} '                        # k for adapter matching
-        'mink={params.mink} '                  # k at read end
-        'hdist={params.hdist} '                # hamming distance, allow 1 mismatch
-        'tpe ' # trimpairsevenly -- in case adapter detected in only one read
-        'tbo ' # trimbyoverlap -- trim if read runs over other reads' end
-        '{params.flags} '                      # processing settings
-        'threads={threads} '
-        '-Xmx{params.mem}m '
-        '>{log} 2>&1'
-
-
-rule trim_bbduk_adapter_se:  # ymp: extends trim_bbduk_adapter
-    input:  ["{dir}/{sample}.{:pairnames[0]:}.fq.gz"]
-    output: ["{dir}.trim{A}{Q}{L}/{sample}.{:pairnames[0]:}.fq.gz"]
-    params: inout2 = ""
-
 
 rule trimmomatic_adapter:
     """Trimming with Trimmomatic"""

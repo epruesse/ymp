@@ -16,11 +16,11 @@ target_map = {
     'any': odict[
         # fastq.rules
         'import':         '{}/all',
-        'BBDuk_trim':     '{}.trimAQ10/all',
         'BBDuk_remove':   '{}.bbmRMphiX/all',
         'BB_dedupe':      '{}.ddp/all',
         'phyloFlash':     'reports/{}_heatmap.pdf',
         'correct_bbmap':  '{}.correct_bbmap/all',
+        'trim_bbmap':     '{}.trim_bbmapAQ10/all',
         'fastqc':         '{}.fastqc/all',
         'multiqc':        'reports/{}.fastqc.html',
         'trimmomaticT32': '{}.trimmomaticT32/all',
