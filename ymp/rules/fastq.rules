@@ -291,32 +291,6 @@ rule phyloFlash_heatmap:
 ###
 
 
-rule bb_ecco:
-    """Error correction with BBMerge overlapping"""
-    message: "BBTools merge ecco {wildcards.dir}/{wildcards.sample}"
-    input:   "{dir}/{sample}.{:pairnames:}.fq.gz"
-    output:  "{dir}.ecco/{sample}.{:pairnames:}.fq.gz",
-             adapter="{dir}.ecco/{sample}.adapter.fq"
-    log:     "{dir}.ecco/{sample}.log"
-    threads: 16
-    params:  inout="in={input[0]} out={output[0]}",
-             inout2="in2={input[1]} out2={output[1]}",
-             mem=icfg.mem("80g")
-    conda:   "bbmap.yml"
-    shell: """
-    bbmerge.sh {params.inout} {params.inout2} \
-               outadapter={output.adapter} \
-               ecco ecctadpole mix vstrict\
-               threads={threads} -Xmx{params.mem}m \
-               > {log} 2>&1
-    """
-
-
-rule bb_ecco_se:  # ymp: extends bb_ecco
-    input:   ["{dir}/{sample}.{:pairnames[0]:}.fq.gz"],
-    output:  ["{dir}.ecco/{sample}.{:pairnames[0]:}.fq.gz"],
-    params:   inout2 = ""
-
 ###
 ###  Trimming
 ###

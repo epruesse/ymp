@@ -1,0 +1,45 @@
+"""
+Rules using tools from the BBTools / BBMap suite by Brian Bushnell
+"""
+
+with Stage("correct_bbmap") as S:
+    S.doc("""
+    Correct read errors by overlapping inside tails
+
+    Applies BBMap's "bbmerge.sh ecco" mode. This will overlap the inside of
+    read pairs and choose the base with the higher quality where the alignment
+    contains mismatches and increase the quality score as indicated by the double
+    observation where the alignment contains matches.
+    """)
+    #ymp.print_rule = 1
+    rule bbmap_error_correction:
+        """Error correction with BBMerge overlapping"""
+        message: "BBMap: applying error correction to {input[0]}"
+        input:
+            "{:prev:}/{sample}.{:pairnames:}.fq.gz"
+        output:
+            "{:this:}/{sample}.{:pairnames:}.fq.gz",
+            adapter = "{:this:}/{sample}.adapter.fq"
+        log:
+            "{:this:}/{sample}.log"
+        threads: 16
+        params:
+            inout  = "in={input[0]} out={output[0]}",
+            inout2 = "in2={input[1]} out2={output[1]}",
+            mem    = icfg.mem("80g")
+        conda:
+            "bbmap.yml"
+        shell: """
+        bbmerge.sh {params.inout} {params.inout2} \
+                   outadapter={output.adapter} \
+                   ecco ecctadpole mix vstrict\
+                   threads={threads} -Xmx{params.mem}m \
+                   > {log} 2>&1
+        """
+
+    # FIXME: Is this applicable?
+    rule bbmap_error_correction_se:  # ymp: extends bbmap_error_correction
+        input:  ["{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"],
+        output: ["{:this:}/{sample}.{:pairnames[0]:}.fq.gz"],
+        params: inout2 = ""
+
