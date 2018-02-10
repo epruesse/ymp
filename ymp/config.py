@@ -15,12 +15,9 @@ from ymp.common import parse_number, update_dict
 from ymp.snakemake import ColonExpander, ExpandableWorkflow, RecursiveExpander,\
     CondaPathExpander, InheritanceExpander, DefaultExpander
 from ymp.util import AttrDict
+from ymp.exceptions import YmpException
 
 log = logging.getLogger(__name__)
-
-
-class YmpException(Exception):
-    pass
 
 
 class YmpConfigError(YmpException):
