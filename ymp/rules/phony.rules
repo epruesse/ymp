@@ -5,6 +5,12 @@ width, height = shutil.get_terminal_size((80, 20))
 pp = pprint.PrettyPrinter(indent=1, compact=True, width=width)
 
 
+rule listprojects:
+    """List all configured projects"""
+    message: "Configured Projects:"
+    run:
+        pp.pprint("|".join(icfg.datasets))
+
 rule listruns:
     """List all configured "run"s"""
     message: "Configured Run objects:"
