@@ -5,10 +5,9 @@ import logging
 
 from ymp.util import AttrDict
 from ymp.exceptions import YmpException
+from ymp.snakemake import ExpandableWorkflow
 
 log = logging.getLogger(__name__)
-
-stage = AttrDict()
 
 
 class YmpStageError(YmpException):
@@ -34,12 +33,19 @@ class Stage(object):
     active = None
 
     def __init__(self, name, *args):
-        if name in stage:
-            raise YmpStageError(name, "Duplicate stage name")
-
         self.name = name
-        log.debug("New Stage '{}'".format(name))
-        stage[name] = self
+
+        # We need to store the Stages in the Workflow so that
+        # they get deleted with the workflow. (Otherwise we'd run into
+        # duplicate stage creation if snakemake() is called twice and
+        # the same snakefiles parsed and loaded again).
+        workflow = ExpandableWorkflow.global_workflow
+        if not hasattr(workflow, "ymp_stages"):
+            workflow.ymp_stages = AttrDict()
+        if name in workflow.ymp_stages:
+            raise YmpStageError(name, "Duplicate stage name")
+        else:
+            workflow.ymp_stages[name] = self
 
     def doc(self, doc):
         """Add documentation to Stage"""
