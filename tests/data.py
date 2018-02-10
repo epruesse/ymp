@@ -16,11 +16,12 @@ target_map = {
     'any': odict[
         # fastq.rules
         'import':         '{}/all',
-        'BBDuk_remove':   '{}.bbmRMphiX/all',
-        'BB_dedupe':      '{}.ddp/all',
-        'phyloFlash':     'reports/{}_heatmap.pdf',
         'correct_bbmap':  '{}.correct_bbmap/all',
         'trim_bbmap':     '{}.trim_bbmapAQ10/all',
+        'filter_bbmap':   '{}.ref_phiX.bbmap_remove/all',
+        'dedup_bbmap':    '{}.dedup_bbmap/all',
+        # fails due to bugs in phyloFlash with too few organisms
+        #'phyloFlash':     'reports/{}.phyloFlash.pdf',
         'fastqc':         '{}.fastqc/all',
         'multiqc':        'reports/{}.fastqc.html',
         'trimmomaticT32': '{}.trimmomaticT32/all',

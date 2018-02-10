@@ -113,3 +113,75 @@ with Stage("trim_bbmap") as S:
         params:
             inout2 = ""
 
+
+with Stage("dedup_bbmap") as S:
+    S.doc("""
+    Remove duplicate reads
+
+    Applies BBMap's "dedupe.sh"
+    """)
+    rule bbmap_dedupe:
+        """
+        Deduplicate reads using BBMap's dedupe.sh
+        """
+        message:
+            "BBTools dedupe'ing {input}"
+        input:
+            "{:prev:}/{sample}.{:pairnames:}.fq.gz"
+        output:
+            "{:this:}/{sample}.{:pairnames:}.fq.gz"
+        log:
+            "{:this:}/{sample}.log"
+        params:
+            mem = icfg.mem("80g")
+        threads: 4
+        conda:
+            "bbmap.yml"
+        shell:
+            "dedupe.sh"
+            " unpigz"
+            " threads={threads}"
+            " in={input[0]}"
+            " in2={input[1]}"
+            " out=stdout"
+            " -Xmx{params.mem}m "
+            " 2>{log}"
+            " |"
+            " paste - - - -  - - - - | "
+            " tee >(cut -f 1-4 | tr \"\t\" \"\\n\" | pigz -p {threads} > {output[0]}) | "
+            " cut -f 5-8 | tr \"\t\" \"\\n\" | "
+            " pigz -p {threads} > {output[1]}"
+
+
+    rule bbmap_dedupe_se:
+        """
+        Deduplicate reads using BBMap's dedupe.sh
+        """
+        message:
+            "BBTools dedupe'ing {input}"
+        input:
+            "{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"
+        output:
+            "{:this:}/{sample}.{:pairnames[0]:}.fq.gz"
+        log:
+            "{:this:}/{sample}.log"
+        params:
+            mem = icfg.mem("80g")
+        threads: 4
+        conda:
+            "bbmap.yml"
+        shell:
+            "dedupe.sh"
+            " unpigz"
+            " threads={threads}"
+            " in={input[0]}"
+            " out=stdout"
+            " -Xmx{params.mem}m "
+            " 2>{log}"
+            " |"
+            " pigz -p {threads} > {output[0]}"
+
+
+ruleorder: bbmap_dedupe > bbmap_dedupe_se
+
+
