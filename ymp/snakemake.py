@@ -412,13 +412,14 @@ class BaseExpander(object):
                                                  expand_args, rec=rec))
         elif isinstance(item, str):
             try:
+                expand_args['rule'] = rule
                 item = self.format_annotated(item, expand_args)
             except KeyError:
                 # try expanding once we have wildcards
                 _item = item
 
                 def item(wc):
-                    return self.expand(rule, _item, {'wc': wc})
+                    return self.expand(rule, _item, {'wc': wc, 'rule': rule})
         elif hasattr(item, '__call__'):
             # continue expansion of function later by wrapping it
             _item = item
