@@ -15,6 +15,7 @@ from ymp.common import parse_number, update_dict
 from ymp.snakemake import ColonExpander, ExpandableWorkflow, RecursiveExpander,\
     CondaPathExpander, InheritanceExpander, DefaultExpander
 from ymp.util import AttrDict
+from ymp.stage import Stage
 from ymp.exceptions import YmpException
 
 log = logging.getLogger(__name__)
@@ -744,6 +745,20 @@ class ConfigMgr(object):
         Names of all configured runs
         """
         return self.getRuns()
+
+    @property
+    def prev(self):
+        """
+        Directory of previous stage
+        """
+        return "{project}.{dir}"
+
+    @property
+    def this(self):
+        """
+        Directory of current stage
+        """
+        return "{project}.{dir}." + Stage.active.name
 
     def getDatasetFromDir(self, dirname):
         try:
