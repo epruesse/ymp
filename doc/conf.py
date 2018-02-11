@@ -43,6 +43,8 @@ extensions = [
     'cloud_sptheme.ext.table_styling',
 ]
 
+autoclass_content = "both"
+
 templates_path = ['_templates']
 html_static_path = ['_static']
 source_suffix = ['.rst']
