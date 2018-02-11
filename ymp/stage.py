@@ -21,6 +21,7 @@ class Stage(object):
     Creates an YMP Stage
 
     Example:
+     .. code-block: snakemake
       with Stage("trim_bbmap") as S:
         S.doc("Trim reads with BBMap")
         rule bbmap_trim:
