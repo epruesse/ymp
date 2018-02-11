@@ -32,9 +32,11 @@ class Stage(object):
     #: Currently active stage ("entered")
     active = None
 
-    def __init__(self, name, *args):
-        self.name = name
-
+    @classmethod
+    def get_stages(cls):
+        """
+        Return all stages created within current workflow
+        """
         # We need to store the Stages in the Workflow so that
         # they get deleted with the workflow. (Otherwise we'd run into
         # duplicate stage creation if snakemake() is called twice and
@@ -42,13 +44,32 @@ class Stage(object):
         workflow = ExpandableWorkflow.global_workflow
         if not hasattr(workflow, "ymp_stages"):
             workflow.ymp_stages = AttrDict()
-        if name in workflow.ymp_stages:
+        return workflow.ymp_stages
+
+    def __init__(self, name: str, altname=None):
+        """
+        Params:
+            name: Name of this stage
+            altname: Alternate name of this stage (used for stages with
+              multiple output variants, e.g. filter_x and remove_x.
+        """
+        self.name = name
+        self.altname = altname
+
+        stages = Stage.get_stages()
+        if name in stages:
             raise YmpStageError(name, "Duplicate stage name")
         else:
-            workflow.ymp_stages[name] = self
+            stages[name] = self
+            if altname:
+                stages[altname] = self
 
-    def doc(self, doc):
-        """Add documentation to Stage"""
+    def doc(self, doc: str) -> None:
+        """Add documentation to Stage
+
+        Params:
+          doc: Docstring passed to Sphinx
+        """
         self.doc = doc
 
     def __enter__(self):
