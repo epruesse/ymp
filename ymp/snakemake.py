@@ -247,6 +247,7 @@ class ExpandableWorkflow(Workflow):
         if not self.__dict__:
             # only call constructor if this object hasn't been initialized yet
             super().__init__(*args, **kwargs)
+            ExpandableWorkflow.global_workflow = self
         self._expanders = []
         self._sm_expander = SnakemakeExpander()
         self._ruleinfos = {}
