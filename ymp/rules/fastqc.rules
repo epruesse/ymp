@@ -2,6 +2,7 @@ with Stage("qc_fastqc") as S:
     S.doc("""
     Quality screen reads using FastQC
     """)
+
     rule qc_fastqc:
         """Run FastQC on read files"""
         message:
@@ -24,5 +25,18 @@ with Stage("qc_fastqc") as S:
         # override too low memory requested by fastqc 0.11.5 of 256M per thread:
         export _JAVA_OPTIONS="-Xmx{params.mem}m"
 
-        fastqc -t {threads} -o $(dirname {output[0]}) {input} -k 10 >{log} 2>&1
+        fastqc \
+         -t {threads} \
+         -o $(dirname {output[0]}) \
+         {input} \
+         -k {params.k} \
+         >{log} 2>&1
         """
+
+    rule all_fastqc:
+        message:
+            "Finished {output}"
+        input:
+            icfg.this + "/{:fq_names:}_fastqc.zip"
+        output:
+            touch(icfg.this + "/all")

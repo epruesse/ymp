@@ -22,7 +22,7 @@ target_map = {
         'dedup_bbmap':    '{}.dedup_bbmap/all',
         # fails due to bugs in phyloFlash with too few organisms
         #'phyloFlash':     'reports/{}.phyloFlash.pdf',
-        'fastqc':         '{}.fastqc/all',
+        'fastqc':         '{}.qc_fastqc/all',
         'multiqc':        'reports/{}.fastqc.html',
         'trimmomaticT32': '{}.trimmomaticT32/all',
         'sickle':         '{}.sickle/all',

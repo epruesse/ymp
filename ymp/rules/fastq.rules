@@ -18,10 +18,6 @@ rule fq_all:
     input: "{dir}/{:fq_names:}.fq.gz"
     output: touch("{dir}/all")
 
-rule fastqc_all:
-    message: "Finished {wildcards.dir}"
-    input: "{dir}.fastqc/{:fq_names:}_fastqc.zip"
-    output: touch("{dir}.fastqc/all")
 
 
 
