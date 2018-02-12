@@ -24,4 +24,9 @@ rule map_all:
     output:
         touch("{dir}.{mapper}/all")
 
+localrules: fq_all
+rule fq_all:
+    message: "Finished {wildcards.dir}"
+    input: "{dir}/{:fq_names:}.fq.gz"
+    output: touch("{dir}/all")
 

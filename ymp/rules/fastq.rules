@@ -8,18 +8,6 @@ import os
 This file contains the rules dealing with FQ file provisioning and preparation. 
 """
 
-###
-### Meta rules
-###
-
-localrules: fq_all
-rule fq_all:
-    message: "Finished {wildcards.dir}"
-    input: "{dir}/{:fq_names:}.fq.gz"
-    output: touch("{dir}/all")
-
-
-
 
 ###
 ###  SRA access 
