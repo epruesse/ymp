@@ -435,7 +435,7 @@ class BaseExpander(object):
                               "".format(" "*rec*4, type(self).__name__,
                                         args, kwargs))
                 res = self.expand(rule, _item(*args, **kwargs),
-                                  {'wc': args[0]}, rec=rec)
+                                  {'wc': args[0]}, rec=rec, cb=True)
                 if debug:
                     log.debug("{}=> {}"
                               "".format(" "*rec*4, res))
