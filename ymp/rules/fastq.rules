@@ -224,21 +224,27 @@ rule multiqc:
 
 
 rule phyloFlash_makedb:
-    """Have phyloFlash build its reference database"""
+    """PhyloFlash: Building reference database"""
     message: "PhyloFlash running makedb.pl"
-    output:  "{:dir.references:}/phyloFlash"
-    log:     "{:dir.references:}/phyloFlash/build.log"
-    input:   ssu="{:dir.references:}/ssu.fasta.gz",
-             univec="{:dir.references:}/UniVec.fasta.gz"
+    output:  dbhome = "{:ref.phyloFlash.dir:}",
+             stamp  = "{:ref.phyloFlash.dir:}/all",
+    log:     "{:ref.phyloFlash.dir:}/build.log"
+    input:   ssu="{:ref.silva:}.fasta.gz",
+             univec="{:ref.UniVec:}.fasta.gz"
+    params:
+        version = 0
     conda:   "phyloflash.yml"
     shell: """
     CWD="$PWD"
-    mkdir -p {output}
-    cd {output}
-    ln -s "$CWD/{input.ssu}" SILVA_0_SSU.fasta.gz
+    rm -rf {output.dbhome}
+    mkdir -p {output.dbhome}
+    cd {output.dbhome}
+    ln -s "$CWD/{input.ssu}" SILVA_{params.version}_SSU.fasta.gz
     phyloFlash_makedb.pl \
-      --silva_file SILVA_0_SSU.fasta.gz \
-      --univec_file "$CWD/{input.univec} >{log} 2>&1"
+      --silva_file SILVA_{params.version}_SSU.fasta.gz \
+      --univec_file $CWD/{input.univec} >$CWD/{log} 2>&1
+
+    touch $CWD/{output.stamp}
     """
 
 
@@ -246,7 +252,8 @@ rule phyloFlash:
     """Run PhyloFlash on samples"""
     message: "PhyloFlash {wildcards.dir}/{wildcards.sample}"
     input:   "{dir}/{sample}.{:pairnames:}.fq.gz",
-             dbhome="{:dir.references:}/phyloFlash"
+             dbhome=rules.phyloFlash_makedb.output.dbhome,
+             stamp=rules.phyloFlash_makedb.output.stamp
     output:  "{dir}.pf/{sample}.phyloFlash.NTUabundance.csv"
     log:     "{dir}.pf/{sample}.log"
     threads: 16
@@ -256,8 +263,7 @@ rule phyloFlash:
     shell: """
     cd {wildcards.dir}.pf
 
-    phyloFlash.pl -skip_emirge \
-                  -skip_spades \
+    phyloFlash.pl -skip_spades \
                   -html \
                   -readlength 301 \
                   -read1 ../{input[0]} \
@@ -277,7 +283,7 @@ rule phyloFlash_se:  # ymp: extends phyloFlash
 rule phyloFlash_heatmap:
     message: "PhyloFlash Heatmap {wildcards.dir}"
     input:   "{dir}.pf/{:runs:}.phyloFlash.NTUabundance.csv"
-    output:  "{:dir.reports:}/{dir}_heatmap.pdf"
+    output:  "{:dir.reports:}/{dir}.phyloFlash.pdf"
     log:     "{dir}.pf/phyloFlash_heatmap.log"
     threads: 1
     conda:   "phyloflash.yml"
