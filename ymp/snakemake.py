@@ -377,7 +377,7 @@ class BaseExpander(object):
         """
         return False
 
-    def expand(self, rule, item, expand_args={}, rec=-1):
+    def expand(self, rule, item, expand_args={}, rec=-1, cb=False):
         """Expands RuleInfo object and children recursively.
 
         Will call :meth:format (via :meth:format_annotated) on `str` items
@@ -416,11 +416,14 @@ class BaseExpander(object):
                 expand_args['rule'] = rule
                 item = self.format_annotated(item, expand_args)
             except KeyError:
+                if cb:
+                    # we already are being called: fail
+                    raise
                 # try expanding once we have wildcards
                 _item = item
 
                 def item(wc):
-                    return self.expand(rule, _item, {'wc': wc, 'rule': rule})
+                    return self.expand(rule, _item, {'wc': wc, 'rule': rule}, cb=True)
         elif hasattr(item, '__call__'):
             # continue expansion of function later by wrapping it
             _item = item
