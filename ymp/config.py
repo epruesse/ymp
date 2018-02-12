@@ -7,16 +7,19 @@ from functools import lru_cache
 
 from pkg_resources import resource_filename
 
-from snakemake.io import expand, get_wildcard_names
-
 import yaml
 
 from ymp.common import parse_number, update_dict
-from ymp.snakemake import ColonExpander, ExpandableWorkflow, RecursiveExpander,\
-    CondaPathExpander, InheritanceExpander, DefaultExpander
-from ymp.util import AttrDict
-from ymp.stage import Stage
 from ymp.exceptions import YmpException
+from ymp.snakemake import \
+    ColonExpander, \
+    CondaPathExpander, \
+    DefaultExpander, \
+    ExpandableWorkflow, \
+    InheritanceExpander, \
+    RecursiveExpander
+from ymp.stage import Stage
+from ymp.util import AttrDict
 
 log = logging.getLogger(__name__)
 
@@ -182,6 +185,13 @@ def load_data(cfg):
 
 class Context(object):
     """
+    Computes available targets from stage stack encoded in directory name
+
+    sources:
+    targets:
+    target:
+    reference:
+
     Computes the current groups and group members based on
     the 'context': DatasetConfig and wildcards
     """
@@ -240,7 +250,9 @@ class Context(object):
         try:
             target = self.wc.target
         except AttributeError:
-            raise YmpException("Using '{:sources:}' requires '{target}' wildcard")
+            raise YmpException(
+                "Using '{:sources:}' requires '{target}' wildcard"
+            )
 
         try:
             sources = self.groupby.groups[target]
@@ -435,13 +447,15 @@ class DatasetConfig(object):
             bccol = self.cfg[self.KEY_BCCOL]
             barcode_file = self.run_data.loc[run][bccol]
             if len(barcode_file) > 0:
-                barcode_id = barcode_file.replace("_","__").replace("/", "_%")
-                return ("{project}.split_libraries/{barcodes}/{run}.{pair}.fq.gz"
-                        "".format(
-                            project = self.project,
-                            barcodes = barcode_id,
-                            run = run,
-                            pair = self.cfgmgr.pairnames[pair]))
+                barcode_id = barcode_file.replace("_", "__").replace("/", "_%")
+                return (
+                    "{project}.split_libraries/{barcodes}/{run}.{pair}.fq.gz"
+                    "".format(
+                        project=self.project,
+                        barcodes=barcode_id,
+                        run=run,
+                        pair=self.cfgmgr.pairnames[pair])
+                )
 
         kind = source[0]
         if kind == 'srr':
@@ -563,7 +577,7 @@ class ConfigExpander(ColonExpander):
 
             ds = "no ds"
             ct = "no ct"
-            dirname ="no dir"
+            dirname = "no dir"
             wc = "no wc"
             if "wc" in kwargs:
                 wc = kwargs["wc"]
@@ -616,8 +630,10 @@ class ConfigMgr(object):
         self.load_config()
         self.recursive_expander = RecursiveExpander()
         self.config_expander = ConfigExpander(self)
-        self.conda_path_expander = CondaPathExpander(self.search_paths.conda_env)
-        self.default_expander = DefaultExpander(params = ([],{'mem': self.mem()}))
+        self.conda_path_expander = \
+            CondaPathExpander(self.search_paths.conda_env)
+        self.default_expander = \
+            DefaultExpander(params=([], {'mem': self.mem()}))
         self.inheritance_expander = InheritanceExpander()
 
     def find_config(self):
