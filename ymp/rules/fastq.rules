@@ -223,84 +223,11 @@ rule multiqc:
     """
 
 
-rule phyloFlash_makedb:
-    """PhyloFlash: Building reference database"""
-    message: "PhyloFlash running makedb.pl"
-    output:  dbhome = "{:ref.phyloFlash.dir:}",
-             stamp  = "{:ref.phyloFlash.dir:}/all",
-    log:     "{:ref.phyloFlash.dir:}/build.log"
-    input:   ssu="{:ref.silva:}.fasta.gz",
-             univec="{:ref.UniVec:}.fasta.gz"
-    params:
-        version = 0
-    conda:   "phyloflash.yml"
-    shell: """
-    CWD="$PWD"
-    rm -rf {output.dbhome}
-    mkdir -p {output.dbhome}
-    cd {output.dbhome}
-    ln -s "$CWD/{input.ssu}" SILVA_{params.version}_SSU.fasta.gz
-    phyloFlash_makedb.pl \
-      --silva_file SILVA_{params.version}_SSU.fasta.gz \
-      --univec_file $CWD/{input.univec} >$CWD/{log} 2>&1
-
-    touch $CWD/{output.stamp}
-    """
-
-
-rule phyloFlash:
-    """Run PhyloFlash on samples"""
-    message: "PhyloFlash {wildcards.dir}/{wildcards.sample}"
-    input:   "{dir}/{sample}.{:pairnames:}.fq.gz",
-             dbhome=rules.phyloFlash_makedb.output.dbhome,
-             stamp=rules.phyloFlash_makedb.output.stamp
-    output:  "{dir}.pf/{sample}.phyloFlash.NTUabundance.csv"
-    log:     "{dir}.pf/{sample}.log"
-    threads: 16
-    conda:   "phyloflash.yml"
-    params:  in2="-read2 ../{input[1]}",
-             mem=icfg.mem("80g")
-    shell: """
-    cd {wildcards.dir}.pf
-
-    phyloFlash.pl -skip_spades \
-                  -html \
-                  -readlength 301 \
-                  -read1 ../{input[0]} \
-                  {params.in2} \
-                  -lib {wildcards.sample} \
-                  -CPUs {threads} \
-                  -dbhome ../{input.dbhome}/0 \
-                  > ../{log} 2>&1
-    """
-
-
-rule phyloFlash_se:  # ymp: extends phyloFlash
-    input: ["{dir}/{sample}.{:pairnames[0]:}.fq.gz"],
-    params: in2 = ""
-
-
-rule phyloFlash_heatmap:
-    message: "PhyloFlash Heatmap {wildcards.dir}"
-    input:   "{dir}.pf/{:runs:}.phyloFlash.NTUabundance.csv"
-    output:  "{:dir.reports:}/{dir}.phyloFlash.pdf"
-    log:     "{dir}.pf/phyloFlash_heatmap.log"
-    threads: 1
-    conda:   "phyloflash.yml"
-    shell: """
-    phyloFlash_heatmap.R {input[0]} {input} --out {output} >{log} 2>&1
-    """
-
-
-###
-###  Error correction
-###
 
 
 ###
 ###  Trimming
 ###
-
 
 
 rule trimmomatic_adapter:
