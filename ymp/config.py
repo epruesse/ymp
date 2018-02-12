@@ -195,7 +195,6 @@ class Reference(object):
             refdir=self.cfgmgr.dir.references,
             refname=self.name
         )
-        log.error("Ref: {}".format(res))
         return res
 
     def get_file(self, filename):
