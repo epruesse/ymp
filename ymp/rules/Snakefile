@@ -1,5 +1,5 @@
 import os
-
+import ymp
 from ymp.config import icfg
 icfg.init()
 from ymp.stage import Stage
