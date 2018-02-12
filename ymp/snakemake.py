@@ -445,7 +445,34 @@ class BaseExpander(object):
             pass
         elif isinstance(item, dict):
             for key, value in item.items():
-                item[key] = self.expand(rule, value, expand_args, rec=rec)
+                _item = self.expand(rule, value, expand_args, rec=rec)
+
+                # Snakemake can't have functions in lists in dictionaries.
+                # Let's fix that, even if we have to jump a lot of hoops here.
+                if isinstance(item[key], list) and any(callable(x) for x in _item):
+                    from inspect import signature
+                    def wrapper(*args, **kwargs):
+                        for i, subitem in enumerate(_item):
+                            if callable(subitem):
+                                subparms = signature(subitem).parameters
+                                extra_args = {
+                                    k: v
+                                    for k,v in kwargs.items()
+                                    if k in subparms
+                                }
+                                _item[i] = subitem(*args, **extra_args)
+                        return _item
+                    # Gather the arguments
+                    parms = tuple(set(flatten([
+                        list(signature(x).parameters.values())
+                        for x in _item
+                        if callable(x)
+                    ])))
+                    # Rewrite signature
+                    wrapper.__signature__ = signature(wrapper).replace(parameters=parms)
+                    item[key] = wrapper
+                else:
+                    item[key] = _item
         elif isinstance(item, list):
             for i, subitem in enumerate(item):
                 item[i] = self.expand(rule, subitem, expand_args, rec=rec)
