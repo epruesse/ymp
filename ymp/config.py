@@ -3,8 +3,6 @@ import logging
 import os
 import re
 
-from functools import lru_cache
-
 from pkg_resources import resource_filename
 
 import yaml
@@ -183,6 +181,37 @@ def load_data(cfg):
     raise YmpConfigMalformed()
 
 
+class Reference(object):
+    """
+    Represents (remote) reference file/database configuration
+    """
+    def __init__(self, cfgmgr, reference, cfg):
+        self.name = reference
+        self.cfgmgr = cfgmgr
+        self.cfg = cfg
+
+    def __str__(self):
+        res = "{refdir}/{refname}/ALL.contigs".format(
+            refdir=self.cfgmgr.dir.references,
+            refname=self.name
+        )
+        log.error("Ref: {}".format(res))
+        return res
+
+    def get_file(self, filename):
+        if filename == "ALL.contigs.fasta.gz":
+            res = make_path_reference(self.cfg[0]['url'])
+            log.error("Reference {} {} = {}".format(self.name, filename, res))
+            return res
+        return "__no_such_file__"
+        raise KeyError("No file '{}' in Reference '{}'"
+                       "".format(filename, self.name))
+
+    @property
+    def dir(self):
+        return os.path.join(self.cfgmgr.dir.references, self.name)
+
+
 class Context(object):
     """
     Computes available targets from stage stack encoded in directory name
@@ -197,50 +226,90 @@ class Context(object):
     """
     RE_BY = re.compile(r"\.by_([^./]*)(?:[./]|$)")
 
-    def __init__(self, dcfg, wc):
-        import pandas as pd
-
+    def __init__(self, dcfg, kwargs):
         self.dcfg = dcfg
-        self.wc = wc
+        self.kwargs = kwargs
+        self.wc = kwargs.get('wc', None)
+        self.rule = kwargs.get('rule', None)
+        self._group_by = None
+        log.debug("new context for {}".format(kwargs))
 
-        df = dcfg.run_data
+    @property
+    def group_by(self):
+        if self._group_by is not None:
+            return self._group_by
+
+        df = self.dcfg.run_data
+        import pandas as pd
 
         groupbys = []
         # extract groupby column from dir or by key, with by having preference
-        for key in ['dir', 'by']:
-            if hasattr(wc, key):
-                groupbys += self.RE_BY.findall(getattr(wc, key))
+        for key in ['_YMP_DIR', 'dir', '_YMP_VRT', 'by']:
+            if hasattr(self.wc, key):
+                groupbys += self.RE_BY.findall(getattr(self.wc, key))
 
         if len(groupbys) == 0:
             # no grouping desired
             # fake by grouping with virtual column containing "ALL" as value
-            self.groupby = df.groupby(pd.Series("ALL", index=df.index))
+            self._group_by = df.groupby(pd.Series("ALL", index=df.index))
         elif groupbys[-1] == "ID":
             # individual grouping desired
             # fake by grouping according to index
-            self.groupby = df.groupby(df.index)
+            self._group_by = df.groupby(df.index)
         else:
             try:
-                self.groupby = df.groupby(groupbys[-1])
+                self._group_by = df.groupby(groupbys[-1])
             except KeyError:
                 raise YmpConfigError("Unkown column in groupby: {}"
                                      "".format(groupbys[-1]))
+        return self._group_by
 
     def __repr__(self):
-        return "{}(wc={},groups={})".format(self.__class__.__name__,
-                                          list(self.wc.allitems()),
-                                          self.groupby.groups
+        return "{}(wc={},groups={})".format(
+            self.__class__.__name__,
+            list(self.wc.allitems()),
+            self.group_by.groups
         )
 
+    @property
+    def reference(self):
+        """
+        Returns the currently selected reference
+        """
+        references = self.dcfg.cfgmgr.ref.keys()
+        re_ref = re.compile(r"\.(ref_(?:{})|mhc)(?=[./]|$)"
+                            r"".format("|".join(references)))
+        stackstr = "".join(
+            getattr(self.wc, key)
+            for key in ['dir', '_YMP_PRJ', '_YMP_DIR', '_YMP_VRT', '_YMP_ASM']
+            if hasattr(self.wc, key)
+        )
+        matches = re_ref.findall(stackstr)
+
+        if not matches:
+            raise KeyError("No reference found for {} and {}"
+                           "".format(self.rule, self.wc))
+
+        ref_name = matches[-1]
+        if ref_name.startswith("ref_"):
+            reference = self.dcfg.cfgmgr.ref[ref_name[4:]]
+        else:
+            target = getattr(self.wc, 'target', 'ALL')
+            reference = "{}/{}.contigs".format(stackstr, target)
+
+        log.debug("Reference selected for {}: {}".format(self.rule, reference))
+
+        return reference
 
     @property
     def targets(self):
         """
         Returns the current targets:
+
          - all "runs" if no by_COLUMN is active
          - the unique values for COLUMN if grouping is active
         """
-        return list(self.groupby.indices)
+        return list(self.group_by.indices)
 
     @property
     def sources(self):
@@ -255,12 +324,14 @@ class Context(object):
             )
 
         try:
-            sources = self.groupby.groups[target]
+            sources = self.group_by.groups[target]
         except KeyError:
             log.debug(list(self.wc.allitems()))
-            raise YmpException("Target '{}' not available. Possible choices are '{}'"
-                               "".format(target, list(self.groupby.groups.keys())))
-        return self.groupby.groups[self.wc.target]
+            raise YmpException(
+                "Target '{}' not available. Possible choices are '{}'"
+                "".format(target, list(self.group_by.groups.keys()))
+            )
+        return sources
 
 
 class DatasetConfig(object):
@@ -427,9 +498,9 @@ class DatasetConfig(object):
 
         return source_cfg
 
-    @lru_cache()
-    def get_context(self, wc):
-        return Context(self, wc)
+    # @lru_cache()
+    def get_context(self, kwargs):
+        return Context(self, kwargs)
 
     def FQpath(self, run, pair, nosplit=False):
         """Get path for FQ file for `run` and `pair`
@@ -581,10 +652,12 @@ class ConfigExpander(ColonExpander):
             wc = "no wc"
             if "wc" in kwargs:
                 wc = kwargs["wc"]
-                if hasattr(wc, "dir"):
-                    # Called late with "{dir}" in wildcards
-                    dirname = wc.dir
 
+                dirname = getattr(wc, "dir", None)
+                if not dirname:
+                    dirname = getattr(wc, "_YMP_PRJ", None)
+                if dirname:
+                    # Called late with "{dir}" in wildcards
                     # try to resolve as part of dataset
                     ds = cfg.getDatasetFromDir(dirname)
                     res = getattr(ds, field_name, None)
@@ -592,19 +665,13 @@ class ConfigExpander(ColonExpander):
                         return res
 
                     # try to resolve as part of context
-                    ct = ds.get_context(kwargs['wc'])
+                    ct = ds.get_context(kwargs)
                     res = getattr(ct, field_name, None)
                     if res is not None:
                         return res
 
-            # fallback
-            try:
-                return super().get_value(field_name, args, kwargs)
-            except KeyError:
-                log.debug("{}".format([
-                    args, kwargs, ds, ct, dirname, wc
-                ]))
-                raise
+            return super().get_value(field_name, args, kwargs)
+
 
 class ConfigMgr(object):
     """Interface to configuration. Singleton as "icfg" """
@@ -673,7 +740,7 @@ class ConfigMgr(object):
                 update_dict(self._config, conf)
 
         projects = self._config.get(self.KEY_PROJECTS, {})
-        if projects == None:
+        if not projects:
             projects = {}
         self._datasets = {
             project:  DatasetConfig(self, project, cfg)
@@ -681,11 +748,11 @@ class ConfigMgr(object):
         }
 
         references = self._config.get(self.KEY_REFERENCES, {})
-        if references == None:
+        if not references:
             references == {}
         self._references = {
-            ref: make_path_reference(path)
-            for ref, path in references.items()
+            reference: Reference(self, reference, cfg)
+            for reference, cfg in references.items()
         }
 
         if len(self._datasets) == 0:
@@ -767,14 +834,37 @@ class ConfigMgr(object):
         """
         Directory of previous stage
         """
-        return "{_YMP_DIR}"
+        return "{_YMP_PRJ}{_YMP_DIR}"
 
     @property
     def this(self):
         """
         Directory of current stage
         """
-        return "{_YMP_DIR}." + Stage.active.name
+        if not Stage.active:
+            raise YmpException(
+                "Use of {:this:} requires active Stage"
+            )
+        return "".join(self.prev, "{_YMP_VRT}{_YMP_ASM}.",
+                       Stage.active.name)
+
+    @property
+    def that(self):
+        """
+        Alternate directory of current stage
+
+        Used for splitting stages
+        """
+        if not Stage.active:
+            raise YmpException(
+                "Use of {:that:} requires active Stage"
+            )
+        if not Stage.active.altname:
+            raise YmpException(
+                "Use of {:that:} requires with altname"
+            )
+        return "".join(self.prev, "{_YMP_VRT}{_YMP_ASM}.",
+                       Stage.active.altname)
 
     def getDatasetFromDir(self, dirname):
         try:

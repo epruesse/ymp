@@ -10,7 +10,10 @@ shell.executable("/bin/bash")
 refname = str("({})".format("|".join(icfg.ref)))
 
 wildcard_constraints:
-    _YMP_DIR = "({})(\.[^./]+)*".format("|".join(icfg.datasets)),
+    _YMP_PRJ = "({})".format("|".join(icfg.datasets)),
+    _YMP_DIR = "(\.[^./]+)*?",
+    _YMP_VRT = "(.ref_({})|.by_({})|)".format(refname, "[^./]+"),
+    _YMP_ASM = "(.(mhc|sp|trinity)|)",
     dir      = "[^/]+?",
     dir1     = "[^/]+",
     dir2     = "[^/]+",
@@ -32,7 +35,7 @@ wildcard_constraints:
     reference = refname,
     refname = refname,
     assembler = "(mh|mhc|sp|trinity|ref_{})".format(refname),
-    mapper = "(bt2|bbm)",
+    mapper = "(bt2|bbm|map_bbmap|map_bowtie2)",
     genefind = "(blast)",
 
     fasta = "(fasta|fna|fa)",
@@ -41,6 +44,7 @@ wildcard_constraints:
     fqgz  = "(fq)(|.gz)",
 
     by = "(\.by_[^./]*|)",
+    REF = "(\.ref_[^./]*|)",
     target = "[^/.]+",
     source = "[^/.]+"
 

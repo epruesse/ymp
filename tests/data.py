@@ -18,7 +18,7 @@ target_map = {
         'import':         '{}/all',
         'correct_bbmap':  '{}.correct_bbmap/all',
         'trim_bbmap':     '{}.trim_bbmapAQ10/all',
-        'filter_bbmap':   '{}.ref_phiX.bbmap_remove/all',
+        'filter_bbmap':   '{}.ref_phiX.remove_bbmap/all',
         'dedup_bbmap':    '{}.dedup_bbmap/all',
         # fails due to bugs in phyloFlash with too few organisms
         #'phyloFlash':     'reports/{}.phyloFlash.pdf',
@@ -43,15 +43,15 @@ target_map = {
         'metaquast_mh':         'reports/{}.mhc.mq.html',
         'metaquast_sp':         'reports/{}.sp.mq.html',
         # mapping.rules
-        'map_bbmap_separate':   '{}.by_ID.mhc.bbm/all',
-        'map_bbmap_grouped':   '{}.by_Subject.mhc.bbm/all',
-        'map_bbmap_joined':   '{}.mhc.bbm/all',
-        'map_bowtie2_separate': '{}.by_ID.mhc.bt2/all',
-        'map_bowtie2_grouped': '{}.by_Subject.mhc.bt2/all',
-        'map_bowtie2_joined': '{}.mhc.bt2/all',
+        'map_bbmap_separate':   '{}.by_ID.mhc.map_bbmap/all',
+        'map_bbmap_grouped':   '{}.by_Subject.mhc.map_bbmap/all',
+        'map_bbmap_joined':   '{}.mhc.map_bbmap/all',
+        'map_bowtie2_separate': '{}.by_ID.mhc.map_bowtie2/all',
+        'map_bowtie2_grouped': '{}.by_Subject.mhc.map_bowtie2/all',
+        'map_bowtie2_joined': '{}.mhc.map_bowtie2/all',
         # mapping vs reference
-        'map_bbmap_reference': '{}.ref_genome.bbm/all',
-        'map_bowtie2_reference': '{}.ref_genome.bt2/all',
+        'map_bbmap_reference': '{}.ref_genome.map_bbmap/all',
+        'map_bowtie2_reference': '{}.ref_genome.map_bowtie2/all',
     ],
     'amplicon': odict[
         'bbduk_primer': '{}.primermatch/all'

@@ -1,5 +1,6 @@
 from ymp.config import icfg
 import ymp
+from ymp.stage import Stage
 import os
 
 
@@ -336,84 +337,6 @@ rule sickle_se:  # ymp: extends sickle
 ###
 
 
-bbfiles="scafstats refstats "
-bbfiles+="covstats rpkm covhist basecov bincov"
-
-bbstats =  "bhist qhist aqhist bqhist lhist ihist ehist qahist "
-bbstats += "indelhist mhist gchist idhist statsfile"
-bbstats = bbstats.split()
-
-bbduk_stats = "bhist qhist qchist aqhist bqhist lhist gchist".split()
-
-rule bbmap_makedb:
-    message: "BBMap: preparing index for ref={input}"
-    input:   "{path}/{file}.fasta.gz"
-    output:  "{path}/{file}.bbidx/ref/genome/1/summary.txt",
-             "{path}/{file}.bbidx"
-    log:     "{path}/{file}.bbidx/bbmap_index.log"
-    params:  path="{path}/{file}.bbidx/",
-             mem=icfg.mem("80g")
-    threads: 8
-    conda:   "bbmap.yml"
-    shell: """
-    bbmap.sh \
-        path={params.path} \
-        ref={input} \
-        threads={threads} \
-        pigz unpigz \
-        -Xmx{params.mem}m \
-        >{log} 2>&1
-    """
-
-
-rule bbmap_split:
-    message: "BBMap filtering by {wildcards.reference} - {wildcards.dir}/{wildcards.sample}"
-    input:   "{dir}/{sample}.{:pairnames:}.fq.gz",
-             reference = "{:dir.references:}/{reference}.bbidx"
-    output:  clean="{dir}.bbmRM{reference}/{sample}.{:pairnames:}.fq.gz",
-             human="{dir}.bbmKP{reference}/{sample}.{:pairnames:}.fq.gz",
-             stats=expand("{{dir}}.bbmRM{{reference}}/{{sample}}.{x}",x=bbstats)
-    log:     "{dir}.bbmRM{reference}/{sample}.log"
-    params:  stats=lambda wc: expand("{x}={dir}.bbmRM{reference}/{sample}.{x}",x=bbstats,**wc),
-             minid=0.95,
-             maxindel=3,
-             bwr=0.16,
-             bw=12,
-             trimq=10,
-             qtrim="rl",
-             flags="quickmatch fast untrim machineout",
-             minhits=2,
-             mem=icfg.mem("23g"),
-             inout2="in2={input[1]} outu2={output.clean[1]} outm2={output.human[1]}"
-    threads: 16
-    conda:   "bbmap.yml"
-    shell:
-        "bbmap.sh "
-        " minid={params.minid} "
-        " maxindel={params.maxindel} "
-        " bwr={params.bwr} "
-        " bw={params.bw} "
-        " {params.flags} "
-        " minhits={params.minhits} "
-        " path={input.reference} "
-        " qtrim={params.qtrim} "
-        " trimq={params.trimq} "
-        " -Xmx{params.mem}m "
-        " in={input[0]} "
-        " outu={output.clean[0]} "
-        " outm={output.human[0]} "
-        " {params.inout2} "
-        " threads={threads} "
-        " {params.stats} "
-        " > {log} 2>&1"
-
-
-rule bbmap_split_se:  # ymp: extends bbmap_split
-    input:          "{dir}/{sample}.{:pairnames[0]:}.fq.gz"
-    output: clean = ["{dir}.bbmRM{reference}/{sample}.{:pairnames[0]:}.fq.gz"],
-            human = ["{dir}.bbmKP{reference}/{sample}.{:pairnames[0]:}.fq.gz"]
-    params: inout2 = ""
-
 
 rule bmtagger_bitmask:
     message: "Bmtool indexing {input}"
@@ -498,49 +421,3 @@ rule bmtagger_filter:
         -mate1 {input[0]} | pigz -p {threads} -9 > {output}  2>{log}
     """
 
-###
-### Primer Filtering
-###
-
-rule bbduk_primer:
-    """
-    Splits reads based on primer matching into "primermatch" and "primerfail".
-    """
-    message: "BBduk: Filtering {wildcards.sample} for primer set {input.primer}"
-    input:   "{dir}/{sample}.{:pairnames:}.fq.gz",
-             primer = "primers.fasta"
-    output:  match  = "{dir}.primermatch/{sample}.{:pairnames:}.fq.gz",
-             fail   = "{dir}.primerfail/{sample}.{:pairnames:}.fq.gz",
-             stats  = expand("{{dir}}.primermatch/{{sample}}.{x}", x=bbduk_stats)
-    log:     "{dir}.primermatch/{sample}.log"
-    threads: 8
-    params:
-        stats=lambda wc: expand("{x}={dir}.primermatch/{sample}.{x}",x=bbduk_stats,**wc),
-        mem=icfg.mem("80g"),
-        k=12,
-        rl=12,
-        inout2="in2={input[1]} outm2={output.match[1]} outu2={output.fail[1]}"
-    conda: "bbmap.yml"
-    shell:
-        'bbduk.sh'
-        ' in={input[0]} outm={output.match[0]} outu={output.fail[0]} '
-        ' {params.inout2} '
-        ' ref={input.primer}'
-        ' k={params.k}'               # match using k-mers
-        ' restrictleft={params.rl} '  # only match leftmost n bases
-        ' maskmiddle=f'               # don't mask middle base in kmer
-        ' rcomp=f'                    # don't check reverse complement
-        ' copyundefined=t'            # expand wobbles in input
-        ' removeifeitherbad=f'        # "bad" is "match", we want both to match
-        ' pigz unpigz'
-        ' {params.stats}'
-        ' -Xmx{params.mem}m'
-
-
-
-rule bbduk_primer_se:  # ymp: extends bbduk_primer
-    input:          "{dir}/{sample}.{:pairnames[0]:}.fq.gz"
-    output: match = ["{dir}.primermatch/{sample}.{:pairnames[0]:}.fq.gz"],
-            fail  = ["{dir}.primerfail/{sample}.{:pairnames[0]:}.fq.gz"]
-    params: inout2 = ""
-        

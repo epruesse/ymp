@@ -1,4 +1,7 @@
 rule download_file:
+    """
+    Downloads remote file using *wget*
+    """
     message:
         "Downloading {params.url}"
     output:
@@ -11,7 +14,7 @@ rule download_file:
     params:
         url="{protocol}://{server}/{path}"
     conda: "wget.yml"
-    shell:"""
+    shell: """
     wget  "{params.url}" -O "{output[0]}" > {log} 2>&1
     """
 
@@ -22,17 +25,19 @@ ruleorder: download_file > fq2fa
 localrules: get_reference_file
 rule get_reference_file:
     message: "Preparing {input}"
-    input:   lambda wc: icfg.ref[wc.refname],
+    input:   lambda wc: icfg.ref[wc.refname].get_file(wc.file),
              refdir = ancient(icfg.dir.references)
-    output:  "{:dir.references:}/{refname}.{ftype}.gz"
-    wildcard_constraints:
-        ftype = "(fasta|gtf)"
+    output:  "{:dir.references:}/{refname}/{file}"
     threads: 1
     run:
         if input[0].endswith(".gz"): # just symlink
-            if not os.path.isabs(input[0]):
-                input[0] = os.path.join("..", input[0])
-            os.symlink(input[0], output[0])
+            os.symlink(
+                os.path.relpath(
+                    input[0],
+                    os.path.dirname(output[0])
+                ),
+                output[0]
+            )
         else: # compress
             shell("gzip -c {input[0]} > {output}")
 
