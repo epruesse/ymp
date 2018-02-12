@@ -176,57 +176,6 @@ rule symlink_raw_reads:
 
 
 ###
-###  Quality Reports
-###
-
-
-rule fastqc:
-    """Run FastQC on read files"""
-    message: "Creating QC report for {input}"
-    input:   "{dir}/{file}.fq.gz"
-    output:  "{dir}.fastqc/{file}_fastqc.html",
-             "{dir}.fastqc/{file}_fastqc.zip"
-    log:     "{dir}.fastqc/{file}_fastqc.log"
-    threads: 1
-    params:  k=10,
-             mem=icfg.mem("8g")
-    conda:   "fastqc.yml"
-    shell: """
-    # override too low memory requested by fastqc 0.11.5 of 256M per thread:
-    export _JAVA_OPTIONS="-Xmx{params.mem}m"
-    fastqc -t {threads} -o $(dirname {output[0]}) {input} -k 10 >{log} 2>&1
-    """
-
-
-rule multiqc:
-    """Assemble report on all FQ files in a directory"""
-    message: "Aggregating QC reports for {wildcards.dir}"
-    input:   "{dir}.fastqc/{:fq_names:}_fastqc.zip"
-    output:  "{:dir.reports:}/{dir}.fastqc.html",
-    log:     "{dir}.fastqc/multiqc.log"
-    threads: 1
-    params:  dir = "{dir}.fastqc"
-    conda:   "multiqc.yml"
-    shell: """
-    multiqc \
-            --module fastqc \
-            --outdir {params.dir} \
-            --title  {wildcards.dir} \
-            --force \
-            {wildcards.dir}.fastqc \
-            > {log} 2>&1
-    if [ -e  {params.dir}/multiqc_report.html ]; then
-        mv {params.dir}/multiqc_report.html {output[0]}
-    else
-        # never versions of multiqc put title in output file name
-        mv {params.dir}/{wildcards.dir}_multiqc_report.html {output[0]}
-    fi
-    """
-
-
-
-
-###
 ###  Trimming
 ###
 

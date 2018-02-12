@@ -1,0 +1,36 @@
+"""
+"""
+
+rule multiqc:
+    """Assemble report on all FQ files in a directory"""
+    message:
+        "Aggregating QC reports for {wildcards.dir}"
+    input:
+        "{dir}.fastqc/{:fq_names:}_fastqc.zip"
+    output:
+        "{:dir.reports:}/{dir}.fastqc.html",
+    log:
+        "{dir}.fastqc/multiqc.log"
+    threads:
+        1
+    params:
+        dir = "{dir}.fastqc"
+    conda:
+        "multiqc.yml"
+    shell: """
+    multiqc \
+            --module fastqc \
+            --outdir {params.dir} \
+            --title  {wildcards.dir} \
+            --force \
+            {wildcards.dir}.fastqc \
+            > {log} 2>&1
+    if [ -e  {params.dir}/multiqc_report.html ]; then
+        mv {params.dir}/multiqc_report.html {output[0]}
+    else
+        # never versions of multiqc put title in output file name
+        mv {params.dir}/{wildcards.dir}_multiqc_report.html {output[0]}
+    fi
+    """
+
+

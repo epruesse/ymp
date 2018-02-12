@@ -1,0 +1,28 @@
+with Stage("qc_fastqc") as S:
+    S.doc("""
+    Quality screen reads using FastQC
+    """)
+    rule qc_fastqc:
+        """Run FastQC on read files"""
+        message:
+            "Creating QC report for {input}"
+        input:
+            "{:prev:}/{file}.fq.gz"
+        output:
+            "{:this:}/{file}_fastqc.html",
+            "{:this:}/{file}_fastqc.zip"
+        log:
+            "{:this:}/{file}_fastqc.log"
+        threads:
+            1
+        params:
+            k=10,
+            mem=icfg.mem("8g")
+        conda:
+            "fastqc.yml"
+        shell: """
+        # override too low memory requested by fastqc 0.11.5 of 256M per thread:
+        export _JAVA_OPTIONS="-Xmx{params.mem}m"
+
+        fastqc -t {threads} -o $(dirname {output[0]}) {input} -k 10 >{log} 2>&1
+        """
