@@ -1,0 +1,41 @@
+rule sickle:
+    message:
+        "Trimming with Sickle {wildcards.dir}/{wildcards.sample} "
+        "(Q={params.qual} L={params.length})"
+    input:
+        "{dir}/{sample}.{:pairnames:}.fq.gz"
+    output:
+        "{dir}.sickle{Q}{L}/{sample}.{:pairnames:}.fq.gz",
+        "{dir}.sickle{Q}{L}/{sample}.unpaired.fq.gz",
+    log:
+        "{dir}.sickle{Q}{L}/{sample}.log"
+    wildcard_constraints:
+        Q = "(Q\d+|)",
+        L = "(L\d+|)",
+    params:
+        length=lambda wc: wc.L[1:] if wc.L else 20,
+        qual=lambda wc: wc.Q[1:] if wc.Q else 20,
+        arg_pe="pe",
+        inout2="-r {input[1]} -p {output[1]} -s {output[2]}"
+    threads: 1
+    conda:
+        "sickle.yml"
+    shell:"""
+    sickle {params.arg_pe} \
+        -f {input[0]} \
+        -o {output[0]} \
+        {params.inout2} \
+        --qual-type=sanger \
+        --length-threshold={params.length} \
+        --qual-threshold={params.qual} \
+        --gzip-output \
+        --no-fiveprime \
+        > {log} 2>&1
+    """
+
+
+rule sickle_se:  # ymp: extends sickle
+    input:  "{dir}/{sample}.{:pairnames[0]:}.fq.gz"
+    output: "{dir}.sickle{Q}{L}/{sample}.{:pairnames[0]:}.fq.gz"
+    params: arg_pe = "se",
+            inout2 = ""
