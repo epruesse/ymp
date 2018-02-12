@@ -845,8 +845,8 @@ class ConfigMgr(object):
             raise YmpException(
                 "Use of {:this:} requires active Stage"
             )
-        return "".join(self.prev, "{_YMP_VRT}{_YMP_ASM}.",
-                       Stage.active.name)
+        return "".join((self.prev, "{_YMP_VRT}{_YMP_ASM}.",
+                        Stage.active.name))
 
     @property
     def that(self):
@@ -863,8 +863,8 @@ class ConfigMgr(object):
             raise YmpException(
                 "Use of {:that:} requires with altname"
             )
-        return "".join(self.prev, "{_YMP_VRT}{_YMP_ASM}.",
-                       Stage.active.altname)
+        return "".join((self.prev, "{_YMP_VRT}{_YMP_ASM}.",
+                        Stage.active.altname))
 
     def getDatasetFromDir(self, dirname):
         try:
