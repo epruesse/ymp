@@ -11,15 +11,16 @@ import os
 from docutils import nodes, statemachine
 from docutils.parsers import rst
 
+from sphinx import addnodes
+from sphinx.directives import ObjectDescription
+from sphinx.domains import Domain, ObjType
+from sphinx.roles import XRefRole
+from sphinx.util import logging, ws_re
+from sphinx.util.nodes import make_refnode
+
 from ymp.snakemake import ExpandableWorkflow
 from ymp.snakemakelexer import SnakemakeLexer
 
-from sphinx import addnodes
-from sphinx.util import logging, ws_re
-from sphinx.domains import Domain, ObjType, Index
-from sphinx.directives import ObjectDescription
-from sphinx.util.nodes import make_refnode
-from sphinx.roles import XRefRole
 
 try:
     logger = logging.getLogger(__name__)
@@ -207,7 +208,6 @@ def collect_pages(app):
         return
 
     highlight_block = app.builder.highlighter.highlight_block
-    urito = app.builder.get_relative_uri
 
     for snakefile in app.env._snakefiles:
         try:
