@@ -26,7 +26,7 @@ def profiling():
 
 def make_graph(target, rulegraph=False):
     from click.testing import CliRunner
-    from ymp.cmd import make as ymp_make
+    from ymp.cli.make import make as ymp_make
     from pygraphviz import AGraph
     from networkx import DiGraph
     with open("target.txt", "w") as out:
@@ -34,7 +34,7 @@ def make_graph(target, rulegraph=False):
 
     runner = CliRunner()
     result = runner.invoke(ymp_make, [
-        '--quiet',
+        '--quiet', '--quiet',
         '--dag' if not rulegraph else '--rulegraph',
         target])
     assert result.exit_code == 0, result.output

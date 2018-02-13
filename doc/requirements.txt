@@ -1,5 +1,6 @@
 sphinx
 cloud_sptheme
+setuptools_scm
 sphinxcontrib-napoleon
 sphinxcontrib-fulltoc
 sphinx-click

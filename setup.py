@@ -6,6 +6,14 @@ from setuptools import setup, find_packages
 setup(
     name="YMP",
     use_scm_version=True,
+    author="Elmar Pruesse",
+    author_email="elmar.pruesse@ucdenver.edu",
+    url="https://github.com/epruesse/ymp",
+    #description=,
+    #long_description=,
+    #license=,
+    #keywords=,
+
     packages=find_packages(),
     package_data={ '': [
         'rules/Snakefile',
@@ -14,6 +22,7 @@ setup(
         'etc/*.yml'
     ]},
     zip_safe=False,
+
     setup_requires=[
         'setuptools_scm',
         'pytest-runner'
@@ -37,17 +46,9 @@ setup(
         'pandas>=0.20',
         'coloredlogs'
     ],
+
     entry_points='''
         [console_scripts]
-        ymp=ymp.cmd:cli
+        ymp=ymp.cli:main
     '''
-
-
-
-    #author=,
-    #author_email=,
-    #description=,
-    #license=,
-    #keywords=,
-    #url=,
 )

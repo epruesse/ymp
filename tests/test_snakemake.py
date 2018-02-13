@@ -24,7 +24,7 @@ log = logging.getLogger(__name__)
 
 def ymp_make(args):
     from click.testing import CliRunner
-    from ymp.cmd import make
+    from ymp.cli import make
     runner = CliRunner()
     result = runner.invoke(make, args)
     return result
