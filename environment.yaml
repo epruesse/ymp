@@ -11,7 +11,7 @@ dependencies:
   - pandas >=0.20  # need dtype support in python csv engine
   - xlrd         # excel support
   - coloredlogs
-  - setuptools_svm # versioning
+  - setuptools_scm # versioning
   #### for tests: ####
   - networkx >= 2.0
   - pygraphviz
