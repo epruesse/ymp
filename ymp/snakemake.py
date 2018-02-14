@@ -4,6 +4,7 @@ Extends Snakemake Features
 
 import functools
 import logging
+import sys
 import os
 import re
 from copy import copy, deepcopy
@@ -24,6 +25,11 @@ from ymp.string import FormattingError, ProductFormatter, make_formatter
 
 
 log = logging.getLogger(__name__)
+
+if networkx.__version__[0] != "2":
+    log.fatal("Networkx version 2.* required by YMP but {} found"
+              "".format(networkx.__version__))
+    sys.exit(1)
 
 partial_formatter = make_formatter(partial=True, quoted=True)
 partial_format = partial_formatter.format
