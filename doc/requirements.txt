@@ -8,4 +8,4 @@ snakemake
 ftputil
 click
 coloredlogs
-networkx
+networkx >=2
