@@ -145,16 +145,17 @@ def run_apidoc(_):
     """
     Calls sphinx-apidoc to generate template .rst files for each module
     """
-    from sphinx.apidoc import main
-    main(['',
-          '--output-dir', docdir,
-          '--doc-project', 'API',
-          '--force',
-          # '--no-toc',
-          # '--no-headings',
-          '--separate',
-          '--module-first',
-          os.path.join(ympdir, 'ymp')])
+    from sphinx import apidoc
+    apidoc.OPTIONS = ['members', 'show-inheritance']
+    apidoc.main(['',
+                 '--output-dir', docdir,
+                 '--doc-project', 'API',
+                 '--force',
+                 # '--no-toc',
+                 # '--no-headings',
+                 '--separate',
+                '--module-first',
+                 os.path.join(ympdir, 'ymp')])
 
 
 def setup(app):
