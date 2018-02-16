@@ -152,3 +152,4 @@ def run_apidoc(_):
 
 def setup(app):
     app.connect('builder-inited', run_apidoc)
+    app.add_stylesheet('custom.css')
