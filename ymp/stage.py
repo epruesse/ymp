@@ -14,14 +14,22 @@ YMP processes data in stages, each of which is contained in its own directory.
 
 import logging
 
-from ymp.util import AttrDict
+from inspect import getframeinfo, stack
+
 from ymp.exceptions import YmpException
-from ymp.snakemake import ExpandableWorkflow
+from ymp.snakemake import BaseExpander, ExpandableWorkflow
+from ymp.util import AttrDict
 
 log = logging.getLogger(__name__)
 
 
 class YmpStageError(YmpException):
+    """
+    Exception raised if something went wrong creating a stage.
+
+    Currently, cases are duplicating stage names or trying to
+    enter two stages at the same time.
+    """
     def __init__(self, stage: 'Stage', msg: str):
         msg = "Error in stage '{}': {}".format(stage, msg)
         super().__init__(msg)
@@ -57,7 +65,7 @@ class Stage(object):
             workflow.ymp_stages = AttrDict()
         return workflow.ymp_stages
 
-    def __init__(self, name: str, altname:str=None):
+    def __init__(self, name: str, altname: str=None):
         """
         Args:
             name: Name of this stage
@@ -65,8 +73,18 @@ class Stage(object):
                 multiple output variants, e.g. filter_x and remove_x.
 
         """
+        #: Stage name
         self.name = name
+        #: Alternate stage name
         self.altname = altname
+        #: list: Rules in this stage
+        self.rules = []
+
+        caller = getframeinfo(stack()[1][0])
+        #: str: Name of file in which stage was defined
+        self.filename = caller.filename
+        #: int: Line number of stage definition
+        self.lineno = caller.lineno
 
         stages = Stage.get_stages()
         if name in stages:
@@ -101,3 +119,16 @@ class Stage(object):
         if self.altname:
             return "|".join((self.name, self.altname))
         return self.name
+
+    def _add_rule(self, rule):
+        rule.ymp_stage = self
+        self.rules.append(rule)
+
+
+class StageExpander(BaseExpander):
+    """
+    Registers rules with stages when they are created
+    """
+    def expand(self, rule, item):
+        if Stage.active:
+            Stage.active._add_rule(rule)
