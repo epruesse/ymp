@@ -26,21 +26,12 @@ needs_sphinx = '1.6'
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.intersphinx',
-    'sphinx.ext.todo',
     'sphinx.ext.coverage',
-    'sphinx.ext.mathjax',
-    'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
     'sphinxcontrib.napoleon',
     'sphinxcontrib.fulltoc',
     'sphinx_click.ext',
     'ymp.sphinxext',
-    'cloud_sptheme.ext.issue_tracker',
-    'cloud_sptheme.ext.autodoc_sections',
-    'cloud_sptheme.ext.relbar_links',
-    'cloud_sptheme.ext.escaped_samp_literals',
-    'cloud_sptheme.ext.issue_tracker',
-    'cloud_sptheme.ext.table_styling',
 ]
 
 autoclass_content = "both"
@@ -65,6 +56,8 @@ exclude_patterns = [
     'Thumbs.db',
     '.DS_Store'
 ]
+exclude_patterns.extend(templates_path)
+exclude_patterns.extend(html_static_path)
 
 pygments_style = 'sphinx'
 todo_include_todos = True
@@ -151,10 +144,7 @@ def run_apidoc(_):
                  '--output-dir', docdir,
                  '--doc-project', 'API',
                  '--force',
-                 # '--no-toc',
-                 # '--no-headings',
-                 '--separate',
-                '--module-first',
+                 '--module-first',
                  os.path.join(ympdir, 'ymp')])
 
 
