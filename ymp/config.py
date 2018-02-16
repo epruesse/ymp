@@ -16,7 +16,7 @@ from ymp.snakemake import \
     ExpandableWorkflow, \
     InheritanceExpander, \
     RecursiveExpander
-from ymp.stage import Stage
+from ymp.stage import Stage, StageExpander
 from ymp.util import AttrDict
 
 log = logging.getLogger(__name__)
@@ -694,6 +694,7 @@ class ConfigMgr(object):
         ExpandableWorkflow.activate()
         self.find_config()
         self.load_config()
+        self.stage_expander = StageExpander()
         self.recursive_expander = RecursiveExpander()
         self.config_expander = ConfigExpander(self)
         self.conda_path_expander = \
