@@ -5,18 +5,8 @@ YMP reads its configuration from a YAML formatted file ``ymp.yml``. To
 run YMP, you need to first tell it which datasets you want to process
 and where it can find them.
 
-.. toctree::
-   :maxdepth: 3
-   :caption: Contents:
-
--  `Getting Started <#getting-started>`__
--  `Referencing Read Files <#referencing-read-files>`__
--  `Project Configuration <#project-configuration>`__
--  `Specifying Name and Data
-   Columns <#specifying-name-and-data-columns>`__
--  `Multiple Mapping Files per
-   Project <#multiple-mapping-files-per-project>`__
--  `Complete Example <#complete-example>`__
+.. contents:: Contents
+   :local:
 
 Getting Started
 ---------------
@@ -62,15 +52,15 @@ example:
 
 The matching Excel file could then have a ``sheet3`` with this content:
 
-+----------+-------------------------------+-------------------------------+-------------+
-| sample   | fq1                           | fq2                           | srr         |
-+==========+===============================+===============================+=============+
-| foot     | /data/foot1.fq.gz             | /data/foot2.fq.gz             |             |
-+----------+-------------------------------+-------------------------------+-------------+
-| hand     |                               |                               | SRR123456   |
-+----------+-------------------------------+-------------------------------+-------------+
-| head     | http://datahost/head1.fq.gz   | http://datahost/head2.fq.gz   | SRR234234   |
-+----------+-------------------------------+-------------------------------+-------------+
+  +----------+-------------------------------+-------------------------------+-------------+
+  | sample   | fq1                           | fq2                           | srr         |
+  +==========+===============================+===============================+=============+
+  | foot     | /data/foot1.fq.gz             | /data/foot2.fq.gz             |             |
+  +----------+-------------------------------+-------------------------------+-------------+
+  | hand     |                               |                               | SRR123456   |
+  +----------+-------------------------------+-------------------------------+-------------+
+  | head     | http://datahost/head1.fq.gz   | http://datahost/head2.fq.gz   | SRR234234   |
+  +----------+-------------------------------+-------------------------------+-------------+
 
 For ``foot``, the two gzipped FastQ files are used. The data for
 ``hand`` is retrieved from SRA and the data for ``head`` downloaded from
@@ -83,27 +73,26 @@ Referencing Read Files
 YMP will search your map file data for references to the read data
 files. It understands three types of references to your reads:
 
-1. Local FastQ files: ``data/some_1.fq.gz, data/some_2.fq.gz``
+Local FastQ files: ``data/some_1.fq.gz, data/some_2.fq.gz``
+   The file names should end in ``.fastq`` or ``.fq``, optionally followed
+   by ``.gz`` if your data is compressed. You need to provide forward and
+   reverse reads in separate columns; the left most column is assumed to
+   refer to the forward reads.
 
-The file names should end in ``.fastq`` or ``.fq``, optionally followed
-by ``.gz`` if your data is compressed. You need to provide forward and
-reverse reads in separate columns; the left most column is assumed to
-refer to the forward reads.
+   If the filename is relative (does not start with a ``/``), it is assumed
+   to be relative to the location of ``ymp.yml``.
 
-If the filename is relative (does not start with a ``/``), it is assumed
-to be relative to the location of ``ymp.yml``. 2. Remote FastQ files:
-``http://myhost/some_1.fq.gz, http://myhost/some_2.fq.gz``
+Remote FastQ files: ``http://myhost/some_1.fq.gz, http://myhost/some_2.fq.gz``
+   If the filename starts with ``http://`` or ``https://``, YMP will
+   download the files automatically.
 
-If the filename starts with ``http://`` or ``https://``, YMP will
-download the files automatically.
+   Forward and reverse reads need to be either both local or both remote.
 
-Forward and reverse reads need to be either both local or both remote.
-3. SRA Run IDs: ``SRR123456``
-
-Instead of giving names for FastQ files, you may provide SRA Run
-accessions, e.g. ``SRR123456`` (or ``ERRnnn`` or ``DRRnnn`` for runs
-originally submitted to EMBL or DDBJ, respectively). YMP will use
-``fastq-dump`` to download and extract the SRA files.
+SRA Run IDs: ``SRR123456``
+   Instead of giving names for FastQ files, you may provide SRA Run
+   accessions, e.g. ``SRR123456`` (or ``ERRnnn`` or ``DRRnnn`` for runs
+   originally submitted to EMBL or DDBJ, respectively). YMP will use
+   ``fastq-dump`` to download and extract the SRA files.
 
 Which type to use is determined for each row in your map file data
 individually. From left to right, the first recognized data source is
@@ -111,13 +100,13 @@ used in the order they are listed above.
 
 Configuration processing an SRA RunTable:
 
-.. code:: yaml
+   .. code:: yaml
 
-    projects:
-      smith17:
-        data:
-          - SraRunTable.txt
-        id_col: Sample_Name_s
+      projects:
+        smith17:
+          data:
+            - SraRunTable.txt
+          id_col: Sample_Name_s
 
 Project Configuration
 ---------------------
@@ -136,22 +125,22 @@ specifying the columns explicitly:
 
 1. Data set names: ``id_col: Sample``
 
-The left most unique column may not always be the most informative to
-use as names for the datasets. In the above example, we specify the
-column to use explicitly with the line ``id_col: Sample_Name_s`` as the
-columns in SRA run tables are sorted alpha-numerically and the left most
-unique one may well contain random numeric data.
+   The left most unique column may not always be the most informative to
+   use as names for the datasets. In the above example, we specify the
+   column to use explicitly with the line ``id_col: Sample_Name_s`` as the
+   columns in SRA run tables are sorted alpha-numerically and the left most
+   unique one may well contain random numeric data.
 
-Default: left most unique column
+   Default: left most unique column
 
 2. Data set read columns: ``reads_cols: [fq1, fq2]``
 
-If your map files contain multiple references to source files, e.g.
-local and remote, and the order of preference used by YMP does not meet
-your needs you can restrict the search for suitable data references to a
-set of columns using the key ``read_cols``.
+   If your map files contain multiple references to source files, e.g.
+   local and remote, and the order of preference used by YMP does not meet
+   your needs you can restrict the search for suitable data references to a
+   set of columns using the key ``read_cols``.
 
-Default: all columns
+   Default: all columns
 
 Example
 '''''''
