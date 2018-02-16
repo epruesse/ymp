@@ -327,12 +327,7 @@ class AutoSnakefileDirective(rst.Directive):
 
     def _generate_nodes(self, snakefile):
         """Generate Sphinx nodes from parsed snakefile"""
-        section = nodes.section(
-            '',
-            nodes.title("thetitle"),
-            ids=[nodes.make_id(snakefile)],
-            names=[nodes.fully_normalize_name(snakefile)]
-        )
+        node = nodes.paragraph('')
         result = StringList()
 
         # generate stages
@@ -346,8 +341,8 @@ class AutoSnakefileDirective(rst.Directive):
             if not getattr(rule, "ymp_stage", False):
                 result.extend(self.parse_rule(rule))
 
-        self.state.nested_parse(result, 0, section)
-        return [section]
+        self.state.nested_parse(result, 0, node)
+        return [node]
 
 
 def collect_pages(app):
