@@ -8,7 +8,7 @@ Table Of Conents
    install
    config
    commandline
-   rules
+   stages
    modules
 
 
