@@ -9,7 +9,7 @@ The `SnakemakeDomain` (name **sm**) provides the following directives:
 
 .. rst:directive:: .. sm:stage:: name
 
-   Descrives a `YMP Stage <Stage>`
+   Describes a `YMP Stage <Stage>`
 
 Both directives accept an optional ``source`` parameter. If given, a
 link to the source code of the stage or rule definition will be added.
