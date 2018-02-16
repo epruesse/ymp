@@ -68,7 +68,7 @@ rule export_qiime_map_file:
     message:
         "Creating Qiime map file for project {wildcards.project}"
     output:
-        "{project}/qiime_mapping.tsv"
+        "{:proj:}/qiime_mapping.tsv"
     run:
         import pandas as pd
         df = icfg[wildcards.project].run_data

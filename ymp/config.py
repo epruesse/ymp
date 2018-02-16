@@ -830,6 +830,13 @@ class ConfigMgr(object):
         return self.getRuns()
 
     @property
+    def proj(self):
+        """
+        Project base directory
+        """
+        return "{_YMP_PRJ}"
+
+    @property
     def prev(self):
         """
         Directory of previous stage
