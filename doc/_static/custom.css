@@ -1,7 +1,7 @@
 /*
- Make layout a little more compact:
- - remove the 6px vertical padding from h2, h3 and rubric
- - reduce paragraph vertical margin from 1.5 to 0.1 em
+  Make layout a little more compact:
+  - remove the 6px vertical padding from h2, h3 and rubric
+  - reduce paragraph vertical margin from 1.5 to 0.1 em
 */
 
 div.body h2,
@@ -14,4 +14,14 @@ h1#search-documentation {
 
 div.body p {
     margin: 0.5em 0 0.5em 0;
+}
+
+
+/*
+  Make descnames in toc smaller and more compact
+*/
+
+div.sphinxsidebar code.descname {
+    font-size: 90%;
+    line-height: 1em;
 }
