@@ -331,9 +331,11 @@ class AutoSnakefileDirective(rst.Directive):
         result = StringList()
 
         # generate stages
-        stages = Stage.get_stages()
-        for stage in sorted(stages.keys()):
-            result.extend(self.parse_stage(stages[stage]))
+        stages = Stage.get_stages().values()
+        stages = list(set(stages))
+        stages = sorted(stages, key=lambda x: x.name)
+        for stage in stages:
+            result.extend(self.parse_stage(stage))
 
         # generate nodes for rules not registered with stages
         rules = self.workflow.rules
