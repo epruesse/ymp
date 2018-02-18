@@ -25,3 +25,11 @@ div.sphinxsidebar code.descname {
     font-size: 90%;
     line-height: 1em;
 }
+
+/*
+  Fix [source] link moving away from under target
+*/
+
+.viewcode-link:hover:active {
+    position: absolute
+}
