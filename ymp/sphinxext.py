@@ -40,6 +40,7 @@ from snakemake.rules import Rule
 from sphinx import addnodes
 from sphinx.directives import ObjectDescription
 from sphinx.domains import Domain, ObjType
+from sphinx.environment.collectors import EnvironmentCollector
 from sphinx.roles import XRefRole
 from sphinx.util import logging, ws_re
 from sphinx.util.nodes import make_refnode
@@ -230,11 +231,10 @@ class SnakemakeDomain(Domain):
 
 
 class AutoSnakefileDirective(rst.Directive):
-    """
-    Implements RSt directive ``.. autosnake:: filename``
+    """Implements RSt directive ``.. autosnake:: filename``
 
-    The directive extracts docstrings from rules in snakefile and auto-generates
-    documentation.
+    The directive extracts docstrings from rules in snakefile and
+    auto-generates documentation.
     """
 
     #: bool: This rule does not accept content
@@ -379,9 +379,106 @@ def collect_pages(app):
     yield ('_snakefiles/index', context, 'page.html')
 
 
+class DomainTocTreeCollector(EnvironmentCollector):
+    """Add custom entries to toc
+
+    .. tocentry:
+
+    Docutils docs node tree looks like this::
+      <bullet_list>
+        <list_item>
+          <compact_paragraph>
+            <reference anchorname=#$anchor internal="True" refuri=$document>
+              $text
+          <bullet_list>
+
+    notes:
+      - `sphinx.environment.collectors.toctree` is built-in so always
+        loaded and hence always called before us.
+
+    """
+    # override
+    def clear_doc(self, app, env, docname):
+        pass
+
+    # override
+    def merge_other(self, app, env, docnames, other):
+        pass
+
+    # override
+    def process_doc(self, app, doctree):
+        # FIXME: handle duplicate entries
+        for node in self.select_doc_nodes(doctree):
+            tocnode = self.locate_parent_in_toc(app, node)
+            heading = self.make_heading(doctree, node)
+            if not tocnode:
+                continue
+
+            self.toc_insert(app.env.docname, tocnode, node, heading)
+
+    def select_doc_nodes(self, doctree):
+        return doctree.traverse(addnodes.desc)
+
+    def locate_parent_in_toc(self, app, node):
+        while node is not None:
+            tocnode = self.locate_in_toc(app, node)
+            if tocnode:
+                return tocnode
+
+            node = node.parent
+        return app.env.tocs[app.env.docname][0]
+
+    def locate_in_toc(self, app, node):
+        toc = app.env.tocs[app.env.docname]
+        ref = self.get_ref(node)
+        for node in toc.traverse(nodes.reference):
+            node_ref = node.get('anchorname')
+            if not node_ref or node_ref[0] != "#":
+                continue
+            if node_ref[1:] == ref:
+                return node.parent.parent
+
+    def get_ref(self, node):
+        while node is not None:
+            if not node.get('ids'):
+                # In Sphinx domain descriptions, the ID is in the
+                # first child node, the desc_signature.
+                # We can take that, but to make the JS handling
+                # the TOC sidebar work properly, we need it to
+                # be in the hierarchy. So create an ID for the
+                # desc node.
+                if node[0].get('ids'):
+                    node['ids'] = [node[0].get('ids')[0] + '-tocentry']
+            if node.get('ids'):
+                return node['ids'][0]
+            node = node.parent
+
+    def make_heading(self, doctree, node):
+        names = node[0].traverse(addnodes.desc_name)
+        return names
+
+    def toc_insert(self, docname, tocnode, node, heading):
+        for child in tocnode.children:
+            if isinstance(child, nodes.bullet_list):
+                blist = child
+                break
+        else:
+            blist = nodes.bullet_list('')
+            tocnode += blist
+
+        reference = nodes.reference(
+            '', '', internal=True, refuri=docname,
+            anchorname="#" + self.get_ref(node), *heading)
+        para = addnodes.compact_paragraph('', '', reference)
+        item = nodes.list_item('', para)
+        # FIXME: find correct location
+        blist.append(item)
+
+
 def setup(app):
     """Register the extension with Sphinx"""
     app.add_lexer('snakemake', SnakemakeLexer())
     app.add_domain(SnakemakeDomain)
     app.add_directive('autosnake', AutoSnakefileDirective)
+    app.add_env_collector(DomainTocTreeCollector)
     app.connect('html-collect-pages', collect_pages)
