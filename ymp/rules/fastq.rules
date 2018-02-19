@@ -66,12 +66,14 @@ rule fastq_dump:
 
 rule export_qiime_map_file:
     message:
-        "Creating Qiime map file for project {wildcards.project}"
+        "Creating Qiime map file for project {params.proj}"
     output:
         "{:proj:}/qiime_mapping.tsv"
+    params:
+        proj = "{:proj:}"
     run:
         import pandas as pd
-        df = icfg[wildcards.project].run_data
+        df = icfg[params.proj].run_data
         cols = df.columns.tolist()
 
         try:
