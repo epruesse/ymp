@@ -14,11 +14,16 @@ YMP processes data in stages, each of which is contained in its own directory.
 
 import logging
 
+from typing import TYPE_CHECKING
 from inspect import getframeinfo, stack
 
 from ymp.exceptions import YmpException
 from ymp.snakemake import BaseExpander, ExpandableWorkflow
 from ymp.util import AttrDict
+
+if TYPE_CHECKING:
+    from typing import List
+    from snakemake.rules import Rule
 
 log = logging.getLogger(__name__)
 
@@ -30,7 +35,7 @@ class YmpStageError(YmpException):
     Currently, cases are duplicating stage names or trying to
     enter two stages at the same time.
     """
-    def __init__(self, stage: 'Stage', msg: str):
+    def __init__(self, stage: 'Stage', msg: str) -> None:
         msg = "Error in stage '{}': {}".format(stage, msg)
         super().__init__(msg)
 
@@ -65,7 +70,7 @@ class Stage(object):
             workflow.ymp_stages = AttrDict()
         return workflow.ymp_stages
 
-    def __init__(self, name: str, altname: str=None):
+    def __init__(self, name: str, altname: str=None) -> None:
         """
         Args:
             name: Name of this stage
@@ -73,12 +78,14 @@ class Stage(object):
                 multiple output variants, e.g. filter_x and remove_x.
 
         """
-        #: Stage name
-        self.name = name
-        #: Alternate stage name
-        self.altname = altname
-        #: list: Rules in this stage
-        self.rules = []
+        # Stage name
+        self.name: str = name 
+        # Alternate stage name
+        self.altname: str = altname
+        # Rules in this stage
+        self.rules: List[Rule] = []
+        # Documentation
+        self.docstring: str = ""
 
         caller = getframeinfo(stack()[1][0])
         #: str: Name of file in which stage was defined
@@ -100,7 +107,7 @@ class Stage(object):
         Args:
           doc: Docstring passed to Sphinx
         """
-        self.doc = doc
+        self.docstring = doc
 
     def __enter__(self):
         if Stage.active is not None:

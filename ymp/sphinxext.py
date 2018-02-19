@@ -30,6 +30,7 @@ The extension also provides an autodoc-like directive:
 
 import os
 from textwrap import dedent, indent
+from typing import List, Optional
 
 from docutils import nodes
 from docutils.parsers import rst
@@ -38,8 +39,10 @@ from docutils.statemachine import StringList
 from snakemake.rules import Rule
 
 from sphinx import addnodes
+from sphinx.application import Sphinx
 from sphinx.directives import ObjectDescription
 from sphinx.domains import Domain, ObjType
+from sphinx.environment import BuildEnvironment
 from sphinx.environment.collectors import EnvironmentCollector
 from sphinx.roles import XRefRole
 from sphinx.util import logging, ws_re
@@ -49,7 +52,6 @@ import ymp
 from ymp.snakemake import ExpandableWorkflow
 from ymp.snakemakelexer import SnakemakeLexer
 from ymp.stage import Stage
-
 
 try:
     logger = logging.getLogger(__name__)
@@ -203,18 +205,18 @@ class SnakemakeDomain(Domain):
         'stage': XRefRole(),
     }
     initial_data = {
-        'objects': {},  # (type, name) -> docname, labelid
+        'objects': {},  #: (type, name) -> docname, labelid
     }
 
     data_version = 0
 
-    def clear_doc(self, docname):
+    def clear_doc(self, docname: str):
         """Delete objects derived from file ``docname``"""
         if 'objects' in self.data:
             self.data['objects'] = {}
 
-    def resolve_xref(self, env, fromdocname, builder,
-                     typ, target, node, contnode):
+    def resolve_xref(self, env: BuildEnvironment, fromdocname: str,
+                     builder, typ, target, node, contnode):
         objects = self.data['objects']
         objtypes = self.objtypes_for_role(typ)
         for objtype in objtypes:
@@ -260,12 +262,12 @@ class AutoSnakefileDirective(rst.Directive):
         snakefile = self.arguments[0]
 
         #: BuildEnvironment: Sphinx build environment
-        self.env = self.state.document.settings.env  # type: BuildEnvironment
+        self.env: BuildEnvironment = self.state.document.settings.env
 
         #: ExpandableWorkflow: Ymp Workflow object
         self.workflow = self.load_workflow(snakefile)
 
-        return self._generate_nodes(snakefile)
+        return self._generate_nodes()
 
     def load_workflow(self, file_path: str) -> ExpandableWorkflow:
         """Load the Snakefile"""
@@ -286,10 +288,10 @@ class AutoSnakefileDirective(rst.Directive):
         """
         doc = dedent(doc or "").strip("\n")
         doc = indent(doc, " " * idt)
-        doc = ['']+doc.splitlines()+['']
-        return StringList(doc, source)
+        doclines = [''] + doc.splitlines() + ['']
+        return StringList(doclines, source)
 
-    def parse_rule(self, rule: Rule, idt: int=0):
+    def parse_rule(self, rule: Rule, idt: int=0) -> StringList:
         """Convert Rule to StringList
 
         Args:
@@ -305,27 +307,27 @@ class AutoSnakefileDirective(rst.Directive):
             lineno=self.workflow.linemaps[rule.snakefile][rule.lineno],
         )
         head = indent(head, " " * idt)
-        head = head.splitlines()
+        headlines = head.splitlines()
         doc = self.parse_doc(rule.docstring, rule.snakefile, idt+3)
 
-        return StringList(head, rule.snakefile) + doc
+        return StringList(headlines, rule.snakefile) + doc
 
-    def parse_stage(self, stage, idt=0):
+    def parse_stage(self, stage: Stage, idt: int=0) -> StringList:
         head = self.tpl_stage.format(
             name=stage.name,
             filename=relpath(stage.filename),
             lineno=self.workflow.linemaps[stage.filename][stage.lineno],
         )
         head = indent(head, " " * idt)
-        head = head.splitlines()
-        doc = self.parse_doc(stage.doc, stage.filename, idt+3)
+        headlines = head.splitlines()
+        doc = self.parse_doc(stage.docstring, stage.filename, idt+3)
 
-        res = StringList(head, stage.filename) + doc
+        res = StringList(headlines, stage.filename) + doc
         for rule in sorted(stage.rules, key=lambda s: s.name):
             res.extend(self.parse_rule(rule, idt+3))
         return res
 
-    def _generate_nodes(self, snakefile):
+    def _generate_nodes(self) -> List[nodes.Node]:
         """Generate Sphinx nodes from parsed snakefile"""
         node = nodes.paragraph('')
         result = StringList()
@@ -347,7 +349,7 @@ class AutoSnakefileDirective(rst.Directive):
         return [node]
 
 
-def collect_pages(app):
+def collect_pages(app: Sphinx):
     """Add Snakefiles to documentation (in HTML mode)
     """
     if not hasattr(app.env, '_snakefiles'):
@@ -380,46 +382,59 @@ def collect_pages(app):
 
 
 class DomainTocTreeCollector(EnvironmentCollector):
-    """Add custom entries to toc
-
-    .. tocentry:
-
-    Docutils docs node tree looks like this::
-      <bullet_list>
-        <list_item>
-          <compact_paragraph>
-            <reference anchorname=#$anchor internal="True" refuri=$document>
-              $text
-          <bullet_list>
-
-    notes:
-      - `sphinx.environment.collectors.toctree` is built-in so always
-        loaded and hence always called before us.
-
-    """
-    # override
-    def clear_doc(self, app, env, docname):
-        pass
+    """Add Sphinx Domain entries to the TOC"""
 
     # override
-    def merge_other(self, app, env, docnames, other):
-        pass
+    def clear_doc(self, app: Sphinx,
+                  env: BuildEnvironment, docname: str) -> None:
+        """Clear data from environment
+
+        If we have cached data in environment for document `docname`,
+        we should clear it here.
+
+        """
 
     # override
-    def process_doc(self, app, doctree):
+    def merge_other(self, app: Sphinx, env: BuildEnvironment,
+                    docnames: List[str], other: BuildEnvironment) -> None:
+        """Merge with results from parallel processes
+
+        Called if Sphinx is processing documents in parallel. We
+        should merge this from `other` into `env` for all `docnames`.
+        """
+
+    # override
+    def process_doc(self, app: Sphinx, doctree: nodes.Node) -> None:
+        """Process `doctree`
+
+        This is called by `read-doctree`, so after the doctree has been
+        loaded. The signal is processed in registered first order,
+        so we are called after built-in extensions, such as the
+        `sphinx.environment.collectors.toctree` extension building
+        the TOC.
+        """
+
         # FIXME: handle duplicate entries
         for node in self.select_doc_nodes(doctree):
-            tocnode = self.locate_parent_in_toc(app, node)
-            heading = self.make_heading(doctree, node)
+            tocnode = self.select_toc_location(app, node)
+            heading = self.make_heading(node)
             if not tocnode:
                 continue
 
             self.toc_insert(app.env.docname, tocnode, node, heading)
 
-    def select_doc_nodes(self, doctree):
+    def select_doc_nodes(self, doctree: nodes.Node) -> List[nodes.Node]:
+        """Select the nodes for which entries in the TOC are desired
+
+        This is a separate method so that it might be overriden by
+        subclasses wanting to add other types of nodes to the TOC.
+        """
         return doctree.traverse(addnodes.desc)
 
-    def locate_parent_in_toc(self, app, node):
+    def select_toc_location(self, app: Sphinx,
+                            node: nodes.Node) -> nodes.Node:
+        """Select location in TOC where `node` should be referenced
+        """
         while node is not None:
             tocnode = self.locate_in_toc(app, node)
             if tocnode:
@@ -428,7 +443,8 @@ class DomainTocTreeCollector(EnvironmentCollector):
             node = node.parent
         return app.env.tocs[app.env.docname][0]
 
-    def locate_in_toc(self, app, node):
+    def locate_in_toc(self, app: Sphinx,
+                      node: nodes.Node) -> Optional[nodes.Node]:
         toc = app.env.tocs[app.env.docname]
         ref = self.get_ref(node)
         for node in toc.traverse(nodes.reference):
@@ -438,7 +454,7 @@ class DomainTocTreeCollector(EnvironmentCollector):
             if node_ref[1:] == ref:
                 return node.parent.parent
 
-    def get_ref(self, node):
+    def get_ref(self, node: nodes.Node) -> Optional[nodes.Node]:
         while node is not None:
             if not node.get('ids'):
                 # In Sphinx domain descriptions, the ID is in the
@@ -453,11 +469,12 @@ class DomainTocTreeCollector(EnvironmentCollector):
                 return node['ids'][0]
             node = node.parent
 
-    def make_heading(self, doctree, node):
+    def make_heading(self, node: nodes.Node) -> List[nodes.Node]:
         names = node[0].traverse(addnodes.desc_name)
         return names
 
-    def toc_insert(self, docname, tocnode, node, heading):
+    def toc_insert(self, docname: str, tocnode: nodes.Node, node: nodes.Node,
+                   heading: List[nodes.Node]) -> None:
         for child in tocnode.children:
             if isinstance(child, nodes.bullet_list):
                 blist = child
@@ -475,7 +492,7 @@ class DomainTocTreeCollector(EnvironmentCollector):
         blist.append(item)
 
 
-def setup(app):
+def setup(app: Sphinx):
     """Register the extension with Sphinx"""
     app.add_lexer('snakemake', SnakemakeLexer())
     app.add_domain(SnakemakeDomain)
