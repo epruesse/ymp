@@ -2,6 +2,7 @@ import click
 
 from setuptools_scm import get_version
 
+import ymp
 from ymp.cli.env import env
 from ymp.cli.make import make, submit
 from ymp.cli.shared_options import group
@@ -9,7 +10,7 @@ from ymp.cli.stage import stage
 
 
 @group()
-@click.version_option(version=get_version(root='../..', relative_to=__file__))
+@click.version_option(version=ymp.__version__)
 def main(**kwargs):
     """
     Welcome to YMP!
