@@ -6,6 +6,7 @@ import sys
 import click
 
 # ymp.env is late imported in env() to save 200ms on startup
+import ymp
 from ymp.cli.make import snake_params, start_snakemake
 from ymp.cli.shared_options import group
 
