@@ -16,7 +16,7 @@ rule pick_open_otus:
     params:
         ref_fasta = lambda wc, input: input.gg+"/rep_set/{similarity}_otus.fasta".format(**wc),
         seqs = lambda wc, input: ','.join(input.seqs),
-        seq_ids = lambda wc, input: ','.join(['.'.join(i.split('/')[-1].split('.')[:-2]) for i in input.seqs]),
+        seq_ids = lambda wc, input: ','.join(['.'.join(i.split('/')[-1].split('.')[:-3]) for i in input.seqs]),
         similarity = lambda wc: wc.similarity if wc.similarity else 97
     log:
         "{dir}.o{similarity}/log.txt"
@@ -93,6 +93,21 @@ rule pick_closed_otus:
     cat slout/split_library_log.txt qiime_otus/log_*.txt > {log}
     """
 
+rule rarefy_table:
+    """"""
+    input:
+        biom = "{dir}/{otu_table}.biom"
+    output:
+        biom = "{dir}/{otu_table}.d{rar_level}.biom"
+    wildcard_constraints:
+        rar_level = "\d+"
+    conda:
+        srcdir("qiime.yml")
+    params:
+        rar_level = "{rar_level}"
+    shell: """
+    single_rarefaction.py -i {input.biom} -d {params.rar_level} -o {output.biom}
+    """
 
 rule convert_to_closed_ref:
     """Convert open reference otu table to closed reference"""
