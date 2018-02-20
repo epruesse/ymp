@@ -7,7 +7,6 @@ from typing import List, Dict, Tuple, Union, Any, Set
 import snakemake.utils
 
 
-
 class FormattingError(AttributeError):
     def __init__(self, message: str, fieldname: str) -> None:
         super().__init__(message)
@@ -141,9 +140,9 @@ class RegexFormatter(Formatter):
     def __init__(self, regex: Union[str, Any]) -> None:
         super().__init__()
         if (isinstance(regex, str)):
-            self._regex = re.compile(regex)
+            self.regex = re.compile(regex)
         else:
-            self._regex = regex
+            self.regex = regex
 
     def parse(self, format_string: str):
         """
@@ -157,7 +156,7 @@ class RegexFormatter(Formatter):
             return
 
         start = 0
-        for match in self._regex.finditer(format_string):
+        for match in self.regex.finditer(format_string):
             yield (format_string[start:match.start()],  # literal text
                    match.group('name'),                 # field name
                    '',                                  # format spec
@@ -171,7 +170,7 @@ class RegexFormatter(Formatter):
     def get_names(self, format_string: str) -> Set[str]:
         """Get set of field names in format_string)"""
         return set(match.group('name')
-                   for match in self._regex.finditer(format_string))
+                   for match in self.regex.finditer(format_string))
 
 
 class QuotedElementFormatter(snakemake.utils.SequenceFormatter):

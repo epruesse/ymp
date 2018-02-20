@@ -517,7 +517,7 @@ class FormatExpander(BaseExpander):
     """
     Expander using a custom formatter object.
     """
-    _regex = re.compile(
+    regex = re.compile(
         r"""
         \{
             (?=(
@@ -546,7 +546,7 @@ class FormatExpander(BaseExpander):
                 return
 
             start = 0
-            for match in self.expander._regex.finditer(format_string):
+            for match in self.expander.regex.finditer(format_string):
                 yield (format_string[start:match.start()],
                        match.group('name'), '', None)
                 start = match.end()
@@ -556,14 +556,14 @@ class FormatExpander(BaseExpander):
 
     def get_names(self, pattern):
         return set(match.group('name')
-                   for match in self._regex.finditer(pattern))
+                   for match in self.regex.finditer(pattern))
 
 
 class ColonExpander(FormatExpander):
     """
     Expander using `{:xyz:}` formatted variables.
     """
-    _regex = re.compile(
+    regex = re.compile(
         r"""
         \{:
             (?=(
