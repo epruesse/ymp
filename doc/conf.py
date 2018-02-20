@@ -48,8 +48,8 @@ project = 'YMP Extensible Omics Pipeline'
 author = 'Elmar Pruesse'
 copyright = '2017-2018, ' + author
 
-version = ymp.__version__
-release = ymp.__release__
+version = ".".join(ymp.__version__.split(".")[:3])
+release = ymp.__version__
 
 language = None
 
