@@ -416,7 +416,7 @@ class BaseExpander(object):
             for field in filter(self.expands_field, ruleinfo_fields):
                 attr = getattr(item, field)
                 setattr(item, field, self.expand(rule, attr,
-                                                 expand_args, rec=rec))
+                                                 expand_args=expand_args, rec=rec))
         elif isinstance(item, str):
             try:
                 expand_args['rule'] = rule
@@ -429,7 +429,7 @@ class BaseExpander(object):
                 _item = item
 
                 def item(wc):
-                    return self.expand(rule, _item, {'wc': wc, 'rule': rule}, cb=True)
+                    return self.expand(rule, _item, expand_args={'wc': wc, 'rule': rule}, cb=True)
         elif hasattr(item, '__call__'):
             # continue expansion of function later by wrapping it
             _item = item
@@ -441,7 +441,7 @@ class BaseExpander(object):
                               "".format(" "*rec*4, type(self).__name__,
                                         args, kwargs))
                 res = self.expand(rule, _item(*args, **kwargs),
-                                  {'wc': args[0]}, rec=rec, cb=True)
+                                  expand_args={'wc': args[0]}, rec=rec, cb=True)
                 if debug:
                     log.debug("{}=> {}"
                               "".format(" "*rec*4, res))
@@ -451,7 +451,7 @@ class BaseExpander(object):
             pass
         elif isinstance(item, dict):
             for key, value in item.items():
-                _item = self.expand(rule, value, expand_args, rec=rec)
+                _item = self.expand(rule, value, expand_args=expand_args, rec=rec)
 
                 # Snakemake can't have functions in lists in dictionaries.
                 # Let's fix that, even if we have to jump a lot of hoops here.
@@ -481,9 +481,9 @@ class BaseExpander(object):
                     item[key] = _item
         elif isinstance(item, list):
             for i, subitem in enumerate(item):
-                item[i] = self.expand(rule, subitem, expand_args, rec=rec)
+                item[i] = self.expand(rule, subitem, expand_args=expand_args, rec=rec)
         elif isinstance(item, tuple):
-            item = tuple(self.expand(rule, subitem, expand_args, rec=rec)
+            item = tuple(self.expand(rule, subitem, expand_args=expand_args, rec=rec)
                          for subitem in item)
         else:
             raise ValueError("unable to expand item '{}' with args '{}'"
