@@ -1,0 +1,138 @@
+"""
+Rules for computing read depth profiles
+"""
+
+
+###
+### Meta rules
+###
+
+localrules: cov_all_for_target
+rule cov_all_for_target:
+    message:
+        "Collected coverages for {wildcards.target}"
+    input:
+        "{dir}.contigcov/{target}.contigs.{:sources:}.csv"
+    output:
+        touch("{dir}.contigcov/all_{target}")
+
+localrules: cov_all
+rule cov_all:
+    message:
+        "Collected coverages in {wildcards.dir}"
+    input:
+        "{dir}.contigcov/all_{:targets:}"
+    output:
+        touch("{dir}.contigcov/all")
+
+
+rule metacov_scan:
+    message:
+        "MetaCov Scan: {output.khist} + basehist"
+    input:
+        bam = "{dir}/{target}.contigs.{source}.sorted.bam",
+        bai = "{dir}/{target}.contigs.{source}.sorted.bam.bai"
+    output:
+        khist = "{dir}.contigcov/{target}.contigs.{source}.kmerhist.csv",
+        bhist = "{dir}.contigcov/{target}.contigs.{source}.basehist.csv"
+    log:
+        "{dir}.contigcov/{target}.contigs.{source}.scan.log"
+    conda:
+        "metacov.yml"
+    shell:"""
+    metacov scan \
+        -o {output.khist} \
+        -b {output.bhist} \
+        {input.bam} \
+         >{log} 2>&1 \
+    """
+
+rule metacov_by_contig:
+    message:
+        "MetaCov Pileup: {output.csv}"
+    input:
+        bam = "{dir}.{mapper}/{target}.contigs.{source}.sorted.bam",
+        bai = "{dir}.{mapper}/{target}.contigs.{source}.sorted.bam.bai",
+        khist = "{dir}.{mapper}.contigcov/{target}.contigs.{source}.kmerhist.csv",
+        ref = "{dir}/{target}.contigs.fasta"
+    output:
+        csv = "{dir}.{mapper}.contigcov/{target}.contigs.{source}.csv"
+    log:
+        "{dir}.{mapper}.contigcov/{target}.contigs.{source}.log"
+    conda:
+        "metacov.yml"
+    shell:"""
+    metacov pileup \
+        -b {input.bam} \
+        -o {output.csv} \
+        -k {input.khist} \
+        -f {input.ref} \
+        >{log} 2>&1
+    """
+
+rule metacov:
+    """
+    Compute coverage for a set of regions. Needs:
+    - csv with regions
+      - sequence_id, start, end
+    - bam with aligned reads
+    """
+    message:
+        "MetaCov Pileup: {output}"
+    input:
+        csv = "{dir}.{genefind}/{target}.contigs.{query}.{gene}.csv",
+        bam = "{dir}.{mapper}/{target}.contigs.{source}.sorted.bam",
+        bai = "{dir}.{mapper}/{target}.contigs.{source}.sorted.bam.bai"
+    output:
+        "{dir}.{mapper}.cov/{target}.contigs.{source}.{genefind}.{query}.{gene}.csv"
+    log:
+        "{dir}.{mapper}.cov/{target}.contigs.{source}.{genefind}.{query}.{gene}.log"
+    conda:
+        "metacov.yml"
+    shell:"""
+    metacov {input.bam} {input.csv} {output}.tmp >{log} 2>&1
+    sed -e '1 s/^/target,source,/' \
+        -e '2~1 s/^/{wildcards.target},{wildcards.source},/' \
+        {output}.tmp > {output}
+    rm {output}.tmp
+    """
+
+
+localrules: blast7_coverage_join_sources
+rule metacov_join_sources:
+    message:
+        "Merging coverage"
+    input:
+        csv="{dir}.cov/{target}.contigs.{: sources :}.{genefind}.{query}.{gene}.csv"
+    output:
+        csv=temp("{dir}.cov/{target}.contigs.{genefind}.{query}.{gene}.csv")
+    shell: """
+    if test "$(echo {input.csv} | wc -w)" -eq 1; then
+       cp {input.csv} {output.csv}
+    else
+        (
+            head -n1 {input.csv[0]};
+            tail -n +2 -q {input.csv};
+        ) > {output.csv}
+    fi
+    """
+
+
+localrules: blast7_coverage_join_targets
+rule metacov_join_targets:
+    message:
+        "Merging coverage"
+    input:
+        csv="{dir}.cov/{:targets:}.contigs.{genefind}.{query}.{gene}.csv"
+    output:
+        csv="{dir}.cov/{genefind}.{query}.{gene}.csv"
+    shell: """
+    if test "$(echo {input.csv} | wc -w)" -eq 1; then
+       cp {input.csv} {output.csv}
+    else
+        (
+            head -n1 {input.csv[0]};
+            tail -n +2 -q {input.csv};
+        ) > {output.csv}
+    fi
+    """

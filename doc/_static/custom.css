@@ -1,0 +1,35 @@
+/*
+  Make layout a little more compact:
+  - remove the 6px vertical padding from h2, h3 and rubric
+  - reduce paragraph vertical margin from 1.5 to 0.1 em
+*/
+
+div.body h2,
+div.body p.rubric,
+.section.emphasize-children > .section > h3,
+#table-of-contents > h1,
+h1#search-documentation {
+    padding: 0px 10px;
+}
+
+div.body p {
+    margin: 0.5em 0 0.5em 0;
+}
+
+
+/*
+  Make descnames in toc smaller and more compact
+*/
+
+div.sphinxsidebar code.descname {
+    font-size: 90%;
+    line-height: 1em;
+}
+
+/*
+  Fix [source] link moving away from under target
+*/
+
+.viewcode-link:hover:active {
+    position: absolute
+}

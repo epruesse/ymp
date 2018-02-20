@@ -1,7 +1,8 @@
 import os
-
+import ymp
 from ymp.config import icfg
 icfg.init()
+from ymp.stage import Stage
 
 # make sure rules are executed in bash (not sh, dash or worse)
 shell.executable("/bin/bash")
@@ -9,6 +10,10 @@ shell.executable("/bin/bash")
 refname = str("({})".format("|".join(icfg.ref)))
 
 wildcard_constraints:
+    _YMP_PRJ = "({})".format("|".join(icfg.datasets)),
+    _YMP_DIR = "(\.[^./]+)*?",
+    _YMP_VRT = "(\.ref_({})|\.by_({})|)".format(refname, "[^./]+"),
+    _YMP_ASM = "(\.(sp|trinity)|\.assemble_megahit|)",
     dir      = "[^/]+?",
     dir1     = "[^/]+",
     dir2     = "[^/]+",
@@ -24,14 +29,13 @@ wildcard_constraints:
     length   = "[1-9][0-9]*",
 
     SRR = "[EDS]RR[0-9]+",
-    rnagene="({})".format("|".join(icfg.db.rrna)),
     project = "({})".format("|".join(icfg.datasets)),
     pairname = "({})".format("|".join(icfg.pairnames)),
     sample   = "(ALL|{})".format("|".join(icfg.allruns)),
     reference = refname,
     refname = refname,
-    assembler = "(mh|mhc|sp|ref_{})".format(refname),
-    mapper = "(bt2|bbm)",
+    assembler = "(mh|mhc|sp|trinity|ref_{})".format(refname),
+    mapper = "(bt2|bbm|map_bbmap|map_bowtie2)",
     genefind = "(blast)",
 
     fasta = "(fasta|fna|fa)",
@@ -40,14 +44,15 @@ wildcard_constraints:
     fqgz  = "(fq)(|.gz)",
 
     by = "(\.by_[^./]*|)",
+    REF = "(\.ref_[^./]*|)",
     target = "[^/.]+",
     source = "[^/.]+"
 
 for fn in os.listdir(srcdir("")):
-    if fn.endswith(".rules"):
+    if fn.endswith(".rules") and not fn.startswith("."):
         include: fn
 
 if os.path.exists(icfg.dir.rules):
     for fn in os.listdir(icfg.dir.rules):
-        if fn.endswith(".rules"):
+        if fn.endswith(".rules") and not fn.startswith("."):
             include: os.path.abspath(os.path.join(icfg.dir.rules, fn))

@@ -3,23 +3,23 @@ import logging
 import os
 import re
 
-from functools import lru_cache
-
 from pkg_resources import resource_filename
-
-from snakemake.io import expand, get_wildcard_names
 
 import yaml
 
 from ymp.common import parse_number, update_dict
-from ymp.snakemake import ColonExpander, ExpandableWorkflow
+from ymp.exceptions import YmpException
+from ymp.snakemake import \
+    ColonExpander, \
+    CondaPathExpander, \
+    DefaultExpander, \
+    ExpandableWorkflow, \
+    InheritanceExpander, \
+    RecursiveExpander
+from ymp.stage import StageExpander
 from ymp.util import AttrDict
 
 log = logging.getLogger(__name__)
-
-
-class YmpException(Exception):
-    pass
 
 
 class YmpConfigError(YmpException):
@@ -181,57 +181,156 @@ def load_data(cfg):
     raise YmpConfigMalformed()
 
 
+class Reference(object):
+    """
+    Represents (remote) reference file/database configuration
+    """
+    def __init__(self, cfgmgr, reference, cfg):
+        self.name = reference
+        self.cfgmgr = cfgmgr
+        self.cfg = cfg
+
+    def __str__(self):
+        res = "{refdir}/{refname}/ALL.contigs".format(
+            refdir=self.cfgmgr.dir.references,
+            refname=self.name
+        )
+        return res
+
+    def get_file(self, filename):
+        if filename == "ALL.contigs.fasta.gz":
+            res = make_path_reference(self.cfg[0]['url'])
+            log.error("Reference {} {} = {}".format(self.name, filename, res))
+            return res
+        return "__no_such_file__"
+        raise KeyError("No file '{}' in Reference '{}'"
+                       "".format(filename, self.name))
+
+    @property
+    def dir(self):
+        return os.path.join(self.cfgmgr.dir.references, self.name)
+
+
 class Context(object):
     """
+    Computes available targets from stage stack encoded in directory name
+
+    sources:
+    targets:
+    target:
+    reference:
+
     Computes the current groups and group members based on
     the 'context': DatasetConfig and wildcards
     """
     RE_BY = re.compile(r"\.by_([^./]*)(?:[./]|$)")
 
-    def __init__(self, dcfg, wc):
-        import pandas as pd
-
+    def __init__(self, dcfg, kwargs):
         self.dcfg = dcfg
-        self.wc = wc
+        self.kwargs = kwargs
+        self.wc = kwargs.get('wc', None)
+        self.rule = kwargs.get('rule', None)
+        self._group_by = None
+        log.debug("new context for {}".format(kwargs))
 
-        df = dcfg.run_data
+    @property
+    def group_by(self):
+        if self._group_by is not None:
+            return self._group_by
+
+        df = self.dcfg.run_data
+        import pandas as pd
 
         groupbys = []
         # extract groupby column from dir or by key, with by having preference
-        for key in ['dir', 'by']:
-            if hasattr(wc, key):
-                groupbys += self.RE_BY.findall(getattr(wc, key))
+        for key in ['_YMP_DIR', 'dir', '_YMP_VRT', 'by']:
+            if hasattr(self.wc, key):
+                groupbys += self.RE_BY.findall(getattr(self.wc, key))
 
         if len(groupbys) == 0:
             # no grouping desired
             # fake by grouping with virtual column containing "ALL" as value
-            self.groupby = df.groupby(pd.Series("ALL", index=df.index))
+            self._group_by = df.groupby(pd.Series("ALL", index=df.index))
         elif groupbys[-1] == "ID":
             # individual grouping desired
             # fake by grouping according to index
-            self.groupby = df.groupby(df.index)
+            self._group_by = df.groupby(df.index)
         else:
             try:
-                self.groupby = df.groupby(groupbys[-1])
+                self._group_by = df.groupby(groupbys[-1])
             except KeyError:
                 raise YmpConfigError("Unkown column in groupby: {}"
                                      "".format(groupbys[-1]))
+        return self._group_by
+
+    def __repr__(self):
+        return "{}(wc={},groups={})".format(
+            self.__class__.__name__,
+            list(self.wc.allitems()),
+            self.group_by.groups
+        )
+
+    @property
+    def reference(self):
+        """
+        Returns the currently selected reference
+        """
+        references = self.dcfg.cfgmgr.ref.keys()
+        re_ref = re.compile(r"\.(ref_(?:{})|assemble_megahit)(?=[./]|$)"
+                            r"".format("|".join(references)))
+        stackstr = "".join(
+            getattr(self.wc, key)
+            for key in ['dir', '_YMP_PRJ', '_YMP_DIR', '_YMP_VRT', '_YMP_ASM']
+            if hasattr(self.wc, key)
+        )
+        matches = re_ref.findall(stackstr)
+
+        if not matches:
+            raise KeyError("No reference found for {} and {}"
+                           "".format(self.rule, self.wc))
+
+        ref_name = matches[-1]
+        if ref_name.startswith("ref_"):
+            reference = self.dcfg.cfgmgr.ref[ref_name[4:]]
+        else:
+            target = getattr(self.wc, 'target', 'ALL')
+            reference = "{}/{}.contigs".format(stackstr, target)
+
+        log.debug("Reference selected for {}: {}".format(self.rule, reference))
+
+        return reference
 
     @property
     def targets(self):
         """
         Returns the current targets:
+
          - all "runs" if no by_COLUMN is active
          - the unique values for COLUMN if grouping is active
         """
-        return list(self.groupby.indices)
+        return list(self.group_by.indices)
 
     @property
     def sources(self):
         """
         Returns the runs associated with the current target
         """
-        return self.groupby.groups[self.wc.target]
+        try:
+            target = self.wc.target
+        except AttributeError:
+            raise YmpException(
+                "Using '{:sources:}' requires '{target}' wildcard"
+            )
+
+        try:
+            sources = self.group_by.groups[target]
+        except KeyError:
+            log.debug(list(self.wc.allitems()))
+            raise YmpException(
+                "Target '{}' not available. Possible choices are '{}'"
+                "".format(target, list(self.group_by.groups.keys()))
+            )
+        return sources
 
 
 class DatasetConfig(object):
@@ -259,6 +358,9 @@ class DatasetConfig(object):
 
         if self.KEY_DATA not in self.cfg:
             raise YmpConfigMalformed("Missing key " + self.KEY_DATA)
+
+    def __repr__(self):
+        return "{}(project={})".format(self.__class__.__name__, self.project)
 
     @property
     def run_data(self):
@@ -395,9 +497,9 @@ class DatasetConfig(object):
 
         return source_cfg
 
-    @lru_cache()
-    def get_context(self, wc):
-        return Context(self, wc)
+    # @lru_cache()
+    def get_context(self, kwargs):
+        return Context(self, kwargs)
 
     def FQpath(self, run, pair, nosplit=False):
         """Get path for FQ file for `run` and `pair`
@@ -415,18 +517,20 @@ class DatasetConfig(object):
             bccol = self.cfg[self.KEY_BCCOL]
             barcode_file = self.run_data.loc[run][bccol]
             if len(barcode_file) > 0:
-                barcode_id = barcode_file.replace("_","__").replace("/", "_%")
-                return ("{project}.split_libraries/{barcodes}/{run}.{pair}.fq.gz"
-                        "".format(
-                            project = self.project,
-                            barcodes = barcode_id,
-                            run = run,
-                            pair = self.cfgmgr.pairnames[pair]))
+                barcode_id = barcode_file.replace("_", "__").replace("/", "_%")
+                return (
+                    "{project}.split_libraries/{barcodes}/{run}.{pair}.fq.gz"
+                    "".format(
+                        project=self.project,
+                        barcodes=barcode_id,
+                        run=run,
+                        pair=self.cfgmgr.pairnames[pair])
+                )
 
         kind = source[0]
         if kind == 'srr':
             srr = self.run_data.loc[run][source[1]]
-            f = os.path.join(icfg.scratchdir,
+            f = os.path.join(icfg.dir.scratch,
                              "SRR",
                              "{}_{}.fastq.gz".format(srr, pair+1))
             return f
@@ -529,28 +633,41 @@ class ConfigExpander(ColonExpander):
         super().__init__()
         self.config_mgr = config_mgr
 
+    def expands_field(self, field):
+        return field not in 'func'
+
     class Formatter(ColonExpander.Formatter):
         def get_value(self, field_name, args, kwargs):
+            cfg = self.expander.config_mgr
+
             # try to resolve variable as property of the config_mgr
-            try:
-                return getattr(self.expander.config_mgr, field_name)
-            except AttributeError:
-                pass
+            res = getattr(cfg, field_name, None)
+            if res:
+                return res
 
-            # try to resolve as part of dataset
-            try:
-                ds = self.expander.config_mgr.getDatasetFromDir(
-                    kwargs['wc'].dir)
-                return getattr(ds, field_name)
-            except AttributeError:
-                pass
+            ds = "no ds"
+            ct = "no ct"
+            dirname = "no dir"
+            wc = "no wc"
+            if "wc" in kwargs:
+                wc = kwargs["wc"]
 
-            # try to resolve as part of dataset in directory context
-            try:
-                ct = ds.get_context(kwargs['wc'])
-                return getattr(ct, field_name)
-            except AttributeError:
-                pass
+                dirname = getattr(wc, "dir", None)
+                if not dirname:
+                    dirname = getattr(wc, "_YMP_PRJ", None)
+                if dirname:
+                    # Called late with "{dir}" in wildcards
+                    # try to resolve as part of dataset
+                    ds = cfg.getDatasetFromDir(dirname)
+                    res = getattr(ds, field_name, None)
+                    if res is not None:
+                        return res
+
+                    # try to resolve as part of context
+                    ct = ds.get_context(kwargs)
+                    res = getattr(ct, field_name, None)
+                    if res is not None:
+                        return res
 
             return super().get_value(field_name, args, kwargs)
 
@@ -570,14 +687,21 @@ class ConfigMgr(object):
         self._datasets = {}
         self._config = {}
         self._conffiles = []
+        ExpandableWorkflow.clear()
 
     def init(self):
         self.clear()
         ExpandableWorkflow.activate()
         self.find_config()
         self.load_config()
+        self.recursive_expander = RecursiveExpander()
         self.config_expander = ConfigExpander(self)
-        ExpandableWorkflow.default_params(mem=self.mem())
+        self.conda_path_expander = \
+            CondaPathExpander(self.search_paths.conda_env)
+        self.default_expander = \
+            DefaultExpander(params=([], {'mem': self.mem()}))
+        self.inheritance_expander = InheritanceExpander()
+        self.stage_expander = StageExpander()
 
     def find_config(self):
         """Locates ymp config files and sets ymp root"""
@@ -616,7 +740,7 @@ class ConfigMgr(object):
                 update_dict(self._config, conf)
 
         projects = self._config.get(self.KEY_PROJECTS, {})
-        if projects == None:
+        if not projects:
             projects = {}
         self._datasets = {
             project:  DatasetConfig(self, project, cfg)
@@ -624,11 +748,11 @@ class ConfigMgr(object):
         }
 
         references = self._config.get(self.KEY_REFERENCES, {})
-        if references == None:
+        if not references:
             references == {}
         self._references = {
-            ref: make_path_reference(path)
-            for ref, path in references.items()
+            reference: Reference(self, reference, cfg)
+            for reference, cfg in references.items()
         }
 
         if len(self._datasets) == 0:
@@ -651,16 +775,22 @@ class ConfigMgr(object):
         return self._config['pairnames']
 
     @property
+    def search_paths(self):
+        return AttrDict(self._config['search_paths'])
+
+    @property
     def dir(self):
         """
-        Access relative paths to YMP directories.
+        Dictionary of relative paths of named YMP directories
+
+        The directory paths are relative to the YMP root workdir.
         """
         return AttrDict(self._config['directories'])
 
     @property
     def absdir(self):
         """
-        Access absolute paths to YMP directories.
+        Dictionary of absolute paths of named YMP directories
 
         Directories will be created on the fly as they are requested.
         """
@@ -669,6 +799,9 @@ class ConfigMgr(object):
 
     @property
     def cluster(self):
+        """
+        The YMP cluster configuration.
+        """
         return AttrDict(self._config['cluster'])
 
     @property
@@ -676,91 +809,43 @@ class ConfigMgr(object):
         return AttrDict(self._references)
 
     @property
-    def scratchdir(self):
-        try:
-            return self._config['directories']['scratch']
-        except:
-            raise KeyError("Missing directories/scratch in config")
-
-    @property
-    def scratch(self):
-        return self.scratchdir
-
-    @property
-    def reportsdir(self):
-        try:
-            return self._config['directories']['reports']
-        except:
-            raise KeyError("Missing directories/reports in config")
-
-    @property
-    def sra(self):
-        try:
-            return self._config['directories']['sra']
-        except:
-            raise KeyError("Missing directories/reports in config")
-
-    @property
     def datasets(self):
-        """Returns list of all configured datasets"""
+        """
+        Names of all configured datasets
+        """
         return self._datasets.keys()
 
     @property
-    def db(self):
-        return AttrDict(self._config['databases'])
-
-    @property
     def limits(self):
+        """
+        The YMP limits configuration.
+        """
         return AttrDict(self._config['limits'])
 
     @property
     def allruns(self):
+        """
+        Names of all configured runs
+        """
         return self.getRuns()
 
     @property
-    def allprops(self):
-        return self.getProps()
+    def proj(self):
+        """
+        Project base directory
+        """
+        return "{_YMP_PRJ}"
+
 
     def getDatasetFromDir(self, dirname):
         try:
             ds = dirname.split(".", 1)[0]
             return self._datasets[ds]
-        except:
+        except KeyError:
             raise KeyError("no dataset found matching '{}'".format(dirname))
 
-    def expand(self, *args, **kwargs):
-        # FIXME:
-        res = self.config_expander.expand_input(args, kwargs)[0][0]
-        return res
-        # return lambda wc: self._expand(template, wc)
-
-    def _expand(self, template, wc=None):
-        if wc is None:
-            wc = {}
-        if isinstance(template, str):
-            template = [template]
-        names = set()
-        for item in template:
-            names |= get_wildcard_names(item)
-
-        sources = [wc]
-        try:
-            ds = self.getDatasetFromDir(wc.dir)
-            sources += [ds]
-        except:
-            pass
-        sources += [self]
-
-        fields = {}
-        for name in names:
-            for source in sources:
-                if name in dir(source):
-                    fields[name] = getattr(source, name)
-                    break
-            if name not in fields:
-                fields[name] = "{{{}}}".format(name)
-
-        res = expand(template, **fields)
+    def expand(self, item, **kwargs):
+        res = self.config_expander.expand(None, item, kwargs)
         return res
 
     def getRuns(self, datasets=None):
@@ -774,18 +859,6 @@ class ConfigMgr(object):
             run
             for dataset in datasets
             for run in self._datasets[dataset].runs
-        ]
-
-    def getProps(self, datasets=None):
-        """Returns list of properties of `dataset` runs"""
-        if not datasets:
-            datasets = self.datasets
-        if isinstance(datasets, str):
-            datasets = [datasets]
-        return [
-            prop
-            for dataset in datasets
-            for prop in self._datasets[dataset].props
         ]
 
     def mem(self, base="0", per_thread=None, unit="m"):

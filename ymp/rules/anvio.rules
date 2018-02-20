@@ -12,7 +12,7 @@ rule anvio_makedb:
     output:  db    = "{project}.{dir}.anvio/{target}.db"
     log:             "{project}.{dir}.anvio/{target}.db.log"
     threads: 1
-    conda:   srcdir("anvio.yml")
+    conda:   "anvio.yml"
     params:  split_length = 20000,
              kmer_size = 4
     shell: """
@@ -37,7 +37,7 @@ rule anvio_convert_input_fasta:
     input:        "{dir}/{sample}.contigs.fasta.gz"
     output:  temp("{dir}.anvio/{sample}.fa")
     threads: 1
-    conda:   srcdir("pigz.yml")
+    conda:   "pigz.yml"
     shell: """
     unpigz -c {input} | sed '/^>/ s/ .*//' > {output}
     """
@@ -104,7 +104,7 @@ rule anvio_hmm:
     input:         "{dir}.anvio/{sample}.db"
     output:  touch("{dir}.anvio/{sample}.stamp_hmm")
     threads: 2
-    conda:   srcdir("anvio.yml")
+    conda:   "anvio.yml"
     shell: """
     anvi-run-hmms -c {input} --num-threads {threads}
     """
@@ -114,7 +114,7 @@ rule anvio_export_genes:
     message:     "Anvi'o exporting gene calls"
     input:       "{dir}.anvio/{sample}.db"
     output: temp("{dir}.anvio/{sample}.gene-calls.fa")
-    conda:  srcdir("anvio.yml")
+    conda:  "anvio.yml"
     shell: """
     anvi-get-dna-sequences-for-gene-calls -c {input} -o {output}
     """
@@ -129,12 +129,10 @@ rule anvio_centrifuge:
     log:                  "{dir}.anvio/{sample}.centrifuge.log"
     shadow:  "shallow"
     threads: 1
-    conda:  srcdir("anvio.yml")
+    conda:  "anvio.yml"
     shell: """
     centrifuge -f -x {input.cfdb} {input} -S {output.hits} \
       -p {threads} -t &> {log}
-    ls -la
-    pwd
     mv centrifuge_report.tsv {output.report}
     """
 
@@ -150,7 +148,7 @@ rule anvio_import_centrifuge:
         "{dir}.anvio/{sample}.centrifuge_import.log"
     shadow:
         "shallow"
-    conda:  srcdir("anvio.yml")
+    conda:  "anvio.yml"
     shell: """
     ln -s {input.hits} centrifuge_hits.tsv
     ln -s {input.report} centrifuge_report.tsv
@@ -173,7 +171,7 @@ rule anvio_profile_partial_coassembly:
         runinfo="{dir}.anvio/{target}_{source}.d/RUNINFO.cp"
     params:
         sample_name = lambda wc: "s"+wc.source.replace("-","_")
-    conda:  srcdir("anvio.yml")
+    conda:  "anvio.yml"
     shell: """
     rm -rf {output.dir}
     anvi-profile -i {input.bam} -c {input.db} -o {output.dir} \
@@ -198,7 +196,7 @@ rule anvio_merge:
         dir = "{dir}{by}.mhc.anvio/{target}.d"
     params:
         sample_name = "s{target}"
-    conda:  srcdir("anvio.yml")
+    conda:  "anvio.yml"
     shell: """
     anvi-merge \
     -c {input.db} \

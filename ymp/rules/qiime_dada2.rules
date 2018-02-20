@@ -17,7 +17,7 @@ rule dada2:
     threads:
         8
     conda:
-        srcdir("dada2_qiime1.yml")
+        "dada2_qiime1.yml"
     params:
         temp_dir="ymp_dada2_tmp",
         fastqs = lambda wc, input: ' '.join(input.fastqs),
@@ -54,7 +54,7 @@ rule pick_open_otus_on_dada2:
         tree = "{dir}.qd2{skip_len}.o{similarity}/rep_set.tre",
         rep_set = "{dir}.qd2{skip_len}.o{similarity}/rep_set.fa.gz"
     conda:
-        srcdir("dada2_qiime1.yml")
+        "dada2_qiime1.yml"
     params:
         ref_fasta = lambda wc, input: input.gg + "/rep_set/{similarity}_otus.fasta".format(**wc),
         method = "uclust_ref",

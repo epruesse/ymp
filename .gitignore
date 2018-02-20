@@ -1,2 +1,11 @@
 *~
 \#*\#
+
+# python files
+**/__pycache__
+.cache
+.eggs
+*.egg-info
+
+# testing
+test_failures

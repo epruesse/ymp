@@ -1,0 +1,56 @@
+rule trimmomatic_adapter:
+    """Trimming with Trimmomatic"""
+    message:
+        "Trimmomatic {wildcards.dir}/{wildcards.sample}"
+    input:
+        "{dir}/{sample}.{:pairnames:}.fq.gz"
+    wildcard_constraints:
+        adapter="(N|T(2|3|32))"
+    output:
+        "{dir}.trimmomatic{adapter}/{sample}.{:pairnames[0]:}.fq.gz",
+        "{dir}.trimmomatic{adapter}/{sample}.unpaired.{:pairnames[0]:}.fq.gz",
+        "{dir}.trimmomatic{adapter}/{sample}.{:pairnames[1]:}.fq.gz",
+        "{dir}.trimmomatic{adapter}/{sample}.unpaired.{:pairnames[1]:}.fq.gz"
+    log:
+        "{dir}.trimmomatic{adapter}/{sample}.log"
+    params:
+        seed_mismatches = 2,
+        palindrome_clip_thresh = 30,
+        simple_clip_thresh = 10,
+        min_adapter_len = 8,
+        keep_both_reads = "true",
+        arg_pe="PE"
+    conda:
+        "trimmomatic.yml"
+    threads:
+        1
+    shell:"""
+    case {wildcards.adapter} in
+      N)   ADAPTER=NexteraPE-PE.fa ;;
+      T2)  ADAPTER=TruSeq2-PE.fa ;;
+      T3)  ADAPTER=TruSeq3-PE.fa ;;
+      T32) ADAPTER=TruSeq3-PE-2.fa ;;
+    esac
+
+    ADAPTER_DIR="$(dirname $(which trimmomatic))/../share/trimmomatic/adapters"
+
+    CLIPARG="ILLUMINACLIP:$ADAPTER_DIR/$ADAPTER"
+    CLIPARG="$CLIPARG:{params.seed_mismatches}"
+    CLIPARG="$CLIPARG:{params.palindrome_clip_thresh}"
+    CLIPARG="$CLIPARG:{params.simple_clip_thresh}"
+    CLIPARG="$CLIPARG:{params.min_adapter_len}"
+    CLIPARG="$CLIPARG:{params.keep_both_reads}"
+
+    bash -x `which trimmomatic` {params.arg_pe} \
+        -threads {threads} \
+        -phred33 \
+        {input} {output} \
+        $CLIPARG >>{log} 2>&1
+    """
+
+
+rule trimmomatic_adapter_se:  # ymp: extends trimmomatic_adapter
+    input:  "{dir}/{sample}.{:pairnames[0]:}.fq.gz"
+    output: "{dir}.trimmomatic{adapter}/{sample}.{:pairnames[0]:}.fq.gz"
+    params: arg_pe  = "SE",
+            outargs = "{output}"

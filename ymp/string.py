@@ -2,6 +2,22 @@ import re
 
 from itertools import product
 from string import Formatter
+from typing import List, Dict, Tuple, Union, Any, Set
+
+import snakemake.utils
+
+
+class FormattingError(AttributeError):
+    def __init__(self, message: str, fieldname: str) -> None:
+        super().__init__(message)
+        self.attr = fieldname
+
+
+class GetNameFormatter(Formatter):
+    def get_names(self, pattern: str):
+        for val in self.parse(pattern):
+            if val[1] is not None:
+                yield val[1]
 
 
 class OverrideJoinFormatter(Formatter):
@@ -12,8 +28,13 @@ class OverrideJoinFormatter(Formatter):
     to one that can be overridden by a derived class.
     """
 
-    def _vformat(self, format_string, args, kwargs, used_args, recursion_depth,
-                 auto_arg_index=0):
+    def _vformat(self,
+                 format_string: str,
+                 args: List,
+                 kwargs: Dict,
+                 used_args,
+                 recursion_depth: int,
+                 auto_arg_index: int=0) -> Tuple[Union[List[str], str], int]:
         if recursion_depth < 0:
             raise ValueError('Max string recursion exceeded')
         result = []
@@ -64,7 +85,7 @@ class OverrideJoinFormatter(Formatter):
 
         return self.join(result), auto_arg_index
 
-    def join(self, args):
+    def join(self, args: List[str]) -> Union[List[str],str]:
         """
         Joins the expanded pieces of the template string to form the output.
 
@@ -90,22 +111,22 @@ class ProductFormatter(OverrideJoinFormatter):
     "2 and 3"
     "2 and 4"
     """
-    def join(self, args):
+    def join(self, args: List[Any]) -> Union[List[str], str]:
         # expand everything that isn't a string to a list
         args = [[item] if isinstance(item, str) else list(item)
                 for item in args]
         # combine items into list corresponding to cartesian product
         res = [''.join(flat_args) for flat_args in product(*args)]
 
-        # only one result? just return the one without list
-        if len(res) == 1:
-            res = res[0]
-        # no results at all? expand to ''
-        if len(res) == 0:
-            return ''
-        return res
+        if len(res) > 1:
+            return res
 
-    def format_field(self, value, format_spec):
+        if res:
+            return res[0]
+
+        return ''
+
+    def format_field(self, value, format_spec: str):
         if hasattr(value, '__iter__') and not isinstance(value, str):
             return (format(item) for item in value)
         return format(value, format_spec)
@@ -116,14 +137,14 @@ class RegexFormatter(Formatter):
     String Formatter accepting a regular expression defining the format
     of the expanded tags.
     """
-    def __init__(self, regex):
+    def __init__(self, regex: Union[str, Any]) -> None:
         super().__init__()
         if (isinstance(regex, str)):
-            self._regex = re.compile(regex)
+            self.regex = re.compile(regex)
         else:
-            self._regex = regex
+            self.regex = regex
 
-    def parse(self, format_string):
+    def parse(self, format_string: str):
         """
         Parse format_string into tuples. Tuples contain
         literal_text: text to copy
@@ -135,7 +156,7 @@ class RegexFormatter(Formatter):
             return
 
         start = 0
-        for match in self._regex.finditer(format_string):
+        for match in self.regex.finditer(format_string):
             yield (format_string[start:match.start()],  # literal text
                    match.group('name'),                 # field name
                    '',                                  # format spec
@@ -146,34 +167,41 @@ class RegexFormatter(Formatter):
         yield (format_string[start:],
                None, None, None)
 
-    def get_names(self, format_string):
+    def get_names(self, format_string: str) -> Set[str]:
         """Get set of field names in format_string)"""
         return set(match.group('name')
-                   for match in self._regex.finditer(format_string))
+                   for match in self.regex.finditer(format_string))
+
+
+class QuotedElementFormatter(snakemake.utils.SequenceFormatter):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.element_formatter = snakemake.utils.QuotedFormatter()
 
 
 class PartialFormatter(Formatter):
     """
     Formats what it can and leaves the remainder untouched
     """
-    def get_value(self, key, args, kwargs):
-        if isinstance(key, str):
-            return kwargs.get(key,  # key in kwards
-                              "{{{}}}".format(key))  # key not found
-        else:
-            return super().get_value(key, args, kwargs)
+
+    def get_field(self, field_name, args, kwargs):
+        try:
+            return super().get_field(field_name, args, kwargs)
+        except KeyError or IndexError:
+            return getattr(self, "spec", "{{{}}}").format(field_name), None
 
 
-def make_formatter(product=None, regex=None, partial=None):
+def make_formatter(product=None, regex=None, partial=None, quoted=None):
     formatter = 1
-    types = []
+    types: 'List[type]' = []
     class_name = ""
     class_dict = {}
     for arg, cls, name in (
             (product, ProductFormatter, 'Product'),
             (regex, RegexFormatter, 'Regex'),
             (partial, PartialFormatter, 'Partial'),
-            (formatter, Formatter, 'Formatter')
+            (quoted, QuotedElementFormatter, 'QuotedElement'),
+            (formatter, GetNameFormatter, 'Formatter')
              ):
         if arg is not None:
             types += [cls]

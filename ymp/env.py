@@ -20,6 +20,7 @@ class Env(snakemake.conda.Env):
         self.name, _ = splitext(basename(env_file))
 
         self._hash = None
+        self._content_hash = None
         self._content = None
         self._path = None
         self._archive_file = None

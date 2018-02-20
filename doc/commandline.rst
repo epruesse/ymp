@@ -1,6 +1,6 @@
 Command Line
 ============
 
-.. click:: ymp.cmd:cli
+.. click:: ymp.cli:main
    :prog: ymp
    :show-nested:

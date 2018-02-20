@@ -10,21 +10,93 @@ directories:
     rules: 'rules'
     downloads: 'downloads'
 
+search_paths:
+  conda_env:
+    10: "."
+    20: "../conda_envs"
+
 # Default references FASTAs
 references:
-  hs37: https://ftp.ncbi.nlm.nih.gov/pub/agarwala/bmtagger/hs37.fa
-  phiX: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/819/615/GCF_000819615.1_ViralProj14015/GCF_000819615.1_ViralProj14015_genomic.fna.gz
-  hs37d5: ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz
-  hs37d5ss: ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5ss.fa.gz
-  UniVec: https://ftp.ncbi.nlm.nih.gov/pub/UniVec/UniVec
-  mothur_SEED: https://www.mothur.org/w/images/a/a4/Silva.seed_v128.tgz
-  ssu: https://www.arb-silva.de/fileadmin/silva_databases/release_128/Exports/SILVA_128_SSURef_Nr99_tax_silva_trunc.fasta.gz
-  greengenes: ftp://greengenes.microbio.me/greengenes_release/gg_13_5/gg_13_8_otus.tar.gz
-  metaphlan: https://depot.galaxyproject.org/software/metaphlan2/metaphlan2_2.6.0_src_all.tar.gz
-  centrifuge_phv: ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/p+h+v.tar.gz
-  centrifuge_nt: ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/nt.tar.gz
-  centrifuge_pchv: ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/p_compressed+h+v.tar.gz
-  centrifuge_pc: ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/p_compressed.tar.gz
+  # Human Genomes
+  hs37:
+    - url: https://ftp.ncbi.nlm.nih.gov/pub/agarwala/bmtagger/hs37.fa
+  hs37d5:
+    - url: ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5.fa.gz
+  hs37d5ss:
+    - url: ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5ss.fa.gz
+  hg18:
+    url: http://deweylab.biostat.wisc.edu/rsem/human_refseq_NMonly_125bpPolyATail_extractedFromHumanGenome_hg18.tar.gz
+  GRCh38:  # (Ensembl Build)
+    - url: ftp://ftp.ccb.jhu.edu/pub/infphilo/hisat2/data/grch38_snp_tran.tar.gz
+      files:
+        - genome_snp_tran.1.ht2
+        - genome_snp_tran.2.ht2
+        - genome_snp_tran.3.ht2
+        - genome_snp_tran.4.ht2
+        - genome_snp_tran.5.ht2
+        - genome_snp_tran.6.ht2
+        - genome_snp_tran.7.ht2
+        - genome_snp_tran.8.ht2
+    - url: ftp://ftp.ensembl.org/pub/release-84/gtf/homo_sapiens/Homo_sapiens.GRCh38.84.gtf.gz
+    - url: ftp://ftp.ensembl.org/pub/release-84/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+  # Synthetic Sequences
+  phiX:
+    - url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/819/615/GCF_000819615.1_ViralProj14015/GCF_000819615.1_ViralProj14015_genomic.fna.gz
+      type: fasta
+  UniVec:
+    - url: https://ftp.ncbi.nlm.nih.gov/pub/UniVec/UniVec
+      type: fasta
+
+  # rRNA Sequences
+  silva:
+    - url: https://www.arb-silva.de/fileadmin/silva_databases/release_128/Exports/SILVA_128_SSURef_Nr99_tax_silva_trunc.fasta.gz
+      type: fasta.gz
+  mothur_SEED:
+    - url: https://www.mothur.org/w/images/a/a4/Silva.seed_v128.tgz
+      type: dir
+      files:
+        - silva.seed_v128.tax
+        - silva.seed_v128.align
+  greengenes:
+    - url: ftp://greengenes.microbio.me/greengenes_release/gg_13_5/gg_13_8_otus.tar.gz
+      type: dir
+      strip-components: 1
+      files:
+        - rep_set/99_otus.fasta
+        - rep_set/97_otus.fasta
+        - rep_set/94_otus.fasta
+  # Tool Specific
+  phyloFlash:
+    - url: "None"
+  metaphlan:
+    - url: https://depot.galaxyproject.org/software/metaphlan2/metaphlan2_2.6.0_src_all.tar.gz
+      type: tool
+  centrifuge:
+    - url: ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/p+h+v.tar.gz
+      files:
+        - p+h+v.1.cf
+        - p+h+v.2.cf
+        - p+h+v.3.cf
+    - url: ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/nt.tar.gz
+      files:
+        - nt.1.cf
+        - nt.2.cf
+        - nt.3.cf
+    - url: ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/p_compressed+h+v.tar.gz
+      files:
+        - p_compressed+h+v.1.cf
+        - p_compressed+h+v.2.cf
+        - p_compressed+h+v.3.cf
+    - url: ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/p_compressed.tar.gz
+      files:
+        - p_compressed.1.cf
+        - p_compressed.2.cf
+        - p_compressed.3.cf
+  # Proteins
+  SwissProt:
+    - url: ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz
+  TrEMBL:
+    - url: ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_trembl.fasta.gz
 
 # Default limits
 limits:
@@ -77,6 +149,7 @@ cluster:
         - "--ntasks=1"
         - "--output={:absdir.log:}/%x_%J.log"
         - "--time=23:59:59"
+#      cluster_status: "python -m ymp.cluster slurm status"
 
   rule_params:
     default:
@@ -91,24 +164,3 @@ pairnames:
     - R2
 
 
-#### To Clean Out: ####
-databases:
-  rrna:
-    - ssu
-    - lsu
-    
-
-rrna:
-    genes:
-        - 'LSU'
-        - 'SSU'
-    references:
-        fasta:
-            LSU: '/Users/elpr2080/dbs/SILVA_123.1_LSURef_tax_silva_trunc.ge1200bp.le2000bp.0.97.fixed.fasta'
-            SSU: '/Users/elpr2080/dbs/SILVA_123.1_SSURef_Nr99_tax_silva_trunc.ge1200bp.le2000bp.0.97.fixed.fasta'
-        bowtie:
-            LSU: '/Users/elpr2080/dbs/SILVA_123.1_LSURef_tax_silva_trunc.ge1200bp.le2000bp.0.97.fixed'
-            SSU: '/Users/elpr2080/dbs/SILVA_123.1_SSURef_Nr99_tax_silva_trunc.ge1200bp.le2000bp.0.97.fixed'
-        arb:
-            LSU: '/Users/elpr2080/dbs/LSURef_123.1_SILVA_10_07_15_opt.arb'
-            SSU: '/Users/elpr2080/dbs/SSURef_Nr99_123.1_SILVA_03_03_16_opt.arb'

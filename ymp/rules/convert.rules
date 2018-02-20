@@ -81,8 +81,10 @@ rule gunzip:
         path = ".*(?<!\.gz)"
     input: "{path}.gz"
     output: temp("{path}")
+    params:
+        mem = icfg.mem("1G")
     threads: 1
-    conda: srcdir("pigz.yml")
+    conda: "pigz.yml"
     shell: """
     unpigz \
       --keep \
@@ -114,7 +116,7 @@ rule fq2fa:
     output:
         seqs = "{path}.fa.gz"
     conda:
-        srcdir("fa2fq.yml")
+        "fa2fq.yml"
     shell: """
     sed -n '1~4 s/^@/>/p; 2~4p' {input.seqs} | gzip > {output.seqs}
     """

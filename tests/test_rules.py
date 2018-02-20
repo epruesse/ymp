@@ -11,7 +11,7 @@ log = logging.getLogger(__name__)
 @parametrize_target(large=False, exclude_targets=['phyloFlash'])
 def test_run_rules(target):
     from click.testing import CliRunner
-    from ymp.cmd import make as ymp_make
+    from ymp.cli import make as ymp_make
     runner = CliRunner()
     result = runner.invoke(ymp_make, ["-j2", target])
     if result.exit_code != 0:

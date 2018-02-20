@@ -112,7 +112,7 @@ rule otu_to_biom:
     input:   "{dir}.otu/{file}.table.txt"
     output:  "{dir}.otu/{file}.table.biom"
     threads: 1
-    conda:   srcdir("biom_format.yml")
+    conda:   "biom_format.yml"
     shell:   "biom convert"
              " --input-fp {input}"
              " --output-fp {output}"

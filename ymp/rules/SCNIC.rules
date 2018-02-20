@@ -12,7 +12,7 @@ rule scnic_within_minsamp:
     threads:
         8
     conda:
-        srcdir("SCNIC.yml")
+        "SCNIC.yml"
     params:
         min_samples = lambda wc: wc.min_samples[1:] if wc.min_samples else 0,
         min_r = lambda wc: wc.min_r[1:] if wc.min_r else 35,
@@ -41,7 +41,7 @@ rule scnic_within_sparcc_filter:
     threads:
         8
     conda:
-        srcdir("SCNIC.yml")
+        "SCNIC.yml"
     params:
         min_r = lambda wc: wc.min_r[1:] if wc.min_r else 35,
         method="sparcc"

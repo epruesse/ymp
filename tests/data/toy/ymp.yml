@@ -3,8 +3,10 @@ projects:
     data: 'toy.txt'
 
 references:
-  ssu: 'ssu.fasta.gz'
-  genome: 'reference_1K.fa.gz'
+  ssu:
+    - url: 'ssu.fasta.gz'
+  genome:
+    - url: 'reference_1K.fa.gz'
 
 limits:
   max_mem: 3G

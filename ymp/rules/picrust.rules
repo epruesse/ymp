@@ -7,7 +7,7 @@ rule normalize_16S:
     output:
         biom = "{dir}/{table}.norm.biom"
     conda:
-        srcdir("picrust.yml")
+        "picrust.yml"
     shell: """
     download_picrust_files.py > /dev/null 2>&1
     normalize_by_copy_number.py -i {input.biom} -o {output.biom}
@@ -24,7 +24,7 @@ rule predict_metagenome:
         biom = "{dir}/{table}.ko.biom",
         NSTI = "{dir}/{table}.NSTI.txt"
     conda:
-        srcdir("picrust.yml")
+        "picrust.yml"
     shell: """
     download_picrust_files.py > /dev/null 2>&1
     predict_metagenomes.py \
@@ -42,7 +42,7 @@ rule categorize_by_function:
     output:
         biom = "{dir}/{table}.ko.l{level}.biom"
     conda:
-        srcdir("picrust.yml")
+        "picrust.yml"
     params:
         level = lambda wc: wc.level
     shell: """

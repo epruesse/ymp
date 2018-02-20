@@ -1,0 +1,2 @@
+class YmpException(Exception):
+    pass
