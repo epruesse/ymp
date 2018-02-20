@@ -4,6 +4,7 @@ setuptools_scm
 sphinxcontrib-napoleon
 sphinxcontrib-fulltoc
 sphinx-click
+sphinx_autodoc_typehints
 snakemake
 ftputil
 click
