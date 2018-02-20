@@ -25,11 +25,11 @@ needs_sphinx = '1.6'
 
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinxcontrib.napoleon',
     'sphinx_autodoc_typehints',
     'sphinx.ext.intersphinx',
     'sphinx.ext.coverage',
     'sphinx.ext.viewcode',
-    'sphinxcontrib.napoleon',
     'sphinxcontrib.fulltoc',
     'sphinx_click.ext',
     'ymp.sphinxext',
