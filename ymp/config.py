@@ -276,7 +276,7 @@ class Context(object):
         Returns the currently selected reference
         """
         references = self.dcfg.cfgmgr.ref.keys()
-        re_ref = re.compile(r"\.(ref_(?:{})|mhc)(?=[./]|$)"
+        re_ref = re.compile(r"\.(ref_(?:{})|assemble_megahit)(?=[./]|$)"
                             r"".format("|".join(references)))
         stackstr = "".join(
             getattr(self.wc, key)
