@@ -184,12 +184,12 @@ class PartialFormatter(Formatter):
     """
     Formats what it can and leaves the remainder untouched
     """
-    def get_value(self, key, args, kwargs):
-        if isinstance(key, str):
-            return kwargs.get(key,  # key in kwargs
-                              "{{{}}}".format(key))  # key not found
-        else:
-            return super().get_value(key, args, kwargs)
+
+    def get_field(self, field_name, args, kwargs):
+        try:
+            return super().get_field(field_name, args, kwargs)
+        except KeyError or IndexError:
+            return getattr(self, "spec", "{{{}}}").format(field_name), None
 
 
 def make_formatter(product=None, regex=None, partial=None, quoted=None):

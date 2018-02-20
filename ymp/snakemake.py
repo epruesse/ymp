@@ -526,6 +526,8 @@ class FormatExpander(BaseExpander):
         \}
         """, re.VERBOSE)
 
+    spec = "{{{}}}"
+
     def __init__(self):
         super().__init__()
         self.formatter = self.Formatter(self)
@@ -536,6 +538,7 @@ class FormatExpander(BaseExpander):
     class Formatter(ProductFormatter):
         def __init__(self, expander):
             self.expander = expander
+            self.spec = expander.spec
             super().__init__()
 
         def parse(self, format_string):
@@ -570,6 +573,8 @@ class ColonExpander(FormatExpander):
             ))\1
         :\}
         """, re.VERBOSE)
+
+    spec = "{{:{}:}}"
 
     def __init__(self):
         super().__init__()
