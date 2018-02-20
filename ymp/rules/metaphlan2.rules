@@ -3,7 +3,7 @@ with Stage("metaphlan2") as S:
     Assess metagenome community composition using Metaphlan 2
     """)
     metaphlan_bam = "{:this:}/{sample}.bam"
-    metaphlam_db = "{:dir.references:}/metaphlan/db_v20"
+    metaphlan_db = "{:dir.references:}/metaphlan/db_v20"
     rule metaphlan2_map:
         """
         Align reads to Metaphlan's custom reference database.
