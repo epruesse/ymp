@@ -3,6 +3,3 @@ channels:
  - conda-forge
 dependencies:
  - humann2
- - metaphlan2
- - export2graphlan
- - graphlan

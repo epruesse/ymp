@@ -1,0 +1,89 @@
+with Stage("metaphlan2") as S:
+    S.doc("""
+    Assess metagenome community composition using Metaphlan 2
+    """)
+    metaphlan_bam = "{:this:}/{sample}.bam"
+    metaphlam_db = "{:dir.references:}/metaphlan/db_v20"
+    rule metaphlan2_map:
+        """
+        Align reads to Metaphlan's custom reference database.
+        """
+        message:
+            "Metaphlan2: Mapping reads with Bowtie2"
+        input:
+            fq = "{:prev:}/{sample}.{:pairnames:}.fq.gz",
+            ref = metaphlan_db
+        output:
+            metaphlan_bam
+        log:
+            metaphlan_bam + ".log"
+        conda:
+            "bowtie2.yml"
+        threads:
+            16
+        params:
+            bt2_base = "{input.ref}/mpa_v20_m200",
+            mem = icfg.mem("128G")
+        shell: """
+        bowtie2 \
+        --threads {threads} \
+        -x {params.bt2_base} \
+        --no-unal \
+        --very-sensitive \
+        -U {input.fq[0]} -U {input.fq[1]} \
+        2>{log} \
+        | samtools view -b -o {output} -
+        """
+
+    localrules: metaphlan2
+    rule metaphlan2:
+        """ 
+        Computes community profile from mapped reads and Metaphlan's
+        custom reference database.  
+        """
+        message:
+            "Metaphlan2: Computing community profile"
+        input:
+            bam = metaphlan_bam,
+            ref = metaphlan_db
+        output:
+            "{:this:}/{sample}_profile.txt"
+        log:
+            "{:this:}/{sample}_profile.log"
+        params:
+            mka = "{input.ref}/mpa_v20_m200.pkl"
+        conda:
+            "metaphlan2.yml"
+        threads:
+            1
+        shell: """
+        samtools view {input.bam} | \
+        metaphlan2.py \
+        --mpa_pkl {params.mka} \
+        --input_type sam \
+        -o {output} \
+        --nproc {threads} \
+        --sample_id {wildcards.sample} \
+        >{log} 2>&1
+        """
+
+    localrules: metaphlan2_merge
+    rule metaphlan2_merge:
+        """
+        Merges Metaphlan community profiles.
+        """
+        message:
+            "Metaphlan2: Merging community profiles"
+        input:
+            "{:this:}/{:runs:}_profile.txt"
+        output:
+            "{:this:}/merged_abundance_table.txt"
+        log:
+            "{:this:}/merged_abundance_table.txt.log"
+        conda:
+            "metaphlan2.yml"
+        threads:
+            1
+        shell: """
+        merge_metaphlan_tables.py {input} > {output} 2>{log}
+        """

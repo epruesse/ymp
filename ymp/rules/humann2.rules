@@ -1,0 +1,130 @@
+localrules: human_db_download
+rule human_db_download:
+    """
+    Download Humann2 reference databases
+    """
+    output: "{:dir.references:}/humann2/{database}.{build}"
+    wildcard_constraints:
+      database = "[^.]*",
+      build = "[^.]*"
+    threads: 1
+    conda: "hhtools.yml"
+    shell: """
+    humann2_databases --download {wildcards.database} {wildcards.build} {output}
+    """
+ruleorder: human_db_download > gunzip
+
+with Stage("humann2") as S:
+    S.doc("""
+    Compute functional profiles using HUMAnN2
+    """)
+    rule humann2:
+        """
+        Runs HUMAnN2 with separately processed Metaphlan2 output.
+
+        .. note:: HUMAnN2 has no special support for paired end reads. As per manual,
+           we just feed it the concatenated forward and reverse reads.
+        """
+        input:
+            reads      = "{:prev:}/{sample}.{:pairnames:}.fq.gz",
+            chocophlan = "{:dir.references:}/humann2/chocophlan.full",
+            uniref     = "{:dir.references:}/humann2/uniref.uniref90_diamond",
+            metaphlan  = "{:prev:}.metaphlan2/{sample}_profile.txt"
+        output:
+            genefam   = "{:this:}/{sample}_genefamilies.tsv",
+            pathabu   = "{:this:}/{sample}_pathabundance.tsv",
+            pathcov   = "{:this:}/{sample}_pathcoverage.tsv",
+            tempdir   = "{:this:}/{sample}_humann2_temp"
+        params:
+            outpath   = "{:this:}",
+            mem       = icfg.mem("128G")
+        log:
+                        "{:this:}/{sample}.log"
+        threads: 16
+        conda: "humann2.yml"
+        shell:
+            "mkdir -p {output.tempdir};"
+            "cat {input.reads} > {output.tempdir}/temp.fq.gz;"
+            "humann2"
+            " --input-format fastq.gz"
+            " --input {output.tempdir}/temp.fq.gz"
+            " --taxonomic-profile {input.metaphlan}"
+            " --output-basename {wildcards.sample}"
+            " --output {params.outpath}"
+            " --nucleotide-database {input.chocophlan}/chocophlan"
+            " --protein-database {input.uniref}/uniref"
+            " --threads {threads};"
+            " --o-log {log};"
+            "rm {output.tempdir}/temp.fq.gz;"
+
+
+    localrules: humann2_renorm_table
+    rule humann2_renorm_table:
+        """
+        Renormalizes humann2 output tables
+        """
+        message:
+            "HUMANn2: renormalizing table {input} to {wildcards.unit}/{wildcards.mode}"
+        input:
+            "{:this:}/{sample}_{type}.tsv"
+        wildcard_constraints:
+            type = "(genefamilies|pathabundance|pathcoverage)",
+            unit = "(cpm|relab)",
+            mode = "(community|levelwise)"
+        output:
+            "{:this:}/{sample}_{type}_{mode}_{unit}_single.tsv"
+        log:
+            "{:this:}/{sample}_{type}_{mode}_{unit}_single.log"
+        params:
+            special = "y"
+        conda:
+            "hhtools.yml"
+        shell:
+            "humann2_renorm_table"
+            " --input {input}"
+            " --output {output}"
+            " --units {wildcards.unit}"
+            " --mode {wildcards.mode}"
+            " --special {params.special}"
+            " --update-snames"
+            " >{log} 2>&1"
+
+
+    localrules: humann2_join_tables
+    rule humann2_join_tables:
+        """
+        Joins HUMAnN2 per sample output tables
+        """
+        message:
+            "HUMANn2: joining tables into {output}"
+        input:
+            "{:this:}/{:runs:}_{type}_{mode}_{unit}_single.tsv"
+        wildcard_constraints:
+            type = "(genefamilies|pathabundance|pathcoverage)",
+            unit = "(cpm|relab)",
+            mode = "(community|levelwise)"
+        params:
+            pattern = "{type}_{mode}_{unit}_single.tsv"
+        output:
+            "{:this:}/{type}_{mode}_{unit}.tsv"
+        conda:
+            "hhtools.yml"
+        shell:
+            "humann2_join_tables"
+            " --input {wildcards.dir}.humann2"
+            " --file_name {params.pattern}"
+            " --output {output}"
+
+    localrules: humann2_all
+    rule humann2_all:
+        message:
+            "HUMANn2: Finished processing {wildcards.dir}/humann2"
+        input:
+            expand("{{dir}}.humann2/{type}_{mode}_{unit}.tsv", \
+                   type=("genefamilies","pathabundance","pathcoverage"), \
+                   mode=("community", "levelwise"), \
+                   unit=("cpm", "relab"))
+        output:
+            touch("{:this:}/all")
+
+
