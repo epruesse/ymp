@@ -877,7 +877,7 @@ class ConfigMgr(object):
         try:
             ds = dirname.split(".", 1)[0]
             return self._datasets[ds]
-        except:
+        except KeyError:
             raise KeyError("no dataset found matching '{}'".format(dirname))
 
     def expand(self, item, **kwargs):
