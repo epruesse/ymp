@@ -18,8 +18,9 @@ from typing import TYPE_CHECKING
 from inspect import getframeinfo, stack
 
 from ymp.exceptions import YmpException
-from ymp.snakemake import BaseExpander, ExpandableWorkflow
+from ymp.snakemake import ColonExpander, ExpandableWorkflow, RuleInfo
 from ymp.util import AttrDict
+from ymp.string import PartialFormatter
 
 if TYPE_CHECKING:
     from typing import List
@@ -79,7 +80,7 @@ class Stage(object):
 
         """
         # Stage name
-        self.name: str = name 
+        self.name: str = name
         # Alternate stage name
         self.altname: str = altname
         # Rules in this stage
@@ -131,11 +132,63 @@ class Stage(object):
         rule.ymp_stage = self
         self.rules.append(rule)
 
+    @property
+    def prev(self):
+        """
+        Directory of previous stage
+        """
+        return "{_YMP_PRJ}{_YMP_DIR}"
 
-class StageExpander(BaseExpander):
+    @property
+    def this(self):
+        """
+        Directory of current stage
+        """
+        if not Stage.active:
+            raise YmpException(
+                "Use of {:this:} requires active Stage"
+            )
+        return "".join((self.prev, "{_YMP_VRT}{_YMP_ASM}.",
+                        Stage.active.name))
+
+    @property
+    def that(self):
+        """
+        Alternate directory of current stage
+
+        Used for splitting stages
+        """
+        if not Stage.active:
+            raise YmpException(
+                "Use of {:that:} requires active Stage"
+            )
+        if not Stage.active.altname:
+            raise YmpException(
+                "Use of {:that:} requires with altname"
+            )
+        return "".join((self.prev, "{_YMP_VRT}{_YMP_ASM}.",
+                        Stage.active.altname))
+
+
+class StageExpander(ColonExpander):
     """
     Registers rules with stages when they are created
     """
-    def expand(self, rule, item):
-        if Stage.active:
+    def expand(self, rule, item, **kwargs):
+        if not Stage.active:
+            return item
+
+        if isinstance(item, RuleInfo):
             Stage.active._add_rule(rule)
+
+        return super().expand(rule, item, **kwargs)
+
+    def expands_field(self, field):
+        return field not in 'func'
+
+    class Formatter(ColonExpander.Formatter, PartialFormatter):
+        def get_value(self, key, args, kwargs):
+            stage = Stage.active
+            if hasattr(stage, key):
+                return getattr(stage, key)
+            return super().get_value(key, args, kwargs)

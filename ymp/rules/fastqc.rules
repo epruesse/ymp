@@ -37,6 +37,6 @@ with Stage("qc_fastqc") as S:
         message:
             "Finished {output}"
         input:
-            icfg.this + "/{:fq_names:}_fastqc.zip"
+            "{:this:}/{:fq_names:}_fastqc.zip"
         output:
-            touch(icfg.this + "/all")
+            touch("{:this:}/all")

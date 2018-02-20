@@ -16,7 +16,7 @@ from ymp.snakemake import \
     ExpandableWorkflow, \
     InheritanceExpander, \
     RecursiveExpander
-from ymp.stage import Stage, StageExpander
+from ymp.stage import StageExpander
 from ymp.util import AttrDict
 
 log = logging.getLogger(__name__)
@@ -836,42 +836,6 @@ class ConfigMgr(object):
         """
         return "{_YMP_PRJ}"
 
-    @property
-    def prev(self):
-        """
-        Directory of previous stage
-        """
-        return "{_YMP_PRJ}{_YMP_DIR}"
-
-    @property
-    def this(self):
-        """
-        Directory of current stage
-        """
-        if not Stage.active:
-            raise YmpException(
-                "Use of {:this:} requires active Stage"
-            )
-        return "".join((self.prev, "{_YMP_VRT}{_YMP_ASM}.",
-                        Stage.active.name))
-
-    @property
-    def that(self):
-        """
-        Alternate directory of current stage
-
-        Used for splitting stages
-        """
-        if not Stage.active:
-            raise YmpException(
-                "Use of {:that:} requires active Stage"
-            )
-        if not Stage.active.altname:
-            raise YmpException(
-                "Use of {:that:} requires with altname"
-            )
-        return "".join((self.prev, "{_YMP_VRT}{_YMP_ASM}.",
-                        Stage.active.altname))
 
     def getDatasetFromDir(self, dirname):
         try:
