@@ -694,7 +694,6 @@ class ConfigMgr(object):
         ExpandableWorkflow.activate()
         self.find_config()
         self.load_config()
-        self.stage_expander = StageExpander()
         self.recursive_expander = RecursiveExpander()
         self.config_expander = ConfigExpander(self)
         self.conda_path_expander = \
@@ -702,6 +701,7 @@ class ConfigMgr(object):
         self.default_expander = \
             DefaultExpander(params=([], {'mem': self.mem()}))
         self.inheritance_expander = InheritanceExpander()
+        self.stage_expander = StageExpander()
 
     def find_config(self):
         """Locates ymp config files and sets ymp root"""
