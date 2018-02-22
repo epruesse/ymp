@@ -259,7 +259,7 @@ class Context(object):
             if hasattr(self.wc, key):
                 groupbys += self.RE_BY.findall(getattr(self.wc, key))
 
-        if len(groupbys) == 0:
+        if len(groupbys) == 0 or groupbys[-1] == "ALL":
             # no grouping desired
             # fake by grouping with virtual column containing "ALL" as value
             self._group_by = df.groupby(pd.Series("ALL", index=df.index))
