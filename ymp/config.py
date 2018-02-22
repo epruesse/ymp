@@ -189,6 +189,19 @@ class Reference(object):
         self.name = reference
         self.cfgmgr = cfgmgr
         self.cfg = cfg
+        self.files = {}
+        for rsc in cfg:
+            if isinstance(rsc, str):
+                log.error(self.name)
+            downloaded_path = make_path_reference(rsc['url'])
+            type_name = rsc['type'].lower() if 'type' in rsc else 'fasta'
+            if type_name == 'fasta':
+                self.files['ALL.contigs.fasta.gz'] = downloaded_path
+            elif type_name == 'fastp':
+                self.files['ALL.contigs.fastp.gz'] = downloaded_path
+            else:
+                log.debug("unknown type {} used in reference {}"
+                          "".format(type_name, self.name))
 
     def __str__(self):
         res = "{refdir}/{refname}/ALL.contigs".format(
@@ -198,13 +211,12 @@ class Reference(object):
         return res
 
     def get_file(self, filename):
-        if filename == "ALL.contigs.fasta.gz":
-            res = make_path_reference(self.cfg[0]['url'])
-            log.error("Reference {} {} = {}".format(self.name, filename, res))
-            return res
-        return "__no_such_file__"
-        raise KeyError("No file '{}' in Reference '{}'"
-                       "".format(filename, self.name))
+        downloaded_path = self.files.get(filename)
+        if downloaded_path:
+            return downloaded_path
+        return ("YMP_FILE_NOT_FOUND__" +
+                "No file {} in Reference {}"
+                "".format(filename, self.name).replace(" ", "_"))
 
     @property
     def dir(self):

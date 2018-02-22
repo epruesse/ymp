@@ -93,10 +93,12 @@ references:
         - p_compressed.2.cf
         - p_compressed.3.cf
   # Proteins
-  SwissProt:
+  swissprot:
     - url: ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz
-  TrEMBL:
+      type: fastp
+  trembl:
     - url: ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_trembl.fasta.gz
+      type: fastp
 
 # Default limits
 limits:
