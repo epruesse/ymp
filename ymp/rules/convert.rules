@@ -57,7 +57,7 @@ rule fasta_to_fastp_gz:
     input:
         "{path}.fasta.gz"
     output:
-        "{path}.fastp.gz"
+        "{path}.fastp.gz_disabled"
     run:
         from ymp.nuc2aa import fasta_dna2aa
         import gzip as gz
@@ -80,7 +80,7 @@ rule gunzip:
     wildcard_constraints:
         path = ".*(?<!\.gz)"
     input: "{path}.gz"
-    output: temp("{path}")
+    output: temp("{path}_disabled")
     params:
         mem = icfg.mem("1G")
     threads: 1
