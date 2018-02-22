@@ -3,7 +3,8 @@ Verification rules
 """
 
 with Stage("check") as S:
-    S.doc("""Verify file availability
+    S.doc("""
+    Verify file availability
 
     This stage provides rules for checking the file availability at a given point
     in the stage stack.
