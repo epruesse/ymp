@@ -38,11 +38,21 @@ def make_graph(target, rulegraph=False):
         '--dag' if not rulegraph else '--rulegraph',
         target])
     assert result.exit_code == 0, result.output
-    with open("rulegraph.dot", "w") as out:
-        out.write(result.output)
-    assert result.output.startswith("digraph")
 
-    return DiGraph(AGraph(result.output))
+    # Snakemake can't be quietet in version 4.7, and pytest can't be
+    # told to ignore stderr. We work around this by removing the
+    # first line if it is the spurious Snakemake log message
+    outlines = result.output.splitlines()
+    if outlines[0].startswith("Building DAG of jobs..."):
+        output = "\n".join(outlines[1:])
+    else:
+        output = result.output
+
+    with open("rulegraph.dot", "w") as out:
+        out.write(output)
+    assert output.startswith("digraph")
+
+    return DiGraph(AGraph(output))
 
 
 @parametrize_target()
