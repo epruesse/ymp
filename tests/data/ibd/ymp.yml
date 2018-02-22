@@ -6,4 +6,5 @@ projects:
           - 'ibd_runtable.txt'
 
 references:
-  genome: 'query.faa'
+  genome:
+    - url: 'query.faa'
