@@ -1,0 +1,76 @@
+rule diamond_makedb:
+    "Build Diamond index file"
+    message:
+        "Diamond: running makedb on {input}"
+    input:
+        ref = "{path}/{file}.fastp.gz"
+    params:
+        db  = "{path}.diamond/{file}"
+    output:
+        db  = "{params.db}.dmnd"
+    log:
+              "{params.db}.log"
+    conda:
+        "diamond.yml"
+    threads:
+        16
+    shell: """
+    diamond makedb \
+    --in {input.ref} \
+    --db {params.db} \
+    --threads {threads} \
+    >{log} 2>&1
+    """
+
+
+with Stage("map_diamond") as S:
+    S.doc("""
+    FIXME
+    """)
+    rule diamond_blastx_fasta:
+        "Align DNA sequences from FASTA against protein reference"
+        message:
+            "Diamond: running blastx on {input.fa}"
+        input:
+            fa = "{:prev:}/{source}.contigs.fasta.gz",
+            db = "{:reference.dir:}.diamond/{target}.contigs.dmnd"
+        output:
+                 "{:this:}/{target}.{source}.daa"
+        threads:
+            16
+        conda:
+            "diamond.yml"
+        shell: """
+        diamond blastx \
+        --db {input.db} \
+        --query {input.fa} \
+        --out {output} \
+        --outfmt 100 \
+        --threads {threads}
+        """
+
+    rule diamond_view:
+        "Convert Diamond binary output (daa) to BLAST6 format"
+        message:
+            "Diamond: converting {input} to BLAST6"
+        input:
+            "{:this:}/{file}.daa"
+        output:
+            "{:this:}/{file}.blast6"
+        conda:
+            "diamond.yml"
+        shell: """
+        diamond view --daa {input} > {output}
+        """
+
+    rule diamond_all:
+        output:
+            touch("{:this:}/all")
+        input:
+            "{:this:}/stamp.all_{:targets:}"
+
+    rule diamond_all_for_target:
+        output:
+            touch("{:this:}/stamp.all_{target}")
+        input:
+            "{:this:}/{target}.{:sources:}.daa"
