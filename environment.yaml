@@ -12,6 +12,7 @@ dependencies:
   - xlrd         # excel support
   - coloredlogs
   - setuptools_scm # versioning
+  - xdg # user paths
   #### for tests: ####
   - networkx >= 2.0
   - pygraphviz

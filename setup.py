@@ -45,7 +45,8 @@ setup(
         'rpy2',
         'pandas>=0.20',
         'networkx>=2',
-        'coloredlogs'
+        'coloredlogs',
+        'xdg'
     ],
 
     entry_points='''

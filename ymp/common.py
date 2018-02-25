@@ -1,4 +1,8 @@
 from collections import Iterable, Mapping, OrderedDict
+import xdg
+import shelve
+import atexit
+import os
 
 
 class OrderedDictMaker(object):
@@ -90,3 +94,25 @@ def flatten(item):
 def is_container(obj):
     """Check if object is container, considering strings not containers"""
     return not isinstance(obj, str) and isinstance(obj, Iterable)
+
+
+class Cache(shelve.DbfilenameShelf):
+    _caches = {}
+
+    @classmethod
+    def get_cache(cls, name="ymp"):
+        if name not in cls._caches:
+            return cls(name)
+        else:
+            return cls._caches[name]
+
+    def __init__(self, name):
+        self._cache_basename = os.path.join(
+            xdg.XDG_CACHE_HOME,
+            'ymp',
+            '{}_cache'.format(name)
+        )
+        os.makedirs(os.path.dirname(self._cache_basename), exist_ok=True)
+        atexit.register(Cache.close, self)
+        super().__init__(self._cache_basename)
+        self._caches[name] = self
