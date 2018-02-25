@@ -7,5 +7,6 @@ sphinx_autodoc_typehints
 snakemake
 ftputil
 click
+click-completion
 coloredlogs
 networkx >=2

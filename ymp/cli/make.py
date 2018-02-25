@@ -10,7 +10,7 @@ from pkg_resources import resource_filename
 import snakemake
 
 from ymp.cli.shared_options import command, nohup_option
-from ymp.common import update_dict
+from ymp.common import update_dict, Cache
 from ymp.exceptions import YmpException
 from ymp.util import AttrDict
 
@@ -18,9 +18,45 @@ from ymp.util import AttrDict
 log = logging.getLogger(__name__)
 
 
+class TargetParam(click.ParamType):
+    def complete(self, ctx, incomplete):
+        # log = open("err.txt", "a")
+        log = open("/dev/null", "a")
+        log.write("\nincomplete={}\n".format(incomplete))
+        cache = Cache.get_cache("completion")
+        query_stages = incomplete.split(".")
+        log.write("stages={}\n".format(query_stages))
+        options = []
+
+        if len(query_stages) == 1:  # expand projects
+            from ymp.config import icfg
+            options = icfg.datasets
+        else:  # expand stages
+            if 'stages' in cache:
+                stages = cache['stages']
+            else:
+                from ymp.snakemake import load_workflow
+                from ymp.stage import Stage
+                load_workflow()
+                stages = cache['stages'] = list(Stage.get_stages().keys())
+            options = stages
+        options = [o for o in options if o.startswith(query_stages[-1])]
+        prefix = ".".join(query_stages[:-1])
+        if prefix:
+            prefix += "."
+        log.write("prefix={}\n".format(prefix))
+        options = [prefix + o + cont for o in options for cont in ("/", ".")]
+        log.write("options={}\n".format(options))
+        log.close()
+        return options
+
+
 def snake_params(func):
     """Default parameters for subcommands launching Snakemake"""
-    @click.argument("targets", nargs=-1, metavar="TARGET_FILES")
+    @click.argument(
+        "targets", nargs=-1, metavar="TARGET_FILES",
+        type=TargetParam()
+    )
     @click.option(
         "--dryrun", "-n", default=False, is_flag=True,
         help="Only show what would be done; don't actually run any commands"
