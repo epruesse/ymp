@@ -45,7 +45,7 @@ with Stage("correct_bbmap") as S:
     S.doc("""
     Correct read errors by overlapping inside tails
 
-    Applies BBMap's "bbmerge.sh ecco" mode. This will overlap the inside of
+    Applies `BBMap's <bioconda:bbmap>` "bbmerge.sh ecco" mode. This will overlap the inside of
     read pairs and choose the base with the higher quality where the alignment
     contains mismatches and increase the quality score as indicated by the double
     observation where the alignment contains matches.

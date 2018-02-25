@@ -134,6 +134,7 @@ intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
     'snakemake': ('http://snakemake.readthedocs.io/en/stable', None),
     'sphinx': ('http://www.sphinx-doc.org/en/stable', None),
+    'bioconda': ('https://bioconda.github.io', None),
 }
 
 
