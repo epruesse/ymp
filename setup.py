@@ -39,6 +39,7 @@ setup(
     install_requires=[
         'snakemake',
         'Click',
+        'Click-completion',
         'PyYAML',
         'drmaa',
         'rpy2',
