@@ -31,7 +31,6 @@ setup(
         'pytest-xdist',
         'pytest-logging',
         'pytest-timeout',
-        'networkx',
         'pygraphviz',
         'pytest',
         'yappi',
@@ -44,6 +43,7 @@ setup(
         'drmaa',
         'rpy2',
         'pandas>=0.20',
+        'networkx>=2',
         'coloredlogs'
     ],
 
