@@ -8,6 +8,7 @@ import sys
 import os
 import re
 from copy import copy, deepcopy
+from pkg_resources import resource_filename
 
 from typing import Optional
 
@@ -53,6 +54,14 @@ def print_ruleinfo(rule: Rule, ruleinfo: RuleInfo, func=log.debug):
         func("  {}: {}".format(attr,
                                getattr(ruleinfo, attr, "")))
     func(ruleinfo.func.__code__)
+
+
+def load_workflow(snakefile=None):
+    if not snakefile:
+        snakefile = resource_filename("ymp", "rules/Snakefile")
+    workflow = ExpandableWorkflow(snakefile=snakefile)
+    workflow.include(snakefile)
+    return workflow
 
 
 class CircularReferenceException(RuleException):

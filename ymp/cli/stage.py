@@ -3,20 +3,12 @@ from fnmatch import fnmatch
 
 import click
 
-from pkg_resources import resource_filename
-
 from ymp.cli.shared_options import group
-from ymp.snakemake import ExpandableWorkflow
+from ymp.snakemake import load_workflow
 from ymp.stage import Stage
 
 log = logging.getLogger(__name__)
 
-
-def load_workflow():
-    snakefile = resource_filename("ymp", "rules/Snakefile")
-    workflow = ExpandableWorkflow(snakefile=snakefile)
-    workflow.include(snakefile)
-    return workflow
 
 
 @group()
