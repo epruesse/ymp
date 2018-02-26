@@ -1,3 +1,4 @@
+localrules: download_file
 rule download_file:
     """
     Downloads remote file using *wget*
