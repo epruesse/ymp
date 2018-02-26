@@ -10,3 +10,9 @@ references:
 
 limits:
   max_mem: 3G
+
+overrides:
+  rules:
+    bmtagger_bitmask:
+      params:
+        wordsize: 12

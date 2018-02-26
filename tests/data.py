@@ -20,6 +20,8 @@ target_map = {
         'trim_bbmap':     '{}.trim_bbmapAQ10/all',
         'filter_bbmap':   '{}.ref_phiX.remove_bbmap/all',
         'dedup_bbmap':    '{}.dedup_bbmap/all',
+        'filter_bmtagger':'{}.ref_phiX.filter_bmtagger/all',
+        'rm_bmtagger':    '{}.ref_phiX.remove_bmtagger/all',
         # fails due to bugs in phyloFlash with too few organisms
         #'phyloFlash':     'reports/{}.phyloFlash.pdf',
         'fastqc':         '{}.qc_fastqc/all',
@@ -31,8 +33,6 @@ target_map = {
         'sickleQ10L10':   '{}.sickleQ10L10/all',
     ],
     'metagenome': odict[
-        # can't run bmtagger with less than 9GB RAM
-        # 'bmtagger':       '{}.bmtaggerRMphiX/all',
         # assembly.rules
         'assemble_separate_mh': '{}.by_ID.assemble_megahit/all',
         'assemble_grouped_mh':  '{}.by_Subject.assemble_megahit/all',

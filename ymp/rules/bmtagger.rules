@@ -1,83 +1,141 @@
+"""
+BMTagger Rules
+
+"""
+
 rule bmtagger_bitmask:
-    message: "Bmtool indexing {input}"
-    input:   "{path}.fasta"
-    output:  "{path}.bitmask"
-    log:     "{path}.bitmask.log"
-    threads: 1
-    params:  wordsize = 18,
-             mem = icfg.mem("16g")
-    conda:   "bmtagger.yml"
+    "Build BMTagger bitmask index"
+    message:
+        "BMTagger: bmtool indexing {input}"
+    input:
+        ref = "{path}/{file}.fasta.gz" # USES_GZIP_RULE
+    output:
+        db  = "{path}.index_bmtagger/{file}.bitmask"
+    log:
+              "{path}.index_bmtagger/{file}.bitmask.log"
+    threads:
+        1
+    params:
+        wordsize = 18, # 18->8g, 17->2g, 16->512MB
+        mem = icfg.mem("8g")
+    conda:
+        "bmtagger.yml"
     shell: """
+    gunzip -c {input.ref} > tmp.fa
     bmtool \
-        --fasta-file={input} \
-        --output-file={output} \
-        --word-size={params.wordsize} \
-        > {log} 2>&1
+    --fasta-file=tmp.fa \
+    --output-file={output.db} \
+    --word-size={params.wordsize} \
+    > {log} 2>&1
     """
     # --compress fails with small references (segfault in bmfilter)
 
 
 rule bmtagger_index:
-    message: "Srcprism indexing {input}"
-    input:   "{path}.fasta.gz"
-    output:  touch("{path}.srprism")
-    log:     "{path}.srprism.log"
+    "Build BMTagger srcprism index"
+    message:
+        "BMTagger: srcprism indexing {input}"
+    input:
+        ref = "{path}/{file}.fasta.gz"
+    output:
+        db  = "{path}.index_bmtagger/{file}.srprism"
+    log:
+              "{path}.index_bmtagger/{file}.srprism.log"
     threads: 1
-    params:  basename="{path}.srprism",
-             mem = icfg.mem("8g")
-    conda:   "bmtagger.yml"
+    params:
+        mem = icfg.mem("8g")
+    conda:
+        "bmtagger.yml"
     shell: """
     srprism mkindex \
-        --input {input} \
-        --output {output} \
-        --memory {params.mem} \
-        > {log} 2>&1
-    """
-
-ruleorder: gunzip > bmtagger_find
-rule bmtagger_find:
-    message: "Bmtagger find {wildcards.reference} {wildcards.dir}/{wildcards.sample}"
-    input:   "{dir}/{sample}.{:pairnames:}.fq",
-             bitmask = "{:dir.references:}/{reference}.bitmask",
-             srprism = "{:dir.references:}/{reference}.srprism",
-             tmpdir = ancient(icfg.dir.tmp)
-    output:  temp("{dir}.bmtaggerRM{reference}/{sample}.txt"),
-             "{dir}.bmtaggerRM{reference}/{sample}.txt.gz"
-    log:     "{dir}.bmtaggerRM{reference}/{sample}.bmtagger.log"
-    threads: 1
-    params:  mem = icfg.mem("8g")
-    conda:   "bmtagger.yml"
-    shell: """
-    bmtagger.sh \
-        -b {input.bitmask} \
-        -x {input.srprism} \
-        -q 1 \
-        -1 {input[0]} \
-        -2 {input[1]} \
-        -T {input.tmpdir} \
-        -o {output[0]} \
-        > {log} 2>&1
-    gzip {output[0]} -c > {output[0]}.gz
+    --input {input} \
+    --output {output} \
+    --memory {params.mem} \
+    > {log} 2>&1
+    touch {output}
     """
 
 
-rule bmtagger_filter:
-    message: "Bmtagger removing {wildcards.reference} {wildcards.dir}/{wildcards.sample}"
-    wildcard_constraints:
-        filt = "(RM|KP)"
-    input:   "{dir}/{sample}.{pairsuff}.fq",
-             idlist = "{dir}.bmtaggerRM{reference}/{sample}.txt"
-    output:  "{dir}.bmtagger{filt}{reference}/{sample}.{pairsuff}.fq.gz"
-    log:     "{dir}.bmtagger{filt}{reference}/{sample}.{pairsuff}.extract.log"
-    threads: 8
-    params:  filt = lambda wc: "-remove" if wc.filt == "RM" else "-keep",
-             mem = icfg.mem("8g")
-    conda:   "bmtagger.yml"
-    shell: """
-    extract_fullseq \
-        {input.idlist} \
-        {params.filt} \
-        -fastq \
-        -mate1 {input[0]} | pigz -p {threads} -9 > {output}  2>{log}
-    """
+with Stage("filter_bmtagger", "remove_bmtagger") as S:
+    S.doc("""
+    Filter(-out) contaminant reads using BMTagger
+    """)
 
+    ruleorder: gunzip > bmtagger_find
+    rule bmtagger_find:
+        "Match paired end reads against reference"
+        message:
+            "BMTagger: matching reads from {input.fq} to "#{:reference:}"
+        input:
+            fq      = "{:prev:}/{source}.{:pairnames:}.fq.gz",
+            bitmask = "{:reference.dir:}.index_bmtagger/ALL.contigs.bitmask",
+            srprism = "{:reference.dir:}.index_bmtagger/ALL.contigs.srprism",
+            tmpdir  = ancient("{:dir.tmp:}")
+        output:
+            matches = temp("{:this:}/{source}.txt"),
+            matchgz =      "{:this:}/{source}.txt.gz"
+        log:
+                           "{:this:}/{source}.txt.log"
+        threads:
+            1
+        params:
+            mem = icfg.mem("8g"),
+            matearg = "-2 <(gunzip -c {input.fq[1]})"
+        conda:
+            "bmtagger.yml"
+        shell: """
+        bmtagger.sh \
+            -b {input.bitmask} \
+            -x {input.srprism} \
+            -q 1 \
+            -1 <(gunzip -c {input.fq[0]}) \
+             {params.matearg} \
+            -T {input.tmpdir} \
+            -o {output.matches} \
+            > {log} 2>&1
+        gzip {output.matches} -c > {output.matchgz}
+        """
+
+    rule bmtagger_find_se:  # ymp: extends bmtagger_find
+        "Match single end reads against reference"
+        input:
+            fq = ["{:prev:}/{source}.{:pairnames[0]:}.fq.gz"]
+        params:
+            matearg = ""
+
+    rule bmtagger_filter:
+        "Filter reads using reference"
+        message:
+            "BMTagger: filtering {input.fq} using "# {:reference:}"
+        input:
+            fq      = "{:prev:}/{source}.{pairsuff}.fq.gz",
+            matches = "{:this:}/{source}.txt"
+        output:
+                      "{:this:}/{source}.{pairsuff}.fq.gz"
+        log:
+                      "{:this:}/{source}.{pairsuff}.fq.log"
+        threads:
+            8
+        params:
+            action = "-keep",
+            mem    = icfg.mem("8g")
+        conda:
+            "bmtagger.yml"
+        shell: """
+        extract_fullseq \
+            {input.matches} \
+            {params.action} \
+            -fastq \
+            -mate{wildcards.pairsuff[1]} <(gunzip -c {input.fq}) | gzip -c > {output}  2>{log}
+        """
+
+    rule bmtagger_filter_out: # ymp: extends bmtagger_filter
+        "Filter-out reads using reference"
+        message:
+            "BMTagger: filtering out {input.fq} using "#{:reference:}"
+        output:
+                      "{:that:}/{source}.{pairsuff}.fq.gz"
+        log:
+                      "{:that:}/{source}.{pairsuff}.fq.log"
+        params:
+            action = "-remove"
