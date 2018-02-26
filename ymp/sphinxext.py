@@ -153,9 +153,9 @@ class YmpObjectDescription(ObjectDescription):
                               'duplicate description of {} {}, '
                               'other instance in {}:{}'
                               ''.format(self.objtype, name,
-                                        self.env.doc2path(objects[key]),
+                                        self.env.doc2path(objects[key][0]),
                                         self.lineno))
-            objects[key] = self.env.docname
+            objects[key] = (self.env.docname, targetname)
 
         # register rule in index
         indextext = self.get_index_text(self.objtype, name)
@@ -213,7 +213,9 @@ class SnakemakeDomain(Domain):
     def clear_doc(self, docname: str):
         """Delete objects derived from file ``docname``"""
         if 'objects' in self.data:
-            self.data['objects'] = {}
+            for (key, (docname_, _)) in self.data['objects'].items():
+                if docname_ == docname:
+                    del self.data['objects'][key]
 
     def resolve_xref(self, env: BuildEnvironment, fromdocname: str,
                      builder, typ, target, node, contnode):
@@ -222,14 +224,14 @@ class SnakemakeDomain(Domain):
         for objtype in objtypes:
             if (objtype, target) in objects:
                 return make_refnode(builder, fromdocname,
-                                    objects[objtype, target],
-                                    objtype + "-" + target,
+                                    objects[objtype, target][0],
+                                    objects[objtype, target][1],
                                     contnode, target + ' ' + objtype)
 
     def get_objects(self):
-        for (typ, name), docname in self.data['objects'].items():
+        for (typ, name), (docname, ref) in self.data['objects'].items():
             # name, dispname, type, docname, anchor, searchprio
-            yield name, name, typ, docname, typ + '-' + name, 1
+            yield name, name, typ, docname, ref, 1
 
 
 class AutoSnakefileDirective(rst.Directive):
