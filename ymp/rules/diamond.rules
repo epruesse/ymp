@@ -53,6 +53,13 @@ with Stage("map_diamond") as S:
         --threads {threads}
         """
 
+    rule diamond_blastx_fastq:  # ymp: extends diamond_blastx_fasta
+        input:
+            fa = "{:prev:}/{sample}.{pairname}.fq.gz",
+            db = "{:reference.dir:}.diamond/ALL.contigs.dmnd"
+        output:
+                 "{:this:}/{sample}.{pairname}.daa"
+
     rule diamond_view:
         "Convert Diamond binary output (daa) to BLAST6 format"
         message:
@@ -78,3 +85,9 @@ with Stage("map_diamond") as S:
             touch("{:this:}/stamp.all_{target}")
         input:
             "{:this:}/{target}.{:sources:}.daa"
+
+    rule diamond_all_fq:
+        output:
+            touch("{:this:}/all")
+        input:
+            "{:this:}/{:fq_names:}.daa"
