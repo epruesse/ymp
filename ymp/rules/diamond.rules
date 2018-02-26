@@ -12,6 +12,8 @@ rule diamond_makedb:
               "{params.db}.log"
     conda:
         "diamond.yml"
+    params:
+        mem = icfg.mem("32g")
     threads:
         16
     shell: """
@@ -36,6 +38,8 @@ with Stage("map_diamond") as S:
             db = "{:reference.dir:}.diamond/{target}.contigs.dmnd"
         output:
                  "{:this:}/{target}.{source}.daa"
+        params:
+            mem = icfg.mem("32g")
         threads:
             16
         conda:
