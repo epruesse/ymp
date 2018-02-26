@@ -10,3 +10,4 @@ click
 click-completion
 coloredlogs
 networkx >=2
+xdg
