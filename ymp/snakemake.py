@@ -392,7 +392,7 @@ class BaseExpander(object):
         """
         return False
 
-    def expand(self, rule, item, expand_args={}, rec=-1, cb=False):
+    def expand(self, rule, item, expand_args=None, rec=-1, cb=False):
         """Expands RuleInfo object and children recursively.
 
         Will call :meth:format (via :meth:format_annotated) on `str` items
@@ -414,6 +414,8 @@ class BaseExpander(object):
           rec: Recursion level
         """
         rec = rec + 1
+        if expand_args is None:
+            expand_args = {}
         debug = ymp.print_rule or getattr(rule, "_ymp_print_rule", False)
         if debug:
             log.debug("{}{} {} {} in rule {} with args {}"
