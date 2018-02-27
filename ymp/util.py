@@ -2,7 +2,7 @@ import os
 import textwrap
 
 from snakemake.io import Namedlist
-from snakemake.utils import format
+from snakemake.utils import format as snake_format
 
 
 def file_not_empty(fn):
@@ -184,7 +184,7 @@ def R(code="", **kwargs):
             kwargs[key] = TaggedList([y for x, y in value.allitems()],
                                      [x for x, y in value.allitems()])
 
-    code = format(textwrap.dedent(code), stepout=2)
+    code = snake_format(textwrap.dedent(code), stepout=2)
     # wrap code in function to preserve clean global env and execute
     rval = robjects.r("function({}){{ {} }}"
                       "".format(",".join(kwargs), code))(**kwargs)
