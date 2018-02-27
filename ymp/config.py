@@ -761,7 +761,7 @@ class ConfigMgr(object):
 
         references = self._config.get(self.KEY_REFERENCES, {})
         if not references:
-            references == {}
+            references = {}
         self._references = {
             reference: Reference(self, reference, cfg)
             for reference, cfg in references.items()
