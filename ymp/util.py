@@ -1,6 +1,5 @@
 import os
 import textwrap
-from subprocess import check_output
 
 from snakemake.io import Namedlist
 from snakemake.utils import format
@@ -30,15 +29,6 @@ def filter_out_empty(*args):
             for arg in args)
     return zip(*(t for t in zip(*args)
                  if all(map(file_not_empty, t))))
-
-
-def get_ncbi_root():
-    root = check_output("""
-    module load sratoolkit
-    vdb-config /repository/user/main/public/root/
-    """, shell=True)
-#    root = re.sub("</?root>", "", root).trim()
-    return root
 
 
 def read_propfiles(files):

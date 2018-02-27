@@ -19,6 +19,9 @@ rule prefetch:
     """
     Downloads SRA files into NCBI SRA folder (ncbi/public/sra).
     """
+    # get path with
+    # vdb-config /repository/user/main/public/root/
+    # ?
     message:
         "Pre-Fetching {wildcards.SRR}"
     output:
