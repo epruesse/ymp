@@ -1,8 +1,8 @@
 # ymp - flexible omics pipeline
 
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/07ec32ae80194ec8b9184e1f6b5e6649)](https://app.codacy.com/app/elmar/ymp?utm_source=github.com&utm_medium=referral&utm_content=epruesse/ymp&utm_campaign=badger)
 [![CircleCI](https://img.shields.io/circleci/project/github/epruesse/ymp.svg?label=CircleCI)](https://circleci.com/gh/epruesse/ymp)
 [![Read the Docs](https://img.shields.io/readthedocs/ymp/latest.svg)](https://ymp.readthedocs.io/en/latest)
+[![Codacy](https://api.codacy.com/project/badge/Grade/07ec32ae80194ec8b9184e1f6b5e6649)](https://app.codacy.com/app/elmar/ymp?utm_source=github.com&utm_medium=referral&utm_content=epruesse/ymp&utm_campaign=badger)
 
 YMP is an omics pipeline designed to simplify processing large numbers of
 read files while remaining flexible and easily extented.
