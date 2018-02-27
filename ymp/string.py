@@ -187,7 +187,7 @@ class PartialFormatter(Formatter):
     def get_field(self, field_name, args, kwargs):
         try:
             return super().get_field(field_name, args, kwargs)
-        except KeyError or IndexError:
+        except KeyError, IndexError:
             return getattr(self, "spec", "{{{}}}").format(field_name), None
 
 
