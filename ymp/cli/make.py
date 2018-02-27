@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 
 
 class TargetParam(click.ParamType):
-    def complete(self, ctx, incomplete):
+    def complete(_, ctx, incomplete):
         # log = open("err.txt", "a")
         log = open("/dev/null", "a")
         log.write("\nincomplete={}\n".format(incomplete))

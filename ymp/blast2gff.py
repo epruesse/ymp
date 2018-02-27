@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 
+import click
 from ymp import blast
 from ymp import gff
-import click
 
 
 @click.command()
-@click.argument('input', type=click.File('r'))
-@click.argument('output', type=click.File('w'))
-def blast2gff(input, output):
-    blastfile = blast.reader(input)
-    gfffile = gff.writer(output)
+@click.argument('input', 'in', type=click.File('r'))
+@click.argument('output', 'out', type=click.File('w'))
+def blast2gff(in, out):
+    blastfile = blast.reader(in)
+    gfffile = gff.writer(out)
 
     for hit in blastfile:
         print(type(hit))

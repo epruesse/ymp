@@ -11,13 +11,13 @@ Unfinished
 from collections import namedtuple
 
 _FIELDS = [
-    'seqid', # the sequence id
-    'source', # the tool
-    'type', # CDS, rRNA, ...
+    'seqid',   # the sequence id
+    'source',  # the tool
+    'type',    # CDS, rRNA, ...
     'start',
     'end',
     'score',
-    'strand', # + / -
+    'strand',  # + / -
     'phase',
     'attributes'
 ]
@@ -25,17 +25,17 @@ _FIELDS = [
 Feature = namedtuple("Feature", _FIELDS)
 
 _ATTRIBUTES = [
-    'ID', # unique ID per GFF, use multiple for discontinuous features
-    'Name', # display name for user
-    'Alias', # secondary name, e.g. accession
-    'Parent', # indicate "partof" relationship
-    'Target', # alignment target to 'target_id start end [strand]'
-    'Gap', # alignment in CIGAR format
-    'Derives_From', # temporal relationship
-    'Note', # free text
-    'Dbxref', # database cross reference
+    'ID',      # unique ID per GFF, use multiple for discontinuous features
+    'Name',    # display name for user
+    'Alias',   # secondary name, e.g. accession
+    'Parent',  # indicate "partof" relationship
+    'Target',  # alignment target to 'target_id start end [strand]'
+    'Gap',     # alignment in CIGAR format
+    'Derives_From',  # temporal relationship
+    'Note',    # free text
+    'Dbxref',  # database cross reference
     'Ontology_term',
-    'Is_circular', # if feature is circular
+    'Is_circular',  # if feature is circular
     # note
     # product
     # partial
@@ -49,6 +49,7 @@ _ATTRIBUTES = [
 ]
 
 Attributes = namedtuple("Attributes", _ATTRIBUTES)
+
 
 class reader(object):
     def __init__(self, fileobj):
@@ -76,5 +77,4 @@ class writer(object):
         self.fileobj.write("##gff-version 3")
 
     def write(self, feature):
-        self.fileobj.write("\t".join(map(str,feature))+"\n")
-        
+        self.fileobj.write("\t".join(map(str, feature))+"\n")

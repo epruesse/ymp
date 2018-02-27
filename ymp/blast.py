@@ -1,10 +1,12 @@
 from collections import namedtuple
 
+
 def reader(fileobj, t=7):
-    if t==7:
+    if t == 7:
         return fmt7_parser(fileobj)
     else:
         ValueError("other formats not implemented")
+
 
 class blast_parser(object):
     "Base class for BLAST parsers"
@@ -57,18 +59,19 @@ class fmt7_parser(blast_parser):
     def __init__(self, fileobj):
         self.fileobj = fileobj
         self.fields = None
-        if not "BLAST" in fileobj.readline():
+        if "BLAST" not in fileobj.readline():
             raise ValueError("not a BLAST7 formatted file")
 
     def get_fields(self):
         return self.fields
-        
+
     def __iter__(self):
         for line in self.fileobj:
             if line.startswith(self.FIELDS):
-                self.fields = [ self.FIELD_MAP[field]
-                                if field in self.FIELD_MAP else field
-                                for field in line[len(self.FIELDS):].strip().split(", ")
+                self.fields = [
+                    self.FIELD_MAP[field]
+                    if field in self.FIELD_MAP else field
+                    for field in line[len(self.FIELDS):].strip().split(", ")
                 ]
                 self.Hit = namedtuple("BlastHit", self.fields)
             elif line.startswith(self.QUERY):
@@ -78,12 +81,15 @@ class fmt7_parser(blast_parser):
             elif line.strip().endswith(self.HITSFOUND):
                 self.hits = int(line.split()[1])
                 self.hit = 0
-            elif line[0] == "#": continue
+            elif line[0] == "#":
+                continue
             else:
                 self.hit += 1
                 yield self.Hit(*[
-                    self.FIELD_TYPE[key](value) if key in self.FIELD_TYPE else value
-                    for key, value in zip(self.fields, line.strip().split('\t'))
+                    self.FIELD_TYPE[key](value)
+                    if key in self.FIELD_TYPE else value
+                    for key, value in zip(self.fields,
+                                          line.strip().split('\t'))
                 ])
 
     def isfirsthit(self):
