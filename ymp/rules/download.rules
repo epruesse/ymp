@@ -31,7 +31,10 @@ rule get_reference_file:
     output:  "{:dir.references:}/{refname}/{file}"
     threads: 1
     run:
-        if input[0].endswith(".gz"): # just symlink
+        if wildcards.file.endswith(".gz"):
+            if not input[0].endswith(".gz"):
+                shell("gzip -c {input[0]} > {output}")
+        else:
             os.symlink(
                 os.path.relpath(
                     input[0],
@@ -39,8 +42,7 @@ rule get_reference_file:
                 ),
                 output[0]
             )
-        else: # compress
-            shell("gzip -c {input[0]} > {output}")
+
 
 
 localrules: get_reference_dir
@@ -49,11 +51,13 @@ rule get_reference_dir:
     input:  tar = lambda wc: icfg.ref[wc.refname],
             refdir = ancient(icfg.dir.references)
     output: "{:dir.references:}/{refname}/",
+    params:
+        tempfolder = "{output}__ymp_temp"
     threads: 1
     shell: """
-    rm -rf {output}
-    mkdir -p {output}_temp
-    tar -xf {input.tar} -C {output}_temp
+    rm -rf {params.tempfolder}
+    mkdir -p {params.tempfolder}
+    tar -xf {input.tar} -C {params.tempfolder}
     if test $(ls -1 {output}_temp | wc -l) -eq 1; then
       mv {output}_temp/* {output}
       rmdir {output}_temp

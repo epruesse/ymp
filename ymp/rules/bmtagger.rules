@@ -17,16 +17,17 @@ rule bmtagger_bitmask:
         1
     params:
         wordsize = 18, # 18->8g, 17->2g, 16->512MB
-        mem = icfg.mem("8g")
+        mem = icfg.mem("16g")
     conda:
         "bmtagger.yml"
     shell: """
-    gunzip -c {input.ref} > tmp.fa
+    gunzip -c {input.ref} > tmp.$$.fa
     bmtool \
     --fasta-file=tmp.fa \
     --output-file={output.db} \
     --word-size={params.wordsize} \
     > {log} 2>&1
+    rm tmp.$$.fa
     """
     # --compress fails with small references (segfault in bmfilter)
 
@@ -43,14 +44,15 @@ rule bmtagger_index:
               "{path}.index_bmtagger/{file}.srprism.log"
     threads: 1
     params:
-        mem = icfg.mem("8g")
+        mem = icfg.mem("16g"),
+        memarg = icfg.mem("15g")
     conda:
         "bmtagger.yml"
     shell: """
     srprism mkindex \
     --input {input} \
     --output {output} \
-    --memory {params.mem} \
+    --memory {params.memarg} \
     > {log} 2>&1
     touch {output}
     """
@@ -79,7 +81,7 @@ with Stage("filter_bmtagger", "remove_bmtagger") as S:
         threads:
             1
         params:
-            mem = icfg.mem("8g"),
+            mem = icfg.mem("16g"),
             matearg = "-2 <(gunzip -c {input.fq[1]})"
         conda:
             "bmtagger.yml"

@@ -199,6 +199,9 @@ class Reference(object):
                 self.files['ALL.contigs.fasta.gz'] = downloaded_path
             elif type_name == 'fastp':
                 self.files['ALL.contigs.fastp.gz'] = downloaded_path
+            elif type_name == 'dir':
+                for fn in rsc['files']:
+                    self.files[fn] = "___here__"
             else:
                 log.debug("unknown type {} used in reference {}"
                           "".format(type_name, self.name))
@@ -214,6 +217,7 @@ class Reference(object):
         downloaded_path = self.files.get(filename)
         if downloaded_path:
             return downloaded_path
+        log.debug("Files in Ref {}: {}".format(self.name, self.files))
         return ("YMP_FILE_NOT_FOUND__" +
                 "No file {} in Reference {}"
                 "".format(filename, self.name).replace(" ", "_"))

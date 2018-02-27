@@ -6,10 +6,10 @@ from ymp import gff
 
 
 @click.command()
-@click.argument('input', 'in', type=click.File('r'))
+@click.argument('input', 'inf', type=click.File('r'))
 @click.argument('output', 'out', type=click.File('w'))
-def blast2gff(in, out):
-    blastfile = blast.reader(in)
+def blast2gff(inf, out):
+    blastfile = blast.reader(inf)
     gfffile = gff.writer(out)
 
     for hit in blastfile:

@@ -68,9 +68,11 @@ references:
   # Tool Specific
   phyloFlash:
     - url: "None"
-  metaphlan:
+  metaphlan2:
     - url: https://depot.galaxyproject.org/software/metaphlan2/metaphlan2_2.6.0_src_all.tar.gz
-      type: tool
+      type: dir
+      files:
+        - db_v20
   centrifuge:
     - url: ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/p+h+v.tar.gz
       files:

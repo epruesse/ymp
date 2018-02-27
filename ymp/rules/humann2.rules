@@ -120,7 +120,7 @@ with Stage("humann2") as S:
         message:
             "HUMANn2: Finished processing {wildcards.dir}/humann2"
         input:
-            expand("{{dir}}.humann2/{type}_{mode}_{unit}.tsv", \
+            expand("{{:this:}}/{type}_{mode}_{unit}.tsv", \
                    type=("genefamilies","pathabundance","pathcoverage"), \
                    mode=("community", "levelwise"), \
                    unit=("cpm", "relab"))
