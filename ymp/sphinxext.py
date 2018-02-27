@@ -213,9 +213,13 @@ class SnakemakeDomain(Domain):
     def clear_doc(self, docname: str):
         """Delete objects derived from file ``docname``"""
         if 'objects' in self.data:
-            for (key, (docname_, _)) in self.data['objects'].items():
-                if docname_ == docname:
-                    del self.data['objects'][key]
+            toremove = [
+                key
+                for (key, (docname_, _)) in self.data['objects'].items()
+                if docname_ == docname
+            ]
+            for key in toremove:
+                del self.data['objects'][key]
 
     def resolve_xref(self, env: BuildEnvironment, fromdocname: str,
                      builder, typ, target, node, contnode):
