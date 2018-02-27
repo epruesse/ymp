@@ -1,4 +1,3 @@
-
 #!/bin/bash
 #
 # Installs Bio-Conda and all dependencies
