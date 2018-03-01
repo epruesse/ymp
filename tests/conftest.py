@@ -6,6 +6,24 @@ import pytest
 
 log = logging.getLogger(__name__)
 
+# activate this to get some profiling data while testing
+@pytest.fixture(scope="module")  # autouse=True)
+def profiling():
+    import yappi
+    yappi.start()
+    yield
+    yappi.stop()
+    profile = yappi.get_func_stats()
+    profile.sort("subtime")
+    with open("profile.txt", "w") as f:
+        profile.print_all(out=f, columns={
+            0: ("name", 120),
+            1: ("ncall", 10),
+            2: ("tsub", 8),
+            3: ("ttot", 8),
+            4: ("tavg", 8)})
+
+
 
 # from docs; add "rep_setup", "rep_call" and "rep_teardown"
 # to request.node
@@ -31,6 +49,7 @@ def project_dir(request, project, tmpdir):
     data_dir.copy(tmpdir)
     log.info("Created project directory {}".format(tmpdir))
     yield tmpdir
+    log.info("Tearing down project directory {}".format(tmpdir))
     if not hasattr(request.node, 'rep_call') or request.node.rep_call.failed:
         name_parts = request.node.name.replace("]", "").split("[")
         destdir = py.path.local('test_failures').join(*name_parts)
@@ -49,8 +68,10 @@ def target(request, project_dir):
         log.info("Switched to directory {}".format(project_dir))
         from ymp.config import icfg
         icfg.init()
-        for ds in icfg:
-            yield request.param.format(ds)
+        targets = [request.param.format(ds) for ds in icfg]
+        with open("target.txt", "w") as out:
+            out.write("\n".join(targets))
+        yield from targets
 
 
 @pytest.fixture()
