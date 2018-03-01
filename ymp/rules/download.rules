@@ -25,23 +25,23 @@ ruleorder: download_file > fq2fa
 
 localrules: get_reference_file
 rule get_reference_file:
-    message: "Preparing {input}"
-    input:   lambda wc: icfg.ref[wc.refname].get_file(wc.file),
-             refdir = ancient(icfg.dir.references)
-    output:  "{:dir.references:}/{refname}/{file}"
-    threads: 1
+    message:
+        "Preparing {input}"
+    input:
+        lambda wc: icfg.ref[wc.refname].get_file(wc.file),
+        refdir = ancient(icfg.dir.references)
+    output:
+        "{:dir.references:}/{refname}/{file}"
+    threads:
+        1
     run:
-        if wildcards.file.endswith(".gz"):
-            if not input[0].endswith(".gz"):
+        if (wildcards.file.endswith(".gz")
+            and not input[0].endswith(".gz")):
                 shell("gzip -c {input[0]} > {output}")
         else:
-            os.symlink(
-                os.path.relpath(
-                    input[0],
-                    os.path.dirname(output[0])
-                ),
-                output[0]
-            )
+            outdir = os.path.dirname(output[0])
+            input_relpath = os.path.relpath(input[0], outdir)
+            os.symlink(input_relpath, output[0])
 
 
 
