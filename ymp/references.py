@@ -19,22 +19,16 @@ class Archive(object):
 
     def __init__(self, name, dirname, tar, strip, files):
         self.name = name
-        self.dirname = name
+        self.dirname = dirname
         self.tar = tar
         self.strip = strip
         self.files = files
 
         self.hash = sha1(self.tar.encode('utf-8')).hexdigest()[:8]
+        self.prefix = os.path.join(self.dirname, "_unpacked_" + self.hash)
 
     def get_files(self):
-        return {fn: os.path.join(self.dirname,
-                                 "_unpacked_" + self.hash,
-                                 fn)
-                for fn in self.files}
-
-    def get_params(self):
-        return {
-        }
+        return {fn: os.path.join(self.prefix, fn) for fn in self.files}
 
     def make_unpack_rule(self, baserule: 'Rule'):
         return make_rule(
@@ -45,7 +39,7 @@ class Archive(object):
             input=([], {'tar': self.tar}),
             output=([], {'files': list(self.get_files().values())}),
             params=([], {'strip': self.strip,
-                         'dirname': self.dirname})
+                         'prefix': self.prefix})
         )
 
 

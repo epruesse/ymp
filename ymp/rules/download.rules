@@ -61,18 +61,11 @@ rule prepare_reference:
 localrules: unpack_archive
 rule unpack_archive:
     message:
-        "Unpacking {input.tar} into {params.dirname}"
-    input:
-        tar     = lambda wc: icfg.ref[wc.refname].get_archive(wc.n),
-    output:
-        files   = dynamic("{:dir.references:}/{refname}/_unpacked_{n}/{path}")
-    params:
-        dirname = "{:dir.references:}/{refname}/_unpacked_{n}",
-        strip   = 0
+        "Unpacking {input.tar} into {params.prefix}"
     shell: """
-    rm -rf {params.dirname}
-    mkdir -p {params.dirname}
-    tar -xf {input.tar} --strip-components {params.strip} -C {params.dirname}
+    rm -rf {params.prefix}
+    mkdir -p {params.prefix}
+    tar -xf {input.tar} --strip-components {params.strip} -C {params.prefix}
     """
 ruleorder: unpack_archive > prepare_reference
 ruleorder: unpack_archive > gunzip
