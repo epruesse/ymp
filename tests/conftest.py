@@ -6,6 +6,33 @@ import pytest
 
 log = logging.getLogger(__name__)
 
+
+def pytest_addoption(parser):
+    parser.addoption("--skip-tools", action="store_true",
+                     default=False, help="Skip tests running tools")
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--skip-tools"):
+        skip_tool = pytest.mark.skip(reason="Tool tests disabled")
+        for item in items:
+            if "runs_tool" in item.keywords:
+                item.add_marker(skip_tool)
+
+
+# from docs; add "rep_setup", "rep_call" and "rep_teardown"
+# to request.node
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    # execute all other hooks to obtain the report object
+    outcome = yield
+    rep = outcome.get_result()
+
+    # set a report attribute for each phase of a call, which can
+    # be "setup", "call", "teardown"
+    setattr(item, "rep_" + rep.when, rep)
+
+
 # activate this to get some profiling data while testing
 @pytest.fixture(scope="module")  # autouse=True)
 def profiling():
@@ -22,20 +49,6 @@ def profiling():
             2: ("tsub", 8),
             3: ("ttot", 8),
             4: ("tavg", 8)})
-
-
-
-# from docs; add "rep_setup", "rep_call" and "rep_teardown"
-# to request.node
-@pytest.hookimpl(tryfirst=True, hookwrapper=True)
-def pytest_runtest_makereport(item, call):
-    # execute all other hooks to obtain the report object
-    outcome = yield
-    rep = outcome.get_result()
-
-    # set a report attribute for each phase of a call, which can
-    # be "setup", "call", "teardown"
-    setattr(item, "rep_" + rep.when, rep)
 
 
 @pytest.fixture()

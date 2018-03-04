@@ -1,5 +1,6 @@
 import logging
 
+import pytest
 from click.testing import CliRunner
 from ymp.cli import make as ymp_make
 from pygraphviz import AGraph
@@ -28,6 +29,7 @@ def run_ymp(target, flags=None):
     return result.output
 
 
+@pytest.mark.runs_tool
 @parametrize_target(large=False, exclude_targets=['phyloFlash'])
 def test_run_rules(target):
     run_ymp(target)
