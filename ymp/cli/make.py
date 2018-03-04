@@ -10,10 +10,8 @@ from pkg_resources import resource_filename
 import snakemake
 
 from ymp.cli.shared_options import command, nohup_option
-from ymp.common import update_dict, Cache
+from ymp.common import update_dict, Cache, AttrDict
 from ymp.exceptions import YmpException
-from ymp.util import AttrDict
-
 
 log = logging.getLogger(__name__)
 

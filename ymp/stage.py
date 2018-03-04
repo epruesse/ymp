@@ -19,7 +19,7 @@ from inspect import getframeinfo, stack
 
 from ymp.exceptions import YmpException
 from ymp.snakemake import ColonExpander, ExpandableWorkflow, RuleInfo
-from ymp.util import AttrDict
+from ymp.common import AttrDict
 from ymp.string import PartialFormatter
 
 if TYPE_CHECKING:
