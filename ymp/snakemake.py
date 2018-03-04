@@ -802,6 +802,9 @@ class InheritanceExpander(BaseExpander):
         """
         self.ruleinfos[rule.name] = ruleinfo  # stash original ruleinfos
 
+        if hasattr(ruleinfo, 'parent'):
+            return ruleinfo.parent.name, self.ruleinfos[ruleinfo.parent.name]
+
         line = self.get_code_line(rule)
 
         if "#" in line:
@@ -835,7 +838,7 @@ class InheritanceExpander(BaseExpander):
             ruleinfo.func = None
 
         for field in dir(ruleinfo):
-            if field.startswith("__"):
+            if field.startswith("__") or field == "parent":
                 continue
 
             base_attr = getattr(base_ruleinfo, field)
