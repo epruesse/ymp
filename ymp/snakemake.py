@@ -346,6 +346,17 @@ class ExpandableWorkflow(Workflow):
         return decorate
 
 
+def make_rule(name: str=None, lineno: int=None, snakefile: str=None,
+              **kwargs):
+    log.debug("Synthesizing rule {}".format(name))
+    ruleinfo = RuleInfo(lambda: None)
+    for arg in kwargs:
+        setattr(ruleinfo, arg, kwargs[arg])
+    ruleinfo.norun = True
+    workflow = get_workflow()
+    return workflow.rule(name, lineno, snakefile)(ruleinfo)
+
+
 class BaseExpander(object):
     """
     Base class for Snakemake expansion modules.
