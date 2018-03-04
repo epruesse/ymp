@@ -3,7 +3,8 @@ with Stage("metaphlan2") as S:
     Assess metagenome community composition using Metaphlan 2
     """)
     metaphlan_bam = "{:this:}/{sample}.bam"
-    metaphlan_db = "{:ref.metaphlan2.dir:}/db_v20"
+    metaphlan_db = "{:ref.metaphlan2.dir:}/db_v20/mpa_v20_m200."
+    BT2IDX_SUFFIXES = "1.bt2 2.bt2 3.bt2 4.bt2 rev.1.bt2 rev.2.bt2".split()
     rule metaphlan2_map:
         """
         Align reads to Metaphlan's custom reference database.
@@ -12,7 +13,7 @@ with Stage("metaphlan2") as S:
             "Metaphlan2: Mapping reads with Bowtie2"
         input:
             fq = "{:prev:}/{sample}.{:pairnames:}.fq.gz",
-            ref = metaphlan_db
+            index = [metaphlan_db + ext for ext in BT2IDX_SUFFIXES]
         output:
             metaphlan_bam
         log:
@@ -22,7 +23,7 @@ with Stage("metaphlan2") as S:
         threads:
             16
         params:
-            bt2_base = "{input.ref}/mpa_v20_m200",
+            bt2_base = metaphlan_db,
             mem = icfg.mem("128G")
         shell: """
         bowtie2 \
@@ -45,13 +46,11 @@ with Stage("metaphlan2") as S:
             "Metaphlan2: Computing community profile"
         input:
             bam = metaphlan_bam,
-            ref = metaphlan_db
+            pkl = metaphlan_db + "pkl"
         output:
             "{:this:}/{sample}_profile.txt"
         log:
             "{:this:}/{sample}_profile.log"
-        params:
-            mka = "{input.ref}/mpa_v20_m200.pkl"
         conda:
             "metaphlan2.yml"
         threads:
@@ -59,7 +58,7 @@ with Stage("metaphlan2") as S:
         shell: """
         samtools view {input.bam} | \
         metaphlan2.py \
-        --mpa_pkl {params.mka} \
+        --mpa_pkl {input.pkl} \
         --input_type sam \
         -o {output} \
         --nproc {threads} \
@@ -87,3 +86,9 @@ with Stage("metaphlan2") as S:
         shell: """
         merge_metaphlan_tables.py {input} > {output} 2>{log}
         """
+
+    rule metaphlan2_all:
+        input:
+            "{:this:}/merged_abundance_table.txt"
+        output:
+            "{:this:}/all"

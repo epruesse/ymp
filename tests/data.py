@@ -52,6 +52,8 @@ target_map = {
         # mapping vs reference
         'map_bbmap_reference': '{}.ref_genome.map_bbmap/all',
         'map_bowtie2_reference': '{}.ref_genome.map_bowtie2/all',
+        # community profile
+        'profile_metaphlan2': '{}.metaphlan2/all',
     ],
     'amplicon': odict[
         'bbduk_primer': '{}.primermatch/all'

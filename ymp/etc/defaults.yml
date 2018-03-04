@@ -71,8 +71,15 @@ references:
   metaphlan2:
     - url: https://depot.galaxyproject.org/software/metaphlan2/metaphlan2_2.6.0_src_all.tar.gz
       type: dir
+      strip_components: 1
       files:
-        - db_v20
+        - db_v20/mpa_v20_m200.1.bt2
+        - db_v20/mpa_v20_m200.2.bt2
+        - db_v20/mpa_v20_m200.3.bt2
+        - db_v20/mpa_v20_m200.4.bt2
+        - db_v20/mpa_v20_m200.rev.1.bt2
+        - db_v20/mpa_v20_m200.rev.2.bt2
+        - db_v20/mpa_v20_m200.pkl
   centrifuge:
     - url: ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/p+h+v.tar.gz
       files:
