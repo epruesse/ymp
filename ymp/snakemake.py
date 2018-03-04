@@ -64,6 +64,14 @@ def load_workflow(snakefile=None):
     return workflow
 
 
+def get_workflow():
+    workflow = ExpandableWorkflow.global_workflow
+    if workflow is None:
+        ExpandableWorkflow.activate()
+        workflow = ExpandableWorkflow.global_workflow
+    return workflow
+
+
 class CircularReferenceException(RuleException):
     """Exception raised if parameters in rule contain a circular reference"""
     def __init__(self, deps, rule, include=None, lineno=None, snakefile=None):
