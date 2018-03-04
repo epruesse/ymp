@@ -699,7 +699,8 @@ class ConfigMgr(object):
         Apply rule attribute overrides from ymp.yml config
 
         Example:
-            Set the ``wordsize`` parameter in the `bmtagger_bitmask` rule to 12:
+            Set the ``wordsize`` parameter in the `bmtagger_bitmask` rule to
+            12:
 
             .. code-block:: yaml
                :caption: ymp.yml

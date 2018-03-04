@@ -790,6 +790,16 @@ class InheritanceExpander(BaseExpander):
         return self.snakefiles[rule.snakefile][real_lineno - 1]
 
     def get_super(self, rule: Rule, ruleinfo: RuleInfo) -> Optional[RuleInfo]:
+        """Find rule parent
+
+        Args:
+          rule: Rule object being built
+          ruleinfo: RuleInfo object describing rule being built
+
+        Returns:
+          2-Tuple: name of parent rule and RuleInfo describing parent rule
+          or (None, None).
+        """
         self.ruleinfos[rule.name] = ruleinfo  # stash original ruleinfos
 
         line = self.get_code_line(rule)
