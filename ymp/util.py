@@ -1,8 +1,29 @@
 import os
 import textwrap
+import re
 
 from snakemake.io import Namedlist
 from snakemake.utils import format as snake_format
+
+
+def make_local_path(icfg, url: str):
+    url_match = re.match("^(http|https|ftp|ftps)://", url)
+    if url_match:
+        return os.path.join(
+            icfg.dir.downloads,
+            url_match.group(1),
+            url[url_match.end():]
+        )
+    return url
+
+
+def is_fq(path):
+    return isinstance(path, str) and (
+        path.endswith(".fq.gz")
+        or path.endswith(".fastq.gz")
+        or path.endswith(".fq")
+        or path.endswith(".fastq")
+    )
 
 
 def file_not_empty(fn):
@@ -43,21 +64,6 @@ def read_propfiles(files):
                 for key, value in [line.strip().split(maxsplit=1)]
             })
     return props
-
-
-class AttrDict(dict):
-    """
-    AttrDict adds accessing stored keys as attributes to dict
-    """
-    def __getattr__(self, attr):
-        try:
-            return super().__getattr__(attr)
-        except AttributeError:
-            val = self[attr]
-            if isinstance(val, dict):
-                return AttrDict(val)
-            else:
-                return val
 
 
 def glob_wildcards(pattern, files=None):

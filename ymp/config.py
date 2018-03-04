@@ -7,7 +7,7 @@ from pkg_resources import resource_filename
 
 import yaml
 
-from ymp.common import parse_number, update_dict
+from ymp.common import parse_number, update_dict, AttrDict, MkdirDict
 from ymp.exceptions import YmpException
 from ymp.snakemake import \
     ColonExpander, \
@@ -17,7 +17,8 @@ from ymp.snakemake import \
     InheritanceExpander, \
     RecursiveExpander
 from ymp.stage import StageExpander
-from ymp.util import AttrDict
+from ymp.util import make_local_path, is_fq
+from ymp.references import load_references
 
 log = logging.getLogger(__name__)
 
@@ -40,36 +41,6 @@ class YmpConfigNoProjects(YmpException):
 
 class YmpDataParserError(YmpException):
     pass
-
-
-class MkdirDict(AttrDict):
-    "Creates directories as they are requested"
-    def __getattr__(self, attr):
-        dirname = super().__getattr__(attr)
-        if not os.path.exists(dirname):
-            log.warning("Creating directory {}".format(dirname))
-            os.makedirs(dirname)
-        return dirname
-
-
-def make_path_reference(path):
-    url_match = re.match("^(http|https|ftp|ftps)://", path)
-    if url_match:
-        return os.path.join(
-            icfg.dir.downloads,
-            url_match.group(1),
-            path[url_match.end():]
-        )
-    return path
-
-
-def is_fq(path):
-    return isinstance(path, str) and (
-        path.endswith(".fq.gz")
-        or path.endswith(".fastq.gz")
-        or path.endswith(".fq")
-        or path.endswith(".fastq")
-    )
 
 
 def load_data(cfg):
@@ -179,52 +150,6 @@ def load_data(cfg):
                 for key, value in row.items()
             ))
     raise YmpConfigMalformed()
-
-
-class Reference(object):
-    """
-    Represents (remote) reference file/database configuration
-    """
-    def __init__(self, cfgmgr, reference, cfg):
-        self.name = reference
-        self.cfgmgr = cfgmgr
-        self.cfg = cfg
-        self.files = {}
-        for rsc in cfg:
-            if isinstance(rsc, str):
-                log.error(self.name)
-            downloaded_path = make_path_reference(rsc['url'])
-            type_name = rsc['type'].lower() if 'type' in rsc else 'fasta'
-            if type_name == 'fasta':
-                self.files['ALL.contigs.fasta.gz'] = downloaded_path
-            elif type_name == 'fastp':
-                self.files['ALL.contigs.fastp.gz'] = downloaded_path
-            elif type_name == 'dir':
-                for fn in rsc['files']:
-                    self.files[fn] = "___here__"
-            else:
-                log.debug("unknown type {} used in reference {}"
-                          "".format(type_name, self.name))
-
-    def __str__(self):
-        res = "{refdir}/{refname}/ALL.contigs".format(
-            refdir=self.cfgmgr.dir.references,
-            refname=self.name
-        )
-        return res
-
-    def get_file(self, filename):
-        downloaded_path = self.files.get(filename)
-        if downloaded_path:
-            return downloaded_path
-        log.debug("Files in Ref {}: {}".format(self.name, self.files))
-        return ("YMP_FILE_NOT_FOUND__" +
-                "No file {} in Reference {}"
-                "".format(filename, self.name).replace(" ", "_"))
-
-    @property
-    def dir(self):
-        return os.path.join(self.cfgmgr.dir.references, self.name)
 
 
 class Context(object):
@@ -562,7 +487,7 @@ class DatasetConfig(object):
             return fn
 
         if kind == 'remote':
-            return make_path_reference(fn)
+            return make_local_path(self.cfgmgr, fn)
 
         raise YmpException(
             "Configuration Error: no source for sample {} and read {} found."
@@ -763,13 +688,8 @@ class ConfigMgr(object):
             for project, cfg in projects.items()
         }
 
-        references = self._config.get(self.KEY_REFERENCES, {})
-        if not references:
-            references = {}
-        self._references = {
-            reference: Reference(self, reference, cfg)
-            for reference, cfg in references.items()
-        }
+        ref_cfg = self._config.get(self.KEY_REFERENCES)
+        self._references = load_references(self, ref_cfg)
 
         if len(self._datasets) == 0:
             log.warning("No projects found in configuration")

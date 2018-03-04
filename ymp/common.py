@@ -1,8 +1,11 @@
 from collections import Iterable, Mapping, OrderedDict
+import logging
 import xdg
 import shelve
 import atexit
 import os
+
+log = logging.getLogger(__name__)
 
 
 class OrderedDictMaker(object):
@@ -51,6 +54,31 @@ def update_dict(dst, src):
         else:
             dst[key] = src[key]
     return dst
+
+
+class AttrDict(dict):
+    """
+    AttrDict adds accessing stored keys as attributes to dict
+    """
+    def __getattr__(self, attr):
+        try:
+            return super().__getattr__(attr)
+        except AttributeError:
+            val = self[attr]
+            if isinstance(val, dict):
+                return AttrDict(val)
+            else:
+                return val
+
+
+class MkdirDict(AttrDict):
+    "Creates directories as they are requested"
+    def __getattr__(self, attr):
+        dirname = super().__getattr__(attr)
+        if not os.path.exists(dirname):
+            log.info("Creating directory {}".format(dirname))
+            os.makedirs(dirname)
+        return dirname
 
 
 def parse_number(s=""):
