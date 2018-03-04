@@ -18,51 +18,66 @@ rule download_file:
     shell: """
     wget  "{params.url}" -O "{output[0]}" > {log} 2>&1
     """
-
 ruleorder: download_file > gunzip
 ruleorder: download_file > fq2fa
 
 
-localrules: get_reference_file
-rule get_reference_file:
+localrules: prepare_reference
+rule prepare_reference:
     message:
         "Preparing {input}"
     input:
-        lambda wc: icfg.ref[wc.refname].get_file(wc.file),
-        refdir = ancient(icfg.dir.references)
+        files = lambda wc: icfg.ref[wc.refname].get_file(wc.path)
     output:
-        "{:dir.references:}/{refname}/{file}"
-    threads:
-        1
+        "{:dir.references:}/{refname}/{path}"
     run:
-        if (wildcards.file.endswith(".gz")
-            and not input[0].endswith(".gz")):
-                shell("gzip -c {input[0]} > {output}")
+        if isinstance(input.files, str):
+            infile = input.files
+        else:
+            infiles = [fn for fn in input.files if fn.endswith(wildcards.path)]
+            if len(infiles) == 1:
+                infile = infiles[0]
+            elif not infiles:
+                raise RuleException(
+                    "No reference file found matching path '{}' in reference '{}'"
+                    "\nCandidates: {}"
+                    "".format(wildcards.path, wildcards.refname, input.files)
+                )
+            else:
+                raise RuleException(
+                    "Ambiguous reference file in reference '{}' for path '{}': '{}'"
+                    "".format(wildcards.refname, wildcards.path, infiles)
+                )
+
+        if (wildcards.path.endswith(".gz")
+            and not infile.endswith(".gz")):
+                shell("gzip -c {infile} > {output}")
         else:
             outdir = os.path.dirname(output[0])
-            input_relpath = os.path.relpath(input[0], outdir)
+            input_relpath = os.path.relpath(infile, outdir)
             os.symlink(input_relpath, output[0])
 
 
-
-localrules: get_reference_dir
-rule get_reference_dir:
-    message: "Installing {wildcards.refname} from {input.tar}"
-    input:  tar = lambda wc: icfg.ref[wc.refname],
-            refdir = ancient(icfg.dir.references)
-    output: "{:dir.references:}/{refname}/",
+localrules: unpack_archive
+rule unpack_archive:
+    message:
+        "Unpacking {input.tar} into {params.dirname}"
+    input:
+        tar     = lambda wc: icfg.ref[wc.refname].get_archive(wc.n),
+    output:
+        files   = dynamic("{:dir.references:}/{refname}/_unpacked_{n}/{path}")
     params:
-        tempfolder = "{output}__ymp_temp"
-    threads: 1
+        dirname = "{:dir.references:}/{refname}/_unpacked_{n}",
+        strip   = 0
     shell: """
-    rm -rf {params.tempfolder}
-    mkdir -p {params.tempfolder}
-    tar -xf {input.tar} -C {params.tempfolder}
-    if test $(ls -1 {output}_temp | wc -l) -eq 1; then
-      mv {output}_temp/* {output}
-      rmdir {output}_temp
-    else
-      mv {output}_temp {output}
-    fi
+    rm -rf {params.dirname}
+    mkdir -p {params.dirname}
+    tar -xf {input.tar} --strip-components {params.strip} -C {params.dirname}
     """
-ruleorder: get_reference_dir > gunzip
+ruleorder: unpack_archive > prepare_reference
+ruleorder: unpack_archive > gunzip
+
+for ref in icfg.ref:
+    for unpack_rule in icfg.ref[ref].make_unpack_rules(rules.unpack_archive):
+        unpack_rule
+
