@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 from inspect import getframeinfo, stack
 
 from ymp.exceptions import YmpException
-from ymp.snakemake import ColonExpander, ExpandableWorkflow, RuleInfo
+from ymp.snakemake import ColonExpander, get_workflow, RuleInfo
 from ymp.common import AttrDict
 from ymp.string import PartialFormatter
 
@@ -66,7 +66,7 @@ class Stage(object):
         # they get deleted with the workflow. (Otherwise we'd run into
         # duplicate stage creation if snakemake() is called twice and
         # the same snakefiles parsed and loaded again).
-        workflow = ExpandableWorkflow.global_workflow
+        workflow = get_workflow()
         if not hasattr(workflow, "ymp_stages"):
             workflow.ymp_stages = AttrDict()
         return workflow.ymp_stages
