@@ -252,16 +252,13 @@ class AutoSnakefileDirective(rst.Directive):
     required_arguments = 1
 
     #: str: Template for generated Rule RSt
-    tpl_rule = dedent("""
-    .. sm:rule:: {name}
-       :source: {filename}:{lineno}
-    """)
+    tpl_rule = ".. sm:rule:: {name}"
 
     #: str: Template for generated Stage RSt
-    tpl_stage = dedent("""
-    .. sm:stage:: {name}
-       :source: {filename}:{lineno}
-    """)
+    tpl_stage = ".. sm:stage:: {name}"
+
+    #: str: Template option source
+    tpl_source = "   :source: {filename}:{lineno}"
 
     def run(self):
         """Entry point"""
@@ -307,11 +304,13 @@ class AutoSnakefileDirective(rst.Directive):
         Retuns:
           StringList containing formatted Rule documentation
         """
-        head = self.tpl_rule.format(
-            name=rule.name,
-            filename=relpath(rule.snakefile),
-            lineno=self.workflow.linemaps[rule.snakefile][rule.lineno],
-        )
+        head = self.tpl_rule.format(name=rule.name)
+        if rule.lineno:
+            head += "\n"
+            head += self.tpl_source.format(
+                filename=relpath(rule.snakefile),
+                lineno=self.workflow.linemaps[rule.snakefile][rule.lineno],
+            )
         head = indent(head, " " * idt)
         headlines = head.splitlines()
         doc = self.parse_doc(rule.docstring, rule.snakefile, idt+3)
@@ -319,11 +318,13 @@ class AutoSnakefileDirective(rst.Directive):
         return StringList(headlines, rule.snakefile) + doc
 
     def parse_stage(self, stage: Stage, idt: int=0) -> StringList:
-        head = self.tpl_stage.format(
-            name=stage.name,
-            filename=relpath(stage.filename),
-            lineno=self.workflow.linemaps[stage.filename][stage.lineno],
-        )
+        head = self.tpl_stage.format(name=stage.name)
+        if stage.lineno:
+            head += "\n"
+            head += self.tpl_source.format(
+                filename=relpath(stage.filename),
+                lineno=self.workflow.linemaps[stage.filename][stage.lineno],
+            )
         head = indent(head, " " * idt)
         headlines = head.splitlines()
         doc = self.parse_doc(stage.docstring, stage.filename, idt+3)
