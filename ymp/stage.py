@@ -71,6 +71,10 @@ class Stage(object):
             workflow.ymp_stages = AttrDict()
         return workflow.ymp_stages
 
+    @classmethod
+    def add_to(cls, name: str):
+        return cls.get_stages()[name]
+
     def __init__(self, name: str, altname: str=None) -> None:
         """
         Args:
