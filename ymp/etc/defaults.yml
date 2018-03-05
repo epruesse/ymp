@@ -82,21 +82,25 @@ references:
         - db_v20/mpa_v20_m200.pkl
   centrifuge:
     - url: ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/p+h+v.tar.gz
+      type: dir
       files:
         - p+h+v.1.cf
         - p+h+v.2.cf
         - p+h+v.3.cf
     - url: ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/nt.tar.gz
+      type: dir
       files:
         - nt.1.cf
         - nt.2.cf
         - nt.3.cf
     - url: ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/p_compressed+h+v.tar.gz
+      type: dir
       files:
         - p_compressed+h+v.1.cf
         - p_compressed+h+v.2.cf
         - p_compressed+h+v.3.cf
     - url: ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/p_compressed.tar.gz
+      type: dir
       files:
         - p_compressed.1.cf
         - p_compressed.2.cf

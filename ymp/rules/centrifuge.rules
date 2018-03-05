@@ -1,37 +1,44 @@
-rule centrifuge:
-    message:
-        "Centrifuge: Classifying reads in {wildcards.sample}"
-    input:
-        db     = "{:dir.references:}/centrifuge_phv",
-        reads  = "{dir}/{sample}.{:pairnames:}.fq.gz"
-    output:
-        hits   = "{dir}.centrifuge/{sample}.hits.tsv",
-        report = "{dir}.centrifuge/{sample}.report.tsv",
-    log:
-                 "{dir}.centrifuge/{sample}.log",
-    threads:
-        16
-    conda:
-        "centrifuge.yml"
-    params:
-        mem = icfg.mem("32G")
-    shell:
-        "centrifuge"
-        " -x {input.db}/p+h+v"
-        " -1 {input.reads[0]}"
-        " -2 {input.reads[1]}"
-        " --report-file {output.report}"
-        " -S {output.hits}"
-        " --threads {threads}"
-        " --time" # print timings
-        " --mm" # use mmap so that multiple instances share idx
-        " >{log} 2>&1"
-        
+with Stage("profile_centrifuge") as S:
+    S.doc("""
+    Classify reads using centrifuge
+    """)
+    EXTS = "1.cf 2.cf 3.cf".split()
+    rule centrifuge:
+        message:
+            "Centrifuge: Classifying reads in {wildcards.sample}"
+        input:
+            db     = ["{params.dbbase}." + ext for ext in EXTS],
+            reads  = "{:prev:}/{sample}.{:pairnames:}.fq.gz"
+        params:
+            dbbase = "{:dir.references:}/centrifuge/{params.dbname}",
+            dbname = "p+h+v"
+        output:
+            hits   = "{:this:}/{sample}.hits.tsv",
+            report = "{:this:}/{sample}.report.tsv",
+        log:
+                     "{:this:}/{sample}.log",
+        threads:
+            16
+        conda:
+            "centrifuge.yml"
+        params:
+            mem = icfg.mem("32G")
+        shell:
+            "centrifuge"
+            " -x {params.dbbase}"
+            " -1 {input.reads[0]}"
+            " -2 {input.reads[1]}"
+            " --report-file {output.report}"
+            " -S {output.hits}"
+            " --threads {threads}"
+            " --time" # print timings
+            " --mm" # use mmap so that multiple instances share idx
+            " >{log} 2>&1"
 
-rule centrifuge_all:
-    message:
-        "Centrifuge: completed {wildcards.dir}"
-    input:
-              "{dir}.centrifuge/{:runs:}.hits.tsv"
-    output:
-        touch("{dir}.centrifuge/all")
+    rule centrifuge_all:
+        message:
+            "Centrifuge: completed {wildcards.dir}"
+        input:
+                  "{:this:}/{:runs:}.hits.tsv"
+        output:
+            touch("{:this:}/all")
