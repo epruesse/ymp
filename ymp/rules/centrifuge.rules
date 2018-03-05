@@ -37,8 +37,10 @@ with Stage("profile_centrifuge") as S:
 
     rule centrifuge_all:
         message:
-            "Centrifuge: completed {wildcards.dir}"
+            "Centrifuge: completed {params.basedir}"
         input:
-                  "{:this:}/{:runs:}.hits.tsv"
+            "{:this:}/{:runs:}.hits.tsv"
+        params:
+            basedir = "{:this:}"
         output:
             touch("{:this:}/all")
