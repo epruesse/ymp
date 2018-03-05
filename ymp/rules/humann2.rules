@@ -5,14 +5,19 @@ with Stage.add_to("references"):
         """
         Download `HUMAnN2 <humann2>` reference databases
         """
-        output: "{:dir.references:}/humann2/{database}.{build}"
+        output:
+            "{:dir.references:}/humann2/{database}.{build}"
+        log:
+            "{output}.log"
         wildcard_constraints:
           database = "[^.]*",
           build = "[^.]*"
-        threads: 1
-        conda: "humann2.yml"
+        threads:
+            1
+        conda:
+            "humann2.yml"
         shell: """
-        humann2_databases --download {wildcards.database} {wildcards.build} {output}
+        humann2_databases --download {wildcards.database} {wildcards.build} {output} >{log} 2>&1
         """
     ruleorder: human_db_download > gunzip
 
@@ -34,22 +39,25 @@ with Stage("humann2") as S:
             uniref     = "{:dir.references:}/humann2/uniref.{params.uniref}",
             metaphlan  = "{:prev:}.metaphlan2/{sample}_profile.txt"
         output:
-            genefam   = "{:this:}/{sample}_genefamilies.tsv",
-            pathabu   = "{:this:}/{sample}_pathabundance.tsv",
-            pathcov   = "{:this:}/{sample}_pathcoverage.tsv",
-            tempdir   = "{:this:}/{sample}_humann2_temp"
+            genefam    = "{:this:}/{sample}_genefamilies.tsv",
+            pathabu    = "{:this:}/{sample}_pathabundance.tsv",
+            pathcov    = "{:this:}/{sample}_pathcoverage.tsv",
+            tempdir    = "{:this:}/{sample}_humann2_temp"
         params:
             chocophlan = "full",
             uniref     = "uniref90_diamond",
             outpath    = "{:this:}",
             mem        = icfg.mem("128G")
         log:
-                        "{:this:}/{sample}.log"
+            stderr     = "{:this:}/{sample}.log",
+            trace      = "{:this:}/{sample}.trace",
         threads: 16
         conda: "humann2.yml"
         shell:
             "mkdir -p {output.tempdir};"
+
             "cat {input.reads} > {output.tempdir}/temp.fq.gz;"
+
             "humann2"
             " --input-format fastq.gz"
             " --input {output.tempdir}/temp.fq.gz"
@@ -58,8 +66,11 @@ with Stage("humann2") as S:
             " --output {params.outpath}"
             " --nucleotide-database {input.chocophlan}/chocophlan"
             " --protein-database {input.uniref}/uniref"
-            " --threads {threads};"
-            " --o-log {log};"
+            " --threads {threads}"
+            " --o-log {log.trace}"
+            " >{log.stderr} 2>&1"
+            ";"
+
             "rm {output.tempdir}/temp.fq.gz;"
 
     localrules: humann2_renorm_table
@@ -111,6 +122,8 @@ with Stage("humann2") as S:
             pattern = "{type}_{mode}_{unit}_single.tsv"
         output:
             "{:this:}/{type}_{mode}_{unit}.tsv"
+        log:
+            "{output}.log"
         conda:
             "humann2.yml"
         shell:
@@ -118,6 +131,7 @@ with Stage("humann2") as S:
             " --input {params.basedir}"
             " --file_name {params.pattern}"
             " --output {output}"
+            " >{log} 2>&1"
 
     localrules: humann2_all
     rule humann2_all:
