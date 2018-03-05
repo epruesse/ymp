@@ -51,7 +51,7 @@ class Archive(object):
             snakefile=__name__,
             parent=baserule,
             input=([], {'tar': self.tar}),
-            output=([], {'files': list(self.get_files().values()) }),
+            output=([], {'files': list(self.get_files().values())}),
             params=([], {'strip': self.strip,
                          'prefix': self.prefix})
         )
