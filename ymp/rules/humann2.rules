@@ -27,8 +27,8 @@ with Stage("humann2") as S:
         """
         input:
             reads      = "{:prev:}/{sample}.{:pairnames:}.fq.gz",
-            chocophlan = "{:dir.references:}/humann2/chocophlan.full",
-            uniref     = "{:dir.references:}/humann2/uniref.uniref90_diamond",
+            chocophlan = "{:dir.references:}/humann2/chocophlan.{params.chocophlan}",
+            uniref     = "{:dir.references:}/humann2/uniref.{params.uniref}",
             metaphlan  = "{:prev:}.metaphlan2/{sample}_profile.txt"
         output:
             genefam   = "{:this:}/{sample}_genefamilies.tsv",
@@ -36,8 +36,10 @@ with Stage("humann2") as S:
             pathcov   = "{:this:}/{sample}_pathcoverage.tsv",
             tempdir   = "{:this:}/{sample}_humann2_temp"
         params:
-            outpath   = "{:this:}",
-            mem       = icfg.mem("128G")
+            chocophlan = "full",
+            uniref     = "uniref90_diamond",
+            outpath    = "{:this:}",
+            mem        = icfg.mem("128G")
         log:
                         "{:this:}/{sample}.log"
         threads: 16
@@ -56,7 +58,6 @@ with Stage("humann2") as S:
             " --threads {threads};"
             " --o-log {log};"
             "rm {output.tempdir}/temp.fq.gz;"
-
 
     localrules: humann2_renorm_table
     rule humann2_renorm_table:
