@@ -10,6 +10,7 @@ import yaml
 from ymp.common import parse_number, update_dict, AttrDict, MkdirDict
 from ymp.exceptions import YmpException
 from ymp.snakemake import \
+    BaseExpander, \
     ColonExpander, \
     CondaPathExpander, \
     DefaultExpander, \
@@ -612,6 +613,39 @@ class ConfigExpander(ColonExpander):
 
             return super().get_value(field_name, args, kwargs)
 
+class OverrideExpander(BaseExpander):
+    """
+    Apply rule attribute overrides from ymp.yml config
+
+    Example:
+        Set the ``wordsize`` parameter in the `bmtagger_bitmask` rule to
+        12:
+
+        .. code-block:: yaml
+           :caption: ymp.yml
+
+           overrides:
+             rules:
+               bmtagger_bitmask:
+                 params:
+                   wordsize: 12
+    """
+    def __init__(self, cfgmgr):
+        if 'overrides' not in cfgmgr._config:
+            return
+        self.rule_overrides = cfgmgr._config['overrides'].get('rules', {})
+        super().__init__()
+
+    def expand(self, rule, ruleinfo, **kwargs):
+        errmsg = "Failed to apply overrides: "
+        overrides = self.rule_overrides.get(rule.name, {})
+        for attr_name, values in overrides.items():
+            attr = getattr(ruleinfo, attr_name)[1]
+            for val_name, value in values.items():
+                log.debug("Overriding {}.{}={} in {} with {}".format(
+                    attr_name, val_name, attr[val_name], rule.name, value))
+                attr[val_name] = value
+
 
 class ConfigMgr(object):
     """Interface to configuration. Singleton as "icfg" """
@@ -639,6 +673,7 @@ class ConfigMgr(object):
         self.config_expander = ConfigExpander(self)
         self.conda_path_expander = \
             CondaPathExpander(self.search_paths.conda_env)
+        self.override_expander = OverrideExpander(self)
         self.default_expander = \
             DefaultExpander(params=([], {'mem': self.mem()}))
         self.inheritance_expander = InheritanceExpander()
@@ -693,54 +728,6 @@ class ConfigMgr(object):
 
         if len(self._datasets) == 0:
             log.warning("No projects found in configuration")
-
-    def apply_overrides(self, rules):
-        """
-        Apply rule attribute overrides from ymp.yml config
-
-        Example:
-            Set the ``wordsize`` parameter in the `bmtagger_bitmask` rule to
-            12:
-
-            .. code-block:: yaml
-               :caption: ymp.yml
-
-               overrides:
-                 rules:
-                   bmtagger_bitmask:
-                     params:
-                       wordsize: 12
-        """
-        errmsg = "Failed to apply overrides: "
-        if 'overrides' not in self._config:
-            return
-        rules_to_override = self._config['overrides'].get('rules', {})
-        for rule_name in rules_to_override:
-            try:
-                rule = getattr(rules, rule_name)
-            except AttributeError:
-                raise YmpConfigError(
-                    errmsg + "Rule {} not found".format(rule_name)
-                )
-            for attr_name in rules_to_override[rule_name]:
-                attr = getattr(rule, "_" + attr_name)
-                attr_index_map = dict(attr.get_names())
-                for val_name in rules_to_override[rule_name][attr_name]:
-                    if val_name not in attr_index_map:
-                        raise YmpConfigError(
-                            errmsg + "Rule {} has no property {} in {}"
-                            "".format(rule_name, val_name, attr_name)
-                        )
-                    index_start, index_end = attr_index_map[val_name]
-                    if index_end:
-                        raise YmpConfigError(
-                            errmsg + "In {} {} {}:"
-                            "Can only override single value properties"
-                            "".format(rule_name, attr_name, val_name)
-                        )
-                    val = rules_to_override[rule_name][attr_name][val_name]
-                    attr[index_start] = val
-                    attr.set_name(val_name, index_start)
 
     def __len__(self):
         "Our length is the number of datasets"
