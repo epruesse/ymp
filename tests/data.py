@@ -54,6 +54,8 @@ target_map = {
         'map_bowtie2_reference': '{}.ref_genome.map_bowtie2/all',
         # community profile
         'profile_metaphlan2': '{}.metaphlan2/all',
+        # functional profile
+        'profile_humann2': '{}.humann2/all',
     ],
     'amplicon': odict[
         'bbduk_primer': '{}.primermatch/all'
