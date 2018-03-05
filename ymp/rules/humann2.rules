@@ -93,7 +93,6 @@ with Stage("humann2") as S:
             " --update-snames"
             " >{log} 2>&1"
 
-
     localrules: humann2_join_tables
     rule humann2_join_tables:
         """
@@ -108,6 +107,7 @@ with Stage("humann2") as S:
             unit = "(cpm|relab)",
             mode = "(community|levelwise)"
         params:
+            basedir = "{:this:}",
             pattern = "{type}_{mode}_{unit}_single.tsv"
         output:
             "{:this:}/{type}_{mode}_{unit}.tsv"
@@ -115,14 +115,16 @@ with Stage("humann2") as S:
             "humann2.yml"
         shell:
             "humann2_join_tables"
-            " --input {wildcards.dir}.humann2"
+            " --input {params.basedir}"
             " --file_name {params.pattern}"
             " --output {output}"
 
     localrules: humann2_all
     rule humann2_all:
         message:
-            "HUMANn2: Finished processing {wildcards.dir}/humann2"
+            "HUMANn2: Finished processing {params.basedir}"
+        params:
+            basedir = "{:this:}"
         input:
             expand("{{:this:}}/{type}_{mode}_{unit}.tsv", \
                    type=("genefamilies","pathabundance","pathcoverage"), \
@@ -130,5 +132,4 @@ with Stage("humann2") as S:
                    unit=("cpm", "relab"))
         output:
             touch("{:this:}/all")
-
 
