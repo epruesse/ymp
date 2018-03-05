@@ -94,12 +94,12 @@ class Reference(object):
                           "".format(type_name, self.name))
 
     def get_file(self, filename):
-        log.debug("getting {}".format(filename))
+        #log.debug("getting {}".format(filename))
         downloaded_path = self.files.get(filename)
         if downloaded_path:
             return downloaded_path
-        log.debug("Files in Ref {}: {}".format(self.name,
-                                               "\n".join(self.files)))
+        #log.debug("Files in Ref {}: {}".format(self.name,
+        #                                       "\n".join(self.files)))
         return ("YMP_FILE_NOT_FOUND__" +
                 "No file {} in Reference {}"
                 "".format(filename, self.name).replace(" ", "_"))
