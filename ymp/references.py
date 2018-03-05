@@ -17,10 +17,11 @@ class Archive(object):
     strip_components = None
     files = None
 
-    def __init__(self, name, dirname, tar, strip, files):
+    def __init__(self, name, dirname, tar, url, strip, files):
         self.name = name
         self.dirname = dirname
         self.tar = tar
+        self.url = url
         self.strip = strip
         self.files = files
 
@@ -31,13 +32,26 @@ class Archive(object):
         return {fn: os.path.join(self.prefix, fn) for fn in self.files}
 
     def make_unpack_rule(self, baserule: 'Rule'):
+        docstr_tpl = """
+        Unpacks {} archive:
+
+        URL: {}
+
+        Files:
+        """
+        item_tpl = """
+        - {}
+        """
+        docstr = "\n".join([docstr_tpl.format(self.name, self.url)] +
+                           [item_tpl.format(fn) for fn in self.files])
         return make_rule(
             name="unpack_{}_{}".format(self.name, self.hash),
+            docstring=docstr,
             lineno=0,
             snakefile=__name__,
             parent=baserule,
             input=([], {'tar': self.tar}),
-            output=([], {'files': list(self.get_files().values())}),
+            output=([], {'files': list(self.get_files().values()) }),
             params=([], {'strip': self.strip,
                          'prefix': self.prefix})
         )
@@ -70,6 +84,7 @@ class Reference(object):
                 archive = Archive(name=self.name,
                                   dirname=self.dir,
                                   tar=downloaded_path,
+                                  url = rsc['url'],
                                   files=rsc['files'],
                                   strip=rsc.get('strip_components', 0))
                 self.files.update(archive.get_files())
