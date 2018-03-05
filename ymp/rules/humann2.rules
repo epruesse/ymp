@@ -79,7 +79,7 @@ with Stage("humann2") as S:
         params:
             special = "y"
         conda:
-            "hhtools.yml"
+            "humann2.yml"
         shell:
             "humann2_renorm_table"
             " --input {input}"
@@ -109,7 +109,7 @@ with Stage("humann2") as S:
         output:
             "{:this:}/{type}_{mode}_{unit}.tsv"
         conda:
-            "hhtools.yml"
+            "humann2.yml"
         shell:
             "humann2_join_tables"
             " --input {wildcards.dir}.humann2"
