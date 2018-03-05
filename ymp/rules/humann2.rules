@@ -1,18 +1,21 @@
 localrules: human_db_download
-rule human_db_download:
-    """
-    Download Humann2 reference databases
-    """
-    output: "{:dir.references:}/humann2/{database}.{build}"
-    wildcard_constraints:
-      database = "[^.]*",
-      build = "[^.]*"
-    threads: 1
-    conda: "hhtools.yml"
-    shell: """
-    humann2_databases --download {wildcards.database} {wildcards.build} {output}
-    """
-ruleorder: human_db_download > gunzip
+
+with Stage.add_to("references"):
+    rule human_db_download:
+        """
+        Download `HUMAnN2 <humann2>` reference databases
+        """
+        output: "{:dir.references:}/humann2/{database}.{build}"
+        wildcard_constraints:
+          database = "[^.]*",
+          build = "[^.]*"
+        threads: 1
+        conda: "humann2.yml"
+        shell: """
+        humann2_databases --download {wildcards.database} {wildcards.build} {output}
+        """
+    ruleorder: human_db_download > gunzip
+
 
 with Stage("humann2") as S:
     S.doc("""
