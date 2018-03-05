@@ -16,3 +16,7 @@ overrides:
     bmtagger_bitmask:
       params:
         wordsize: 12
+    humann2:
+      params:
+        chocophlan: DEMO
+        uniref: DEMO_diamond
