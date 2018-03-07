@@ -8,7 +8,7 @@ rule bmtagger_bitmask:
     message:
         "BMTagger: bmtool indexing {input}"
     input:
-        ref = "{path}/{file}.fasta.gz" # USES_GZIP_RULE
+        ref = "{path}/{file}.fasta.gz"
     output:
         db  = "{path}.index_bmtagger/{file}.bitmask"
     log:
@@ -16,18 +16,19 @@ rule bmtagger_bitmask:
     threads:
         1
     params:
+        tmp = "{path}.index_bmtagger/{file}.tmp.fa",
         wordsize = 18, # 18->8g, 17->2g, 16->512MB
         mem = icfg.mem("16g")
     conda:
         "bmtagger.yml"
     shell: """
-    gunzip -c {input.ref} > tmp.$$.fa
+    gunzip -c {input.ref} > {params.tmp}
     bmtool \
-    --fasta-file=tmp.fa \
+    --fasta-file={params.tmp} \
     --output-file={output.db} \
     --word-size={params.wordsize} \
     > {log} 2>&1
-    rm tmp.$$.fa
+    rm {params.tmp}
     """
     # --compress fails with small references (segfault in bmfilter)
 
