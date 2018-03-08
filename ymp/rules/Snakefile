@@ -48,11 +48,6 @@ wildcard_constraints:
     target = "[^/.]+",
     source = "[^/.]+"
 
-for fn in os.listdir(srcdir("")):
-    if fn.endswith(".rules") and not fn.startswith("."):
-        include: fn
 
-if os.path.exists(icfg.dir.rules):
-    for fn in os.listdir(icfg.dir.rules):
-        if fn.endswith(".rules") and not fn.startswith("."):
-            include: os.path.abspath(os.path.join(icfg.dir.rules, fn))
+for snakefile in icfg.snakefiles:
+    include: snakefile

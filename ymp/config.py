@@ -2,6 +2,7 @@ import logging
 
 import os
 import re
+import glob
 
 from pkg_resources import resource_filename
 
@@ -654,11 +655,13 @@ class ConfigMgr(object):
     CONF_FNAME = 'ymp.yml'
     CONF_DEFAULT_FNAME = resource_filename("ymp", "/etc/defaults.yml")
     CONF_USER_FNAME = os.path.expanduser("~/.ymp/ymp.yml")
+    RULE_MAIN_FNAME = resource_filename("ymp", "rules/Snakefile")
 
     def __init__(self):
         self.clear()
 
     def clear(self):
+        self._snakefiles = None
         self._datasets = {}
         self._config = {}
         self._conffiles = []
@@ -807,6 +810,22 @@ class ConfigMgr(object):
         """
         return "{_YMP_PRJ}"
 
+    @property
+    def snakefiles(self):
+        """
+        Snakefiles used under this config in parsing order
+        """
+        if not self._snakefiles:
+            self._snakefiles = [
+                fn
+                for dn in (os.path.dirname(self.RULE_MAIN_FNAME),
+                           self.dir.rules)
+                for fn in sorted(glob.glob(os.path.join(dn, "**", "*.rules"),
+                                           recursive=True),
+                                 key=lambda v: v.lower())
+                if os.path.basename(fn)[0] != "."
+            ]
+        return self._snakefiles
 
     def getDatasetFromDir(self, dirname):
         try:
