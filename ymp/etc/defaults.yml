@@ -121,7 +121,10 @@ limits:
   min_mem_per_thread: 10M
 
 # Default projects (none)
-projects:
+projects: {}
+
+# Default overrides (none)
+overrides: {}
 
 # Default cluster config
 cluster:
