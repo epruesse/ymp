@@ -11,4 +11,4 @@ click-completion
 coloredlogs
 networkx >=2
 xdg
-ruamel.yaml
+ruamel.yaml >0.15
