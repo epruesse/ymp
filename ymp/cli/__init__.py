@@ -6,6 +6,7 @@ from ymp.cli.env import env
 from ymp.cli.make import make, submit
 from ymp.cli.shared_options import group
 from ymp.cli.stage import stage
+from ymp.cli.show import show
 
 click_completion.init()
 
@@ -38,3 +39,4 @@ main.add_command(make)
 main.add_command(submit)
 main.add_command(env)
 main.add_command(stage)
+main.add_command(show)
