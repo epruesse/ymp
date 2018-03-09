@@ -7,11 +7,11 @@ import glob
 from pkg_resources import resource_filename
 
 from ymp.common import parse_number, AttrDict, MkdirDict
+from ymp.env import CondaPathExpander
 from ymp.exceptions import YmpException
 from ymp.snakemake import \
     BaseExpander, \
     ColonExpander, \
-    CondaPathExpander, \
     DefaultExpander, \
     ExpandableWorkflow, \
     InheritanceExpander, \
@@ -614,6 +614,7 @@ class ConfigExpander(ColonExpander):
 
             return super().get_value(field_name, args, kwargs)
 
+
 class OverrideExpander(BaseExpander):
     """
     Apply rule attribute overrides from ymp.yml config
@@ -638,7 +639,6 @@ class OverrideExpander(BaseExpander):
         super().__init__()
 
     def expand(self, rule, ruleinfo, **kwargs):
-        errmsg = "Failed to apply overrides: "
         overrides = self.rule_overrides.get(rule.name, {})
         for attr_name, values in overrides.items():
             attr = getattr(ruleinfo, attr_name)[1]

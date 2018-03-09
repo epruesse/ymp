@@ -716,40 +716,6 @@ class RecursiveExpander(BaseExpander):
                 setattr(ruleinfo, name, args[name][0])
 
 
-class CondaPathExpander(BaseExpander):
-    """Applies search path for conda environment specifications
-
-    File names supplied via `rule: conda: "some.yml"` are replaced with
-    absolute paths if they are found in any searched directory.
-    Each `search_paths` entry is appended to the directory
-    containing the top level Snakefile and the directory checked for
-    the filename. Thereafter, the stack of including Snakefiles is traversed
-    backwards. If no file is found, the original name is returned.
-    """
-    def __init__(self, search_paths, *args, **kwargs):
-        try:
-            from snakemake.workflow import workflow
-            self._workflow = workflow
-            super().__init__(*args, **kwargs)
-        except:
-            log.debug("CondaPathExpander not registered -- needs snakemake")
-
-        self._search_paths = search_paths
-
-    def expands_field(self, field):
-        return field == 'conda_env'
-
-    def format(self, conda_env, *args, **kwargs):
-        for snakefile in reversed(self._workflow.included_stack):
-            basepath = os.path.dirname(snakefile)
-            for _, relpath in sorted(self._search_paths.items()):
-                searchpath = os.path.join(basepath, relpath)
-                abspath = os.path.abspath(os.path.join(searchpath, conda_env))
-                if os.path.exists(abspath):
-                    return abspath
-        return conda_env
-
-
 class InheritanceExpander(BaseExpander):
     """Adds class-like inheritance to Snakemake rules
 
