@@ -40,7 +40,7 @@ setup(
         'snakemake',
         'Click',
         'Click-completion',
-        'PyYAML',
+        'ruamel.yaml',
         'drmaa',
         'rpy2',
         'pandas>=0.20',

@@ -6,9 +6,7 @@ import glob
 
 from pkg_resources import resource_filename
 
-import yaml
-
-from ymp.common import parse_number, update_dict, AttrDict, MkdirDict
+from ymp.common import parse_number, AttrDict, MkdirDict
 from ymp.exceptions import YmpException
 from ymp.snakemake import \
     BaseExpander, \
@@ -21,6 +19,8 @@ from ymp.snakemake import \
 from ymp.stage import StageExpander
 from ymp.util import make_local_path, is_fq
 from ymp.references import load_references
+
+from collections import Mapping, Sequence
 
 log = logging.getLogger(__name__)
 
@@ -102,9 +102,9 @@ def load_data(cfg):
             else s)
         return data
 
-    if isinstance(cfg, list):
+    if isinstance(cfg, Sequence):
         return pd.concat(list(map(load_data, cfg)), ignore_index=True)
-    if isinstance(cfg, dict):
+    if isinstance(cfg, Mapping):
         # JOIN
         if 'join' in cfg:
             tables = list(map(load_data, cfg['join']))
@@ -151,7 +151,7 @@ def load_data(cfg):
                 for row in cfg['table']
                 for key, value in row.items()
             ))
-    raise YmpConfigMalformed()
+    raise YmpConfigMalformed(f"{cfg}")
 
 
 class Context(object):
@@ -712,11 +712,8 @@ class ConfigMgr(object):
 
     def load_config(self):
         """Loads ymp configuration files"""
-        for fn in self._conffiles:
-            log.debug("Loading '%s'", fn)
-            with open(fn, "r") as f:
-                conf = yaml.load(f)
-                update_dict(self._config, conf)
+        import ymp.yaml
+        self._config = ymp.yaml.load(self._conffiles)
 
         projects = self._config.get(self.KEY_PROJECTS, {})
         if not projects:
@@ -746,11 +743,11 @@ class ConfigMgr(object):
 
     @property
     def pairnames(self):
-        return self._config['pairnames']
+        return self._config.pairnames
 
     @property
     def search_paths(self):
-        return AttrDict(self._config['search_paths'])
+        return self._config.search_paths
 
     @property
     def dir(self):
@@ -759,7 +756,7 @@ class ConfigMgr(object):
 
         The directory paths are relative to the YMP root workdir.
         """
-        return AttrDict(self._config['directories'])
+        return self._config.directories
 
     @property
     def absdir(self):
@@ -776,7 +773,7 @@ class ConfigMgr(object):
         """
         The YMP cluster configuration.
         """
-        return AttrDict(self._config['cluster'])
+        return self._config.cluster
 
     @property
     def ref(self):
@@ -794,7 +791,7 @@ class ConfigMgr(object):
         """
         The YMP limits configuration.
         """
-        return AttrDict(self._config['limits'])
+        return self._config.limits
 
     @property
     def allruns(self):
@@ -819,7 +816,7 @@ class ConfigMgr(object):
             self._snakefiles = [
                 fn
                 for dn in (os.path.dirname(self.RULE_MAIN_FNAME),
-                           self.dir.rules)
+                           self.absdir.rules)
                 for fn in sorted(glob.glob(os.path.join(dn, "**", "*.rules"),
                                            recursive=True),
                                  key=lambda v: v.lower())

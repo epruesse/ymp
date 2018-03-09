@@ -6,7 +6,7 @@ dependencies:
   - snakemake
   - rpy2 =2.8.5  # pinned to keep conda from taking for ever
   - click
-  - pyyaml
+  - ruamel.yaml
   - python-drmaa
   - pandas >=0.20  # need dtype support in python csv engine
   - xlrd         # excel support
