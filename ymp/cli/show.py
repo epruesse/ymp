@@ -71,8 +71,12 @@ def show_help(ctx, param=None, value=True):
 @click.option(
     "--help", "-h", callback=show_help, expose_value=False, is_flag=True
 )
+@click.option(
+    "--source", "-s", is_flag=True,
+    help="Show source"
+)
 @click.pass_context
-def show(ctx, prop):
+def show(ctx, prop, source):
     """
     Show configuration properties
     """
@@ -103,6 +107,4 @@ def show(ctx, prop):
             except ValueError:
                 obj = obj[subslice_str]
 
-    click.echo("---")
-    click.echo(type(obj))
-    click.echo(obj)
+    click.echo(obj.to_yaml(source))
