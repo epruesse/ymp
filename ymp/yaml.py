@@ -4,11 +4,9 @@ from collections.abc import (
     Mapping, Sequence, MappingView, ItemsView, KeysView, ValuesView
 )
 
-from ruamel.yaml import YAML
+from ruamel.yaml import YAML, RoundTripRepresenter
 
 log = logging.getLogger(__name__)
-
-rt_yaml = YAML(typ="rt")
 
 
 class MixedTypeError(Exception):
@@ -40,8 +38,8 @@ class AttrItemAccessMixin(object):
                 return self.__getattribute__(key)
             else:
                 return self[key]
-        except IndexError as e:
-            raise KeyError(e)
+        except (IndexError, KeyError) as e:
+            raise AttributeError(e)
 
     def __setattr__(self, key, value):
         try:
@@ -49,8 +47,8 @@ class AttrItemAccessMixin(object):
                 object.__setattr__(self, key, value)
             else:
                 self[key] = value
-        except IndexError as e:
-            raise KeyError(e)
+        except (IndexError, KeyError) as e:
+            raise AttributeError(e)
 
     def __delattr__(self, key):
         raise NotImplementedError()
@@ -67,6 +65,22 @@ class MultiProxy(object):
 
     def make_seq_proxy(self, items):
         return MultiSeqProxy(items, parent=self)
+
+    def to_yaml(self, show_source=False):
+        buf = io.StringIO()
+        if show_source:
+            for fn, layer in self._maps:
+                buf.write(f"--- # from '{fn}' # ---\n")
+                rt_yaml.dump(layer, buf)
+        else:
+            rt_yaml.dump(self, buf)
+        return buf.getvalue()
+
+    def __str__(self):
+        return self.to_yaml()
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self._maps!r})"
 
 
 class MultiMapProxyMappingView(MappingView):
@@ -116,31 +130,31 @@ class MultiMapProxyValuesView(MultiMapProxyMappingView, ValuesView):
 class MultiMapProxy(Mapping, MultiProxy, AttrItemAccessMixin):
     """Mapping Proxy for layered containers"""
     def __contains__(self, key):
-        return any(key in m for m in self._maps)
+        return any(key in m for _, m in self._maps)
 
     def __len__(self):
-        return len(set(k for m in self._maps for k in m))
+        return len(set(k for _, m in self._maps for k in m))
 
     def __getitem__(self, key):
-        items = [m[key] for m in self._maps if key in m]
+        items = [(fn, m[key]) for fn, m in self._maps if key in m]
         if not items:
             raise KeyError(f"key '{key}' not found in any map")
-        typs = set(type(m) for m in items if m)
+        typs = set(type(m[1]) for m in items if m)
         if len(typs) > 1:
             raise MixedTypeError(
                 f"while trying to obtain '{key}' from {items!r},"
                 f"types differ: {typs}"
             )
-        if isinstance(items[0], Mapping):
+        if isinstance(items[0][1], Mapping):
             return self.make_map_proxy(items)
-        if isinstance(items[0], str):
-            return items[0]
-        if isinstance(items[0], Sequence):
+        if isinstance(items[0][1], str):
+            return items[0][1]
+        if isinstance(items[0][1], Sequence):
             return self.make_seq_proxy(items)
-        return items[0]
+        return items[0][1]
 
     def __iter__(self):
-        for key in set(k for m in self._maps for k in m):
+        for key in set(k for _, m in self._maps for k in m):
             yield key
 
     def get(self, value, default=None):
@@ -159,7 +173,7 @@ class MultiMapProxy(Mapping, MultiProxy, AttrItemAccessMixin):
         return MultiMapProxyValuesView(self)
 
     def __setitem__(self, key, value):
-        self._maps[0][key] = value
+        self._maps[0][1][key] = value
 
     def __delitem__(self, key):
         raise NotImplementedError()
@@ -171,23 +185,26 @@ class MultiMapProxy(Mapping, MultiProxy, AttrItemAccessMixin):
 class MultiSeqProxy(Sequence, MultiProxy, AttrItemAccessMixin):
     """Sequence Proxy for layered containers"""
     def __contains__(self, value):
-        return any(value in m for m in self._maps)
+        return any(value in m for _, m in self._maps)
 
     def __len__(self):
-        return sum(len(m) for m in self._maps)
+        return sum(len(m) for _, m in self._maps)
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self._maps})"
 
     def __str__(self):
-        return "+".join(f"{m}" for m in self._maps)
+        return "+".join(f"{m}" for _, m in self._maps)
 
     def __getitem__(self, index):
         if isinstance(index, slice):
             raise NotImplementedError()
         if isinstance(index, str):
-            index = int(index)
-        for m in self._maps:
+            try:
+                index = int(index)
+            except ValueError:
+                raise KeyError()
+        for _, m in self._maps:
             if index >= len(m):
                 index -= len(m)
             else:
@@ -203,26 +220,23 @@ class MultiSeqProxy(Sequence, MultiProxy, AttrItemAccessMixin):
         raise NotImplementedError()
 
     def __iter__(self):
-        for m in self._maps:
+        for _, m in self._maps:
             for item in m:
                 yield item
 
 
 class LayeredConfProxy(MultiMapProxy):
     """Layered configuration"""
-    def to_yaml(self, show_source=False):
-        buf = io.StringIO()
-        for layer in self._maps:
-            # if show_source:
-            #    buf.write(f"### from '{fn}' ###\n")
-            rt_yaml.dump(layer, buf)
-        return buf.getvalue()
 
-    def __str__(self):
-        return self.to_yaml()
 
-    def __repr__(self):
-        return f"{self.__class__.__name__}({self._maps!r})"
+RoundTripRepresenter.add_representer(LayeredConfProxy,
+                                     RoundTripRepresenter.represent_dict)
+RoundTripRepresenter.add_representer(MultiMapProxy,
+                                     RoundTripRepresenter.represent_dict)
+RoundTripRepresenter.add_representer(MultiSeqProxy,
+                                     RoundTripRepresenter.represent_list)
+
+rt_yaml = YAML(typ="rt")
 
 
 def load(files):
@@ -239,5 +253,5 @@ def load(files):
                 raise LayeredConfError(
                     f"Malformed config file '{fn}'."
                 )
-            layers.append(yaml)
+            layers.append((fn, yaml))
     return LayeredConfProxy(layers)
