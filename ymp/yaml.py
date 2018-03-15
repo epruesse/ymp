@@ -187,6 +187,11 @@ class MultiSeqProxy(Sequence, MultiProxy, AttrItemAccessMixin):
     def __contains__(self, value):
         return any(value in m for _, m in self._maps)
 
+    def __iter__(self):
+        for _, m in self._maps:
+            for item in m:
+                yield item
+
     def __len__(self):
         return sum(len(m) for _, m in self._maps)
 
@@ -210,6 +215,12 @@ class MultiSeqProxy(Sequence, MultiProxy, AttrItemAccessMixin):
             else:
                 return m[index]
 
+    def __radd__(self, other):
+        return self.__add__(other)
+
+    def __add__(self, other):
+        return other + list(self)
+
     def __setitem__(self, key, value):
         raise NotImplementedError()
 
@@ -218,11 +229,6 @@ class MultiSeqProxy(Sequence, MultiProxy, AttrItemAccessMixin):
 
     def __missing__(self, key):
         raise NotImplementedError()
-
-    def __iter__(self):
-        for _, m in self._maps:
-            for item in m:
-                yield item
 
 
 class LayeredConfProxy(MultiMapProxy):

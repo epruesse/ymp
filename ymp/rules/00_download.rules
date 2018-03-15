@@ -61,7 +61,7 @@ with Stage("references") as S:
 
             if (wildcards.path.endswith(".gz")
                 and not infile.endswith(".gz")):
-                    shell("gzip -c {infile} > {output}")
+                    shell("gzip -c '{infile}' > '{output}'")
             else:
                 outdir = os.path.dirname(output[0])
                 input_relpath = os.path.relpath(infile, outdir)
@@ -78,7 +78,7 @@ with Stage("references") as S:
         shell: """
         rm -rf {params.prefix}
         mkdir -p {params.prefix}
-        tar -xf {input.tar} --strip-components {params.strip} -C {params.prefix}
+        tar -xf '{input.tar}' --strip-components {params.strip} -C '{params.prefix}'
         """
     ruleorder: unpack_archive > prepare_reference
     ruleorder: unpack_archive > gunzip
