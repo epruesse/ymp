@@ -11,16 +11,8 @@ set -x
 
 CONDA_BASEURL=https://repo.continuum.io/miniconda
 
-# Determine OS
-case $(uname) in
-    Linux)
-	export CONDA_OSNAME=Linux
-	;;
-    Darwin)
-	export CONDA_OSNAME=MacOSX
-	;;
-esac
-
+# expand '~' in MINICONDA path (alternatives to eval are too long)
+eval MINICONDA=$MINICONDA
 
 # Setup PATH
 if test -n "$BASH_ENV"; then
@@ -38,6 +30,12 @@ export PATH="$MINICONDA/bin:$PATH"
 if test -d $MINICONDA; then
     echo "Found conda install"
 else
+    # Determine OS
+    case $(uname) in
+	Linux)  CONDA_OSNAME=Linux;;
+	Darwin) CONDA_OSNAME=MacOSX;;
+    esac
+
     # Download and install miniconda
     curl $CONDA_BASEURL/Miniconda3-latest-$CONDA_OSNAME-x86_64.sh -o miniconda.sh
     bash miniconda.sh -b -p $MINICONDA

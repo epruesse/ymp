@@ -7,7 +7,7 @@ variables:
       LC_ALL: en_US.UTF-8
       LANG: en_US.UTF-8
       JUNIT_REPORT_PATH: /tmp/junit_reports/ # trailing slash required
-      MINICONDA: $HOME/miniconda
+      MINICONDA: ~/miniconda
   macos: &macos
     macos:
       xcode: "9.0"
@@ -18,13 +18,13 @@ variables:
   update_miniconda: &update_miniconda
     run:
       name: Updating/Installing Conda Environment
-      command: .circleci/setup.sh
+      command: .circleci/setup.sh $MINICONDA
   save_miniconda: &save_miniconda
     save_cache:
       key: miniconda-{{arch}}-{{checksum "conda/info.txt"}}-{{checksum "conda/root.txt" }}-{{checksum "conda/pkgs.txt"}}-{{checksum "conda/ymp_envs.txt"}}
       paths:
-        - $HOME/miniconda
-        - $HOME/.ymp/conda
+        - ~/miniconda
+        - ~/.ymp/conda
   restore_miniconda: &restore_miniconda
     restore_cache:
       keys:
