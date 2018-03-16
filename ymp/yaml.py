@@ -5,6 +5,7 @@ from collections.abc import (
 )
 
 from ruamel.yaml import YAML, RoundTripRepresenter
+import ruamel.yaml
 
 log = logging.getLogger(__name__)
 
@@ -81,6 +82,9 @@ class MultiProxy(object):
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self._maps!r})"
+
+    def add_layer(self, name, container):
+        self._maps.append((name, container))
 
 
 class MultiMapProxyMappingView(MappingView):
@@ -230,9 +234,22 @@ class MultiSeqProxy(Sequence, MultiProxy, AttrItemAccessMixin):
     def __missing__(self, key):
         raise NotImplementedError()
 
+    def __iadd__(self, item):  # broken?!
+        self.extend(item)
+
+    def extend(self, item):
+        m = self._maps[0][1]
+        m.extend(item)
+
 
 class LayeredConfProxy(MultiMapProxy):
     """Layered configuration"""
+
+    def __str__(self):
+        try:
+            return self.to_yaml()
+        except ruamel.yaml.serializer.SerializerError:
+            return self.__repr__()
 
 
 RoundTripRepresenter.add_representer(LayeredConfProxy,
