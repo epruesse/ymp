@@ -7,7 +7,7 @@ variables:
       LC_ALL: en_US.UTF-8
       LANG: en_US.UTF-8
       JUNIT_REPORT_PATH: /tmp/junit_reports/ # trailing slash required
-      MINICONDA: ~/miniconda
+      MINICONDA: /tmp/miniconda
   macos: &macos
     macos:
       xcode: "9.0"
@@ -23,7 +23,7 @@ variables:
     save_cache:
       key: miniconda-{{arch}}-{{checksum "conda/info.txt"}}-{{checksum "conda/root.txt" }}-{{checksum "conda/pkgs.txt"}}-{{checksum "conda/ymp_envs.txt"}}
       paths:
-        - ~/miniconda
+        - /tmp/miniconda
         - ~/.ymp/conda
   restore_miniconda: &restore_miniconda
     restore_cache:
@@ -45,17 +45,8 @@ variables:
     run:
       name: Installing YMP
       command: |
-        set -x
-        echo $USER
-        echo $PATH
-        which git || true
-        ls -latr / $HOME
         source activate test_env
-        echo $PATH
-        which git || true
-        git --help
-        #python setup.py install
-        pip install -e .
+        python setup.py install
   ymp_env_prepare: &ymp_env_prepare
     run:
       name: Peparing YMP tool environments
