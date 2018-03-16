@@ -54,8 +54,11 @@ fi
 
 
 # Install/update YMP dependencies
-conda env create -n test_env -f environment.yaml
-conda env update -n test_env -f environment.yaml
+if test -d $MINICONDA/envs/test_env; then
+    conda env update -n test_env -f environment.yaml --prune
+else
+    conda env create -n test_env -f environment.yaml
+fi
 
 # Cleanup
 conda clean --yes --all

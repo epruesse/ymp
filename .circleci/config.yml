@@ -14,7 +14,12 @@ variables:
   linux: &linux
     docker:
       - image: condaforge/linux-anvil
+
   ##### Handle miniconda installation
+  restore_miniconda: &restore_miniconda
+    restore_cache:
+      keys:
+        - miniconda-{{arch}}
   update_miniconda: &update_miniconda
     run:
       when: always
@@ -22,14 +27,11 @@ variables:
       command: .circleci/setup.sh $MINICONDA
   save_miniconda: &save_miniconda
     save_cache:
+      when: always
       key: miniconda-{{arch}}-{{checksum "conda/info.txt"}}-{{checksum "conda/root.txt" }}-{{checksum "conda/pkgs.txt"}}-{{checksum "conda/ymp_envs.txt"}}
       paths:
         - ~/miniconda
         - ~/.ymp/conda
-  restore_miniconda: &restore_miniconda
-    restore_cache:
-      keys:
-        - miniconda-{{arch}}
   store_miniconda_status: &store_miniconda_status
     store_artifacts:
       when: always
