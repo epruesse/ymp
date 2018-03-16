@@ -52,7 +52,7 @@ def saved_tmpdir(request, tmpdir):
     yield tmpdir
     if (
         request.config.getoption("--cwd-save-always")
-        or not hasattr(request.node, 'reap_call')
+        or not hasattr(request.node, 'rep_call')
         or request.node.rep_call.failed
     ):
         name_parts = request.node.name.replace("]", "").split("[")
