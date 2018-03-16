@@ -7,7 +7,7 @@ variables:
       LC_ALL: en_US.UTF-8
       LANG: en_US.UTF-8
       JUNIT_REPORT_PATH: /tmp/junit_reports/ # trailing slash required
-      MINICONDA: /tmp/miniconda
+      MINICONDA: $HOME/miniconda
   macos: &macos
     macos:
       xcode: "9.0"
@@ -23,8 +23,8 @@ variables:
     save_cache:
       key: miniconda-{{arch}}-{{checksum "conda/info.txt"}}-{{checksum "conda/root.txt" }}-{{checksum "conda/pkgs.txt"}}-{{checksum "conda/ymp_envs.txt"}}
       paths:
-        - /tmp/miniconda
-        - ~/.ymp/conda
+        - $HOME/miniconda
+        - $HOME/.ymp/conda
   restore_miniconda: &restore_miniconda
     restore_cache:
       keys:
