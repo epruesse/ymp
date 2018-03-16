@@ -60,6 +60,7 @@ class Env(snakemake.conda.Env):
         self._content = None
         self._path = None
         self._archive_file = None
+        self._singularity_img = None
 
     def create(self):
         "Create conda environment"

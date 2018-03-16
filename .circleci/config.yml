@@ -53,6 +53,7 @@ variables:
         source activate test_env
         echo $PATH
         which git || true
+        git --help
         #python setup.py install
         pip install -e .
   ymp_env_prepare: &ymp_env_prepare
