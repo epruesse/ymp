@@ -46,8 +46,8 @@ def ls(long_opt, short_opt, stage_opt):
 
     name_width = max(len(x.name) for x in stages)
     for stage in stages:
-        if hasattr(stage, 'doc'):
-            doc = stage.doc.strip().split("\n", 1)
+        if hasattr(stage, 'docstring'):
+            doc = stage.docstring.strip().split("\n", 1)
             short_doc = doc[0].strip()
             if len(doc) > 1:
                 long_doc = doc[1]
