@@ -115,7 +115,7 @@ def find_root():
     while not os.path.exists(os.path.join(curpath, "ymp.yml")):
         left, right = os.path.split(curpath)
         if curpath == left:
-            raise YmpConfigNotFound()
+            return os.getcwd(), ""
         curpath = left
         prefix = os.path.join(right, prefix)
     return (curpath, prefix)
