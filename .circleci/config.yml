@@ -17,6 +17,7 @@ variables:
   ##### Handle miniconda installation
   update_miniconda: &update_miniconda
     run:
+      when: always
       name: Updating/Installing Conda Environment
       command: .circleci/setup.sh $MINICONDA
   save_miniconda: &save_miniconda
