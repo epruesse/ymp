@@ -143,7 +143,7 @@ class MultiMapProxy(Mapping, MultiProxy, AttrItemAccessMixin):
         items = [(fn, m[key]) for fn, m in self._maps if key in m]
         if not items:
             raise KeyError(f"key '{key}' not found in any map")
-        typs = set(type(m[1]) for m in items if m)
+        typs = set(type(m[1]) for m in items if m[1])
         if len(typs) > 1:
             raise MixedTypeError(
                 f"while trying to obtain '{key}' from {items!r},"
