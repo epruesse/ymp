@@ -53,3 +53,7 @@ rule ticktock:
      sleep 1
     done
     """
+
+rule noop:
+    message: "Doing ... nothing!"
+    shell: "true"
