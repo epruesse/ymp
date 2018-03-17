@@ -132,10 +132,10 @@ class Invoker(object):
         from ymp.cli import main
         self.main = main
 
-    def call(self, args):
+    def call(self, args, **kwargs):
         if isinstance(args, str):
             args = [args]
-        result = self.runner.invoke(self.main, args)
+        result = self.runner.invoke(self.main, args, **kwargs, standalone_mode=False)
         with open("out.log", "w") as f:
             f.write(result.output)
         if result.exception:
