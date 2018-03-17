@@ -84,7 +84,7 @@ class MultiProxy(object):
         return f"{self.__class__.__name__}({self._maps!r})"
 
     def add_layer(self, name, container):
-        self._maps.append((name, container))
+        self._maps.insert(0, ((name, container)))
 
 
 class MultiMapProxyMappingView(MappingView):
