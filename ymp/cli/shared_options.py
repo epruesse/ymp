@@ -142,7 +142,7 @@ class Log(object):
 
 verbose_option = click.option(
     "--verbose", "-v", count=True,
-    help="Increase verbosity. May be specified multiple times.",
+    help="Increase log verbosity",
     callback=Log.verbose_option,
     expose_value=False
 )
@@ -150,7 +150,7 @@ verbose_option = click.option(
 
 quiet_option = click.option(
     "--quiet", "-q", count=True,
-    help="Decrease verbosity. May be specified multiple times.",
+    help="Decrease log verbosity",
     callback=Log.quiet_option,
     expose_value=False
 )
