@@ -1,6 +1,7 @@
 import functools
 import logging
 import os
+import shutil
 import sys
 
 import click
@@ -57,7 +58,7 @@ def snake_params(func):
     )
     @click.option(
         "--dryrun", "-n", default=False, is_flag=True,
-        help="Only show what would be done; don't actually run any commands"
+        help="Only show what would be done"
     )
     @click.option(
         "--printshellcmds", "-p", default=False, is_flag=True,
@@ -65,7 +66,7 @@ def snake_params(func):
     )
     @click.option(
         "--keepgoing", "-k", default=False, is_flag=True,
-        help="Keep going as far as possible after individual stages failed"
+        help="Don't stop after failed job"
     )
     @click.option(
         "--lock/--no-lock",
@@ -74,7 +75,7 @@ def snake_params(func):
     )
     @click.option(
         "--rerun-incomplete", "--ri", 'force_incomplete', is_flag=True,
-        help="Re-run stages left incomplete in last run"
+        help="Re-run jobs left incomplete in last run"
     )
     @click.option(
         "--forceall", "-F", is_flag=True, default=False,
@@ -86,6 +87,7 @@ def snake_params(func):
     )
     @click.option(
         "--conda-prefix", default=os.path.expanduser("~/.ymp/conda"),
+        metavar="PATH",
         help="Override path to conda environments"
     )
     @click.option(
@@ -121,18 +123,40 @@ def find_root():
     return (curpath, prefix)
 
 
-def start_snakemake(**kwargs):
+def start_snakemake(kwargs):
     """Execute Snakemake with given parameters and targets
 
     Fixes paths of kwargs['targets'] to be relative to YMP root.
     """
     kwargs['workdir'], prefix = find_root()
 
-    for arg in ('use_drmaa', 'qsub_sync', 'qsub_sync_arg',
-                'qsub_cmd', 'qsub_args', 'nohup'):
-        if arg in kwargs:
-            del kwargs[arg]
+    # translate renamed arguments to snakemake synopsis
+    arg_map = {
+        'immediate': 'immediate_submit',
+        'wrapper': 'jobscript',
+        'scriptname': 'jobname',
+        'cluster_cores': 'nodes',
+        'snake_config': 'config',
+        'drmaa': None,
+        'sync': None,
+        'sync_arg': None,
+        'command': None,
+        'args': None,
+        'nohup': None
+    }
+    kwargs = {arg_map.get(key, key): value
+              for key, value in kwargs.items()
+              if arg_map.get(key, key) is not None}
 
+    # our debug flag sets a new excepthoook handler, to we use this
+    # to decide whether snakemake should run in debug mode
+    if sys.excepthook.__module__ != "sys":
+        log.warning(
+            "Custom excepthook detected. Having Snakemake open stdin "
+            "inside of run: blocks")
+        kwargs['debug'] = True
+
+    # map our logging level to snakemake logging level
     if log.getEffectiveLevel() > logging.WARNING:
         kwargs['quiet'] = True
     if log.getEffectiveLevel() < logging.WARNING:
@@ -141,10 +165,11 @@ def start_snakemake(**kwargs):
     if 'targets' in kwargs:
         kwargs['targets'] = [os.path.join(prefix, t)
                              for t in kwargs['targets']]
+
     log.debug("Running snakemake.snakemake with args: {}".format(kwargs))
-    return snakemake.snakemake(
-        resource_filename("ymp", "rules/Snakefile"),
-        **kwargs)
+
+    return snakemake.snakemake(resource_filename("ymp", "rules/Snakefile"),
+                               **kwargs)
 
 
 @command()
@@ -163,8 +188,8 @@ def start_snakemake(**kwargs):
 )
 @click.option(
     "--debug-dag", default=False, is_flag=True,
-    help="Show candidates and selections made while the rule execution graph is"
-    "being built"
+    help="Show candidates and selections made while the rule execution graph "
+    "is being built"
 )
 @click.option(
     "--debug", default=False, is_flag=True,
@@ -172,73 +197,124 @@ def start_snakemake(**kwargs):
 )
 def make(**kwargs):
     "Build target(s) locally"
-    rval = start_snakemake(**kwargs)
+    rval = start_snakemake(kwargs)
     if not rval:
         sys.exit(1)
 
 
 @command()
 @snake_params
-@click.option("--profile", "-P", default="default")
-@click.option("--config", "-c")
-@click.option("--drmaa", "-d", "use_drmaa", is_flag=True)
-@click.option("--sync", "-s", "qsub_sync", is_flag=True)
-@click.option("--immediate", "-i", is_flag=True)
-@click.option("--command", "qsub_cmd")
-@click.option("--wrapper", "-w")
-@click.option("--max-jobs-per-second", "-m")
-@click.option("--latency-wait", "-l")
-@click.option("--max-cores", "-j")
-@click.option("--local-cores", default=16)
-@click.option("--args", "qsub_args")
-@click.option("--scriptname")
-@click.option("--extra-args", "-e")
-def submit(profile, extra_args, **kwargs):
-    "Build target(s) on cluster"
-    # start with default
+@click.option(
+    "--profile", "-P", metavar="NAME",
+    help="Select cluster config profile to use. Overrides cluster.profile "
+    "setting from config."
+)
+@click.option(
+    "--snake-config", "-c", metavar="FILE",
+    help="Provide snakemake cluster config file"
+)
+@click.option(
+    "--drmaa", "-d", is_flag=True,
+    help="Use DRMAA to submit jobs to cluster. Note: Make sure you have "
+    "a working DRMAA library. Set DRMAA_LIBRAY_PATH if necessary."
+)
+@click.option(
+    "--sync", "-s", is_flag=True,
+    help="Use synchronous cluster submission, keeping the submit command "
+    "running until the job has completed. Adds qsub_sync_arg to cluster "
+    "command"
+)
+@click.option(
+    "--immediate", "-i", is_flag=True,
+    help="Use immediate submission, submitting all jobs to the cluster "
+    "at once."
+)
+@click.option(
+    "--command",  metavar="CMD",
+    help="Use CMD to submit job script to the cluster"
+)
+@click.option(
+    "--wrapper", metavar="CMD",
+    help="Use CMD as script submitted to the cluster. See Snakemake "
+    "documentation for more information."
+)
+@click.option(
+    "--max-jobs-per-second", metavar="N",
+    help="Limit the number of jobs submitted per second"
+)
+@click.option(
+    "--latency-wait", "-l", metavar="T",
+    help="Time in seconds to wait after job completed until files are "
+    "expected to have appeared in local file system view. On NFS, this "
+    "time is governed by the acdirmax mount option, which defaults to "
+    "60 seconds."
+)
+@click.option(
+    "--cluster-cores", "-J", type=int, metavar="N",
+    help="Limit the maximum number of cores used by jobs submitted at a time"
+)
+@click.option(
+    "--cores", "-j", default=16, metavar="N",
+    help="Number of local threads to use"
+)
+@click.option(
+    "--args", "args", metavar="ARGS",
+    help="Additional arguments passed to cluster submission command. "
+    "Note: Make sure the first character of the argument is not '-', "
+    "prefix with ' ' as necessary."
+)
+@click.option(
+    "--scriptname", metavar="NAME",
+    help="Set the name template used for submitted jobs"
+)
+def submit(profile, **kwargs):
+    """Build target(s) on cluster
+
+    The parameters for cluster execution are drawn from layered profiles. YMP
+    includes base profiles for the "torque" and "slurm" cluster engines.
+
+    """
     from ymp.config import icfg
-    cfg = icfg.cluster.profiles.default
-    # select default profile (from cmd or cfg)
-    if profile != "default":
-        update_dict(cfg, icfg.cluster[profile])
-    elif icfg.cluster.profile != "default":
-        update_dict(cfg, icfg.cluster.profiles[icfg.cluster.profile])
 
-    # udpate with not-none command line options
-    update_dict(cfg, {key: value
-                      for key, value in kwargs.items()
-                      if value is not None})
-
-    # turn into attrdict
-    cfg = AttrDict(cfg)
+    # The cluster config uses profiles, which are assembled by layering
+    # the default profile, the selected profile and additional command
+    # line parameters. The selected profile is either specified via
+    # "
+    config = icfg.cluster.profiles.default
+    profile_name = profile or icfg.cluster.profile
+    if profile:
+        config.add_layer(profile_name,
+                         icfg.cluster.profiles[profile_name])
+    cli_params = {key: value
+                  for key, value in kwargs.items()
+                  if value is not None}
+    config.add_layer("<shell arguments>",
+                     cli_params)
 
     # prepare cluster command
-    if cfg.use_drmaa:
+    if config.command is None:
+        raise click.UsageError("""
+        No cluster submission command configured.
+        Please check the manual on how to configure YMP for your cluster"
+        """)
+    cmd = config.command.split() + config.args.values()
+    if config.drmaa:
         param = 'drmaa'
-        cfg.qsub_args = [''] + cfg.qsub_args
-    elif cfg.qsub_sync:
+        cmd[0] = ''
+    elif config.sync:
         param = 'cluster_sync'
-        cfg.qsub_args = [cfg.qsub_cmd, cfg.qsub_sync_arg] + cfg.qsub_args
+        cmd.append(config.sync_arg)
     else:
         param = 'cluster'
-        cfg.qsub_args = [cfg.qsub_cmd] + cfg.qsub_args
-    # add extra-args
-    for ea in (icfg.cluster.extra_args, extra_args):
-        if ea is not None:
-            if isinstance(ea, str):
-                ea = [ea]
-            cfg.qsub_args += ea
-    # write to snakemake
-    cfg[param] = icfg.expand(" ".join(cfg.qsub_args))
 
-    # rename ymp params to snakemake params
-    for cfg_arg, kw_arg in (('immediate', 'immediate_submit'),
-                            ('wrapper', 'jobscript'),
-                            ('scriptname', 'jobname'),
-                            ('max_cores', 'nodes')):
-        cfg[kw_arg] = cfg[cfg_arg]
-        del cfg[cfg_arg]
+    if cmd[0] and not shutil.which(cmd[0]):
+        raise click.UsageError(f"""
+        The configured cluster submission command '{cmd[0]}' is does not
+        exist or is not executable. Please check your cluster configuration.
+        """)
 
-    rval = start_snakemake(**cfg)
+    config[param] = icfg.expand(" ".join(cmd))
+
+    rval = start_snakemake(config)
     if not rval:
         sys.exit(1)
