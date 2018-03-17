@@ -98,6 +98,11 @@ class MultiMapProxyMappingView(MappingView):
     def __repr__(self):
         return '{0.__class__.__name__}({0._mapping!r})'.format(self)
 
+    def __radd__(self, other):
+        if isinstance(other, Sequence):
+            return other + list(self)
+        raise TypeError()
+
 
 class MultiMapProxyItemsView(MultiMapProxyMappingView, ItemsView):
     """ItemsView for MultiMapProxy"""
