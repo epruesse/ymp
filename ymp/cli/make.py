@@ -149,11 +149,27 @@ def start_snakemake(**kwargs):
 
 @command()
 @snake_params
-@click.option("--cores", "-j", default=1)
-@click.option("--dag", "printdag", default=False, is_flag=True)
-@click.option("--rulegraph", "printrulegraph", default=False, is_flag=True)
-@click.option("--debug-dag", default=False, is_flag=True)
-@click.option("--debug", default=False, is_flag=True)
+@click.option(
+    "--cores", "-j", default=1, metavar="CORES",
+    help="The number of parallel threads used for scheduling jobs"
+)
+@click.option(
+    "--dag", "printdag", default=False, is_flag=True,
+    help="Print the Snakemake execution DAG and exit"
+)
+@click.option(
+    "--rulegraph", "printrulegraph", default=False, is_flag=True,
+    help="Print the Snakemake rule graph and exit"
+)
+@click.option(
+    "--debug-dag", default=False, is_flag=True,
+    help="Show candidates and selections made while the rule execution graph is"
+    "being built"
+)
+@click.option(
+    "--debug", default=False, is_flag=True,
+    help="Set the Snakemake debug flag"
+)
 def make(**kwargs):
     "Build target(s) locally"
     rval = start_snakemake(**kwargs)
