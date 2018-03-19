@@ -3,6 +3,8 @@ BMTagger Rules
 
 """
 
+Env.new("bmtagger", base="bioconda", packages="bmtagger")
+
 rule bmtagger_bitmask:
     "Build BMTagger bitmask index"
     message:
@@ -19,8 +21,7 @@ rule bmtagger_bitmask:
         tmp = "{path}.index_bmtagger/{file}.tmp.fa",
         wordsize = 18, # 18->8g, 17->2g, 16->512MB
         mem = icfg.mem("16g")
-    conda:
-        "bmtagger.yml"
+    conda: "bmtagger"
     shell: """
     gunzip -c {input.ref} > {params.tmp}
     bmtool \
@@ -59,7 +60,7 @@ rule bmtagger_index:
     """
 
 
-with Stage("filter_bmtagger", "remove_bmtagger") as S:
+with Stage("filter_bmtagger", "remove_bmtagger", env="bmtagger") as S:
     S.doc("""
     Filter(-out) contaminant reads using BMTagger
     """)
@@ -84,8 +85,6 @@ with Stage("filter_bmtagger", "remove_bmtagger") as S:
         params:
             mem = icfg.mem("16g"),
             matearg = "-2 <(gunzip -c {input.fq[1]})"
-        conda:
-            "bmtagger.yml"
         shell: """
         bmtagger.sh \
             -b {input.bitmask} \
@@ -122,8 +121,6 @@ with Stage("filter_bmtagger", "remove_bmtagger") as S:
         params:
             action = "-keep",
             mem    = icfg.mem("8g")
-        conda:
-            "bmtagger.yml"
         shell: """
         extract_fullseq \
             {input.matches} \
