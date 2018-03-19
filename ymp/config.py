@@ -19,6 +19,7 @@ from ymp.snakemake import \
 from ymp.stage import StageExpander
 from ymp.util import make_local_path, is_fq
 from ymp.references import load_references
+import ymp.yaml
 
 from collections import Mapping, Sequence
 
@@ -675,7 +676,7 @@ class ConfigMgr(object):
         self.recursive_expander = RecursiveExpander()
         self.config_expander = ConfigExpander(self)
         self.conda_path_expander = \
-            CondaPathExpander(self.search_paths.conda_env)
+            CondaPathExpander(self._config.conda)
         self.override_expander = OverrideExpander(self)
         self.default_expander = \
             DefaultExpander(params=([], {'mem': self.mem()}))
@@ -712,7 +713,6 @@ class ConfigMgr(object):
 
     def load_config(self):
         """Loads ymp configuration files"""
-        import ymp.yaml
         self._config = ymp.yaml.load(self._conffiles)
 
         projects = self._config.get(self.KEY_PROJECTS, {})
@@ -746,8 +746,8 @@ class ConfigMgr(object):
         return self._config.pairnames
 
     @property
-    def search_paths(self):
-        return self._config.search_paths
+    def conda(self):
+        return self._config.conda
 
     @property
     def dir(self):

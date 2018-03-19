@@ -3,6 +3,7 @@ import ymp
 from ymp.config import icfg
 icfg.init()
 from ymp.stage import Stage
+from ymp.env import Env
 
 # make sure rules are executed in bash (not sh, dash or worse)
 shell.executable("/bin/bash")

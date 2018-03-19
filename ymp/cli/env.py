@@ -5,8 +5,8 @@ import sys
 
 import click
 
-# ymp.env is late imported in env() to save 200ms on startup
 import ymp
+import ymp.env
 from ymp.cli.make import snake_params, start_snakemake
 from ymp.cli.shared_options import group
 
@@ -24,17 +24,6 @@ def env():
 
     to enter the software environment for ``multiqc``.
     """
-    import ymp.env  # imported for subcommands
-    ymp.env  # silence flake8 warning re above line
-
-
-@env.command()
-@snake_params
-def prepare(**kwargs):
-    "Create conda environments"
-    rval = start_snakemake(create_envs_only=True, **kwargs)
-    if not rval:
-        sys.exit(1)
 
 
 @env.command()
@@ -59,6 +48,15 @@ def list(param_all):
                 name=envhash+":",
                 width=width,
                 path=path))
+
+
+@env.command()
+@snake_params
+def prepare(**kwargs):
+    "Create conda environments"
+    rval = start_snakemake(create_envs_only=True, **kwargs)
+    if not rval:
+        sys.exit(1)
 
 
 @env.command()

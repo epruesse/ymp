@@ -9,13 +9,45 @@ directories:
     log: 'log'
     rules: 'rules'
     downloads: 'downloads'
+    dynamic_envs: &dynamic_envs '.ymp/envs'
 
-search_paths:
-  conda_env:
+conda:
+  # Location for installed conda environments:
+  conda_prefix: '~/.ymp/conda'
+  conda_archive_prefix: "~/.ymp/conda_archive"
+
+  # Search path for environment.yml files:
+  env_path:
     10: "."
-    20: "../conda_envs"
+    20: *dynamic_envs
+    30: "../conda_envs"
 
-# Default references FASTAs
+  # Parameters for generating environments:
+  defaults:
+    none:
+      channels: []
+      dependencies: []
+    bioconda:
+      channels:
+        - bioconda
+        - conda-forge
+      dependencies:
+        - zlib =1.2.11*
+        - boost =1.64*
+        - gsl =1.16*
+        - bzip2 =1.0*
+        - ncurses =5.9*
+        - htslib =1.7*
+        - xz =5.2*
+        - gmp =5.1*
+        - hdf5 =1.8.17*
+        - perl =5.22.0*
+    conda-forge:
+      channels:
+        - conda-forge
+      dependencies: []
+
+# Default references
 references:
   # Human Genomes
   hs37:
