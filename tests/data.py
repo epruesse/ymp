@@ -15,22 +15,22 @@ dataset_map = {
 target_map = {
     'any': odict[
         # fastq.rules
-        'import':         '{}/all',
-        'correct_bbmap':  '{}.correct_bbmap/all',
-        'trim_bbmap':     '{}.trim_bbmapAQ10/all',
-        'filter_bbmap':   '{}.ref_phiX.remove_bbmap/all',
-        'dedup_bbmap':    '{}.dedup_bbmap/all',
-        'filter_bmtagger':'{}.ref_phiX.filter_bmtagger/all',
-        'rm_bmtagger':    '{}.ref_phiX.remove_bmtagger/all',
+        'import':            '{}/all',
+        'correct_bbmap':     '{}.correct_bbmap/all',
+        'trim_bbmap':        '{}.trim_bbmapAQ10/all',
+        'trim_sickle':       '{}.trim_sickle/all',
+        'trim_sickleQ10':    '{}.trim_sickleQ10/all',
+        'trim_sickleL10':    '{}.trim_sickleL10/all',
+        'trim_sickleQ10L10': '{}.trim_sickleQ10L10/all',
+        'filter_bbmap':      '{}.ref_phiX.remove_bbmap/all',
+        'filter_bmtagger':   '{}.ref_phiX.filter_bmtagger/all',
+        'dedup_bbmap':       '{}.dedup_bbmap/all',
+        'rm_bmtagger':       '{}.ref_phiX.remove_bmtagger/all',
         # fails due to bugs in phyloFlash with too few organisms
         #'phyloFlash':     'reports/{}.phyloFlash.pdf',
         'fastqc':         '{}.qc_fastqc/all',
         'multiqc':        'reports/{}.fastqc.html',
         'trimmomaticT32': '{}.trimmomaticT32/all',
-        'sickle':         '{}.sickle/all',
-        'sickleQ10':      '{}.sickleQ10/all',
-        'sickleL10':      '{}.sickleL10/all',
-        'sickleQ10L10':   '{}.sickleQ10L10/all',
     ],
     'metagenome': odict[
         # assembly.rules
