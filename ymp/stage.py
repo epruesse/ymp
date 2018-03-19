@@ -10,7 +10,7 @@ YMP processes data in stages, each of which is contained in its own directory.
       input:  "{:prev:}/{sample}{:pairnames:}.fq.gz"
       ...
 
- """
+"""
 
 import logging
 
@@ -75,13 +75,15 @@ class Stage(object):
     def add_to(cls, name: str):
         return cls.get_stages()[name]
 
-    def __init__(self, name: str, altname: str=None) -> None:
+    def __init__(self, name: str, altname: str=None,
+                 env: str=None, doc: str=None) -> None:
         """
         Args:
             name: Name of this stage
             altname: Alternate name of this stage (used for stages with
                 multiple output variants, e.g. filter_x and remove_x.
-
+            doc: See `Stage.doc`
+            env: See `Stage.env`
         """
         # Stage name
         self.name: str = name
@@ -89,8 +91,9 @@ class Stage(object):
         self.altname: str = altname
         # Rules in this stage
         self.rules: List[Rule] = []
-        # Documentation
-        self.docstring: str = ""
+
+        self.doc(doc or "")
+        self.env(env)
 
         caller = getframeinfo(stack()[1][0])
         #: str: Name of file in which stage was defined
@@ -113,6 +116,19 @@ class Stage(object):
           doc: Docstring passed to Sphinx
         """
         self.docstring = doc
+
+    def env(self, name: str) -> None:
+        """Add package specifications to Stage environment
+
+        Args:
+          name: Environment name or filename
+
+        Example:
+          Env("bowtie2", packages="blast =2.7*")
+          with Stage("test") as S:
+            S.env("bowtie2")
+        """
+        self.env = name
 
     def __enter__(self):
         if Stage.active is not None:
@@ -181,9 +197,12 @@ class StageExpander(ColonExpander):
     def expand(self, rule, item, **kwargs):
         if not Stage.active:
             return item
+        stage = Stage.active
 
         if isinstance(item, RuleInfo):
-            Stage.active._add_rule(rule)
+            stage._add_rule(rule)
+            if not item.conda_env and stage.env:
+                item.conda_env = stage.env
 
         return super().expand(rule, item, **kwargs)
 
