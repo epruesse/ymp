@@ -86,6 +86,13 @@ class MultiProxy(object):
     def add_layer(self, name, container):
         self._maps.insert(0, ((name, container)))
 
+    def remove_layer(self, name):
+        map_name = self._maps[0][0]
+        if map_name == name:
+            self._maps.pop(0)
+        else:
+            raise LayeredConfError(f"in remove_layer: {map_name} != {name}")
+
 
 class MultiMapProxyMappingView(MappingView):
     """MappingView for MultiMapProxy"""
@@ -255,6 +262,13 @@ class LayeredConfProxy(MultiMapProxy):
             return self.to_yaml()
         except ruamel.yaml.serializer.SerializerError:
             return self.__repr__()
+
+    def __enter__(self):
+        self.add_layer("dynamic", {})
+        return self
+
+    def __exit__(self, *args):
+        self.remove_layer("dynamic")
 
 
 RoundTripRepresenter.add_representer(LayeredConfProxy,
