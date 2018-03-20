@@ -4,6 +4,7 @@ import shutil
 import sys
 
 import click
+from click import echo
 
 import ymp
 from ymp.cli.make import snake_params, start_snakemake
@@ -23,7 +24,6 @@ def env():
 
     to enter the software environment for ``multiqc``.
     """
-    from ymp.env import Env
 
 
 @env.command()
@@ -33,27 +33,33 @@ def env():
 )
 def list(param_all):
     """List conda environments"""
-    width = max((len(env) for env in ymp.env.by_name))+1
-    for env in sorted(ymp.env.by_name.values()):
-        path = env.path
-        if not os.path.exists(path):
-            path += " (NOT INSTALLED)"
-        print("{name:<{width}} {path}".format(
-            name=env.name+":",
-            width=width,
-            path=path))
-    if param_all:
-        for envhash, path in sorted(ymp.env.dead.items()):
-            print("{name:<{width}} {path}".format(
-                name=envhash+":",
-                width=width,
-                path=path))
+    from ymp.env import Env
+
+    columns = ('name', 'hash', 'path', 'installed')
+    sort_col = 'name'
+    envs = []
+    envs += Env.get_builtin_static_envs()
+    envs += Env.get_builtin_dynamic_envs()
+
+    table_content = sorted(({key: getattr(env, key) for key in columns}
+                            for env in envs),
+                           key=lambda row: row[sort_col])
+
+    table_header = [{col: col for col in columns}]
+    table = table_header + table_content
+    widths = {col: max(len(str(row[col])) for row in table)
+              for col in columns}
+
+    lines = [" ".join("{!s:<{}}".format(row[col], widths[col])
+                      for col in columns)
+             for row in table]
+    echo("\n".join(lines))
 
 
 @env.command()
 @snake_params
 def prepare(**kwargs):
-    "Create conda environments"
+    "Create envs needed to build target"
     kwargs['create_envs_only'] = True
     rval = start_snakemake(kwargs)
     if not rval:

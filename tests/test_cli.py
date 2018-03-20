@@ -53,3 +53,8 @@ def test_show(invoker, saved_tmpdir):
 def test_stage_list(invoker):
     res = invoker.call("stage", "list")
     assert "\ncheck " in res.output
+
+
+def test_env_list(invoker):
+    res = invoker.call("env", "list")
+    assert "\nblast " in res.output

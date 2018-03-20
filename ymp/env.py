@@ -2,17 +2,18 @@
 This module manages the conda environments.
 """
 
-from glob import glob
 import logging
+import os
 import os.path as op
 import subprocess
-import snakemake
+from glob import glob
 from typing import Union
-import os
+
+import snakemake
 
 import ymp
-from ymp.snakemake import BaseExpander
 from ymp.common import ensure_list
+from ymp.snakemake import BaseExpander
 
 
 log = logging.getLogger(__name__)
@@ -29,27 +30,27 @@ class MetaEnv(type):
     _ENVS = {}
 
     @property
-    def icfg(cls):
+    def icfg(self):
         """Primary YMP config object (autoloaded)"""
-        if not cls._ICFG:
+        if not self._ICFG:
             from ymp.config import icfg
-            cls._ICFG = icfg
-        return cls._ICFG
+            self._ICFG = icfg
+        return self._ICFG
 
     @property
-    def cfg(cls):
+    def cfg(self):
         """Conda section of config (autloaded)
 
         Also performs tilde expansion on paths.
         """
-        if not cls._CFG:
-            cls._CFG = cls.icfg.conda
+        if not self._CFG:
+            self._CFG = self.icfg.conda
             for path in ('conda_prefix', 'conda_archive_prefix'):
-                cls._CFG[path] = op.expanduser(cls._CFG[path])
-            cls._CFG.env_path[50] = cls.icfg.absdir.dynamic_envs
-        return cls._CFG
+                self._CFG[path] = op.expanduser(self._CFG[path])
+            self._CFG.env_path[50] = self.icfg.absdir.dynamic_envs
+        return self._CFG
 
-    def new(cls, name: str, packages: Union[list, str], base: str="none",
+    def new(self, name: str, packages: Union[list, str], base: str="none",
             channels: Union[list, str]=[]):
         """Creates an inline defined conda environment
 
@@ -64,27 +65,35 @@ class MetaEnv(type):
             in ``yml.yml``
         """
 
-        with cls.cfg.defaults[base] as defaults:
+        with self.cfg.defaults[base] as defaults:
             defaults.dependencies.extend(ensure_list(packages))
             defaults.channels.extend(ensure_list(channels))
             contents = f"name: {name}\n{defaults}"
-            fname = op.join(cls.icfg.absdir.dynamic_envs,
+            fname = op.join(self.icfg.absdir.dynamic_envs,
                             f"{name}.yml")
             with open(fname, "w") as f:
                 f.write(contents)
-                cls._ENVS[name] = fname
+                self._ENVS[name] = fname
 
-    def get_installed_envs(cls):
+    def get_installed_env_hashes(self):
         return [
             dentry.name
-            for dentry in os.scandir(cls.cfg.conda_prefix)
+            for dentry in os.scandir(self.cfg.conda_prefix)
             if dentry.is_dir()
         ]
 
-    def get_builtin_static_envs(cls):
+    def get_builtin_static_envs(self):
         return [
-            Env(fname).name
-            for fname in glob(op.join(ymp._rulesdir, "*.yml"))
+            Env(fname)
+            for fname in glob(op.join(ymp._rule_dir, "*.yml"))
+        ]
+
+    def get_builtin_dynamic_envs(self):
+        from ymp.snakemake import load_workflow
+        load_workflow()
+        return [
+            Env(fname)
+            for fname in self._ENVS.values()
         ]
 
 
@@ -120,8 +129,8 @@ class Env(snakemake.conda.Env, metaclass=MetaEnv):
 
         self.file = env_file
         self.name, _ = op.splitext(op.basename(env_file))
-        self._env_dir = self.cfg.conda_prefix
-        self._env_archive_dir = self.cfg.conda_archive_prefix
+        self._env_dir = Env.cfg.conda_prefix
+        self._env_archive_dir = Env.cfg.conda_archive_prefix
         self._hash = None
         self._content_hash = None
         self._content = None
@@ -136,6 +145,10 @@ class Env(snakemake.conda.Env, metaclass=MetaEnv):
         """
         log.warning("Creating environment '%s'", self.name)
         return super().create()
+
+    @property
+    def installed(self):
+        return op.isdir(self.path)
 
     def update(self):
         "Update conda environment"
@@ -179,8 +192,8 @@ class CondaPathExpander(BaseExpander):
             from snakemake.workflow import workflow
             self._workflow = workflow
             super().__init__(*args, **kwargs)
-        except:
-            log.debug("CondaPathExpander not registered -- needs snakemake")
+        except ImportError:
+            log.debug("CondaPathExpander not registered -- needs workflow")
 
         self._search_paths = Env.cfg.env_path
 
