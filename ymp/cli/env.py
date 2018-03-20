@@ -54,7 +54,8 @@ def list(param_all):
 @snake_params
 def prepare(**kwargs):
     "Create conda environments"
-    rval = start_snakemake(create_envs_only=True, **kwargs)
+    kwargs['create_envs_only'] = True
+    rval = start_snakemake(kwargs)
     if not rval:
         sys.exit(1)
 
