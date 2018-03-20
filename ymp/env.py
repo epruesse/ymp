@@ -7,7 +7,7 @@ import os
 import os.path as op
 import subprocess
 from glob import glob
-from typing import Union
+from typing import Union, Optional
 
 import snakemake
 
@@ -28,6 +28,7 @@ class MetaEnv(type):
     _CFG = None
     _ICFG = None
     _ENVS = {}
+    _STATIC_ENVS = None
 
     @property
     def icfg(self):
@@ -51,7 +52,7 @@ class MetaEnv(type):
         return self._CFG
 
     def new(self, name: str, packages: Union[list, str], base: str="none",
-            channels: Union[list, str]=[]):
+            channels: Optional[Union[list, str]]=None):
         """Creates an inline defined conda environment
 
         Args:
@@ -83,10 +84,12 @@ class MetaEnv(type):
         ]
 
     def get_builtin_static_envs(self):
-        return [
-            Env(fname)
-            for fname in glob(op.join(ymp._rule_dir, "*.yml"))
-        ]
+        if not self._STATIC_ENVS:
+            self._STATIC_ENVS = [
+                Env(fname)
+                for fname in glob(op.join(ymp._rule_dir, "*.yml"))
+            ]
+        return self._STATIC_ENVS
 
     def get_builtin_dynamic_envs(self):
         from ymp.snakemake import load_workflow

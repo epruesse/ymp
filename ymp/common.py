@@ -126,9 +126,11 @@ def is_container(obj):
 
 def ensure_list(obj):
     """Wrap ``obj`` in a `list()` as needed"""
+    if obj is None:
+        return []
     if isinstance(obj, str) or not isinstance(obj, Iterable):
         return [obj]
-    return obj
+    return list(obj)
 
 
 class Cache(shelve.DbfilenameShelf):
