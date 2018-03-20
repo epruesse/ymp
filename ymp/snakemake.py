@@ -5,7 +5,6 @@ Extends Snakemake Features
 import functools
 import logging
 import sys
-import os
 import re
 from copy import copy, deepcopy
 
@@ -394,7 +393,7 @@ class BaseExpander(object):
             updated = AnnotatedString(updated)
             try:
                 updated.flags = deepcopy(item.flags)
-            except TypeError as e:
+            except TypeError:
                 log.debug(
                     "Failed to deepcopy flags for item {} with flags{}"
                     "".format(item, item.flags)
@@ -447,7 +446,8 @@ class BaseExpander(object):
             for field in filter(self.expands_field, ruleinfo_fields):
                 attr = getattr(item, field)
                 setattr(item, field, self.expand(rule, attr,
-                                                 expand_args=expand_args, rec=rec))
+                                                 expand_args=expand_args,
+                                                 rec=rec))
         elif isinstance(item, str):
             try:
                 expand_args['rule'] = rule
@@ -460,7 +460,9 @@ class BaseExpander(object):
                 _item = item
 
                 def item(wc):
-                    return self.expand(rule, _item, expand_args={'wc': wc, 'rule': rule}, cb=True)
+                    return self.expand(rule, _item,
+                                       expand_args={'wc': wc, 'rule': rule},
+                                       cb=True)
         elif hasattr(item, '__call__'):
             # continue expansion of function later by wrapping it
             _item = item
@@ -472,7 +474,9 @@ class BaseExpander(object):
                               "".format(" "*rec*4, type(self).__name__,
                                         args, kwargs))
                 res = self.expand(rule, _item(*args, **kwargs),
-                                  expand_args={'wc': args[0]}, rec=rec, cb=True)
+                                  expand_args={'wc': args[0]},
+                                  rec=rec,
+                                  cb=True)
                 if debug:
                     log.debug("{}=> {}"
                               "".format(" "*rec*4, res))
@@ -482,19 +486,22 @@ class BaseExpander(object):
             pass
         elif isinstance(item, dict):
             for key, value in item.items():
-                _item = self.expand(rule, value, expand_args=expand_args, rec=rec)
+                _item = self.expand(rule, value, expand_args=expand_args,
+                                    rec=rec)
 
                 # Snakemake can't have functions in lists in dictionaries.
                 # Let's fix that, even if we have to jump a lot of hoops here.
-                if isinstance(item[key], list) and any(callable(x) for x in _item):
+                if isinstance(item[key], list) and \
+                   any(callable(x) for x in _item):
                     from inspect import signature
+
                     def wrapper(*args, **kwargs):
                         for i, subitem in enumerate(_item):
                             if callable(subitem):
                                 subparms = signature(subitem).parameters
                                 extra_args = {
                                     k: v
-                                    for k,v in kwargs.items()
+                                    for k, v in kwargs.items()
                                     if k in subparms
                                 }
                                 _item[i] = subitem(*args, **extra_args)
@@ -506,15 +513,18 @@ class BaseExpander(object):
                         if callable(x)
                     ])))
                     # Rewrite signature
-                    wrapper.__signature__ = signature(wrapper).replace(parameters=parms)
+                    wrapper.__signature__ = \
+                        signature(wrapper).replace(parameters=parms)
                     item[key] = wrapper
                 else:
                     item[key] = _item
         elif isinstance(item, list):
             for i, subitem in enumerate(item):
-                item[i] = self.expand(rule, subitem, expand_args=expand_args, rec=rec)
+                item[i] = self.expand(rule, subitem,
+                                      expand_args=expand_args, rec=rec)
         elif isinstance(item, tuple):
-            item = tuple(self.expand(rule, subitem, expand_args=expand_args, rec=rec)
+            item = tuple(self.expand(rule, subitem,
+                                     expand_args=expand_args, rec=rec)
                          for subitem in item)
         else:
             raise ValueError("unable to expand item '{}' with args '{}'"
@@ -680,7 +690,8 @@ class RecursiveExpander(BaseExpander):
         # sort variables so that they can be expanded in order
         try:
             nodes = list(reversed([
-                node for node in networkx().algorithms.dag.topological_sort(deps)
+                node
+                for node in networkx().algorithms.dag.topological_sort(deps)
                 if deps.out_degree(node) > 0 and 'core' in deps.nodes[node]
             ]))
         except networkx().NetworkXUnfeasible:
