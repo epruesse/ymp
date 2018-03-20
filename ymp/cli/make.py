@@ -15,8 +15,9 @@ log = logging.getLogger(__name__)
 
 
 class TargetParam(click.ParamType):
-    def complete(_, ctx, incomplete):
-        # log = open("err.txt", "a")
+    @classmethod
+    def complete(cls, ctx, incomplete):
+        #log = open("err.txt", "a")
         log = open("/dev/null", "a")
         log.write("\nincomplete={}\n".format(incomplete))
         cache = Cache.get_cache("completion")
