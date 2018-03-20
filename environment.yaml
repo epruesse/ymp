@@ -4,7 +4,8 @@ channels:
 dependencies:
   - python =3.6.*
   - snakemake
-  - rpy2 =2.8.5  # pinned to keep conda from taking for ever
+  # disabled, breaks R in utils, but unused. FIXME
+  #  - rpy2 =2.8.5  # pinned to keep conda from taking for ever
   - click
   - ruamel.yaml >0.15
   - python-drmaa

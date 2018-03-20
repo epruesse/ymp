@@ -43,7 +43,6 @@ setup(
         'Click-completion',
         'ruamel.yaml>0.15',
         'drmaa',
-        'rpy2',
         'pandas>=0.20',
         'networkx>=2',
         'coloredlogs',
