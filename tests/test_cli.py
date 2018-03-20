@@ -24,7 +24,7 @@ def test_submit_profiles(invoker):
         cmd = profile.command.split()[0]
         with open(cmd, "w") as f:
             f.write('#!/bin/sh\necho "$@">tmpfile\nexec "$@"\n')
-            os.chmod(cmd, 0o777)
+            os.chmod(cmd, 0o755)
         if os.path.isdir(icfg.dir.reports):
             os.rmdir(icfg.dir.reports)
         invoker.call("submit",
