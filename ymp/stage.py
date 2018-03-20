@@ -128,7 +128,7 @@ class Stage(object):
           with Stage("test") as S:
             S.env("bowtie2")
         """
-        self.env = name
+        self.conda_env = name
 
     def __enter__(self):
         if Stage.active is not None:
@@ -201,8 +201,8 @@ class StageExpander(ColonExpander):
 
         if isinstance(item, RuleInfo):
             stage._add_rule(rule)
-            if not item.conda_env and stage.env:
-                item.conda_env = stage.env
+            if not item.conda_env and stage.conda_env:
+                item.conda_env = stage.conda_env
 
         return super().expand(rule, item, **kwargs)
 
