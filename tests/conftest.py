@@ -1,4 +1,5 @@
 import logging
+import os
 
 import py
 
@@ -71,6 +72,23 @@ def saved_tmpdir(request, tmpdir):
 def saved_cwd(saved_tmpdir):
     with saved_tmpdir.as_cwd():
         yield saved_tmpdir
+
+
+# Inject local bin dir into path
+# ==============================
+
+@pytest.fixture()
+def bin_dir(saved_tmpdir):
+    binpath = os.path.join(saved_tmpdir, "bin")
+    try:
+        os.mkdir(binpath)
+    except FileExistsError:
+        if not os.path.isdir(binpath):
+            raise
+    path = os.environ['PATH']
+    os.environ['PATH'] = ':'.join((binpath, path))
+    yield binpath
+    os.environ['PATH'] = path
 
 
 # Activate this to get some profiling data while testing
@@ -148,7 +166,7 @@ class Invoker(object):
 def invoker(saved_cwd):
     # Snakemake 4.7 waits 10 seconds during shutdown of cluster submitted
     # worklows -- unless this is set:
-    import os
     os.environ['CIRCLECI'] = "true"
 
     return Invoker()
+
