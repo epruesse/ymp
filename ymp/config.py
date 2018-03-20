@@ -725,7 +725,7 @@ class ConfigMgr(object):
         self._references = load_references(self, ref_cfg)
 
         if len(self._datasets) == 0:
-            log.warning("No projects found in configuration")
+            log.info("No projects found in configuration")
 
     def __len__(self):
         "Our length is the number of datasets"

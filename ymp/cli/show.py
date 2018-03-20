@@ -8,7 +8,21 @@ log = logging.getLogger(__name__)
 
 
 class ConfigPropertyParam(click.ParamType):
-    def complete(_, ctx, incomplete):
+    _properties = None
+
+    @property
+    def properties(self):
+        if not self._properties:
+            from ymp.config import ConfigMgr
+            self._properties = {
+                prop: getattr(getattr(ConfigMgr, prop), "__doc__")
+                for prop in dir(ConfigMgr)
+                if (prop[0] != "_"
+                    and isinstance(getattr(ConfigMgr, prop), property))
+            }
+        return self._properties
+
+    def complete(self, ctx, incomplete):
         """Try to complete incomplete command
 
         This is executed on tab or tab-tab from the shell
@@ -22,15 +36,8 @@ class ConfigPropertyParam(click.ParamType):
         """
         # This only list public properties, no member variables,
         # mainly because member variables can't have docstrings set.
-        from ymp.config import ConfigMgr
-        properties = {
-            prop: getattr(getattr(ConfigMgr, prop), "__doc__")
-            for prop in dir(ConfigMgr)
-            if (prop[0] != "_"  # no private attrs
-                and isinstance(getattr(ConfigMgr, prop), property))  # only properties
-        }
 
-        return [x for x in properties.keys()
+        return [x for x in self.properties.keys()
                 if x.startswith(incomplete)]
 
     def convert(_, value, param, ctx):
@@ -45,9 +52,9 @@ class ConfigPropertyParam(click.ParamType):
 
     def __repr__(self):
         props = "\n".join(
-            "  {}: {}".format(p, properties[p].strip())
-            for p in properties
-            if properties[p]
+            "  {}: {}".format(p, self.properties[p].strip())
+            for p in self.properties
+            if self.properties[p]
         )
         return "\n".join(["Properties:", props])
 
@@ -82,7 +89,7 @@ def show(ctx, prop, source):
     if not prop:
         show_help(ctx)
 
-    log.error(f"querying prop {prop}")
+    log.debug(f"querying prop {prop}")
     from ymp.config import icfg
 
     obj = icfg
@@ -108,4 +115,9 @@ def show(ctx, prop, source):
             except ValueError:
                 obj = obj[subslice_str]
 
-    click.echo(obj.to_yaml(source))
+    try:
+        output = obj.to_yaml(source)
+    except AttributeError:
+        output = str(obj)
+
+    click.echo(output)
