@@ -58,3 +58,22 @@ def test_stage_list(invoker):
 def test_env_list(invoker):
     res = invoker.call("env", "list")
     assert "\nblast " in res.output
+
+
+@pytest.mark.parametrize('project', ['toy'], indirect=True)
+def test_env_prepare(invoker, project_dir, bin_dir):
+    fake_conda = os.path.join(bin_dir, "conda")
+    fake_conda_cmd = """\
+#!/bin/sh
+echo "---\n$0 $@" >> conda_cmd.out
+if test "$1" == "--version"; then
+  echo conda 4.2
+fi
+    """
+    with open(fake_conda, "w") as f:
+        f.write(fake_conda_cmd)
+    os.chmod(fake_conda, 0o755)
+    res = invoker.call("env", "prepare",
+                       "--conda-prefix=.",
+                       "toy.trim_bbmap/all")
+    assert "bbmap.yml created" in res.output
