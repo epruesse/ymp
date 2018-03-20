@@ -3,19 +3,8 @@ import logging
 import click
 
 from ymp.cli.shared_options import command
-from ymp.config import ConfigMgr, icfg
 
 log = logging.getLogger(__name__)
-
-
-# This only list public properties, no member variables,
-# mainly because member variables can't have docstrings set.
-properties = {
-    prop: getattr(getattr(ConfigMgr, prop), "__doc__")
-    for prop in dir(ConfigMgr)
-    if (prop[0] != "_"  # no private attrs
-        and isinstance(getattr(ConfigMgr, prop), property))  # only properties
-}
 
 
 class ConfigPropertyParam(click.ParamType):
@@ -31,6 +20,16 @@ class ConfigPropertyParam(click.ParamType):
         Returns:
           list of words incomplete can be completed to
         """
+        # This only list public properties, no member variables,
+        # mainly because member variables can't have docstrings set.
+        from ymp.config import ConfigMgr
+        properties = {
+            prop: getattr(getattr(ConfigMgr, prop), "__doc__")
+            for prop in dir(ConfigMgr)
+            if (prop[0] != "_"  # no private attrs
+                and isinstance(getattr(ConfigMgr, prop), property))  # only properties
+        }
+
         return [x for x in properties.keys()
                 if x.startswith(incomplete)]
 
@@ -84,6 +83,8 @@ def show(ctx, prop, source):
         show_help(ctx)
 
     log.error(f"querying prop {prop}")
+    from ymp.config import icfg
+
     obj = icfg
     while prop:
         key, _, prop = prop.partition(".")

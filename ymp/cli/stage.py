@@ -4,8 +4,6 @@ from fnmatch import fnmatch
 import click
 
 from ymp.cli.shared_options import group
-from ymp.snakemake import load_workflow
-from ymp.stage import Stage
 
 log = logging.getLogger(__name__)
 
@@ -36,7 +34,9 @@ def ls(long_opt, short_opt, stage_opt):
     """
     if long_opt and short_opt:
         print("?")
+    from ymp.snakemake import load_workflow
     load_workflow()
+    from ymp.stage import Stage
     all_stages = Stage.get_stages()
     if stage_opt:
         stages = [all_stages[m] for m in all_stages if fnmatch(m, stage_opt)]

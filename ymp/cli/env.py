@@ -6,7 +6,6 @@ import sys
 import click
 
 import ymp
-import ymp.env
 from ymp.cli.make import snake_params, start_snakemake
 from ymp.cli.shared_options import group
 
@@ -24,6 +23,7 @@ def env():
 
     to enter the software environment for ``multiqc``.
     """
+    from ymp.env import Env
 
 
 @env.command()

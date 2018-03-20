@@ -5,11 +5,10 @@ import shutil
 import sys
 
 import click
-import snakemake
 
 import ymp
 from ymp.cli.shared_options import command, nohup_option
-from ymp.common import update_dict, Cache, AttrDict
+from ymp.common import Cache
 from ymp.exceptions import YmpException
 
 log = logging.getLogger(__name__)
@@ -165,7 +164,7 @@ def start_snakemake(kwargs):
                              for t in kwargs['targets']]
 
     log.debug("Running snakemake.snakemake with args: {}".format(kwargs))
-
+    import snakemake
     return snakemake.snakemake(ymp._snakefile, **kwargs)
 
 
