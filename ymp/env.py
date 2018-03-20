@@ -5,10 +5,12 @@ This module manages the conda environments.
 from glob import glob
 import logging
 import os.path as op
-from pkg_resources import resource_filename
 import subprocess
 import snakemake
+from typing import Union
+import os
 
+import ymp
 from ymp.snakemake import BaseExpander
 from ymp.common import ensure_list
 
@@ -17,12 +19,18 @@ log = logging.getLogger(__name__)
 
 
 class MetaEnv(type):
+    """Metaclass containing class methods and properties for `Env`
+
+    The metaclass is separated out primarily to allow class property
+    methods.
+    """
     _CFG = None
     _ICFG = None
     _ENVS = {}
 
     @property
     def icfg(cls):
+        """Primary YMP config object (autoloaded)"""
         if not cls._ICFG:
             from ymp.config import icfg
             cls._ICFG = icfg
@@ -30,15 +38,32 @@ class MetaEnv(type):
 
     @property
     def cfg(cls):
+        """Conda section of config (autloaded)
+
+        Also performs tilde expansion on paths.
+        """
         if not cls._CFG:
             cls._CFG = cls.icfg.conda
             for path in ('conda_prefix', 'conda_archive_prefix'):
                 cls._CFG[path] = op.expanduser(cls._CFG[path])
-                # import pdb; pdb.set_trace()
             cls._CFG.env_path[50] = cls.icfg.absdir.dynamic_envs
         return cls._CFG
 
-    def new(cls, name, packages, base="none", channels=[]):
+    def new(cls, name: str, packages: Union[list, str], base: str="none",
+            channels: Union[list, str]=[]):
+        """Creates an inline defined conda environment
+
+        Args:
+          name: Name of conda environment (and basename of file)
+          packages: package(s) to be installed into environment. Version
+            constraints can be specified in each package string separated from
+            the package name by whitespace. E.g. ``"blast =2.6*"``
+          channels: channel(s) to be selected for the environment
+          base: Select a set of default channels and packages to be added to
+            the newly created environment. Sets are defined in conda.defaults
+            in ``yml.yml``
+        """
+
         with cls.cfg.defaults[base] as defaults:
             defaults.dependencies.extend(ensure_list(packages))
             defaults.channels.extend(ensure_list(channels))
@@ -48,6 +73,19 @@ class MetaEnv(type):
             with open(fname, "w") as f:
                 f.write(contents)
                 cls._ENVS[name] = fname
+
+    def get_installed_envs(cls):
+        return [
+            dentry.name
+            for dentry in os.scandir(cls.cfg.conda_prefix)
+            if dentry.is_dir()
+        ]
+
+    def get_builtin_static_envs(cls):
+        return [
+            Env(fname).name
+            for fname in glob(op.join(ymp._rulesdir, "*.yml"))
+        ]
 
 
 class Env(snakemake.conda.Env, metaclass=MetaEnv):
@@ -74,8 +112,6 @@ class Env(snakemake.conda.Env, metaclass=MetaEnv):
       its own Env object purely based on the filename.
 
     """
-
-    _CFG = None
 
     def __init__(self, env_file):
         # We initialize ourselves, rather than referring to super(),
@@ -163,25 +199,3 @@ class CondaPathExpander(BaseExpander):
         return conda_env
 
 
-if False:
-    by_name = {
-        env.name: env for env in (
-            Env(fname) for fname in glob(
-                resource_filename("ymp", "rules/*.yml")
-            )
-        )
-    }
-
-    by_hash = {
-        env.hash: env for env in by_name.values()
-    }
-
-    by_path = {
-        env.path: env for env in by_name.values()
-    }
-
-    dead = {
-        op.basename(path): path
-        for path in glob(Env._env_dir + "/*")
-        if path not in by_path
-    }
