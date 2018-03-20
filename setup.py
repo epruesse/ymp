@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import fastentrypoints
+import fastentrypoints  # NOQA pylint: disable=unused-import
 from setuptools import setup, find_packages
 
 
