@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
+import fastentrypoints
 from setuptools import setup, find_packages
 
 
 setup(
     name="YMP",
-    use_scm_version=True,
+    use_scm_version={'write_to': 'ymp/_version.py'},
     author="Elmar Pruesse",
     author_email="elmar.pruesse@ucdenver.edu",
     url="https://github.com/epruesse/ymp",

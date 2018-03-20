@@ -4,8 +4,6 @@ import os
 import re
 import glob
 
-from pkg_resources import resource_filename
-
 from ymp.common import parse_number, AttrDict, MkdirDict
 from ymp.env import CondaPathExpander
 from ymp.exceptions import YmpException
@@ -654,9 +652,9 @@ class ConfigMgr(object):
     KEY_PROJECTS = 'projects'
     KEY_REFERENCES = 'references'
     CONF_FNAME = 'ymp.yml'
-    CONF_DEFAULT_FNAME = resource_filename("ymp", "/etc/defaults.yml")
+    CONF_DEFAULT_FNAME = ymp._defaults_file
     CONF_USER_FNAME = os.path.expanduser("~/.ymp/ymp.yml")
-    RULE_MAIN_FNAME = resource_filename("ymp", "rules/Snakefile")
+    RULE_MAIN_FNAME = ymp._snakefile
 
     def __init__(self):
         self.clear()

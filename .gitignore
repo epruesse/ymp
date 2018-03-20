@@ -1,6 +1,9 @@
 *~
 \#*\#
 
+# generated version file
+ymp/_version.py
+
 # python files
 **/__pycache__
 .cache

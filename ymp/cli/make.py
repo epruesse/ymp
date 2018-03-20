@@ -5,11 +5,9 @@ import shutil
 import sys
 
 import click
-
-from pkg_resources import resource_filename
-
 import snakemake
 
+import ymp
 from ymp.cli.shared_options import command, nohup_option
 from ymp.common import update_dict, Cache, AttrDict
 from ymp.exceptions import YmpException
@@ -168,8 +166,7 @@ def start_snakemake(kwargs):
 
     log.debug("Running snakemake.snakemake with args: {}".format(kwargs))
 
-    return snakemake.snakemake(resource_filename("ymp", "rules/Snakefile"),
-                               **kwargs)
+    return snakemake.snakemake(ymp._snakefile, **kwargs)
 
 
 @command()
