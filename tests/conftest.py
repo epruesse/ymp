@@ -132,11 +132,9 @@ class Invoker(object):
         from ymp.cli import main
         self.main = main
 
-    def call(self, args, **kwargs):
+    def call(self, *args, **kwargs):
         from ymp.config import icfg
         icfg.init()
-        if isinstance(args, str):
-            args = [args]
         result = self.runner.invoke(self.main, args, **kwargs,
                                     standalone_mode=False)
         with open("out.log", "w") as f:
