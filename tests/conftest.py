@@ -103,7 +103,8 @@ fi
     """
     with open(fake_conda, "w") as f:
         f.write(fake_conda_cmd)
-    os.chmod(fake_conda, 0o755)
+    os.chmod(fake_conda, 0o500)
+    yield "conda_cmd.out"
 
 
 # Activate this to get some profiling data while testing
