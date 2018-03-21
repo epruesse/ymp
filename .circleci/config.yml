@@ -105,12 +105,11 @@ variables:
       command: |
         coverage xml
         codecov -f coverage.xml
-        pip install codacy-coverage
+        pip install codacy-coverage coveralls
         python-codacy-coverage -r coverage.xml
+        coveralls
 
-
-
-  # steps:
+  ## Steps:
   test_steps: &test_steps
     steps:
       - checkout
