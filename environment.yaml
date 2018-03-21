@@ -7,12 +7,13 @@ dependencies:
   # disabled, breaks R in utils, but unused. FIXME
   #  - rpy2 =2.8.5  # pinned to keep conda from taking for ever
   - click
-  - ruamel.yaml >0.15
+  - ruamel.yaml >0.15 # new api
   - python-drmaa
   - pandas >=0.20  # need dtype support in python csv engine
   - xlrd         # excel support
   - coloredlogs
   - setuptools_scm # versioning
+  - git
   - xdg # user paths
   #### for tests: ####
   - networkx >= 2.0
@@ -26,3 +27,5 @@ dependencies:
   - codecov
   #### for building envs with cython ###
   - gcc
+  #### avoid mkl ~ 700MB ###
+  - nomkl

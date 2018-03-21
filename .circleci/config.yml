@@ -48,13 +48,11 @@ variables:
     run:
       name: Installing YMP
       command: |
-        source activate test_env
         python setup.py install
   ymp_env_prepare: &ymp_env_prepare
     run:
       name: Peparing YMP tool environments
       command: |
-        source activate test_env
         ymp env update
         ymp env clean
   ymp_test: &ymp_test
@@ -62,7 +60,6 @@ variables:
       name: Running YMP Tests
       no_output_timeout: 10m # default 10m
       command: |
-        source activate test_env
         mkdir -p $JUNIT_REPORT_PATH
         pytest -vv --cov --junit-xml $JUNIT_REPORT_PATH/report.xml -n 2
   ymp_test_tools: &ymp_test_tools
@@ -70,7 +67,6 @@ variables:
       name: Running YMP Tool Tests
       no_output_timeout: 10m # default 10m
       command: |
-        source activate test_env
         mkdir -p $JUNIT_REPORT_PATH
         pytest -vv --cov --junit-xml $JUNIT_REPORT_PATH/report.xml -n 2 --run-tools -m runs_tool
   ymp_store_test_failures: &ymp_store_test_failures
@@ -93,7 +89,6 @@ variables:
       name: Exporting Conda Environments
       when: on_fail
       command: |
-        source activate test_env
         mkdir envs
         ymp env list | \
         xargs -n 2 -P8 -i \
@@ -108,7 +103,6 @@ variables:
     run:
       name: Uploading coverage statistics
       command: |
-        source activate test_env
         coverage xml
         codecov -f coverage.xml
         pip install codacy-coverage

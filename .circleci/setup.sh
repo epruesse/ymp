@@ -46,22 +46,19 @@ else
     conda config --system --add channels defaults
     conda config --system --add channels conda-forge
     conda config --system --add channels bioconda
-
-    # Install tools
-    conda install git pip
-    conda update -q conda git
 fi
 
-
-# Install/update YMP dependencies
+# remove test_env if it still exists
 if test -d $MINICONDA/envs/test_env; then
-    conda env update -n test_env -f environment.yaml --prune
-else
-    conda env create -n test_env -f environment.yaml
+    rm -rf $MINICONDA/envs/test_env
 fi
 
-# Cleanup
-conda clean --yes --all
+if ! cmp -s $MINICONDA/_ymp_environment.yaml environment.yaml \
+	|| [ x"$1" == x"update" ]; then
+    conda env update -n root -f environment.yaml --prune
+    cp environment.yaml $MINICONDA/_ymp_envonment.yaml
+    conda clean --yes --all
+fi
 
 # Dump status
 mkdir -p conda
@@ -69,9 +66,7 @@ conda info > conda/info.txt
 conda list > conda/root.txt
 ls -1 $MINICONDA/pkgs > conda/pkgs.txt
 ls -d1 ~/.ymp/conda/* > conda/ymp_envs.txt
-
-# Exit ok
-true
+true # above may fail, but we're ok with that
 
 
 
