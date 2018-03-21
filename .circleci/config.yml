@@ -109,7 +109,6 @@ variables:
       name: Uploading coverage statistics
       command: |
         source activate test_env
-        coverage combine
         coverage xml
         codecov -f coverage.xml
         pip install codacy-coverage
