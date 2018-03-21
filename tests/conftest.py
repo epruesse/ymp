@@ -91,20 +91,36 @@ def bin_dir(saved_tmpdir):
     os.environ['PATH'] = path
 
 
+class MockCmd(object):
+    _calls = None
+
+    def __init__(self, bin_dir, name, code=""):
+        self.filename = os.path.join(bin_dir, name)
+        self.logname = self.filename + "_cmd.log"
+        content = "\n".join([
+            '#!/bin/sh',
+            'echo "$0 $@" >> "{}"'.format(self.logname),
+            '\n'
+        ])
+        with open(self.filename, "w") as f:
+            f.write(content)
+            f.write(code)
+        os.chmod(self.filename, 0o500)
+
+    @property
+    def calls(self):
+        with open(self.logname) as r:
+            data = r.read().splitlines()
+        return data
+
+
 @pytest.fixture
 def mock_conda(bin_dir):
-    fake_conda = os.path.join(bin_dir, "conda")
-    fake_conda_cmd = """\
-#!/bin/sh
-echo "---\n$0 $@" >> conda_cmd.out
-if test "$1" == "--version"; then
-  echo conda 4.2
-fi
-    """
-    with open(fake_conda, "w") as f:
-        f.write(fake_conda_cmd)
-    os.chmod(fake_conda, 0o500)
-    yield "conda_cmd.out"
+    yield MockCmd(bin_dir, "conda", "\n".join([
+        'if test "$1" == "--version"; then',
+        '  echo conda 4.2',
+        'fi',
+    ]))
 
 
 # Activate this to get some profiling data while testing

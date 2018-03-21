@@ -88,21 +88,16 @@ def prepare(**kwargs):
 @click.argument("ENVNAME", nargs=-1)
 def install(envname):
     "Install conda software environments"
-    fail = False
+    from ymp.env import Env
+    envs = Env.get_envs()
+    if envname:
+        print(envname)
+        envs = [env for env in envs
+                if any(fnmatch(env.name, pat) for pat in envname)]
+    log.warning(f"Creating {len(envs)} environments.")
 
-    if len(envname) == 0:
-        envname = ymp.env.by_name.keys()
-        log.warning("Creating all (%i) environments.", len(envname))
-
-    for env in envname:
-        if env not in ymp.env.by_name:
-            log.error("Environment '%s' unknown", env)
-            fail = True
-        else:
-            ymp.env.by_name[env].create()
-
-    if fail:
-        exit(1)
+    for env in envs:
+        env.create()
 
 
 @env.command()

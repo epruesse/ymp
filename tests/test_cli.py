@@ -84,3 +84,30 @@ def test_env_prepare(invoker, project_dir, mock_conda):
                        "--conda-prefix=.",
                        "toy.trim_bbmap/all")
     assert "bbmap.yml created" in res.output
+
+
+def test_env_install(invoker, project_dir, mock_conda):
+    with open("ymp.yml", "a") as f:
+        f.write("directories:\n conda_prefix: '.'")
+
+    # basic
+    res = invoker.call("env", "install", "bbmap")
+    assert "Creating 1 environments" in res.output
+    assert "'bbmap'" in res.output
+    assert "bbmap" in mock_conda.calls[0]
+    assert "conda env create" in mock_conda.calls[0]
+
+    # multiple, globbing
+    res = invoker.call("env", "install", "bb?ap", "bbma*")
+    assert "Creating 1 environments" in res.output
+    assert "'bbmap'" in res.output
+    assert "bbmap" in mock_conda.calls[1]
+    assert "conda env create" in mock_conda.calls[1]
+
+    # dynamic env
+    res = invoker.call("env", "install", "sickle")
+    assert "Creating 1 environments" in res.output
+    assert "'sickle'" in res.output
+    assert "sickle" in mock_conda.calls[2]
+    assert "conda env create" in mock_conda.calls[2]
+
