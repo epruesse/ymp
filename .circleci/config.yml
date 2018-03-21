@@ -108,6 +108,7 @@ variables:
     run:
       name: Uploading coverage statistics
       command: |
+        source activate test_env
         coverage combine
         coverage xml
         codecov -f coverage.xml
