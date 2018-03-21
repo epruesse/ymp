@@ -56,7 +56,7 @@ fi
 if ! cmp -s $MINICONDA/_ymp_environment.yaml environment.yaml \
 	|| [ x"$1" == x"update" ]; then
     conda env update -n root -f environment.yaml --prune --quiet
-    cp environment.yaml $MINICONDA/_ymp_envonment.yaml
+    cp environment.yaml $MINICONDA/_ymp_environment.yaml
     conda clean --yes --all
 fi
 
