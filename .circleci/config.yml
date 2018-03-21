@@ -64,7 +64,7 @@ variables:
       command: |
         source activate test_env
         mkdir -p $JUNIT_REPORT_PATH
-        pytest -vv --junit-xml $JUNIT_REPORT_PATH/report.xml -n 2
+        pytest -vv --cov --junit-xml $JUNIT_REPORT_PATH/report.xml -n 2
   ymp_test_tools: &ymp_test_tools
     run:
       name: Running YMP Tool Tests
@@ -72,7 +72,7 @@ variables:
       command: |
         source activate test_env
         mkdir -p $JUNIT_REPORT_PATH
-        pytest -vv --junit-xml $JUNIT_REPORT_PATH/report.xml -n 2 --run-tools -m runs_tool
+        pytest -vv --cov --junit-xml $JUNIT_REPORT_PATH/report.xml -n 2 --run-tools -m runs_tool
   ymp_store_test_failures: &ymp_store_test_failures
     store_artifacts:
       when: on_fail
@@ -103,6 +103,19 @@ variables:
           when: on_fail
           path: envs
 
+  ## Other
+  upload_coverage: &upload_coverage
+    run:
+      name: Uploading coverage statistics
+      command: |
+        coverage combine
+        coverage xml
+        codecov -f coverage.xml
+        pip install codacy-coverage
+        python-codacy-coverage -r coverage.xml
+
+
+
   # steps:
   test_steps: &test_steps
     steps:
@@ -116,6 +129,7 @@ variables:
       - *ymp_test
       - *ymp_store_test_results
       - *ymp_store_test_failures
+      - *upload_coverage
 
 
 jobs:

@@ -22,5 +22,7 @@ dependencies:
   - pytest-xdist   # parallel testing
   - pytest-timeout # dump on test timeout
   - yappi          # profiler
+  - pytest-cov
+  - codecov
   #### for building envs with cython ###
   - gcc
