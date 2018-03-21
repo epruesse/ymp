@@ -57,7 +57,26 @@ def test_stage_list(invoker):
 
 def test_env_list(invoker):
     res = invoker.call("env", "list")
-    assert "\nblast " in res.output
+    lines = res.output.splitlines()
+    assert len(lines) > 2
+    assert lines[0].startswith("name"), "first row should start with name"
+    assert all(lines[i].upper() <= lines[i+1].upper()
+               for i in range(2, len(lines)-1)), \
+        f"output should be sorted: {lines}"
+
+    res = invoker.call("env", "list", "-r")
+    lines = res.output.splitlines()
+    assert all(lines[i].upper() >= lines[i+1].upper()
+               for i in range(1, len(lines)-1)), \
+        f"output should be sorted reverse:\n{lines}"
+
+    res = invoker.call("env", "list", "-s", "hash")
+    lines = res.output.splitlines()
+    hash_col = lines[0].split().index("hash")
+    hashes = [line.split()[hash_col] for line in lines]
+    assert all(hashes[i] <= hashes[i+1]
+               for i in range(1, len(lines)-1)), \
+        f"output should be sorted by hash:\n{hashes[1:]}"
 
 
 def test_env_prepare(invoker, project_dir, mock_conda):

@@ -2,6 +2,7 @@ import logging
 import os
 import shutil
 import sys
+from fnmatch import fnmatch
 
 import click
 from click import echo
@@ -11,6 +12,8 @@ from ymp.cli.make import snake_params, start_snakemake
 from ymp.cli.shared_options import group
 
 log = logging.getLogger(__name__)
+
+ENV_COLUMNS = ('name', 'hash', 'path', 'installed')
 
 
 @group()
@@ -26,32 +29,47 @@ def env():
     """
 
 
-@env.command()
+@env.command(name="list")
+@click.option(
+    "--static/--no-static", default=True,
+    help="List environments statically defined via env.yml files"
+)
+@click.option(
+    "--dynamic/--no-dynamic", default=True,
+    help="List environments defined inline from rule files"
+)
 @click.option(
     "--all", "-a", "param_all", is_flag=True,
     help="List all environments, including outdated ones."
 )
-def list(param_all):
+@click.option(
+    "--sort", "-s", "sort_col",
+    type=click.Choice(ENV_COLUMNS), default=ENV_COLUMNS[0],
+    help="Sort by column"
+)
+@click.option(
+    "--reverse", "-r", is_flag=True,
+    help="Reverse sort order"
+)
+def ls(param_all, static, dynamic, sort_col, reverse):
     """List conda environments"""
     from ymp.env import Env
 
-    columns = ('name', 'hash', 'path', 'installed')
-    sort_col = 'name'
-    envs = []
-    envs += Env.get_builtin_static_envs()
-    envs += Env.get_builtin_dynamic_envs()
+    envs = Env.get_envs(static=static, dynamic=dynamic)
 
-    table_content = sorted(({key: getattr(env, key) for key in columns}
+    table_content = sorted(({key: str(getattr(env, key))
+                             for key in ENV_COLUMNS}
                             for env in envs),
-                           key=lambda row: row[sort_col])
+                           key=lambda row: row[sort_col].upper(),
+                           reverse=reverse)
 
-    table_header = [{col: col for col in columns}]
+    table_header = [{col: col for col in ENV_COLUMNS}]
     table = table_header + table_content
-    widths = {col: max(len(str(row[col])) for row in table)
-              for col in columns}
+    widths = {col: max(len(row[col]) for row in table)
+              for col in ENV_COLUMNS}
 
     lines = [" ".join("{!s:<{}}".format(row[col], widths[col])
-                      for col in columns)
+                      for col in ENV_COLUMNS)
              for row in table]
     echo("\n".join(lines))
 

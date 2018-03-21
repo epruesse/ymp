@@ -763,7 +763,7 @@ class ConfigMgr(object):
 
         Directories will be created on the fly as they are requested.
         """
-        return MkdirDict({name: os.path.abspath(value)
+        return MkdirDict({name: os.path.abspath(os.path.expanduser(value))
                          for name, value in self.dir.items()})
 
     @property

@@ -10,11 +10,11 @@ directories:
     rules: 'rules'
     downloads: 'downloads'
     dynamic_envs: &dynamic_envs '.ymp/envs'
+    conda_prefix: '~/.ymp/conda'
+    conda_archive_prefix: "~/.ymp/conda_archive"
 
 conda:
   # Location for installed conda environments:
-  conda_prefix: '~/.ymp/conda'
-  conda_archive_prefix: "~/.ymp/conda_archive"
 
   # Search path for environment.yml files:
   env_path:

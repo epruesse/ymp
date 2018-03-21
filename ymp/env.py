@@ -46,9 +46,6 @@ class MetaEnv(type):
         """
         if not self._CFG:
             self._CFG = self.icfg.conda
-            for path in ('conda_prefix', 'conda_archive_prefix'):
-                self._CFG[path] = op.expanduser(self._CFG[path])
-            self._CFG.env_path[50] = self.icfg.absdir.dynamic_envs
         return self._CFG
 
     def new(self, name: str, packages: Union[list, str], base: str="none",
@@ -79,11 +76,11 @@ class MetaEnv(type):
     def get_installed_env_hashes(self):
         return [
             dentry.name
-            for dentry in os.scandir(self.cfg.conda_prefix)
+            for dentry in os.scandir(self.icfg.absdir.conda_prefix)
             if dentry.is_dir()
         ]
 
-    def get_builtin_static_envs(self):
+    def _get_builtin_static_envs(self):
         if not self._STATIC_ENVS:
             self._STATIC_ENVS = [
                 Env(fname)
@@ -91,13 +88,21 @@ class MetaEnv(type):
             ]
         return self._STATIC_ENVS
 
-    def get_builtin_dynamic_envs(self):
+    def _get_dynamic_envs(self):
         from ymp.snakemake import load_workflow
         load_workflow()
         return [
             Env(fname)
             for fname in self._ENVS.values()
         ]
+
+    def get_envs(self, static=True, dynamic=True):
+        envs = []
+        if static:
+            envs += self._get_builtin_static_envs()
+        if dynamic:
+            envs += self._get_dynamic_envs()
+        return envs
 
 
 class Env(snakemake.conda.Env, metaclass=MetaEnv):
@@ -132,8 +137,8 @@ class Env(snakemake.conda.Env, metaclass=MetaEnv):
 
         self.file = env_file
         self.name, _ = op.splitext(op.basename(env_file))
-        self._env_dir = Env.cfg.conda_prefix
-        self._env_archive_dir = Env.cfg.conda_archive_prefix
+        self._env_dir = Env.icfg.absdir.conda_prefix
+        self._env_archive_dir = Env.icfg.absdir.conda_archive_prefix
         self._hash = None
         self._content_hash = None
         self._content = None
