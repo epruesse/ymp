@@ -74,7 +74,7 @@ def saved_cwd(saved_tmpdir):
         yield saved_tmpdir
 
 
-# Inject local bin dir into path
+# Inject executables into PATH
 # ==============================
 
 @pytest.fixture()
@@ -89,6 +89,21 @@ def bin_dir(saved_tmpdir):
     os.environ['PATH'] = ':'.join((binpath, path))
     yield binpath
     os.environ['PATH'] = path
+
+
+@pytest.fixture
+def mock_conda(bin_dir):
+    fake_conda = os.path.join(bin_dir, "conda")
+    fake_conda_cmd = """\
+#!/bin/sh
+echo "---\n$0 $@" >> conda_cmd.out
+if test "$1" == "--version"; then
+  echo conda 4.2
+fi
+    """
+    with open(fake_conda, "w") as f:
+        f.write(fake_conda_cmd)
+    os.chmod(fake_conda, 0o755)
 
 
 # Activate this to get some profiling data while testing
@@ -116,11 +131,16 @@ def profiling():
 
 @pytest.fixture()
 def project(request):
-    return request.param
+    "Parametrizable project; defaults to 'toy'"
+    return getattr(request, 'param', "toy")
 
 
 @pytest.fixture()
 def project_dir(request, project, saved_tmpdir):
+    """Populated project directory
+
+    parametrize `project` to get different project dirs
+    """
     data_dir = py.path.local(__file__).dirpath('data', project)
     data_dir.copy(saved_tmpdir)
     log.info("Created project directory {}".format(saved_tmpdir))
