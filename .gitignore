@@ -4,6 +4,9 @@
 # generated version file
 ymp/_version.py
 
+# coverage annotations
+*,cover
+
 # python files
 **/__pycache__
 .cache
