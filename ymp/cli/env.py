@@ -116,6 +116,18 @@ def update(envnames):
 
 
 @env.command()
+@click.argument("ENVNAMES", nargs=-1)
+def remove(envnames):
+    "Update conda environments"
+    envs = get_envs(envnames)
+    log.warning(f"Removing {len(envs)} environments.")
+    for env in get_envs(envnames):
+        if os.path.exists(env.path):
+            log.warning("Removing %s (%s)", env.name, env.path)
+            shutil.rmtree(env.path)
+
+
+@env.command()
 @click.option("--all", "-a", "param_all", is_flag=True,
               help="Delete all environments")
 def clean(param_all):
