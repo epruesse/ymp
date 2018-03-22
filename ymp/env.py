@@ -32,11 +32,8 @@ class MetaEnv(type):
 
     @property
     def icfg(self):
-        """Primary YMP config object (autoloaded)"""
-        if not self._ICFG:
-            from ymp.config import icfg
-            self._ICFG = icfg
-        return self._ICFG
+        from ymp.config import icfg
+        return icfg
 
     @property
     def cfg(self):
@@ -44,9 +41,7 @@ class MetaEnv(type):
 
         Also performs tilde expansion on paths.
         """
-        if not self._CFG:
-            self._CFG = self.icfg.conda
-        return self._CFG
+        return self.icfg.conda
 
     def new(self, name: str, packages: Union[list, str], base: str="none",
             channels: Optional[Union[list, str]]=None):
@@ -81,28 +76,20 @@ class MetaEnv(type):
         ]
 
     def _get_builtin_static_envs(self):
-        if not self._STATIC_ENVS:
-            self._STATIC_ENVS = [
-                Env(fname)
-                for fname in glob(op.join(ymp._rule_dir, "*.yml"))
-            ]
-        return self._STATIC_ENVS
+        for fname in glob(op.join(ymp._rule_dir, "*.yml")):
+            yield Env(fname)
 
     def _get_dynamic_envs(self):
         from ymp.snakemake import load_workflow
         load_workflow()
-        return [
-            Env(fname)
-            for fname in self._ENVS.values()
-        ]
+        for fname in self._ENVS.values():
+            yield Env(fname)
 
     def get_envs(self, static=True, dynamic=True):
-        envs = []
         if static:
-            envs += self._get_builtin_static_envs()
+            yield from self._get_builtin_static_envs()
         if dynamic:
-            envs += self._get_dynamic_envs()
-        return envs
+            yield from self._get_dynamic_envs()
 
 
 class Env(snakemake.conda.Env, metaclass=MetaEnv):
