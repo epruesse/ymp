@@ -1,4 +1,4 @@
-from ymp.common import odict
+from ymp.common import odict, ensure_list
 from collections import OrderedDict
 
 import pytest
@@ -68,7 +68,7 @@ for target_type in target_map:
     targets.update(target_map[target_type])
 
 
-def get_targets(large=True, exclude_targets=[]):
+def get_targets(large=True, exclude_targets=None):
     target_dir_pairs = (
         pytest.param(dataset, target_map[dtype][target], dataset,
                      id="-".join((dataset, target)))
@@ -76,15 +76,16 @@ def get_targets(large=True, exclude_targets=[]):
         for dataset in dataset_map[dtype]
         for target in target_map[dtype]
         if large or dataset not in dataset_map['large']
-        if target not in exclude_targets
+        if target not in ensure_list(exclude_targets)
     )
     return target_dir_pairs
 
-def parametrize_target(large=True, exclude_targets=[]):
+
+def parametrize_target(large=True, exclude_targets=None):
     return pytest.mark.parametrize(
         "project_dir,target,project",
-        get_targets(large, exclude_targets),
-        indirect=['project_dir','target'])
+        get_targets(large, ensure_list(exclude_targets)),
+        indirect=['project_dir', 'target'])
 
 
     # blast.rules

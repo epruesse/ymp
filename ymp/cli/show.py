@@ -1,17 +1,21 @@
+"Implements subcommands for ``ymp show``"
+
 import logging
 
 import click
 
 from ymp.cli.shared_options import command
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 class ConfigPropertyParam(click.ParamType):
+    """Handles tab expansion for `ymp show` arguments"""
     _properties = None
 
     @property
     def properties(self):
+        """Find properties offered by ConfigMgr"""
         if not self._properties:
             from ymp.config import ConfigMgr
             self._properties = {
@@ -22,7 +26,7 @@ class ConfigPropertyParam(click.ParamType):
             }
         return self._properties
 
-    def complete(self, ctx, incomplete):
+    def complete(self, _ctx, incomplete):
         """Try to complete incomplete command
 
         This is executed on tab or tab-tab from the shell
@@ -40,7 +44,7 @@ class ConfigPropertyParam(click.ParamType):
         return [x for x in self.properties.keys()
                 if x.startswith(incomplete)]
 
-    def convert(_, value, param, ctx):
+    def convert(self, value, param, ctx):
         """Convert value of param given context
 
         Args:
@@ -59,13 +63,14 @@ class ConfigPropertyParam(click.ParamType):
         return "\n".join(["Properties:", props])
 
 
-def show_help(ctx, param=None, value=True):
+def show_help(ctx, _param=None, value=True):
+    """Display click command help"""
     if value:
-        help = [ctx.get_help(), '']
+        helpstr = [ctx.get_help(), '']
         arg_docs = [repr(param.type)
                     for param in ctx.command.params
                     if isinstance(param, click.Argument)]
-        click.echo("\n".join(help + arg_docs), color=ctx.color)
+        click.echo("\n".join(helpstr + arg_docs), color=ctx.color)
         ctx.exit()
 
 
