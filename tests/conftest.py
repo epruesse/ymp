@@ -111,15 +111,26 @@ class MockCmd(object):
     def calls(self):
         with open(self.logname) as r:
             data = r.read().splitlines()
+        log.debug(data)
         return data
 
 
 @pytest.fixture
 def mock_conda(bin_dir):
     yield MockCmd(bin_dir, "conda", "\n".join([
-        'if test "$1" == "--version"; then',
-        '  echo conda 4.2',
-        'fi',
+        'cmd=""',
+        'while [ -n "$1" ]; do',
+        '  case $1 in',
+        '  --version)   echo conda 4.2; exit 0;;',
+        '  --prefix|-p) shift; p="$1";;',
+        '  --file|-f)   shift; f="$1";;'
+        '  *)           cmd="$cmd $1";;',
+        '  esac',
+        '  shift',
+        'done',
+        'if [ x"$cmd" = x" env create" -a -n "$p" ]; then',
+        '  mkdir "$p"',
+        'fi'
     ]))
 
 
