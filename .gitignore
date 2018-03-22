@@ -7,11 +7,17 @@ ymp/_version.py
 # coverage annotations
 *,cover
 
+# mypy
+.mypy_cache
+
 # python files
 **/__pycache__
+*.pyc
 .cache
 .eggs
 *.egg-info
+build
+dist
 
 # testing
 test_failures
