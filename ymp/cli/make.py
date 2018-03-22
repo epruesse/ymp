@@ -1,3 +1,5 @@
+"""Implements subcommands for ``ymp make`` and ``ymp submit``"""
+
 import functools
 import logging
 import os
@@ -11,19 +13,33 @@ from ymp.cli.shared_options import command, nohup_option
 from ymp.common import Cache
 from ymp.exceptions import YmpException
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 class TargetParam(click.ParamType):
+    """Handles tab expansion for build targets"""
+
     @classmethod
-    def complete(cls, ctx, incomplete):
-        #log = open("err.txt", "a")
-        log = open("/dev/null", "a")
-        log.write("\nincomplete={}\n".format(incomplete))
+    def complete(cls, _ctx, incomplete):
+        """Try to complete incomplete command
+
+        This is executed on tab or tab-tab from the shell
+
+        Args:
+          ctx: click context object
+          incomplete: last word in command line up until cursor
+
+        Returns:
+          list of words incomplete can be completed to
+        """
+
+        # errlog = open("err.txt", "a")
+        errlog = open("/dev/null", "a")
+        errlog.write("\nincomplete={}\n".format(incomplete))
         cache = Cache.get_cache("completion")
         query_stages = incomplete.split(".")
-        log.write("stages={}\n".format(query_stages))
-        options = []
+        errlog.write("stages={}\n".format(query_stages))
+        options: list = []
 
         if len(query_stages) == 1:  # expand projects
             from ymp.config import icfg
@@ -41,10 +57,10 @@ class TargetParam(click.ParamType):
         prefix = ".".join(query_stages[:-1])
         if prefix:
             prefix += "."
-        log.write("prefix={}\n".format(prefix))
+        errlog.write("prefix={}\n".format(prefix))
         options = [prefix + o + cont for o in options for cont in ("/", ".")]
-        log.write("options={}\n".format(options))
-        log.close()
+        errlog.write("options={}\n".format(options))
+        errlog.close()
         return options
 
 
@@ -97,7 +113,7 @@ def snake_params(func):
     )
     @nohup_option
     @functools.wraps(func)
-    def decorated(*args, **kwargs):
+    def decorated(*args, **kwargs):  # pylint: disable=missing-docstring
         return func(*args, **kwargs)
     return decorated
 
@@ -109,24 +125,19 @@ class YmpConfigNotFound(YmpException):
     pass
 
 
-def find_root():
-    curpath = os.path.abspath(os.getcwd())
-    prefix = ""
-    while not os.path.exists(os.path.join(curpath, "ymp.yml")):
-        left, right = os.path.split(curpath)
-        if curpath == left:
-            return os.getcwd(), ""
-        curpath = left
-        prefix = os.path.join(right, prefix)
-    return (curpath, prefix)
-
-
 def start_snakemake(kwargs):
     """Execute Snakemake with given parameters and targets
 
     Fixes paths of kwargs['targets'] to be relative to YMP root.
     """
-    kwargs['workdir'], prefix = find_root()
+    from ymp.config import icfg
+    root_path = icfg.root
+    cur_path = os.path.abspath(os.getcwd())
+    if not cur_path.startswith(root_path):
+        raise YmpException("internal error - CWD moved out of YMP root?!")
+    cur_path = cur_path[len(root_path):]
+
+    kwargs['workdir'] = root_path
 
     # translate renamed arguments to snakemake synopsis
     arg_map = {
@@ -161,10 +172,10 @@ def start_snakemake(kwargs):
         kwargs['verbose'] = True
     kwargs['use_conda'] = True
     if 'targets' in kwargs:
-        kwargs['targets'] = [os.path.join(prefix, t)
+        kwargs['targets'] = [os.path.join(cur_path, t)
                              for t in kwargs['targets']]
 
-    log.debug("Running snakemake.snakemake with args: {}".format(kwargs))
+    log.debug("Running snakemake.snakemake with args: %s", kwargs)
     import snakemake
     return snakemake.snakemake(ymp._snakefile, **kwargs)
 
@@ -227,7 +238,7 @@ def make(**kwargs):
     "at once."
 )
 @click.option(
-    "--command",  metavar="CMD",
+    "--command", metavar="CMD",
     help="Use CMD to submit job script to the cluster"
 )
 @click.option(

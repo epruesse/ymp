@@ -10,7 +10,7 @@ log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 class ConfigPropertyParam(click.ParamType):
-    """Handles tab expansion for `ymp show` arguments"""
+    """Handles tab expansion for ``ymp show`` arguments"""
     _properties = None
 
     @property
