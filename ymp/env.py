@@ -7,16 +7,21 @@ import os
 import os.path as op
 import subprocess
 from glob import glob
-from typing import Union, Optional
+from typing import Union, Optional, Dict
 
 import snakemake
 
 import ymp
 from ymp.common import ensure_list
 from ymp.snakemake import BaseExpander
+from ymp.exceptions import YmpException
 
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)  # pylint: disable=invalid-name
+
+
+class YmpEnvError(YmpException):
+    """Failure in env"""
 
 
 class MetaEnv(type):
@@ -27,23 +32,23 @@ class MetaEnv(type):
     """
     _CFG = None
     _ICFG = None
-    _ENVS = {}
+    _ENVS: Dict[str, str] = {}
     _STATIC_ENVS = None
 
     @property
-    def icfg(self):
+    def icfg(cls):
         from ymp.config import icfg
         return icfg
 
     @property
-    def cfg(self):
+    def cfg(cls):
         """Conda section of config (autloaded)
 
         Also performs tilde expansion on paths.
         """
-        return self.icfg.conda
+        return cls.icfg.conda
 
-    def new(self, name: str, packages: Union[list, str], base: str="none",
+    def new(cls, name: str, packages: Union[list, str], base: str="none",
             channels: Optional[Union[list, str]]=None):
         """Creates an inline defined conda environment
 
@@ -58,38 +63,36 @@ class MetaEnv(type):
             in ``yml.yml``
         """
 
-        with self.cfg.defaults[base] as defaults:
+        with cls.cfg.defaults[base] as defaults:
             defaults.dependencies.extend(ensure_list(packages))
             defaults.channels.extend(ensure_list(channels))
             contents = f"name: {name}\n{defaults}"
-            fname = op.join(self.icfg.absdir.dynamic_envs,
+            fname = op.join(cls.icfg.absdir.dynamic_envs,
                             f"{name}.yml")
-            with open(fname, "w") as f:
-                f.write(contents)
-                self._ENVS[name] = fname
+            with open(fname, "w") as envf:
+                envf.write(contents)
+                cls._ENVS[name] = fname
 
-    def get_installed_env_hashes(self):
+    def get_installed_env_hashes(cls):
         return [
             dentry.name
-            for dentry in os.scandir(self.icfg.absdir.conda_prefix)
+            for dentry in os.scandir(cls.icfg.absdir.conda_prefix)
             if dentry.is_dir()
         ]
 
-    def _get_builtin_static_envs(self):
+    def _get_builtin_static_envs(cls):
         for fname in glob(op.join(ymp._rule_dir, "*.yml")):
             yield Env(fname)
 
-    def _get_dynamic_envs(self):
-        from ymp.snakemake import load_workflow
-        load_workflow()
-        for fname in self._ENVS.values():
+    def _get_dynamic_envs(cls):
+        for fname in cls._ENVS.values():
             yield Env(fname)
 
-    def get_envs(self, static=True, dynamic=True):
+    def get_envs(cls, static=True, dynamic=True):
         if static:
-            yield from self._get_builtin_static_envs()
+            yield from cls._get_builtin_static_envs()
         if dynamic:
-            yield from self._get_dynamic_envs()
+            yield from cls._get_dynamic_envs()
 
 
 class Env(snakemake.conda.Env, metaclass=MetaEnv):
@@ -150,7 +153,7 @@ class Env(snakemake.conda.Env, metaclass=MetaEnv):
         self.create()  # call create to make sure environment exists
         log.warning("Updating environment '%s'", self.name)
         return subprocess.run([
-            "conda",  "env", "update",
+            "conda", "env", "update",
             "--prune",
             "-p", self.path,
             "-f", self.file,
