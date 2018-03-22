@@ -84,18 +84,23 @@ def prepare(**kwargs):
         sys.exit(1)
 
 
-@env.command()
-@click.argument("ENVNAME", nargs=-1)
-def install(envname):
-    "Install conda software environments"
+def get_envs(envnames):
     from ymp.env import Env
     envs = Env.get_envs()
-    if envname:
-        print(envname)
+    if envnames:
         envs = [env for env in envs
-                if any(fnmatch(env.name, pat) for pat in envname)]
-    log.warning(f"Creating {len(envs)} environments.")
+                if any(fnmatch(env.name, pat) for pat in envnames)]
+    else:
+        envs = list(envs)
+    return envs
 
+
+@env.command()
+@click.argument("ENVNAMES", nargs=-1)
+def install(envnames):
+    "Install conda software environments"
+    envs = get_envs(envnames)
+    log.warning(f"Creating {len(envs)} environments.")
     for env in envs:
         env.create()
 
@@ -104,24 +109,10 @@ def install(envname):
 @click.argument("ENVNAMES", nargs=-1)
 def update(envnames):
     "Update conda environments"
-    fail = False
-
-    if len(envnames) == 0:
-        envnames = ymp.env.by_name.keys()
-        log.warning("Updating all (%i) environments.", len(envnames))
-
-    for envname in envnames:
-        if envname not in ymp.env.by_name:
-            log.error("Environment '%s' unknown", envname)
-            fail = True
-        else:
-            ret = ymp.env.by_name[envname].update()
-            if ret != 0:
-                log.error("Updating '%s' failed with return code '%i'",
-                          envname, ret)
-                fail = True
-    if fail:
-        exit(1)
+    envs = get_envs(envnames)
+    log.warning(f"Updating {len(envs)} environments.")
+    for env in get_envs(envnames):
+        env.update()
 
 
 @env.command()
