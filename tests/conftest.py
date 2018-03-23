@@ -1,4 +1,5 @@
 import logging
+import os
 
 import py
 
@@ -7,21 +8,35 @@ import pytest
 log = logging.getLogger(__name__)
 
 
-def pytest_addoption(parser):
-    parser.addoption("--skip-tools", action="store_true",
-                     default=False, help="Skip tests running tools")
+# Add pytest options
+# ==================
 
+def pytest_addoption(parser):
+    parser.addoption("--run-tools", action="store_true",
+                     default=False, help="Skip tests running tools")
+    parser.addoption("--cwd-save-dir", metavar="DIR",
+                     default="test_failures",
+                     help="""Tests needing local files are run in a temporary
+                     directory. If a test fails, a copy of the directory is
+                     made in this location.""")
+    parser.addoption("--cwd-save-always", action="store_true",
+                     default=False, help="Always save test CWD")
+
+
+# Add pytest.mark.skip_tool
+# =========================
 
 def pytest_collection_modifyitems(config, items):
-    if config.getoption("--skip-tools"):
-        skip_tool = pytest.mark.skip(reason="Tool tests disabled")
+    if not config.getoption("--run-tools"):
+        skip_tool = pytest.mark.skip(reason="Not running tools")
         for item in items:
             if "runs_tool" in item.keywords:
                 item.add_marker(skip_tool)
 
 
-# from docs; add "rep_setup", "rep_call" and "rep_teardown"
-# to request.node
+# Allow executing tests in dir saved on error
+# ===========================================
+
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     # execute all other hooks to obtain the report object
@@ -33,7 +48,95 @@ def pytest_runtest_makereport(item, call):
     setattr(item, "rep_" + rep.when, rep)
 
 
-# activate this to get some profiling data while testing
+@pytest.fixture()
+def saved_tmpdir(request, tmpdir):
+    yield tmpdir
+    if (
+        request.config.getoption("--cwd-save-always")
+        or not hasattr(request.node, 'rep_call')
+        or request.node.rep_call.failed
+    ):
+        name_parts = request.node.name.replace("]", "").split("[")
+        cwd_save_dir = request.config.getoption("--cwd-save-dir")
+        destdir = py.path.local(cwd_save_dir).join(*name_parts)
+        if destdir.check(exists=1):
+            destdir.remove(rec=True)
+        destdir.dirpath().ensure_dir()
+        tmpdir.move(destdir)
+        log.error("Saved failed test data to %s", str(destdir))
+    else:
+        tmpdir.remove()
+
+
+@pytest.fixture()
+def saved_cwd(saved_tmpdir):
+    with saved_tmpdir.as_cwd():
+        yield saved_tmpdir
+
+
+# Inject executables into PATH
+# ==============================
+
+@pytest.fixture()
+def bin_dir(saved_tmpdir):
+    binpath = os.path.join(saved_tmpdir, "bin")
+    try:
+        os.mkdir(binpath)
+    except FileExistsError:
+        if not os.path.isdir(binpath):
+            raise
+    path = os.environ['PATH']
+    os.environ['PATH'] = ':'.join((binpath, path))
+    yield binpath
+    os.environ['PATH'] = path
+
+
+class MockCmd(object):
+    _calls = None
+
+    def __init__(self, bin_dir, name, code=""):
+        self.filename = os.path.join(bin_dir, name)
+        self.logname = self.filename + "_cmd.log"
+        content = "\n".join([
+            '#!/bin/sh',
+            'echo "$0 $@" >> "{}"'.format(self.logname),
+            '\n'
+        ])
+        with open(self.filename, "w") as f:
+            f.write(content)
+            f.write(code)
+        os.chmod(self.filename, 0o500)
+
+    @property
+    def calls(self):
+        with open(self.logname) as r:
+            data = r.read().splitlines()
+        log.debug(data)
+        return data
+
+
+@pytest.fixture
+def mock_conda(bin_dir):
+    yield MockCmd(bin_dir, "conda", "\n".join([
+        'cmd=""',
+        'while [ -n "$1" ]; do',
+        '  case $1 in',
+        '  --version)   echo conda 4.2; exit 0;;',
+        '  --prefix|-p) shift; p="$1";;',
+        '  --file|-f)   shift; f="$1";;'
+        '  *)           cmd="$cmd $1";;',
+        '  esac',
+        '  shift',
+        'done',
+        'if [ x"$cmd" = x" env create" -a -n "$p" ]; then',
+        '  mkdir "$p"',
+        'fi'
+    ]))
+
+
+# Activate this to get some profiling data while testing
+# ======================================================
+
 @pytest.fixture(scope="module")  # autouse=True)
 def profiling():
     import yappi
@@ -51,28 +154,26 @@ def profiling():
             4: ("tavg", 8)})
 
 
+# Provision CWD with files from data/<project>
+# ============================================
+
 @pytest.fixture()
 def project(request):
-    return request.param
+    "Parametrizable project; defaults to 'toy'"
+    return getattr(request, 'param', "toy")
 
 
 @pytest.fixture()
-def project_dir(request, project, tmpdir):
+def project_dir(request, project, saved_tmpdir):
+    """Populated project directory
+
+    parametrize `project` to get different project dirs
+    """
     data_dir = py.path.local(__file__).dirpath('data', project)
-    data_dir.copy(tmpdir)
-    log.info("Created project directory {}".format(tmpdir))
-    yield tmpdir
-    log.info("Tearing down project directory {}".format(tmpdir))
-    if not hasattr(request.node, 'rep_call') or request.node.rep_call.failed:
-        name_parts = request.node.name.replace("]", "").split("[")
-        destdir = py.path.local('test_failures').join(*name_parts)
-        if destdir.check(exists=1):
-            destdir.remove(rec=True)
-        destdir.dirpath().ensure_dir()
-        tmpdir.move(destdir)
-        log.error("Saved failed test data to %s", str(destdir))
-    else:
-        tmpdir.remove()
+    data_dir.copy(saved_tmpdir)
+    log.info("Created project directory {}".format(saved_tmpdir))
+    yield saved_tmpdir
+    log.info("Tearing down project directory {}".format(saved_tmpdir))
 
 
 @pytest.fixture()
@@ -87,16 +188,33 @@ def target(request, project_dir):
         yield from targets
 
 
+# Call into CLI
+# =============
+
+class Invoker(object):
+    def __init__(self):
+        from click.testing import CliRunner
+        self.runner = CliRunner()
+        from ymp.cli import main
+        self.main = main
+
+    def call(self, *args, **kwargs):
+        from ymp.config import icfg
+        icfg.init()
+        result = self.runner.invoke(self.main, args, **kwargs,
+                                    standalone_mode=False)
+        with open("out.log", "w") as f:
+            f.write(result.output)
+        if result.exception:
+            raise result.exception
+        return result
+
+
 @pytest.fixture()
-def dump_logs(path=None):
-    if path is None:
-        path = py.Path.cwd()
-    for f in path.iterdir():
-        log.debug(f.name)
-        if f.is_dir() and not f.name.startswith("."):
-            dump_logs(path=f)
-        elif f.name.endswith(".log"):
-            log.error("Dumping logfile %s", f.name)
-            with open(f) as fp:
-                for line in fp:
-                    log.error("%s: %s", f.stem, line.rstrip())
+def invoker(saved_cwd):
+    # Snakemake 4.7 waits 10 seconds during shutdown of cluster submitted
+    # worklows -- unless this is set:
+    os.environ['CIRCLECI'] = "true"
+
+    return Invoker()
+

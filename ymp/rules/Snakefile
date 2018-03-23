@@ -3,6 +3,7 @@ import ymp
 from ymp.config import icfg
 icfg.init()
 from ymp.stage import Stage
+from ymp.env import Env
 
 # make sure rules are executed in bash (not sh, dash or worse)
 shell.executable("/bin/bash")
@@ -48,11 +49,6 @@ wildcard_constraints:
     target = "[^/.]+",
     source = "[^/.]+"
 
-for fn in os.listdir(srcdir("")):
-    if fn.endswith(".rules") and not fn.startswith("."):
-        include: fn
 
-if os.path.exists(icfg.dir.rules):
-    for fn in os.listdir(icfg.dir.rules):
-        if fn.endswith(".rules") and not fn.startswith("."):
-            include: os.path.abspath(os.path.join(icfg.dir.rules, fn))
+for snakefile in icfg.snakefiles:
+    include: snakefile

@@ -142,7 +142,7 @@ class Log(object):
 
 verbose_option = click.option(
     "--verbose", "-v", count=True,
-    help="Increase verbosity. May be specified multiple times.",
+    help="Increase log verbosity",
     callback=Log.verbose_option,
     expose_value=False
 )
@@ -150,8 +150,30 @@ verbose_option = click.option(
 
 quiet_option = click.option(
     "--quiet", "-q", count=True,
-    help="Decrease verbosity. May be specified multiple times.",
+    help="Decrease log verbosity",
     callback=Log.quiet_option,
+    expose_value=False
+)
+
+
+def enable_debug(ctx, param, val):
+    if not val:
+        return
+
+    def excepthook(typ, val, tb):
+        import traceback
+        traceback.print_exception(typ, val, tb)
+        import pdb
+        pdb.pm()
+
+    sys.excepthook = excepthook
+    log.error("Dropping into PDB on uncaught exception...")
+
+
+debug_option = click.option(
+    "--python-debug", "-P", is_flag=True,
+    help="Drop into debugger on uncaught exception",
+    callback=enable_debug,
     expose_value=False
 )
 
@@ -159,4 +181,5 @@ quiet_option = click.option(
 def log_options(f):
     f = verbose_option(f)
     f = quiet_option(f)
+    f = debug_option(f)
     return f

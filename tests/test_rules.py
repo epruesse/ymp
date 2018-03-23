@@ -17,7 +17,7 @@ def run_ymp(target, flags=None):
     flags = flags.copy() + ["-j2", target]
     # write cmd.sh for ease of reproduction in case of failure
     with open("cmd.sh", "a") as out:
-        out.write("ymp make {}".format(" ".join(flags)))
+        out.write("ymp make {}\n".format(" ".join(flags)))
     runner = CliRunner()
     result = runner.invoke(ymp_make, flags)
     # keep the stdout/err output for later inspection

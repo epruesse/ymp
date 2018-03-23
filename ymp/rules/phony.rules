@@ -36,7 +36,7 @@ rule listrules:
     run:
         pp.pprint(list(rule.name for rule in workflow.rules))
 
-rule env_test:
+rule env_wait:
     message: "Running environment test. Output will be in logdir."
     shell: """
     hostname
@@ -53,3 +53,7 @@ rule ticktock:
      sleep 1
     done
     """
+
+rule noop:
+    message: "Doing ... nothing!"
+    shell: "true"

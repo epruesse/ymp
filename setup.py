@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
+import fastentrypoints  # NOQA pylint: disable=unused-import
 from setuptools import setup, find_packages
 
 
 setup(
     name="YMP",
-    use_scm_version=True,
+    use_scm_version={'write_to': 'ymp/_version.py'},
     author="Elmar Pruesse",
     author_email="elmar.pruesse@ucdenver.edu",
     url="https://github.com/epruesse/ymp",
@@ -40,9 +41,8 @@ setup(
         'snakemake',
         'Click',
         'Click-completion',
-        'PyYAML',
+        'ruamel.yaml>0.15',
         'drmaa',
-        'rpy2',
         'pandas>=0.20',
         'networkx>=2',
         'coloredlogs',

@@ -4,8 +4,6 @@ from fnmatch import fnmatch
 import click
 
 from ymp.cli.shared_options import group
-from ymp.snakemake import load_workflow
-from ymp.stage import Stage
 
 log = logging.getLogger(__name__)
 
@@ -36,7 +34,9 @@ def ls(long_opt, short_opt, stage_opt):
     """
     if long_opt and short_opt:
         print("?")
+    from ymp.snakemake import load_workflow
     load_workflow()
+    from ymp.stage import Stage
     all_stages = Stage.get_stages()
     if stage_opt:
         stages = [all_stages[m] for m in all_stages if fnmatch(m, stage_opt)]
@@ -46,8 +46,8 @@ def ls(long_opt, short_opt, stage_opt):
 
     name_width = max(len(x.name) for x in stages)
     for stage in stages:
-        if hasattr(stage, 'doc'):
-            doc = stage.doc.strip().split("\n", 1)
+        if hasattr(stage, 'docstring'):
+            doc = stage.docstring.strip().split("\n", 1)
             short_doc = doc[0].strip()
             if len(doc) > 1:
                 long_doc = doc[1]

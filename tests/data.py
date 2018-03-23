@@ -1,4 +1,4 @@
-from ymp.common import odict
+from ymp.common import odict, ensure_list
 from collections import OrderedDict
 
 import pytest
@@ -15,22 +15,22 @@ dataset_map = {
 target_map = {
     'any': odict[
         # fastq.rules
-        'import':         '{}/all',
-        'correct_bbmap':  '{}.correct_bbmap/all',
-        'trim_bbmap':     '{}.trim_bbmapAQ10/all',
-        'filter_bbmap':   '{}.ref_phiX.remove_bbmap/all',
-        'dedup_bbmap':    '{}.dedup_bbmap/all',
-        'filter_bmtagger':'{}.ref_phiX.filter_bmtagger/all',
-        'rm_bmtagger':    '{}.ref_phiX.remove_bmtagger/all',
+        'import':            '{}/all',
+        'correct_bbmap':     '{}.correct_bbmap/all',
+        'trim_bbmap':        '{}.trim_bbmapAQ10/all',
+        'trim_sickle':       '{}.trim_sickle/all',
+        'trim_sickleQ10':    '{}.trim_sickleQ10/all',
+        'trim_sickleL10':    '{}.trim_sickleL10/all',
+        'trim_sickleQ10L10': '{}.trim_sickleQ10L10/all',
+        'filter_bbmap':      '{}.ref_phiX.remove_bbmap/all',
+        'filter_bmtagger':   '{}.ref_phiX.filter_bmtagger/all',
+        'dedup_bbmap':       '{}.dedup_bbmap/all',
+        'rm_bmtagger':       '{}.ref_phiX.remove_bmtagger/all',
         # fails due to bugs in phyloFlash with too few organisms
         #'phyloFlash':     'reports/{}.phyloFlash.pdf',
         'fastqc':         '{}.qc_fastqc/all',
         'multiqc':        'reports/{}.fastqc.html',
         'trimmomaticT32': '{}.trimmomaticT32/all',
-        'sickle':         '{}.sickle/all',
-        'sickleQ10':      '{}.sickleQ10/all',
-        'sickleL10':      '{}.sickleL10/all',
-        'sickleQ10L10':   '{}.sickleQ10L10/all',
     ],
     'metagenome': odict[
         # assembly.rules
@@ -68,7 +68,7 @@ for target_type in target_map:
     targets.update(target_map[target_type])
 
 
-def get_targets(large=True, exclude_targets=[]):
+def get_targets(large=True, exclude_targets=None):
     target_dir_pairs = (
         pytest.param(dataset, target_map[dtype][target], dataset,
                      id="-".join((dataset, target)))
@@ -76,15 +76,16 @@ def get_targets(large=True, exclude_targets=[]):
         for dataset in dataset_map[dtype]
         for target in target_map[dtype]
         if large or dataset not in dataset_map['large']
-        if target not in exclude_targets
+        if target not in ensure_list(exclude_targets)
     )
     return target_dir_pairs
 
-def parametrize_target(large=True, exclude_targets=[]):
+
+def parametrize_target(large=True, exclude_targets=None):
     return pytest.mark.parametrize(
         "project_dir,target,project",
-        get_targets(large, exclude_targets),
-        indirect=['project_dir','target'])
+        get_targets(large, ensure_list(exclude_targets)),
+        indirect=['project_dir', 'target'])
 
 
     # blast.rules

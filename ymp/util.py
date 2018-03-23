@@ -67,14 +67,14 @@ def read_propfiles(files):
 
 
 def glob_wildcards(pattern, files=None):
-    from snakemake.io import _wildcard_regex, namedtuple, regex
-    import regex as re
-
     """
     Glob the values of the wildcards by matching the given pattern to the
     filesystem.
     Returns a named tuple with a list of values for each wildcard.
     """
+    from snakemake.io import _wildcard_regex, namedtuple, regex
+    import regex as re
+
     pattern = os.path.normpath(pattern)
     first_wildcard = re.search("{[^{]", pattern)
     dirname = os.path.dirname(pattern[:first_wildcard.start(

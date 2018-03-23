@@ -9,13 +9,45 @@ directories:
     log: 'log'
     rules: 'rules'
     downloads: 'downloads'
+    dynamic_envs: &dynamic_envs '.ymp/envs'
+    conda_prefix: '~/.ymp/conda'
+    conda_archive_prefix: "~/.ymp/conda_archive"
 
-search_paths:
-  conda_env:
+conda:
+  # Location for installed conda environments:
+
+  # Search path for environment.yml files:
+  env_path:
     10: "."
-    20: "../conda_envs"
+    20: *dynamic_envs
+    30: "../conda_envs"
 
-# Default references FASTAs
+  # Parameters for generating environments:
+  defaults:
+    none:
+      channels: []
+      dependencies: []
+    bioconda:
+      channels:
+        - bioconda
+        - conda-forge
+      dependencies:
+        - zlib =1.2.11*
+        - boost =1.64*
+        - gsl =1.16*
+        - bzip2 =1.0*
+        - ncurses =5.9*
+        - htslib =1.7*
+        - xz =5.2*
+        - gmp =5.1*
+        - hdf5 =1.8.17*
+        - perl =5.22.0*
+    conda-forge:
+      channels:
+        - conda-forge
+      dependencies: []
+
+# Default references
 references:
   # Human Genomes
   hs37:
@@ -121,50 +153,57 @@ limits:
   min_mem_per_thread: 10M
 
 # Default projects (none)
-projects:
+projects: {}
+
+# Default overrides (none)
+overrides: {}
 
 # Default cluster config
 cluster:
-  profile: default
-  extra_args:                  # additional qsub arguments
+  profile:                     # add this profile (from profiles:)
   profiles:
     default:
-      config:                  # snakemake cluster-config file name (relative to project dir)
-      use_drmaa: False         # submit via drmaa
-      qsub_sync: False         # submit in sync mode
+      snake_config:            # snakemake cluster-config file name (relative to project dir)
+      drmaa: False             # submit via drmaa
+      sync: False              # submit in sync mode
       immediate: False         # submit all jobs at once
       wrapper:                 # job wrapper script
       max_jobs_per_second: 100 # max jobs submitted per second
       latency_wait: 60         # wait for NFS files to appear
-      qsub_cmd: "qsub"         # command for job submission
-      qsub_sync_arg: "-sync"   # parameter for sync mode
-      qsub_args: []            # arguments for job submission
-      max_cores: 1024          # max number of cores to use in parallel
+      # we have the standard wildcards input.x, output.x plus
+      # - dependencies
+      # - cluster.x (values from snakemake cluster config)
+      # - rule (rule name)
+      args: {}                 # arguments for job submission
+      cluster_cores: 1024      # max number of cores to use in parallel
       scriptname: "ymp.{rulename}.{jobid}.sh"
+      command:
+
+    # Dummy profile, running things locally
+    dummy:
+      command:  "sh"     # command for job submission
+      sync_arg: ""            # parameter for sync mode
+      cluster_cores: 2
+    # Profile for Torque engine
     torque:
-      qsub_args:
-        # we have the standard wildcards input.x, output.x plus
-        # - depedencies
-        # - cluster (values from custer config)
-        # - rule (rule name)
-        - "-j oe"
-        - "-N ymp.{rule}"
-        - "-o {:absdir.log:}/"
-        - "-l nodes=1:ppn={threads}"
-        - "-l walltime=23:59:59"
-        - "-l mem={params.mem}"
+      cmd:        "qsub"
+      sync_arg:   "-sync"
+      args:
+        log:      "-j oe -o {:absdir.log:}/"
+        name:     "-N ymp.{rule}"
+        threads:  "-l nodes=1:ppn={threads}"
+        walltime: "-l walltime=23:59:59"
+        memory:   "-l mem={params.mem}"
+    # Profile for SLURM engine
     slurm:
-      qsub_cmd: "sbatch"
-      qsub_sync_arg: "--wait"
-      qsub_args:
-        - "--parsable"
-        - "--cpus-per-task={threads}"
-        - "--mem={params.mem}"
-        - "--nodes=1"
-        - "--ntasks=1"
-        - "--output={:absdir.log:}/%x_%J.log"
-        - "--time=23:59:59"
-      cluster_status: "python -m ymp.cluster slurm status"
+      command:        "sbatch --parsable"
+      sync_arg:   "--wait"
+      args:
+        log:      "--output={:absdir.log:}/%x_%J.log"
+        threads:  "--cpus-per-task={threads} --nodes=1 -ntasks=1"
+        memory:   "--mem={params.mem}"
+        walltime: "--time=23:59:59"
+        cluster_status: "python -m ymp.cluster slurm status"
 
   rule_params:
     default:

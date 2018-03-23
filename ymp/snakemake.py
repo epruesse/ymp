@@ -5,14 +5,11 @@ Extends Snakemake Features
 import functools
 import logging
 import sys
-import os
 import re
 from copy import copy, deepcopy
-from pkg_resources import resource_filename
 
 from typing import Optional
 
-import networkx
 
 from snakemake.exceptions import RuleException
 from snakemake.io import AnnotatedString, apply_wildcards
@@ -27,10 +24,15 @@ from ymp.string import FormattingError, ProductFormatter, make_formatter
 
 log = logging.getLogger(__name__)
 
-if networkx.__version__[0] != "2":
-    log.fatal("Networkx version 2.* required by YMP but {} found"
-              "".format(networkx.__version__))
-    sys.exit(1)
+
+def networkx():
+    import networkx
+    if networkx.__version__[0] != "2":
+        log.fatal("Networkx version 2.* required by YMP but {} found"
+                  "".format(networkx.__version__))
+        sys.exit(1)
+    return networkx
+
 
 partial_formatter = make_formatter(partial=True, quoted=True)
 partial_format = partial_formatter.format
@@ -56,9 +58,7 @@ def print_ruleinfo(rule: Rule, ruleinfo: RuleInfo, func=log.debug):
     func(ruleinfo.func.__code__)
 
 
-def load_workflow(snakefile=None):
-    if not snakefile:
-        snakefile = resource_filename("ymp", "rules/Snakefile")
+def load_workflow(snakefile=ymp._snakefile):
     workflow = ExpandableWorkflow(snakefile=snakefile)
     workflow.include(snakefile)
     return workflow
@@ -75,7 +75,7 @@ def get_workflow():
 class CircularReferenceException(RuleException):
     """Exception raised if parameters in rule contain a circular reference"""
     def __init__(self, deps, rule, include=None, lineno=None, snakefile=None):
-        nodes = [n[0] for n in networkx.find_cycle(deps)]
+        nodes = [n[0] for n in networkx().find_cycle(deps)]
         message = "Circular reference in rule {}:\n{}".format(
             rule, " => ".join(nodes + [nodes[0]]))
         super().__init__(message=message,
@@ -393,7 +393,7 @@ class BaseExpander(object):
             updated = AnnotatedString(updated)
             try:
                 updated.flags = deepcopy(item.flags)
-            except TypeError as e:
+            except TypeError:
                 log.debug(
                     "Failed to deepcopy flags for item {} with flags{}"
                     "".format(item, item.flags)
@@ -446,7 +446,8 @@ class BaseExpander(object):
             for field in filter(self.expands_field, ruleinfo_fields):
                 attr = getattr(item, field)
                 setattr(item, field, self.expand(rule, attr,
-                                                 expand_args=expand_args, rec=rec))
+                                                 expand_args=expand_args,
+                                                 rec=rec))
         elif isinstance(item, str):
             try:
                 expand_args['rule'] = rule
@@ -459,7 +460,9 @@ class BaseExpander(object):
                 _item = item
 
                 def item(wc):
-                    return self.expand(rule, _item, expand_args={'wc': wc, 'rule': rule}, cb=True)
+                    return self.expand(rule, _item,
+                                       expand_args={'wc': wc, 'rule': rule},
+                                       cb=True)
         elif hasattr(item, '__call__'):
             # continue expansion of function later by wrapping it
             _item = item
@@ -471,7 +474,9 @@ class BaseExpander(object):
                               "".format(" "*rec*4, type(self).__name__,
                                         args, kwargs))
                 res = self.expand(rule, _item(*args, **kwargs),
-                                  expand_args={'wc': args[0]}, rec=rec, cb=True)
+                                  expand_args={'wc': args[0]},
+                                  rec=rec,
+                                  cb=True)
                 if debug:
                     log.debug("{}=> {}"
                               "".format(" "*rec*4, res))
@@ -481,19 +486,22 @@ class BaseExpander(object):
             pass
         elif isinstance(item, dict):
             for key, value in item.items():
-                _item = self.expand(rule, value, expand_args=expand_args, rec=rec)
+                _item = self.expand(rule, value, expand_args=expand_args,
+                                    rec=rec)
 
                 # Snakemake can't have functions in lists in dictionaries.
                 # Let's fix that, even if we have to jump a lot of hoops here.
-                if isinstance(item[key], list) and any(callable(x) for x in _item):
+                if isinstance(item[key], list) and \
+                   any(callable(x) for x in _item):
                     from inspect import signature
+
                     def wrapper(*args, **kwargs):
                         for i, subitem in enumerate(_item):
                             if callable(subitem):
                                 subparms = signature(subitem).parameters
                                 extra_args = {
                                     k: v
-                                    for k,v in kwargs.items()
+                                    for k, v in kwargs.items()
                                     if k in subparms
                                 }
                                 _item[i] = subitem(*args, **extra_args)
@@ -505,15 +513,18 @@ class BaseExpander(object):
                         if callable(x)
                     ])))
                     # Rewrite signature
-                    wrapper.__signature__ = signature(wrapper).replace(parameters=parms)
+                    wrapper.__signature__ = \
+                        signature(wrapper).replace(parameters=parms)
                     item[key] = wrapper
                 else:
                     item[key] = _item
         elif isinstance(item, list):
             for i, subitem in enumerate(item):
-                item[i] = self.expand(rule, subitem, expand_args=expand_args, rec=rec)
+                item[i] = self.expand(rule, subitem,
+                                      expand_args=expand_args, rec=rec)
         elif isinstance(item, tuple):
-            item = tuple(self.expand(rule, subitem, expand_args=expand_args, rec=rec)
+            item = tuple(self.expand(rule, subitem,
+                                     expand_args=expand_args, rec=rec)
                          for subitem in item)
         else:
             raise ValueError("unable to expand item '{}' with args '{}'"
@@ -654,7 +665,7 @@ class RecursiveExpander(BaseExpander):
                 args[field].append(attr)
 
         # build graph of expansion dependencies
-        deps = networkx.DiGraph()
+        deps = networkx().DiGraph()
         for field, nlist in args.items():
             for n, value in enumerate(nlist):
                 if not isinstance(value, str):  # only strings can be expanded
@@ -679,10 +690,11 @@ class RecursiveExpander(BaseExpander):
         # sort variables so that they can be expanded in order
         try:
             nodes = list(reversed([
-                node for node in networkx.algorithms.dag.topological_sort(deps)
+                node
+                for node in networkx().algorithms.dag.topological_sort(deps)
                 if deps.out_degree(node) > 0 and 'core' in deps.nodes[node]
             ]))
-        except networkx.NetworkXUnfeasible:
+        except networkx().NetworkXUnfeasible:
             raise CircularReferenceException(deps, rule)
 
         # expand variables
@@ -714,40 +726,6 @@ class RecursiveExpander(BaseExpander):
                 args[name].update_tuple(attr)
             else:
                 setattr(ruleinfo, name, args[name][0])
-
-
-class CondaPathExpander(BaseExpander):
-    """Applies search path for conda environment specifications
-
-    File names supplied via `rule: conda: "some.yml"` are replaced with
-    absolute paths if they are found in any searched directory.
-    Each `search_paths` entry is appended to the directory
-    containing the top level Snakefile and the directory checked for
-    the filename. Thereafter, the stack of including Snakefiles is traversed
-    backwards. If no file is found, the original name is returned.
-    """
-    def __init__(self, search_paths, *args, **kwargs):
-        try:
-            from snakemake.workflow import workflow
-            self._workflow = workflow
-            super().__init__(*args, **kwargs)
-        except:
-            log.debug("CondaPathExpander not registered -- needs snakemake")
-
-        self._search_paths = search_paths
-
-    def expands_field(self, field):
-        return field == 'conda_env'
-
-    def format(self, conda_env, *args, **kwargs):
-        for snakefile in reversed(self._workflow.included_stack):
-            basepath = os.path.dirname(snakefile)
-            for _, relpath in sorted(self._search_paths.items()):
-                searchpath = os.path.join(basepath, relpath)
-                abspath = os.path.abspath(os.path.join(searchpath, conda_env))
-                if os.path.exists(abspath):
-                    return abspath
-        return conda_env
 
 
 class InheritanceExpander(BaseExpander):

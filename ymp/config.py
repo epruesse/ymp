@@ -2,17 +2,14 @@ import logging
 
 import os
 import re
+import glob
 
-from pkg_resources import resource_filename
-
-import yaml
-
-from ymp.common import parse_number, update_dict, AttrDict, MkdirDict
+from ymp.common import parse_number, AttrDict, MkdirDict
+from ymp.env import CondaPathExpander
 from ymp.exceptions import YmpException
 from ymp.snakemake import \
     BaseExpander, \
     ColonExpander, \
-    CondaPathExpander, \
     DefaultExpander, \
     ExpandableWorkflow, \
     InheritanceExpander, \
@@ -20,6 +17,9 @@ from ymp.snakemake import \
 from ymp.stage import StageExpander
 from ymp.util import make_local_path, is_fq
 from ymp.references import load_references
+import ymp.yaml
+
+from collections import Mapping, Sequence
 
 log = logging.getLogger(__name__)
 
@@ -101,9 +101,9 @@ def load_data(cfg):
             else s)
         return data
 
-    if isinstance(cfg, list):
+    if isinstance(cfg, Sequence):
         return pd.concat(list(map(load_data, cfg)), ignore_index=True)
-    if isinstance(cfg, dict):
+    if isinstance(cfg, Mapping):
         # JOIN
         if 'join' in cfg:
             tables = list(map(load_data, cfg['join']))
@@ -150,7 +150,7 @@ def load_data(cfg):
                 for row in cfg['table']
                 for key, value in row.items()
             ))
-    raise YmpConfigMalformed()
+    raise YmpConfigMalformed(f"{cfg}")
 
 
 class Context(object):
@@ -613,6 +613,7 @@ class ConfigExpander(ColonExpander):
 
             return super().get_value(field_name, args, kwargs)
 
+
 class OverrideExpander(BaseExpander):
     """
     Apply rule attribute overrides from ymp.yml config
@@ -637,7 +638,6 @@ class OverrideExpander(BaseExpander):
         super().__init__()
 
     def expand(self, rule, ruleinfo, **kwargs):
-        errmsg = "Failed to apply overrides: "
         overrides = self.rule_overrides.get(rule.name, {})
         for attr_name, values in overrides.items():
             attr = getattr(ruleinfo, attr_name)[1]
@@ -652,13 +652,15 @@ class ConfigMgr(object):
     KEY_PROJECTS = 'projects'
     KEY_REFERENCES = 'references'
     CONF_FNAME = 'ymp.yml'
-    CONF_DEFAULT_FNAME = resource_filename("ymp", "/etc/defaults.yml")
+    CONF_DEFAULT_FNAME = ymp._defaults_file
     CONF_USER_FNAME = os.path.expanduser("~/.ymp/ymp.yml")
+    RULE_MAIN_FNAME = ymp._snakefile
 
     def __init__(self):
         self.clear()
 
     def clear(self):
+        self._snakefiles = None
         self._datasets = {}
         self._config = {}
         self._conffiles = []
@@ -672,7 +674,7 @@ class ConfigMgr(object):
         self.recursive_expander = RecursiveExpander()
         self.config_expander = ConfigExpander(self)
         self.conda_path_expander = \
-            CondaPathExpander(self.search_paths.conda_env)
+            CondaPathExpander(self._config.conda)
         self.override_expander = OverrideExpander(self)
         self.default_expander = \
             DefaultExpander(params=([], {'mem': self.mem()}))
@@ -709,11 +711,7 @@ class ConfigMgr(object):
 
     def load_config(self):
         """Loads ymp configuration files"""
-        for fn in self._conffiles:
-            log.debug("Loading '%s'", fn)
-            with open(fn, "r") as f:
-                conf = yaml.load(f)
-                update_dict(self._config, conf)
+        self._config = ymp.yaml.load(self._conffiles)
 
         projects = self._config.get(self.KEY_PROJECTS, {})
         if not projects:
@@ -727,7 +725,7 @@ class ConfigMgr(object):
         self._references = load_references(self, ref_cfg)
 
         if len(self._datasets) == 0:
-            log.warning("No projects found in configuration")
+            log.info("No projects found in configuration")
 
     def __len__(self):
         "Our length is the number of datasets"
@@ -743,11 +741,11 @@ class ConfigMgr(object):
 
     @property
     def pairnames(self):
-        return self._config['pairnames']
+        return self._config.pairnames
 
     @property
-    def search_paths(self):
-        return AttrDict(self._config['search_paths'])
+    def conda(self):
+        return self._config.conda
 
     @property
     def dir(self):
@@ -756,7 +754,7 @@ class ConfigMgr(object):
 
         The directory paths are relative to the YMP root workdir.
         """
-        return AttrDict(self._config['directories'])
+        return self._config.directories
 
     @property
     def absdir(self):
@@ -765,7 +763,7 @@ class ConfigMgr(object):
 
         Directories will be created on the fly as they are requested.
         """
-        return MkdirDict({name: os.path.abspath(value)
+        return MkdirDict({name: os.path.abspath(os.path.expanduser(value))
                          for name, value in self.dir.items()})
 
     @property
@@ -773,7 +771,7 @@ class ConfigMgr(object):
         """
         The YMP cluster configuration.
         """
-        return AttrDict(self._config['cluster'])
+        return self._config.cluster
 
     @property
     def ref(self):
@@ -791,7 +789,7 @@ class ConfigMgr(object):
         """
         The YMP limits configuration.
         """
-        return AttrDict(self._config['limits'])
+        return self._config.limits
 
     @property
     def allruns(self):
@@ -807,6 +805,22 @@ class ConfigMgr(object):
         """
         return "{_YMP_PRJ}"
 
+    @property
+    def snakefiles(self):
+        """
+        Snakefiles used under this config in parsing order
+        """
+        if not self._snakefiles:
+            self._snakefiles = [
+                fn
+                for dn in (os.path.dirname(self.RULE_MAIN_FNAME),
+                           self.absdir.rules)
+                for fn in sorted(glob.glob(os.path.join(dn, "**", "*.rules"),
+                                           recursive=True),
+                                 key=lambda v: v.lower())
+                if os.path.basename(fn)[0] != "."
+            ]
+        return self._snakefiles
 
     def getDatasetFromDir(self, dirname):
         try:
