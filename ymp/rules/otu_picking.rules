@@ -1,3 +1,5 @@
+from os import path
+
 rule pick_open_otus:
     """Pick open reference OTUs"""
     message:
@@ -14,7 +16,7 @@ rule pick_open_otus:
     conda:
         "qiime.yml"
     params:
-        ref_fasta = lambda wc, input: input.gg+"/rep_set/{similarity}_otus.fasta".format(**wc),
+        ref_fasta = lambda wc, input: path.join(input.gg, "rep_set/{similarity}_otus.fasta".format(**wc)),
         seqs = lambda wc, input: ','.join(input.seqs),
         seq_ids = lambda wc, input: ','.join(['.'.join(i.split('/')[-1].split('.')[:-3]) for i in input.seqs]),
         similarity = lambda wc: wc.similarity if wc.similarity else 97
