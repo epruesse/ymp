@@ -29,12 +29,12 @@ def stage():
 )
 def ls(long_opt, short_opt, stage_opt):
     """
-    List stages
+    List available stages
     """
     if long_opt and short_opt:
-        print("?")
-    from ymp.snakemake import load_workflow
-    load_workflow()
+        raise click.UsageError(
+            "Options --long and --short are mutually exclusive")
+
     from ymp.stage import Stage
     all_stages = Stage.get_stages()
     if stage_opt:
@@ -42,6 +42,9 @@ def ls(long_opt, short_opt, stage_opt):
     else:
         stages = list(all_stages.values())
     stages = sorted(list(set(stages)), key=lambda s: s.name)
+
+    if not stages:  # nothing to show
+        return
 
     name_width = max(len(x.name) for x in stages)
     for stage in stages:
@@ -62,11 +65,11 @@ def ls(long_opt, short_opt, stage_opt):
             description = ""
 
         if short_doc and not short_opt:
-            summary = short_doc
+            summary = "  " + short_doc
         else:
             summary = ""
 
-        print("{name:<{width}}  {summary} {description}"
+        print("{name:<{width}}{summary}{description}"
               "".format(name=stage.name,
                         width=name_width,
                         summary=summary,
