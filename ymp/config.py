@@ -1,12 +1,14 @@
+import glob
 import logging
-
 import os
 import re
-import glob
+from collections import Mapping, Sequence
 
-from ymp.common import parse_number, AttrDict, MkdirDict
+import ymp.yaml
+from ymp.common import AttrDict, MkdirDict, parse_number
 from ymp.env import CondaPathExpander
 from ymp.exceptions import YmpException
+from ymp.references import load_references
 from ymp.snakemake import \
     BaseExpander, \
     ColonExpander, \
@@ -15,11 +17,8 @@ from ymp.snakemake import \
     InheritanceExpander, \
     RecursiveExpander
 from ymp.stage import StageExpander
-from ymp.util import make_local_path, is_fq
-from ymp.references import load_references
-import ymp.yaml
+from ymp.util import is_fq, make_local_path
 
-from collections import Mapping, Sequence
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -647,6 +646,9 @@ class OverrideExpander(BaseExpander):
                 attr[val_name] = value
 
 
+icfg = None
+
+
 class ConfigMgr(object):
     """Interface to configuration. Singleton as "icfg" """
     KEY_PROJECTS = 'projects'
@@ -656,76 +658,81 @@ class ConfigMgr(object):
     CONF_USER_FNAME = os.path.expanduser("~/.ymp/ymp.yml")
     RULE_MAIN_FNAME = ymp._snakefile
 
-    def __init__(self):
-        self.clear()
-
-    def clear(self):
-        self._snakefiles = None
-        self._datasets = {}
-        self._config = {}
-        self._conffiles = []
-        ExpandableWorkflow.clear()
-
-    def init(self):
-        self.clear()
-        ExpandableWorkflow.activate()
-        self.find_config()
-        self.load_config()
-        self.recursive_expander = RecursiveExpander()
-        self.config_expander = ConfigExpander(self)
-        self.conda_path_expander = \
-            CondaPathExpander(self._config.conda)
-        self.override_expander = OverrideExpander(self)
-        self.default_expander = \
-            DefaultExpander(params=([], {'mem': self.mem()}))
-        self.inheritance_expander = InheritanceExpander()
-        self.stage_expander = StageExpander()
-
-    def find_config(self):
+    @classmethod
+    def find_config(cls):
         """Locates ymp config files and sets ymp root"""
         # always include defaults
-        self._conffiles += [self.CONF_DEFAULT_FNAME]
+        conffiles = [cls.CONF_DEFAULT_FNAME]
 
         # include user config if present
-        if os.path.exists(self.CONF_USER_FNAME):
-            self._conffiles += [self.CONF_USER_FNAME]
+        if os.path.exists(cls.CONF_USER_FNAME):
+            conffiles.append(cls.CONF_USER_FNAME)
 
         # try to find an ymp.yml in CWD and upwards
-        filename = self.CONF_FNAME
-        log.debug("Trying to find '%s'", filename)
+        filename = cls.CONF_FNAME
+        log.debug("Locating '%s'", filename)
         curpath = os.path.abspath(os.getcwd())
-        log.debug("Checking '%s'", curpath)
         while not os.path.exists(os.path.join(curpath, filename)):
+            log.debug("  not in '%s'", curpath)
             curpath, removed = os.path.split(curpath)
-            log.debug("No; trying '%s'", curpath)
-            if removed == "":
-                self._root = os.path.abspath(os.getcwd())
-                return
-        log.debug("Found '%s' in '%s'", filename, curpath)
-        self._root = curpath
-        self._conffiles += [os.path.join(self._root, self.CONF_FNAME)]
+            if not removed:
+                break
+        if os.path.exists(os.path.join(curpath, filename)):
+            root = curpath
+            log.debug("  Found '%s' in '%s'", filename, curpath)
+            conffiles.append(os.path.join(root, cls.CONF_FNAME))
+        else:
+            root = os.path.abspath(os.getcwd())
+            log.debug("  No '%s' found; using %s as root", filename, root)
+
+        return root, conffiles
+
+    @classmethod
+    def init(cls, force=False):
+        global icfg
+        root, conffiles = cls.find_config()
+        if force or (icfg is None or icfg.root != root or
+                     icfg.conffiles != conffiles or
+                     icfg._workflow is None):
+            if force:
+                ExpandableWorkflow.clear()
+            icfg = cls(root, conffiles)
+
+    def __init__(self, root, conffiles):
+        log.debug("Inizializing ICFG")
+        self._root = root
+        self._conffiles = conffiles
+        self._config = ymp.yaml.load(self._conffiles)
+        self._snakefiles = None
+
+        projects = self._config.get(self.KEY_PROJECTS) or {}
+        self._datasets = {
+            project:  DatasetConfig(self, project, cfg)
+            for project, cfg in projects.items()
+        }
+        if len(self._datasets) == 0:
+            log.info("No projects found in configuration")
+
+        ref_cfg = self._config.get(self.KEY_REFERENCES) or {}
+        self._references = load_references(self, ref_cfg)
+
+        self._workflow = ExpandableWorkflow.register_expanders(
+            RecursiveExpander(),
+            ConfigExpander(self),
+            CondaPathExpander(self),
+            OverrideExpander(self),
+            DefaultExpander(params=([], {'mem': self.mem()})),
+            InheritanceExpander(),
+            StageExpander()
+        )
 
     @property
     def root(self):
         return self._root
 
-    def load_config(self):
-        """Loads ymp configuration files"""
-        self._config = ymp.yaml.load(self._conffiles)
-
-        projects = self._config.get(self.KEY_PROJECTS, {})
-        if not projects:
-            projects = {}
-        self._datasets = {
-            project:  DatasetConfig(self, project, cfg)
-            for project, cfg in projects.items()
-        }
-
-        ref_cfg = self._config.get(self.KEY_REFERENCES)
-        self._references = load_references(self, ref_cfg)
-
-        if len(self._datasets) == 0:
-            log.info("No projects found in configuration")
+    @property
+    def conffiles(self):
+        return self._conffiles
 
     def __len__(self):
         "Our length is the number of datasets"
@@ -827,10 +834,12 @@ class ConfigMgr(object):
             ds = dirname.split(".", 1)[0]
             return self._datasets[ds]
         except KeyError:
-            raise KeyError("no dataset found matching '{}'".format(dirname))
+            import pdb; pdb.set_trace()
+            raise KeyError("no datasetx found matching '{}'".format(dirname))
 
     def expand(self, item, **kwargs):
-        res = self.config_expander.expand(None, item, kwargs)
+        expander = ConfigExpander(self)
+        res = expander.expand(None, item, kwargs)
         return res
 
     def getRuns(self, datasets=None):
@@ -867,5 +876,4 @@ class ConfigMgr(object):
         return int(mem / div)
 
 
-icfg = ConfigMgr()
-icfg.init()
+ConfigMgr.init()
