@@ -3,7 +3,9 @@ BMTagger Rules
 
 """
 
-Env.new("bmtagger", base="bioconda", packages="bmtagger")
+Env(name="bmtagger",
+    base="bioconda",
+    packages="bmtagger")
 
 rule bmtagger_bitmask:
     "Build BMTagger bitmask index"
