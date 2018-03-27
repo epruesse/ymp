@@ -85,6 +85,11 @@ def prepare(**kwargs):
 
 
 def get_envs(envnames):
+    """Get environments matching glob pattern
+
+    Args:
+      envnames: list of strings to match
+    """
     from ymp.env import Env
     envs = Env.get_envs()
     if envnames:
@@ -118,13 +123,37 @@ def update(envnames):
 @env.command()
 @click.argument("ENVNAMES", nargs=-1)
 def remove(envnames):
-    "Update conda environments"
+    "Remove conda environments"
     envs = get_envs(envnames)
     log.warning(f"Removing {len(envs)} environments.")
     for env in get_envs(envnames):
         if os.path.exists(env.path):
             log.warning("Removing %s (%s)", env.name, env.path)
             shutil.rmtree(env.path)
+
+
+@env.command()
+@click.option("--dest", "-d", type=click.Path(), default=".",
+              help="Destination file or directory")
+@click.option("--overwrite", "-f", is_flag=True, default=False,
+              help="Overwrite existing files")
+@click.option("--create", "-c", is_flag=True, default=False,
+              help="Create environments not yet installed")
+@click.argument("ENVNAMES", nargs=-1)
+def export(envnames, dest, overwrite, create):
+    "Export conda environments"
+    envs = get_envs(envnames)
+    log.warning(f"Exporting {len(envs)} environments.")
+    if not envs:
+        return 1
+    if os.path.isdir(dest):
+        for env in get_envs(envnames):
+            env.export(fn, create, overwrite)
+    else:
+        if len(envs) > 1:
+            log.error("Cannot export multiple environments to one file")
+            return 1
+        env[0].export(fn, create, overwrite)
 
 
 @env.command()
