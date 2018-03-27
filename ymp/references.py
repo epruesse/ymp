@@ -6,7 +6,7 @@ from hashlib import sha1
 from ymp.util import make_local_path
 from ymp.snakemake import make_rule
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 class Archive(object):

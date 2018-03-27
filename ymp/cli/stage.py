@@ -5,8 +5,7 @@ import click
 
 from ymp.cli.shared_options import group
 
-log = logging.getLogger(__name__)
-
+log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 @group()

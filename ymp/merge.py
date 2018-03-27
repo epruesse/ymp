@@ -3,7 +3,7 @@ import pandas
 import os, sys
 import logging
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 def merge_alternative_implementation(out, files):

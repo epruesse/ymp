@@ -22,7 +22,7 @@ from ymp.common import flatten, is_container
 from ymp.string import FormattingError, ProductFormatter, make_formatter
 
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 def networkx():

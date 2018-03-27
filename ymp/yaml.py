@@ -7,7 +7,7 @@ from collections.abc import (
 from ruamel.yaml import YAML, RoundTripRepresenter
 import ruamel.yaml
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 class MixedTypeError(Exception):

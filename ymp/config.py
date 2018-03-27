@@ -21,7 +21,7 @@ import ymp.yaml
 
 from collections import Mapping, Sequence
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 class YmpConfigError(YmpException):

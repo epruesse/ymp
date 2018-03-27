@@ -11,7 +11,7 @@ import ymp
 from ymp.cli.make import snake_params, start_snakemake
 from ymp.cli.shared_options import group
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 ENV_COLUMNS = ('name', 'hash', 'path', 'installed')
 

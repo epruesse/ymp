@@ -4,7 +4,7 @@ import sys
 
 import click
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 context_settings = {
     'help_option_names': ['-h', '--help']

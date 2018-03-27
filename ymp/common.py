@@ -5,7 +5,7 @@ import shelve
 import atexit
 import os
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 class OrderedDictMaker(object):

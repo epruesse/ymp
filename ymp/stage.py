@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from typing import List
     from snakemake.rules import Rule
 
-log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 class YmpStageError(YmpException):

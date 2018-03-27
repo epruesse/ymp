@@ -4,7 +4,8 @@ import os
 import click
 import pytest
 
-log = logging.getLogger(__name__)
+
+log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 def test_submit_no_profile(invoker):
