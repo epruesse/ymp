@@ -8,7 +8,6 @@ with Stage("trim_sickle", env="sickle") as S:
     Perform read trimming using Sickle
     """)
 
-    ymp.print_rule = 1
     rule sickle:
         message:
             "Trimming with Sickle: {wildcards.sample} "
