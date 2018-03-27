@@ -8,12 +8,30 @@ import click
 from click import echo
 
 import ymp
+from ymp.common import ensure_list
 from ymp.cli.make import snake_params, start_snakemake
 from ymp.cli.shared_options import group
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 ENV_COLUMNS = ('name', 'hash', 'path', 'installed')
+
+
+def get_envs(patterns=None):
+    """Get environments matching glob pattern
+
+    Args:
+      envnames: list of strings to match
+    """
+    from ymp.env import Env
+    envs = Env.get_envs()
+    if patterns:
+        envs = {env: envs[env] for env in envs
+                if any(fnmatch(env, pat)
+                       for pat in ensure_list(patterns))}
+    else:
+        envs = envs
+    return envs
 
 
 @group()
@@ -51,17 +69,20 @@ def env():
     "--reverse", "-r", is_flag=True,
     help="Reverse sort order"
 )
-def ls(param_all, static, dynamic, sort_col, reverse):
+@click.argument("ENVNAMES", nargs=-1)
+def ls(param_all, static, dynamic, sort_col, reverse, envnames):
     """List conda environments"""
-    from ymp.env import Env
+    envs = get_envs(envnames)
 
-    envs = Env.get_envs(static=static, dynamic=dynamic)
-
-    table_content = sorted(({key: str(getattr(env, key))
-                             for key in ENV_COLUMNS}
-                            for env in envs),
-                           key=lambda row: row[sort_col].upper(),
-                           reverse=reverse)
+    table_content = [
+        {
+            key: str(getattr(env, key))
+            for key in ENV_COLUMNS
+        }
+        for env in envs.values()
+    ]
+    table_content.sort(key=lambda row: row[sort_col].upper(),
+                       reverse=reverse)
 
     table_header = [{col: col for col in ENV_COLUMNS}]
     table = table_header + table_content
@@ -84,29 +105,14 @@ def prepare(**kwargs):
         sys.exit(1)
 
 
-def get_envs(envnames):
-    """Get environments matching glob pattern
-
-    Args:
-      envnames: list of strings to match
-    """
-    from ymp.env import Env
-    envs = Env.get_envs()
-    if envnames:
-        envs = [env for env in envs
-                if any(fnmatch(env.name, pat) for pat in envnames)]
-    else:
-        envs = list(envs)
-    return envs
-
-
 @env.command()
 @click.argument("ENVNAMES", nargs=-1)
 def install(envnames):
     "Install conda software environments"
     envs = get_envs(envnames)
     log.warning(f"Creating {len(envs)} environments.")
-    for env in envs:
+    for env in envs.values():
+        log.error(env)
         env.create()
 
 
@@ -116,7 +122,7 @@ def update(envnames):
     "Update conda environments"
     envs = get_envs(envnames)
     log.warning(f"Updating {len(envs)} environments.")
-    for env in get_envs(envnames):
+    for env in get_envs(envnames).values():
         env.update()
 
 
@@ -126,7 +132,7 @@ def remove(envnames):
     "Remove conda environments"
     envs = get_envs(envnames)
     log.warning(f"Removing {len(envs)} environments.")
-    for env in get_envs(envnames):
+    for env in get_envs(envnames).values():
         if os.path.exists(env.path):
             log.warning("Removing %s (%s)", env.name, env.path)
             shutil.rmtree(env.path)
@@ -147,7 +153,7 @@ def export(envnames, dest, overwrite, create):
     if not envs:
         return 1
     if os.path.isdir(dest):
-        for env in get_envs(envnames):
+        for env in get_envs(envnames).values():
             env.export(fn, create, overwrite)
     else:
         if len(envs) > 1:
@@ -159,6 +165,7 @@ def export(envnames, dest, overwrite, create):
 @env.command()
 @click.option("--all", "-a", "param_all", is_flag=True,
               help="Delete all environments")
+@click.argument("ENVNAMES", nargs=-1)
 def clean(param_all):
     "Remove unused conda environments"
     if param_all:  # remove up-to-date environments
@@ -182,16 +189,22 @@ def activate(envname):
     Usage:
     $(ymp activate env [ENVNAME])
     """
-    if envname not in ymp.env.by_name:
+    envs = get_envs(envname)
+    if not envs:
         log.critical("Environment '%s' unknown", envname)
         exit(1)
 
-    env = ymp.env.by_name[envname]
+    if len(envs) > 1:
+        log.critical("Multiple environments match '%s': %s",
+                     envname, envs.keys())
+        exit(1)
+
+    env = next(iter(envs.values()))
     if not os.path.exists(env.path):
         log.warning("Environment not yet installed")
         env.create()
 
-    print("source activate {}".format(ymp.env.by_name[envname].path))
+    print("source activate {}".format(env.path))
 
 
 @env.command()
