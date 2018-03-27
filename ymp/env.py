@@ -170,6 +170,28 @@ class Env(snakemake.conda.Env, metaclass=MetaEnv):
             "".format(self.path, " ".join(command)),
             shell=True).returncode
 
+    def export(self, dest, create=True, overwrite=False):
+        """Freeze environment"""
+        if os.path.exists(dest) and not overwrite:
+            raise YmpEnvError("Cannot export environment '%s' to '%s': "
+                              "file exists", self.name, dest)
+        if not self.installed:
+            if create:
+                self.create()
+            else:
+                raise YmpEnvError("Cannot export environment '%s': "
+                                  "not installed")
+        log.warning("Exporting environment '%s'", self.name)
+        log.debug("Exporting to file '%s'", dest)
+        res = subprocess.run([
+            "conda", "env", "export",
+            "-p", self.path,
+            "-f", dest
+        ])
+        if res.returncode != 0:
+            raise YmpEnvError("Failed to export environment {}"
+                              "".format(self.name))
+
     def __lt__(self, other):
         "Comparator for sorting"
         return self.name < other.name
