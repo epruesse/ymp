@@ -192,6 +192,11 @@ def target(request, project_dir):
 # =============
 
 class Invoker(object):
+    """Wrap invoking shell command
+
+    Handles writing of out.log and cmd.sh as well as reloading ymp config
+    on each call.
+    """
     def __init__(self):
         from click.testing import CliRunner
         self.runner = CliRunner()
@@ -199,8 +204,18 @@ class Invoker(object):
         self.main = main
 
     def call(self, *args, **kwargs):
+        """Call into YMP CLI
+
+        ``standalone_mode`` is set to False so that exceptions are passed rather
+        than caught.
+        """
         from ymp.config import icfg
         icfg.init()
+        with open("cmd.sh", "w") as f:
+            f.write("".join([
+                "#!/bin/bash -x\n",
+                "ymp " + " ".join(args) + "\n"
+            ]))
         result = self.runner.invoke(self.main, args, **kwargs,
                                     standalone_mode=False)
         with open("out.log", "w") as f:
@@ -217,4 +232,3 @@ def invoker(saved_cwd):
     os.environ['CIRCLECI'] = "true"
 
     return Invoker()
-
