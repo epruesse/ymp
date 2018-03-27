@@ -183,9 +183,9 @@ def project_dir(request, project, saved_tmpdir):
 def target(request, project_dir):
     with project_dir.as_cwd():
         log.info("Switched to directory {}".format(project_dir))
-        from ymp.config import icfg
-        icfg.init()
-        targets = [request.param.format(ds) for ds in icfg]
+        import ymp.config as c
+        c.icfg.init(force=True)
+        targets = [request.param.format(ds) for ds in c.icfg]
         with open("target.txt", "w") as out:
             out.write("\n".join(targets))
         yield from targets
@@ -206,21 +206,22 @@ class Invoker(object):
         from ymp.cli import main
         self.main = main
 
-    def call(self, *args, **kwargs):
+    def call(self, *args, standalone_mode=False, **kwargs):
         """Call into YMP CLI
 
-        ``standalone_mode`` is set to False so that exceptions are passed rather
-        than caught.
+        ``standalone_mode`` defaults to False so that exceptions are
+        passed rather than caught.
+
         """
         from ymp.config import icfg
-        icfg.init()
+        icfg.init(force=True)
         with open("cmd.sh", "w") as f:
             f.write("".join([
                 "#!/bin/bash -x\n",
                 "ymp " + " ".join(args) + "\n"
             ]))
         result = self.runner.invoke(self.main, args, **kwargs,
-                                    standalone_mode=False)
+                                    standalone_mode=standalone_mode)
         with open("out.log", "w") as f:
             f.write(result.output)
         if result.exception:
