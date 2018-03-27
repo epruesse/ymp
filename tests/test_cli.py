@@ -57,6 +57,19 @@ def test_stage_list(invoker):
     res = invoker.call("stage", "list")
     assert "\ncheck " in res.output
 
+    with pytest.raises(click.UsageError):
+        res = invoker.call("stage", "list", "-s", "-l")
+
+    res = invoker.call("stage", "list", "does_not_exist")
+    assert res.output == ""
+
+    res = invoker.call("stage", "list", "ch?ck", "-s")
+    assert res.output == "check\n"
+
+    res = invoker.call("stage", "list", "ch?ck", "-l")
+    assert res.output.startswith("check")
+    assert res.output.count("\n") > 3
+
 
 def test_func_get_envs():
     "Test env cli helper function get_envs"
