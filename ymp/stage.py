@@ -103,7 +103,12 @@ class Stage(object):
 
         stages = Stage.get_stages()
         if name in stages:
-            raise YmpStageError(self, "Duplicate stage name")
+            raise YmpStageError(
+                self,
+                f"Duplicate stage name {name} \n"
+                f"    in line {self.lineno} of {self.filename}\n"
+                f"    previous definition was in line {stages[name].lineno} of {stages[name].filename}"
+            )
         else:
             stages[name] = self
             if altname:
