@@ -9,13 +9,13 @@ log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 def test_submit_no_profile(invoker):
-    # this should raise a UsageError
+    "Running submit without profile should raise UsageError"
     with pytest.raises(click.UsageError):
         invoker.call("submit")
 
 
 def test_submit_profiles(invoker):
-    # try all profiles, but override the cmd to echo
+    "try all profiles, but override the cmd to echo"
     from ymp.config import icfg
     for profile_name, profile in icfg.cluster.profiles.items():
         if not profile.get('command'):
@@ -37,6 +37,7 @@ def test_submit_profiles(invoker):
 
 
 def test_show(invoker, saved_tmpdir):
+    "Test parts of show"
     invoker.call("show")
     res = invoker.call("show", "pairnames")
     assert res.output.strip() == '- R1\n- R2'
@@ -52,11 +53,18 @@ def test_show(invoker, saved_tmpdir):
 
 
 def test_stage_list(invoker):
+    "List all stages"
     res = invoker.call("stage", "list")
     assert "\ncheck " in res.output
 
 
 def test_env_list(invoker):
+    """Test listing environments
+
+    - w/o args
+    - reverse sorted
+    - sorted by hash
+    """
     res = invoker.call("env", "list")
     lines = res.output.splitlines()
     assert len(lines) > 2
@@ -81,6 +89,7 @@ def test_env_list(invoker):
 
 
 def test_env_prepare(invoker, project_dir, mock_conda):
+    """Test passing through to snakemake prepare"""
     res = invoker.call("env", "prepare",
                        "--conda-prefix=.",
                        "toy.trim_bbmap/all")
@@ -88,6 +97,7 @@ def test_env_prepare(invoker, project_dir, mock_conda):
 
 
 def test_env_install(invoker, project_dir, mock_conda):
+    """Test installing environments"""
     with open("ymp.yml", "a") as f:
         f.write("directories:\n conda_prefix: '.'")
 
@@ -121,6 +131,7 @@ def test_env_install(invoker, project_dir, mock_conda):
 
 
 def test_env_update(invoker, project_dir, mock_conda):
+    """Test updating environments"""
     with open("ymp.yml", "a") as f:
         f.write("directories:\n conda_prefix: '.'")
     # basic
@@ -134,11 +145,13 @@ def test_env_update(invoker, project_dir, mock_conda):
 
 
 def test_env_clean(invoker, project_dir, mock_conda):
+    """Test cleaning environments"""
     with open("ymp.yml", "a") as f:
         f.write("directories:\n conda_prefix: '.'")
 
 
 def test_env_activate(invoker, project_dir, mock_conda):
+    """Test activating an environment"""
     with open("ymp.yml", "a") as f:
         f.write("directories:\n conda_prefix: '.'")
     res = invoker.call("env", "activate", "bbmap")
