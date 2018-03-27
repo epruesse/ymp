@@ -22,31 +22,18 @@ import pytest
 log = logging.getLogger(__name__)
 
 
-def ymp_make(args):
-    from click.testing import CliRunner
-    from ymp.cli import make
-    runner = CliRunner()
-    result = runner.invoke(make, args)
-    return result
+@pytest.mark.parametrize("project", ["snakemake_circle"], indirect=True)
+def test_snakemake_failure(project_dir, invoker):
+    "These are expected to fail"
+    with pytest.raises(SystemExit):
+        res = invoker.call("make", "test", standalone_mode=True)
+        assert res.exit_code == 1
+        assert "CircularReferenceException" in res.output
 
 
-@pytest.mark.parametrize("project", [("snakemake_circle")], indirect=True)
-def test_snakemake_circle(project_dir):
-    with project_dir.as_cwd():
-        result = ymp_make(["test"])
-        assert result.exit_code == 1
-        assert "CircularReferenceException" in result.output
-
-
-@pytest.mark.parametrize("project", [("snakemake_plain")], indirect=True)
-def test_snakemake_plain(project_dir):
-    with project_dir.as_cwd():
-        result = ymp_make(["test"])
-        assert result.exit_code == 0
-
-
-@pytest.mark.parametrize("project", [("snakemake_function")], indirect=True)
-def test_snakemake_function(project_dir):
-    with project_dir.as_cwd():
-        result = ymp_make(["test"])
-        assert result.exit_code == 0
+@pytest.mark.parametrize("project", ["snakemake_plain", "snakemake_function"],
+                         indirect=True)
+def test_snakemake(project_dir, invoker):
+    "These should work"
+    res = invoker.call("make", "test")
+    assert res.exit_code == 0

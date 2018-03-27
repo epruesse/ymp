@@ -132,7 +132,7 @@ def test_env_install(invoker, project_dir, mock_conda):
     assert len(mock_conda.calls) == 1
 
     # remove bbmap env
-    res = invoker.call("env", "clean", "bbmap")
+    res = invoker.call("env", "remove", "bbmap")
 
     # multiple, globbing
     res = invoker.call("env", "install", "bb?ap", "bbma*")
