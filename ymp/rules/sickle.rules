@@ -1,10 +1,14 @@
-Env.new("sickle", base="bioconda", packages="sickle-trim")
+Env(name="sickle",
+    base="bioconda",
+    packages="sickle-trim")
+
 
 with Stage("trim_sickle", env="sickle") as S:
     S.doc("""
     Perform read trimming using Sickle
     """)
 
+    ymp.print_rule = 1
     rule sickle:
         message:
             "Trimming with Sickle: {wildcards.sample} "

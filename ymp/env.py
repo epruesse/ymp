@@ -6,15 +6,13 @@ import logging
 import os
 import os.path as op
 import subprocess
-from glob import glob
-from typing import Union, Optional, Dict
+from typing import Optional, Union
 
 import snakemake
 
-import ymp
-from ymp.common import ensure_list
-from ymp.snakemake import BaseExpander
+from ymp.common import AttrDict, ensure_list
 from ymp.exceptions import YmpException
+from ymp.snakemake import BaseExpander, get_workflow
 
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -24,78 +22,7 @@ class YmpEnvError(YmpException):
     """Failure in env"""
 
 
-class MetaEnv(type):
-    """Metaclass containing class methods and properties for `Env`
-
-    The metaclass is separated out primarily to allow class property
-    methods.
-    """
-    _CFG = None
-    _ICFG = None
-    _ENVS: Dict[str, str] = {}
-    _STATIC_ENVS = None
-
-    @property
-    def icfg(cls):
-        from ymp.config import icfg
-        return icfg
-
-    @property
-    def cfg(cls):
-        """Conda section of config (autloaded)
-
-        Also performs tilde expansion on paths.
-        """
-        return cls.icfg.conda
-
-    def new(cls, name: str, packages: Union[list, str], base: str="none",
-            channels: Optional[Union[list, str]]=None):
-        """Creates an inline defined conda environment
-
-        Args:
-          name: Name of conda environment (and basename of file)
-          packages: package(s) to be installed into environment. Version
-            constraints can be specified in each package string separated from
-            the package name by whitespace. E.g. ``"blast =2.6*"``
-          channels: channel(s) to be selected for the environment
-          base: Select a set of default channels and packages to be added to
-            the newly created environment. Sets are defined in conda.defaults
-            in ``yml.yml``
-        """
-
-        with cls.cfg.defaults[base] as defaults:
-            defaults.dependencies.extend(ensure_list(packages))
-            defaults.channels.extend(ensure_list(channels))
-            contents = f"name: {name}\n{defaults}"
-            fname = op.join(cls.icfg.absdir.dynamic_envs,
-                            f"{name}.yml")
-            with open(fname, "w") as envf:
-                envf.write(contents)
-                cls._ENVS[name] = fname
-
-    def get_installed_env_hashes(cls):
-        return [
-            dentry.name
-            for dentry in os.scandir(cls.icfg.absdir.conda_prefix)
-            if dentry.is_dir()
-        ]
-
-    def _get_builtin_static_envs(cls):
-        for fname in glob(op.join(ymp._rule_dir, "*.yml")):
-            yield Env(fname)
-
-    def _get_dynamic_envs(cls):
-        for fname in cls._ENVS.values():
-            yield Env(fname)
-
-    def get_envs(cls, static=True, dynamic=True):
-        if static:
-            yield from cls._get_builtin_static_envs()
-        if dynamic:
-            yield from cls._get_dynamic_envs()
-
-
-class Env(snakemake.conda.Env, metaclass=MetaEnv):
+class Env(snakemake.conda.Env):
     """Represents YMP conda environment
 
     Snakemake expects the conda environments in a per-workflow
@@ -120,21 +47,89 @@ class Env(snakemake.conda.Env, metaclass=MetaEnv):
 
     """
 
-    def __init__(self, env_file):
-        # We initialize ourselves, rather than referring to super(),
-        # because we lack a snakemake persistance dag object required
-        # by snakemake.conda.Env to initialize _env_dir and _env_archive_dir
+    @staticmethod
+    def get_envs():
+        """
+        Return all stages
+        """
+        workflow = get_workflow()
+        if not hasattr(workflow, "ymp_envs"):
+            workflow.ymp_envs = AttrDict()
+        return workflow.ymp_envs
 
-        self.file = env_file
-        self.name, _ = op.splitext(op.basename(env_file))
-        self._env_dir = Env.icfg.absdir.conda_prefix
-        self._env_archive_dir = Env.icfg.absdir.conda_archive_prefix
-        self._hash = None
-        self._content_hash = None
-        self._content = None
-        self._path = None
-        self._archive_file = None
-        self._singularity_img = None
+    @staticmethod
+    def get_installed_env_hashes():
+        from ymp.config import icfg
+        return [
+            dentry.name
+            for dentry in os.scandir(icfg.absdir.conda_prefix)
+            if dentry.is_dir()
+        ]
+
+    def __init__(self, env_file: Optional[str] = None,
+                 name: Optional[str] = None,
+                 packages: Optional[Union[list, str]] = None,
+                 base: str = "none",
+                 channels: Optional[Union[list, str]] = None) -> None:
+        """Creates an inline defined conda environment
+
+        Args:
+          name: Name of conda environment (and basename of file)
+          packages: package(s) to be installed into environment. Version
+            constraints can be specified in each package string separated from
+            the package name by whitespace. E.g. ``"blast =2.6*"``
+          channels: channel(s) to be selected for the environment
+          base: Select a set of default channels and packages to be added to
+            the newly created environment. Sets are defined in conda.defaults
+            in ``yml.yml``
+        """
+        from ymp.config import icfg
+
+        # must have either name or env_file:
+        if (name and env_file) or not (name or env_file):
+            raise YmpEnvError("Env must have exactly one of `name` and `file`")
+
+        if name:
+            self.name = name
+        else:
+            self.name, _ = op.splitext(op.basename(env_file))
+
+        envs = Env.get_envs()
+        if name in envs:
+            raise YmpEnvError(
+                f"Environment name conflict. Refusing to create {self!r} "
+                f"as {envs[name]!r} already exists")
+
+        if env_file:
+            self.dynamic = False
+        else:
+            self.dynamic = True
+
+            env_file = op.join(icfg.absdir.dynamic_envs, f"{name}.yml")
+            with icfg.conda.defaults[base] as defaults:
+                defaults.dependencies.extend(ensure_list(packages))
+                defaults.channels.extend(ensure_list(channels))
+                contents = f"name: {name}\n{defaults}"
+            disk_contents = ""
+            if op.exists(env_file):
+                with open(env_file, "r") as inf:
+                    disk_contents = inf.read()
+            if contents != disk_contents:
+                with open(env_file, "w") as out:
+                    out.write(contents)
+
+        pseudo_dag = AttrDict({
+            'workflow': {
+                'persistence': {
+                    'conda_env_path': icfg.absdir.conda_prefix,
+                    'conda_env_archive_path': icfg.absdir.conda_archive_prefix
+                }
+            }
+        })
+
+        super().__init__(env_file, pseudo_dag)
+
+        envs[self.name] = self
 
     def create(self):
         """Create conda environment""
@@ -142,6 +137,7 @@ class Env(snakemake.conda.Env, metaclass=MetaEnv):
         Inherits from snakemake.conda.Env.create
         """
         log.warning("Creating environment '%s'", self.name)
+        log.warning("Target dir is '%s'", self.path)
         return super().create()
 
     @property
@@ -173,14 +169,16 @@ class Env(snakemake.conda.Env, metaclass=MetaEnv):
     def export(self, dest, create=True, overwrite=False):
         """Freeze environment"""
         if os.path.exists(dest) and not overwrite:
-            raise YmpEnvError("Cannot export environment '%s' to '%s': "
-                              "file exists", self.name, dest)
+            raise YmpEnvError(
+                f"Cannot export environment '{self.name}' to '{dest}': "
+                f"file exists")
         if not self.installed:
             if create:
                 self.create()
             else:
-                raise YmpEnvError("Cannot export environment '%s': "
-                                  "not installed")
+                raise YmpEnvError(
+                    f"Cannot export environment '{self.name}': "
+                    f"not installed")
         log.warning("Exporting environment '%s'", self.name)
         log.debug("Exporting to file '%s'", dest)
         res = subprocess.run([
@@ -189,12 +187,14 @@ class Env(snakemake.conda.Env, metaclass=MetaEnv):
             "-f", dest
         ])
         if res.returncode != 0:
-            raise YmpEnvError("Failed to export environment {}"
-                              "".format(self.name))
+            raise YmpEnvError(f"Failed to export environment {self.name}")
 
     def __lt__(self, other):
         "Comparator for sorting"
         return self.name < other.name
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.__dict__!r})"
 
 
 class CondaPathExpander(BaseExpander):
@@ -215,20 +215,25 @@ class CondaPathExpander(BaseExpander):
         except ImportError:
             log.debug("CondaPathExpander not registered -- needs workflow")
 
-        self._search_paths = Env.cfg.env_path
+        self._search_paths = config.conda.env_path
+        self._envs = None
 
     def expands_field(self, field):
         return field == 'conda_env'
 
     def format(self, conda_env, *args, **kwargs):
+        if not self._envs:
+            self._envs = Env.get_envs()
+        if conda_env in self._envs:
+            return self._envs[conda_env].file
         for snakefile in reversed(self._workflow.included_stack):
             basepath = op.dirname(snakefile)
             for _, relpath in sorted(self._search_paths.items()):
                 searchpath = op.join(basepath, relpath)
                 abspath = op.abspath(op.join(searchpath, conda_env))
                 for ext in "", ".yml", ".yaml":
-                    if op.exists(abspath+ext):
-                        return abspath+ext
+                    env_file = abspath+ext
+                    if op.exists(env_file):
+                        Env(env_file)
+                        return env_file
         return conda_env
-
-
