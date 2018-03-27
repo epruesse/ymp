@@ -69,6 +69,8 @@ def get_workflow():
     if workflow is None:
         ExpandableWorkflow.activate()
         workflow = ExpandableWorkflow.global_workflow
+        if workflow is None:
+            workflow = load_workflow()
     return workflow
 
 
