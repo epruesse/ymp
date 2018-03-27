@@ -58,6 +58,25 @@ def test_stage_list(invoker):
     assert "\ncheck " in res.output
 
 
+def test_func_get_envs():
+    "Test env cli helper function get_envs"
+    from ymp.cli.env import get_envs
+
+    envs = get_envs()
+    log.debug("envs found: %s", envs)
+    assert 'bbmap' in envs
+    assert 'bmtagger' in envs
+
+    envs = get_envs('bbmap')
+    assert len(envs) == 1
+
+    envs = get_envs(['bbmap', 'bmtagger'])
+    assert len(envs) == 2
+
+    envs = get_envs(['bb?ap', 'bmtagger*'])
+    assert len(envs) == 2
+
+
 def test_env_list(invoker):
     """Test listing environments
 
