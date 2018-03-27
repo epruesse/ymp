@@ -153,6 +153,9 @@ class Stage(object):
             return "|".join((self.name, self.altname))
         return self.name
 
+    def __repr__(self):
+        return f"{self.__class__.__name__} ({self.filename}:{self.lineno})"
+
     def _add_rule(self, rule):
         rule.ymp_stage = self
         self.rules.append(rule)
