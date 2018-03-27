@@ -4,12 +4,10 @@ Extends Snakemake Features
 
 import functools
 import logging
-import sys
 import re
+import sys
 from copy import copy, deepcopy
-
 from typing import Optional
-
 
 from snakemake.exceptions import RuleException
 from snakemake.io import AnnotatedString, apply_wildcards
@@ -273,13 +271,15 @@ class ExpandableWorkflow(Workflow):
             # only call constructor if this object hasn't been initialized yet
             super().__init__(*args, **kwargs)
             ExpandableWorkflow.global_workflow = self
-        self._expanders = []
-        self._sm_expander = SnakemakeExpander()
-        self._ruleinfos = {}
-        self._last_rule_name = None
+        if not hasattr(self, '_expanders'):
+            self._expanders = [SnakemakeExpander()]
+            self._ruleinfos = {}
+            self._last_rule_name = None
+            self.ymp_envs = {}
+            self.ymp_stages = {}
 
     @staticmethod
-    def register_expander(expander):
+    def register_expanders(*expanders):
         """
         Register an object the expand() function of which will be called
         on each RuleInfo object before it is passed on to snakemake.
@@ -287,14 +287,16 @@ class ExpandableWorkflow(Workflow):
         ExpandableWorkflow.activate()
         if ExpandableWorkflow.global_workflow:
             workflow = ExpandableWorkflow.global_workflow
-            workflow._expanders.append(expander)
+            workflow._expanders.extend(expanders)
+            for expander in expanders:
+                expander.workflow = workflow
             return workflow
         return None
 
     @staticmethod
     def clear():
         if ExpandableWorkflow.global_workflow:
-            ExpandableWorkflow.global_workflow.__init__()
+            ExpandableWorkflow.global_workflow = None
 
     def add_rule(self, name=None, lineno=None, snakefile=None):
         """Add a rule.
@@ -375,9 +377,6 @@ class BaseExpander(object):
     work on the entire RuleInfo object or the :meth:format and
     :meth:expands_field methods if they intend to modify specific fields.
     """
-    def __init__(self):
-        self.workflow = ExpandableWorkflow.register_expander(self)
-
     def format(self, item, *args, **kwargs):
         """Format *item* using *\*args* and *\*\*kwargs*"""
         return item
@@ -812,7 +811,7 @@ class InheritanceExpander(BaseExpander):
                 superrule_name = comment[len(self.KEYWORD):].strip()
                 try:
                     return superrule_name, self.ruleinfos[superrule_name]
-                except:
+                except KeyError:
                     raise InheritanceException("Unable to find parent",
                                                rule, superrule_name)
         return None, None
