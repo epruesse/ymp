@@ -109,9 +109,12 @@ class MockCmd(object):
 
     @property
     def calls(self):
+        if not os.path.exists(self.logname):
+            log.debug("%s is empty", self.logname)
+            return []
         with open(self.logname) as r:
             data = r.read().splitlines()
-        log.debug(data)
+        log.debug("%s:\n |  %s", self.logname, "\n | ".join(data))
         return data
 
 
