@@ -699,7 +699,7 @@ class ConfigMgr(object):
             curpath, removed = os.path.split(curpath)
             log.debug("No; trying '%s'", curpath)
             if removed == "":
-                self._root = None
+                self._root = os.path.abspath(os.getcwd())
                 return
         log.debug("Found '%s' in '%s'", filename, curpath)
         self._root = curpath
