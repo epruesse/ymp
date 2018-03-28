@@ -7,6 +7,7 @@ import logging
 import re
 import sys
 from copy import copy, deepcopy
+from inspect import getframeinfo, stack
 from typing import Optional
 
 from snakemake.exceptions import RuleException
@@ -21,6 +22,9 @@ from ymp.string import FormattingError, ProductFormatter, make_formatter
 
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
+partial_formatter = make_formatter(partial=True, quoted=True)
+partial_format = partial_formatter.format
+get_names = partial_formatter.get_names
 
 
 def networkx():
@@ -30,11 +34,6 @@ def networkx():
                   "".format(networkx.__version__))
         sys.exit(1)
     return networkx
-
-
-partial_formatter = make_formatter(partial=True, quoted=True)
-partial_format = partial_formatter.format
-get_names = partial_formatter.get_names
 
 
 def print_ruleinfo(rule: Rule, ruleinfo: RuleInfo, func=log.debug):
@@ -882,3 +881,16 @@ class DefaultExpander(InheritanceExpander):
 
     def get_super(self, rule: Rule, ruleinfo: RuleInfo) -> RuleInfo:
         return ("__default__", self.defaults)
+
+
+class WorkflowObject(object):
+    """
+    Base for extension classes defined from snakefiles
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        caller = getframeinfo(stack()[2][0])
+        #: str: Name of file in which stage was defined
+        self.filename = caller.filename
+        #: int: Line number of stage definition
+        self.lineno = caller.lineno
