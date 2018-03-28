@@ -13,13 +13,11 @@ YMP processes data in stages, each of which is contained in its own directory.
 """
 
 import logging
-
 from typing import TYPE_CHECKING
-from inspect import getframeinfo, stack
 
-from ymp.exceptions import YmpException
-from ymp.snakemake import ColonExpander, get_workflow, RuleInfo
 from ymp.common import AttrDict
+from ymp.exceptions import YmpException
+from ymp.snakemake import ColonExpander, RuleInfo, WorkflowObject, get_workflow
 from ymp.string import PartialFormatter
 
 if TYPE_CHECKING:
@@ -41,7 +39,7 @@ class YmpStageError(YmpException):
         super().__init__(msg)
 
 
-class Stage(object):
+class Stage(WorkflowObject):
     """
     Creates a new stage
 
@@ -85,6 +83,7 @@ class Stage(object):
             doc: See `Stage.doc`
             env: See `Stage.env`
         """
+        super().__init__()
         # Stage name
         self.name: str = name
         # Alternate stage name
@@ -94,12 +93,6 @@ class Stage(object):
 
         self.doc(doc or "")
         self.env(env)
-
-        caller = getframeinfo(stack()[1][0])
-        #: str: Name of file in which stage was defined
-        self.filename = caller.filename
-        #: int: Line number of stage definition
-        self.lineno = caller.lineno
 
         stages = Stage.get_stages()
         if name in stages:

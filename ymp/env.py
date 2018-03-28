@@ -12,7 +12,7 @@ import snakemake
 
 from ymp.common import AttrDict, ensure_list
 from ymp.exceptions import YmpException
-from ymp.snakemake import BaseExpander, get_workflow
+from ymp.snakemake import BaseExpander, get_workflow, WorkflowObject
 
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -22,7 +22,7 @@ class YmpEnvError(YmpException):
     """Failure in env"""
 
 
-class Env(snakemake.conda.Env):
+class Env(WorkflowObject, snakemake.conda.Env):
     """Represents YMP conda environment
 
     Snakemake expects the conda environments in a per-workflow
