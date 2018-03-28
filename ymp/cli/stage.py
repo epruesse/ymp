@@ -24,10 +24,14 @@ def stage():
     "--short", "-s", "short_opt", is_flag=True,
     help="Show only stage names"
 )
+@click.option(
+    "--code", "-c", "code_opt", is_flag=True,
+    help="Show definition file name and line number"
+)
 @click.argument(
     "stage_opt", metavar="STAGE", required=False,
 )
-def ls(long_opt, short_opt, stage_opt):
+def ls(long_opt, short_opt, stage_opt, code_opt):
     """
     List available stages
     """
@@ -69,8 +73,14 @@ def ls(long_opt, short_opt, stage_opt):
         else:
             summary = ""
 
-        print("{name:<{width}}{summary}{description}"
+        if code_opt:
+            code = "\nfrom {}:{}".format(stage.filename, stage.lineno)
+        else:
+            code = ""
+
+        print("{name:<{width}}{summary}{code}{description}"
               "".format(name=stage.name,
                         width=name_width,
                         summary=summary,
+                        code=code,
                         description=description))
