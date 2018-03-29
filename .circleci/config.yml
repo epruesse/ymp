@@ -168,8 +168,14 @@ workflows:
   version: 2
   test:
     jobs:
-      - test-linux
-      - test-macos
+      - test-linux:
+          filters:
+            branches:
+              ignore: trigger-nightly
+      - test-macos:
+          filters:
+            branches:
+              ignore: trigger-nightly
   nightly:
     jobs:
       - nightly-linux
