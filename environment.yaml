@@ -29,3 +29,5 @@ dependencies:
   - gcc
   #### avoid mkl ~ 700MB ###
   - nomkl
+  #### needed to checkout submodules
+  - ssh
