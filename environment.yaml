@@ -13,7 +13,6 @@ dependencies:
   - xlrd         # excel support
   - coloredlogs
   - setuptools_scm # versioning
-  - git
   - xdg # user paths
   #### for tests: ####
   - networkx >= 2.0
@@ -25,9 +24,5 @@ dependencies:
   - yappi          # profiler
   - pytest-cov
   - codecov
-  #### for building envs with cython ###
-  - gcc
   #### avoid mkl ~ 700MB ###
   - nomkl
-  #### needed to checkout submodules
-  - ssh

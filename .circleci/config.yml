@@ -13,13 +13,13 @@ variables:
       xcode: "9.0"
   linux: &linux
     docker:
-      - image: condaforge/linux-anvil
+      - image: circleci/python
 
   ##### Handle miniconda installation
   restore_miniconda: &restore_miniconda
     restore_cache:
       keys:
-        - miniconda-{{arch}}
+        - miniconda-v2-{{arch}}
   setup_miniconda: &setup_miniconda
     run:
       name: Setup/Install Conda Environment
@@ -30,7 +30,7 @@ variables:
       command: .circleci/setup.sh update
   save_miniconda: &save_miniconda
     save_cache:
-      key: miniconda-{{arch}}-{{checksum "conda/info.txt"}}-{{checksum "conda/root.txt" }}-{{checksum "conda/pkgs.txt"}}-{{checksum "conda/ymp_envs.txt"}}
+      key: miniconda-v2-{{arch}}-{{checksum "conda/info.txt"}}-{{checksum "conda/root.txt" }}-{{checksum "conda/pkgs.txt"}}-{{checksum "conda/ymp_envs.txt"}}
       paths:
         - ~/miniconda
         - ~/.ymp/conda
@@ -115,10 +115,10 @@ variables:
   test_steps: &test_steps
     steps:
       - checkout
+      - *checkout_submodules
       - *restore_miniconda
       - *setup_miniconda
       - *store_miniconda_status
-      - *checkout_submodules
       - *ymp_install
       - *ymp_test
       - *ymp_store_test_results
@@ -127,10 +127,10 @@ variables:
   nightly_steps: &nightly_steps
     steps:
       - checkout
+      - *checkout_submodules
       - *restore_miniconda
       - *update_miniconda
       - *store_miniconda_status
-      - *checkout_submodules
       - *ymp_install
       - *ymp_test
       - *save_miniconda
