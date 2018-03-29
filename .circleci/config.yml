@@ -20,14 +20,16 @@ variables:
     restore_cache:
       keys:
         - miniconda-{{arch}}
+  setup_miniconda: &setup_miniconda
+    run:
+      name: Setup/Install Conda Environment
+      command: .circleci/setup.sh
   update_miniconda: &update_miniconda
     run:
-      when: always
-      name: Updating/Installing Conda Environment
-      command: .circleci/setup.sh $MINICONDA
+      name: Setup/Install/Update Conda Environment
+      command: .circleci/setup.sh update
   save_miniconda: &save_miniconda
     save_cache:
-      when: always
       key: miniconda-{{arch}}-{{checksum "conda/info.txt"}}-{{checksum "conda/root.txt" }}-{{checksum "conda/pkgs.txt"}}-{{checksum "conda/ymp_envs.txt"}}
       paths:
         - ~/miniconda
@@ -114,15 +116,24 @@ variables:
     steps:
       - checkout
       - *restore_miniconda
-      - *update_miniconda
+      - *setup_miniconda
       - *store_miniconda_status
-      - *save_miniconda
       - *checkout_submodules
       - *ymp_install
       - *ymp_test
       - *ymp_store_test_results
       - *ymp_store_test_failures
       - *upload_coverage
+  nightly_steps: &nightly_steps
+    steps:
+      - checkout
+      - *restore_miniconda
+      - *update_miniconda
+      - *store_miniconda_status
+      - *checkout_submodules
+      - *ymp_install
+      - *ymp_test
+      - *save_miniconda
 
 
 jobs:
@@ -143,6 +154,14 @@ jobs:
     <<: *environment
     <<: *macos
     <<: *test_steps
+  nightly-linux:
+    <<: *environment
+    <<: *linux
+    <<: *nightly_steps
+  nightly-macos:
+    <<: *environment
+    <<: *macos
+    <<: *nightly_steps
 
 
 workflows:
@@ -151,3 +170,14 @@ workflows:
     jobs:
       - test-linux
       - test-macos
+  nightly:
+    jobs:
+      - nightly-linux
+      - nightly-macos
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - master
