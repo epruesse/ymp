@@ -181,3 +181,13 @@ workflows:
             branches:
               only:
                 - master
+  trigger-nightly:
+    jobs:
+      - nightly-linux:
+          filters:
+            branches:
+              only: trigger-nightly
+      - nightly-macos:
+          filters:
+            branches:
+              only: trigger-nightly
