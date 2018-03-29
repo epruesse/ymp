@@ -340,7 +340,7 @@ class AutoSnakefileDirective(rst.Directive):
         result = StringList()
 
         # generate stages
-        stages = Stage.get_stages().values()
+        stages = Stage.get_registry().values()
         stages = list(set(stages))
         stages = sorted(stages, key=lambda x: x.name)
         for stage in stages:

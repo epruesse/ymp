@@ -51,7 +51,7 @@ class TargetParam(click.ParamType):
                 from ymp.snakemake import load_workflow
                 from ymp.stage import Stage
                 load_workflow()
-                stages = cache['stages'] = list(Stage.get_stages().keys())
+                stages = cache['stages'] = list(Stage.get_registry().keys())
             options = stages
         options = [o for o in options if o.startswith(query_stages[-1])]
         prefix = ".".join(query_stages[:-1])

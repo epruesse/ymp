@@ -1,6 +1,6 @@
 localrules: human_db_download
 
-with Stage.add_to("references"):
+with stage.references:
     rule human_db_download:
         """
         Download `HUMAnN2 <humann2>` reference databases

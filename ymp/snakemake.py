@@ -17,8 +17,9 @@ from snakemake.rules import Rule
 from snakemake.workflow import RuleInfo, Workflow
 
 import ymp
-from ymp.common import flatten, is_container
+from ymp.common import AttrDict, flatten, ensure_list, is_container
 from ymp.string import FormattingError, ProductFormatter, make_formatter
+from ymp.exceptions import YmpRuleError
 
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -274,8 +275,7 @@ class ExpandableWorkflow(Workflow):
             self._expanders = [SnakemakeExpander()]
             self._ruleinfos = {}
             self._last_rule_name = None
-            self.ymp_envs = {}
-            self.ymp_stages = {}
+            self.ymp_object_registry = {}
 
     @staticmethod
     def register_expanders(*expanders):
@@ -443,11 +443,13 @@ class BaseExpander(object):
         if item is None:
             item = None
         elif isinstance(item, RuleInfo):
+            self.current_rule = rule
             for field in filter(self.expands_field, ruleinfo_fields):
                 attr = getattr(item, field)
                 setattr(item, field, self.expand(rule, attr,
                                                  expand_args=expand_args,
                                                  rec=rec))
+            self.current_rule = None
         elif isinstance(item, str):
             try:
                 expand_args['rule'] = rule
@@ -889,8 +891,50 @@ class WorkflowObject(object):
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        caller = getframeinfo(stack()[2][0])
-        #: str: Name of file in which stage was defined
-        self.filename = caller.filename
-        #: int: Line number of stage definition
-        self.lineno = caller.lineno
+
+        # Fill filename and lineno
+        #
+        # For simplicity, we assume that's two levels up on the call stack.
+        # One level up is our derived class, above that should be the rule
+        # file.
+
+        caller = next(fi for fi in stack() if fi.function != "__init__")
+        if not hasattr(self, 'filename'):
+            #: str: Name of file in which object was defined
+            self.filename = caller.filename
+        if not hasattr(self, 'lineno'):
+            #: int: Line number of object definition
+            self.lineno = caller.lineno
+
+        objs = self.get_registry()
+
+        names = []
+        for attr in 'name', 'altname':
+            if hasattr(self, attr):
+                names += ensure_list(getattr(self, attr))
+
+        for name in names:
+            if name in objs and (self.filename != objs[name].filename
+                                 or self.lineno != objs[name].lineno):
+                other = objs[name]
+                raise YmpRuleError(
+                    self,
+                    f"Failed to create {self.__class__.__name__} '{names[0]}':"
+                    f" already defined in {other.filename}:{other.lineno}"
+                )
+
+        for name in names:
+            objs[name] = self
+
+    @classmethod
+    def get_registry(cls):
+        """
+        Return all objects of this class registered with current workflow
+        """
+        workflow = get_workflow()
+        if not hasattr(workflow, "ymp_object_registry"):
+            workflow.ymp_object_registry = AttrDict()
+        registry = workflow.ymp_object_registry
+        if cls.__name__ not in registry:
+            registry[cls.__name__] = AttrDict()
+        return registry[cls.__name__]

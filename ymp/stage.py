@@ -55,24 +55,6 @@ class Stage(WorkflowObject):
     active = None
     """Currently active stage ("entered")"""
 
-    @classmethod
-    def get_stages(cls):
-        """
-        Return all stages created within current workflow
-        """
-        # We need to store the Stages in the Workflow so that
-        # they get deleted with the workflow. (Otherwise we'd run into
-        # duplicate stage creation if snakemake() is called twice and
-        # the same snakefiles parsed and loaded again).
-        workflow = get_workflow()
-        if not hasattr(workflow, "ymp_stages"):
-            workflow.ymp_stages = AttrDict()
-        return workflow.ymp_stages
-
-    @classmethod
-    def add_to(cls, name: str):
-        return cls.get_stages()[name]
-
     def __init__(self, name: str, altname: str=None,
                  env: str=None, doc: str=None) -> None:
         """
@@ -83,29 +65,16 @@ class Stage(WorkflowObject):
             doc: See `Stage.doc`
             env: See `Stage.env`
         """
-        super().__init__()
         # Stage name
         self.name: str = name
         # Alternate stage name
         self.altname: str = altname
+        super().__init__()
         # Rules in this stage
         self.rules: List[Rule] = []
 
         self.doc(doc or "")
         self.env(env)
-
-        stages = Stage.get_stages()
-        if name in stages:
-            raise YmpStageError(
-                self,
-                f"Duplicate stage name {name} \n"
-                f"    in line {self.lineno} of {self.filename}\n"
-                f"    previous definition was in line {stages[name].lineno} of {stages[name].filename}"
-            )
-        else:
-            stages[name] = self
-            if altname:
-                stages[altname] = self
 
     def doc(self, doc: str) -> None:
         """Add documentation to Stage
