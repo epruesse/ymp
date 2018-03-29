@@ -5,6 +5,9 @@ icfg.init()
 from ymp.stage import Stage
 from ymp.env import Env
 
+stage = Stage.get_registry()
+env = Env.get_registry()
+
 # make sure rules are executed in bash (not sh, dash or worse)
 shell.executable("/bin/bash")
 

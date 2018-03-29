@@ -24,7 +24,7 @@ def get_envs(patterns=None):
       envnames: list of strings to match
     """
     from ymp.env import Env
-    envs = Env.get_envs()
+    envs = Env.get_registry()
     if patterns:
         envs = {env: envs[env] for env in envs
                 if any(fnmatch(env, pat)
@@ -154,12 +154,13 @@ def export(envnames, dest, overwrite, create):
         return 1
     if os.path.isdir(dest):
         for env in get_envs(envnames).values():
+            fn = os.path.join(dest, env.name + ".yml")
             env.export(fn, create, overwrite)
     else:
         if len(envs) > 1:
             log.error("Cannot export multiple environments to one file")
             return 1
-        env[0].export(fn, create, overwrite)
+        env[0].export(dest, create, overwrite)
 
 
 @env.command()

@@ -40,7 +40,7 @@ def ls(long_opt, short_opt, stage_opt, code_opt):
             "Options --long and --short are mutually exclusive")
 
     from ymp.stage import Stage
-    all_stages = Stage.get_stages()
+    all_stages = Stage.get_registry()
     if stage_opt:
         stages = [all_stages[m] for m in all_stages if fnmatch(m, stage_opt)]
     else:

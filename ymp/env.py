@@ -48,16 +48,6 @@ class Env(WorkflowObject, snakemake.conda.Env):
     """
 
     @staticmethod
-    def get_envs():
-        """
-        Return all stages
-        """
-        workflow = get_workflow()
-        if not hasattr(workflow, "ymp_envs"):
-            workflow.ymp_envs = AttrDict()
-        return workflow.ymp_envs
-
-    @staticmethod
     def get_installed_env_hashes():
         from ymp.config import icfg
         return [
@@ -94,14 +84,10 @@ class Env(WorkflowObject, snakemake.conda.Env):
         else:
             self.name, _ = op.splitext(op.basename(env_file))
 
-        envs = Env.get_envs()
-        if name in envs:
-            raise YmpEnvError(
-                f"Environment name conflict. Refusing to create {self!r} "
-                f"as {envs[name]!r} already exists")
-
         if env_file:
             self.dynamic = False
+            self.filename = env_file
+            self.lineno = 1
         else:
             self.dynamic = True
 
@@ -128,8 +114,6 @@ class Env(WorkflowObject, snakemake.conda.Env):
         })
 
         super().__init__(env_file, pseudo_dag)
-
-        envs[self.name] = self
 
     def create(self):
         """Create conda environment""
@@ -179,8 +163,7 @@ class Env(WorkflowObject, snakemake.conda.Env):
                 raise YmpEnvError(
                     f"Cannot export environment '{self.name}': "
                     f"not installed")
-        log.warning("Exporting environment '%s'", self.name)
-        log.debug("Exporting to file '%s'", dest)
+        log.warning("Exporting environment '%s' to '%s'", self.name, dest)
         res = subprocess.run([
             "conda", "env", "export",
             "-p", self.path,
@@ -223,9 +206,10 @@ class CondaPathExpander(BaseExpander):
 
     def format(self, conda_env, *args, **kwargs):
         if not self._envs:
-            self._envs = Env.get_envs()
+            self._envs = Env.get_registry()
         if conda_env in self._envs:
             return self._envs[conda_env].file
+
         for snakefile in reversed(self._workflow.included_stack):
             basepath = op.dirname(snakefile)
             for _, relpath in sorted(self._search_paths.items()):
