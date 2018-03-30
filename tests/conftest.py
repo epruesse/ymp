@@ -133,7 +133,10 @@ def mock_conda(bin_dir):
         'done',
         'if [ x"$cmd" = x" env create" -a -n "$p" ]; then',
         '  mkdir "$p"',
-        'fi'
+        'fi',
+        'if [ x"$cmd" = x" env export" -a -n "$p" ]; then',
+        '  echo "dependencies: [one, two]"',
+        'fi',
     ]))
 
 
@@ -205,6 +208,12 @@ class Invoker(object):
         self.runner = CliRunner()
         from ymp.cli import main
         self.main = main
+        self.icfg.init()
+
+    @property
+    def icfg(self):
+        from ymp.config import icfg
+        return icfg
 
     def call(self, *args, standalone_mode=False, **kwargs):
         """Call into YMP CLI
@@ -213,8 +222,6 @@ class Invoker(object):
         passed rather than caught.
 
         """
-        from ymp.config import icfg
-        icfg.init(force=True)
         with open("cmd.sh", "w") as f:
             f.write("".join([
                 "#!/bin/bash -x\n",
@@ -224,9 +231,12 @@ class Invoker(object):
                                     standalone_mode=standalone_mode)
         with open("out.log", "w") as f:
             f.write(result.output)
-        if result.exception:
+        if result.exception and not standalone_mode:
             raise result.exception
         return result
+
+    def call_raises(self, *args, **kwargs):
+        return self.call(*args, standalone_mode=True, **kwargs)
 
 
 @pytest.fixture()

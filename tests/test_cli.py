@@ -28,6 +28,7 @@ def test_submit_profiles(invoker):
             os.chmod(cmd, 0o755)
         if os.path.isdir(icfg.dir.reports):
             os.rmdir(icfg.dir.reports)
+        invoker.icfg.init(force=True)  # loading the profile can't be repeated?
         invoker.call("submit",
                      "-p",
                      "--profile", profile_name,
