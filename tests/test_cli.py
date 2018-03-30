@@ -182,6 +182,69 @@ def test_env_update(invoker, project_dir, mock_conda):
     assert "conda env update" in mock_conda.calls[1]
 
 
+def test_env_export(invoker, project_dir, mock_conda):
+    """Test exporting environments"""
+    # install envs locally
+    with open("ymp.yml", "a") as f:
+        f.write("directories:\n conda_prefix: '.'")
+
+    # skip and create are mutually exclusive
+    with pytest.raises(click.UsageError) as exc:
+        invoker.call("env", "export", "-sc", "bbmap")
+    assert exc.match("mutually exclusive")
+
+    # fail if trying to export uninstalled env
+    with pytest.raises(click.UsageError) as exc:
+        res = invoker.call("env", "export", "bbmap")
+    assert exc.match("uninstalled")
+
+    # exporting nothing
+    res = invoker.call("env", "export", "-qs", "bbmap")
+    assert res.output == ""
+
+    # creating bbmap.yml
+    res = invoker.call("env", "export", "-d", ".", "bbmap", "-c")
+    assert "Exporting" in res.output
+
+    # fail, file exists
+    with pytest.raises(click.UsageError) as exc:
+        res = invoker.call("env", "export", "-d", ".", "bbmap")
+    assert exc.match("exists")
+
+    # allow overwrite
+    res = invoker.call("env", "export", "-d", ".", "bbmap", "-f")
+    assert "Exporting" in res.output
+
+    # try txt format and export to file
+    res = invoker.call("env", "export", "-d", "bbmap.txt", "bbmap")
+    assert "conda list" in mock_conda.calls[-1]
+
+    # export multiple, fail
+    with pytest.raises(click.UsageError) as exc:
+        res = invoker.call("env", "export", "-cd", ".", "bbmap", "sambamba")
+    assert exc.match("exists")
+
+    # export multiple
+    res = invoker.call("env", "export", "-fcd", ".", "bbmap", "sambamba")
+    assert "Exporting 2 " in res.output
+
+    # export multiple to stdout
+    res = invoker.call("env", "export", "-q", "bbmap", "sambamba")
+    names = [line[6:] for line in res.output.splitlines()
+             if line.startswith("name: ")]
+    assert sorted(names) == ["bbmap", "sambamba"]
+
+    # export no matching patterns
+    res = invoker.call("env", "export", "does_not_match_anything")
+    assert "Nothing to export" in res.output
+
+    # export everything installed
+    res = invoker.call("env", "export", "-s")
+    names = [line[6:] for line in res.output.splitlines()
+             if line.startswith("name: ")]
+    assert sorted(names) == ["bbmap", "sambamba"]
+
+
 def test_env_clean(invoker, project_dir, mock_conda):
     """Test cleaning environments"""
     with open("ymp.yml", "a") as f:

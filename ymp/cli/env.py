@@ -2,6 +2,7 @@ import logging
 import os
 import shutil
 import sys
+from contextlib import ExitStack
 from fnmatch import fnmatch
 
 import click
@@ -139,28 +140,109 @@ def remove(envnames):
 
 
 @env.command()
-@click.option("--dest", "-d", type=click.Path(), default=".",
-              help="Destination file or directory")
+@click.option("--dest", "-d", type=click.Path(), metavar="FILE",
+              help="Destination file or directory. If a directory, file names"
+              " will be derived from environment names and selected export "
+              "format. Default: print to standard output.")
 @click.option("--overwrite", "-f", is_flag=True, default=False,
               help="Overwrite existing files")
-@click.option("--create", "-c", is_flag=True, default=False,
+@click.option("--create-missing", "-c", is_flag=True, default=False,
               help="Create environments not yet installed")
+@click.option("--skip-missing", "-s", is_flag=True, default=False,
+              help="Skip environments not yet installed")
+@click.option("--filetype", "-t", type=click.Choice(['yml', 'txt']),
+              help="Select export format. "
+              "Default: yml unless FILE ends in '.txt'")
 @click.argument("ENVNAMES", nargs=-1)
-def export(envnames, dest, overwrite, create):
-    "Export conda environments"
+def export(envnames, dest, overwrite, create_missing, skip_missing, filetype):
+    """Export conda environments
+
+    Resolved package specifications for the selected conda
+    environments can be exported either in YAML format suitable for
+    use with ``conda env create -f FILE`` or in TXT format containing
+    a list of URLs suitable for use with ``conda create --file
+    FILE``. Please note that the TXT format is platform specific.
+
+    If other formats are desired, use ``ymp env list`` to view the
+    environments' installation path ("prefix" in conda lingo) and
+    export the specification with the ``conda`` command line utlity
+    directly.
+
+    \b
+    Note:
+      Environments must be installed before they can be exported. This is due
+      to limitations of the conda utilities.  Use the "--create" flag to
+      automatically install missing environments.
+    """
+
     envs = get_envs(envnames)
-    log.warning(f"Exporting {len(envs)} environments.")
-    if not envs:
-        return 1
-    if os.path.isdir(dest):
-        for env in get_envs(envnames).values():
-            fn = os.path.join(dest, env.name + ".yml")
-            env.export(fn, create, overwrite)
+
+    if skip_missing and create_missing:
+        raise click.UsageError(
+            "--skip-missing and --create-missing are mutually exclusive")
+
+    if dest and not filetype and dest.endswith('.txt'):
+        filetype = 'txt'
+    if not filetype:
+        filetype = 'yml'
+
+    missing = [env for env in envs.values() if not env.installed]
+    if skip_missing:
+        envs = {name: env for name, env in envs.items() if env not in missing}
+    elif create_missing:
+        log.warning(f"Creating {len(missing)} missing environments...")
+        for env in missing:
+            env.create()
     else:
-        if len(envs) > 1:
-            log.error("Cannot export multiple environments to one file")
-            return 1
-        env[0].export(dest, create, overwrite)
+        if missing:
+            raise click.UsageError(
+                f"Cannot export uninstalled environment(s): "
+                f"{', '.join(env.name for env in missing)}.\n"
+                f"Use '-s' to skip these or '-c' to create them prior to export."
+            )
+
+    if not envs:
+        if envnames and not missing:
+            log.warning("Nothing to export. No environments matched pattern(s)")
+        else:
+            log.warning("Nothing to export")
+        return
+
+    log.warning(f"Exporting {len(envs)} environments...")
+
+    if dest:
+        if os.path.isdir(dest):
+            file_names = [os.path.join(dest, ".".join((name, filetype)))
+                          for name in envs.keys()]
+        else:
+            file_names = [dest]
+
+        for fname in file_names:
+            if not overwrite and os.path.exists(fname):
+                raise click.UsageError(
+                    f"File '{fname}' exists. Use '-f' to overwrite")
+
+        with ExitStack() as stack:
+            files = [stack.enter_context(open(fname, "w"))
+                     for fname in file_names]
+            files_stack = stack.pop_all()
+    else:
+        files = [sys.stdout]
+        files_stack = ExitStack()
+
+    sep = False
+    if len(files) == 1:
+        sep = True
+        files *= len(envs)
+
+    with files_stack:
+        generator = zip(envs.values(), files)
+        env, fd = next(generator)
+        env.export(fd, typ=filetype)
+        for env, fd in generator:
+            if sep:
+                fd.write("---\n")
+            env.export(fd, typ=filetype)
 
 
 @env.command()
