@@ -7,6 +7,7 @@ dependencies:
   # disabled, breaks R in utils, but unused. FIXME
   #  - rpy2 =2.8.5  # pinned to keep conda from taking for ever
   - click
+  - click-completion
   - ruamel.yaml >0.15 # new api
   - python-drmaa
   - pandas >=0.20  # need dtype support in python csv engine
