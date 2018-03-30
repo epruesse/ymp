@@ -31,17 +31,7 @@ conda:
       channels:
         - bioconda
         - conda-forge
-      dependencies:
-        - zlib =1.2.11*
-        - boost =1.64*
-        - gsl =1.16*
-        - bzip2 =1.0*
-        - ncurses =5.9*
-        - htslib =1.7*
-        - xz =5.2*
-        - gmp =5.1*
-        - hdf5 =1.8.17*
-        - perl =5.22.0*
+      dependencies: []
     conda-forge:
       channels:
         - conda-forge
