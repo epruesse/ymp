@@ -16,8 +16,7 @@ def test_submit_no_profile(invoker):
 
 def test_submit_profiles(invoker):
     "try all profiles, but override the cmd to echo"
-    from ymp.config import icfg
-    for profile_name, profile in icfg.cluster.profiles.items():
+    for profile_name, profile in invoker.icfg.cluster.profiles.items():
         if not profile.get('command'):
             continue
         # patch the submit command relative to CWD:
@@ -26,19 +25,22 @@ def test_submit_profiles(invoker):
         with open(cmd, "w") as f:
             f.write('#!/bin/sh\necho "$@">tmpfile\nexec "$@"\n')
             os.chmod(cmd, 0o755)
-        if os.path.isdir(icfg.dir.reports):
-            os.rmdir(icfg.dir.reports)
-        invoker.icfg.init(force=True)  # loading the profile can't be repeated?
+        if os.path.isdir(invoker.icfg.dir.reports):
+            os.rmdir(invoker.icfg.dir.reports)
+        invoker.initialized = False
         invoker.call("submit",
                      "-p",
                      "--profile", profile_name,
                      "--command", profile.command,
-                     icfg.dir.reports)
-        assert os.path.isdir(icfg.dir.reports)
+                     invoker.icfg.dir.reports)
+        assert os.path.isdir(invoker.icfg.dir.reports)
 
 
 def test_show(invoker, saved_tmpdir):
     "Test parts of show"
+    with open("ymp.yml", "w") as cfg:
+        cfg.write("conda:\n  testme: [X1,X2]")
+
     invoker.call("show")
     res = invoker.call("show", "pairnames")
     assert res.output.strip() == '- R1\n- R2'
@@ -47,8 +49,6 @@ def test_show(invoker, saved_tmpdir):
     res = invoker.call("show", "cluster.profiles.default.drmaa")
     assert res.output.strip() == 'False'
 
-    with open("ymp.yml", "w") as cfg:
-        cfg.write("conda:\n  testme: [X1,X2]")
     res = invoker.call("show", "conda.testme")
     assert res.output.strip() == '- X1\n- X2'
 
