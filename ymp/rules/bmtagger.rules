@@ -51,7 +51,7 @@ rule bmtagger_index:
         mem = icfg.mem("16g"),
         memarg = icfg.mem("15g")
     conda:
-        "bmtagger.yml"
+        "bmtagger"
     shell: """
     srprism mkindex \
     --input {input} \
