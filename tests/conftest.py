@@ -208,7 +208,7 @@ class Invoker(object):
         self.runner = CliRunner()
         from ymp.cli import main
         self.main = main
-        self.icfg.init()
+        self.initialized = False
 
     @property
     def icfg(self):
@@ -222,17 +222,26 @@ class Invoker(object):
         passed rather than caught.
 
         """
+        if not self.initialized:
+            self.icfg.init(force=True)
+            self.initialized = True
+
+        if not os.path.exists("cmd.sh"):
+            with open("cmd.sh", "w") as f:
+                f.write("#!/bin/bash -x\n")
+
         with open("cmd.sh", "w") as f:
-            f.write("".join([
-                "#!/bin/bash -x\n",
-                "ymp " + " ".join(args) + "\n"
-            ]))
+            f.write(f"PATH={os.environ['PATH']} ymp {' '.join(args)}\n")
+
         result = self.runner.invoke(self.main, args, **kwargs,
                                     standalone_mode=standalone_mode)
+
         with open("out.log", "w") as f:
             f.write(result.output)
+
         if result.exception and not standalone_mode:
             raise result.exception
+
         return result
 
     def call_raises(self, *args, **kwargs):
