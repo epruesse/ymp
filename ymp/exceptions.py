@@ -1,6 +1,7 @@
 """Exceptions raised by YMP"""
 
 from click import ClickException, echo
+from inspect import stack
 
 
 class YmpException(Exception):
@@ -38,6 +39,7 @@ class YmpRuleError(YmpNoStackException):
     """
     def __init__(self, obj: object, msg: str) -> None:
         self.obj = obj
+        self.stack = stack()
         super().__init__(msg)
 
     def show(self) -> None:
@@ -45,3 +47,7 @@ class YmpRuleError(YmpNoStackException):
                                              self.obj.filename,
                                              self.format_message()),
              err=True)
+        for fi in self.stack:
+            if not fi.filename.endswith(".py"):
+                echo(f"  included from {fi.filename}:{fi.lineno}")
+
