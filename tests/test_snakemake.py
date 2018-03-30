@@ -25,10 +25,9 @@ log = logging.getLogger(__name__)
 @pytest.mark.parametrize("project", ["snakemake_circle"], indirect=True)
 def test_snakemake_failure(project_dir, invoker):
     "These are expected to fail"
-    with pytest.raises(SystemExit):
-        res = invoker.call("make", "test", standalone_mode=True)
-        assert res.exit_code == 1
-        assert "CircularReferenceException" in res.output
+    res = invoker.call_raises("make", "test")
+    assert res.exit_code == 1
+    assert "CircularReferenceException" in res.output
 
 
 @pytest.mark.parametrize("project", ["snakemake_plain", "snakemake_function"],
