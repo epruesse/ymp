@@ -207,6 +207,8 @@ class CondaPathExpander(BaseExpander):
         return field == 'conda_env'
 
     def format(self, conda_env, *args, **kwargs):
+        if conda_env[0] == "/" and op.exists(conda_env):
+            return conda_env
         if not self._envs:
             self._envs = Env.get_registry()
         if conda_env in self._envs:

@@ -1,3 +1,6 @@
+Env(name="picrust", base="bioconda", packages="picrust")
+
+
 rule normalize_16S:
     """Normalize 16S by copy number using picrust, must be run with closed reference OTU table"""
     message:
@@ -7,7 +10,7 @@ rule normalize_16S:
     output:
         biom = "{dir}/{table}.norm.biom"
     conda:
-        "picrust.yml"
+        "picrust"
     shell: """
     download_picrust_files.py > /dev/null 2>&1
     normalize_by_copy_number.py -i {input.biom} -o {output.biom}
@@ -24,7 +27,7 @@ rule predict_metagenome:
         biom = "{dir}/{table}.ko.biom",
         NSTI = "{dir}/{table}.NSTI.txt"
     conda:
-        "picrust.yml"
+        "picrust"
     shell: """
     download_picrust_files.py > /dev/null 2>&1
     predict_metagenomes.py \
@@ -42,7 +45,7 @@ rule categorize_by_function:
     output:
         biom = "{dir}/{table}.ko.l{level}.biom"
     conda:
-        "picrust.yml"
+        "picrust"
     params:
         level = lambda wc: wc.level
     shell: """

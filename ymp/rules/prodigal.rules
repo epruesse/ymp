@@ -1,3 +1,5 @@
+Env(name="prodigal", base="bioconda", packages="prodigal")
+
 rule prodigal:
     """Predict genes using prodigal"""
     message: "Gene prediction (Prodigal): {input}"
@@ -7,7 +9,7 @@ rule prodigal:
              faa = "{dir}.genes/{sample}.prodigal.faa.gz",
     log:           "{dir}.genes/{sample}.prodigal.log"
     threads: 1
-    conda:   "prodigal.yml"
+    conda:   "prodigal"
     shell: """
     zcat {input} | \
     prodigal -p meta \

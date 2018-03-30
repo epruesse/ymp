@@ -1,3 +1,5 @@
+Env(name="trimmomatic", base="bioconda", packages="trimmomatic")
+
 rule trimmomatic_adapter:
     """Trimming with Trimmomatic"""
     message:
@@ -21,7 +23,7 @@ rule trimmomatic_adapter:
         keep_both_reads = "true",
         arg_pe="PE"
     conda:
-        "trimmomatic.yml"
+        "trimmomatic"
     threads:
         1
     shell:"""

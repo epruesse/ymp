@@ -1,5 +1,6 @@
-"""
-"""
+Env(name="multiqc", base="bioconda", packages=[
+    "multiqc >=1.4"
+])
 
 rule multiqc:
     """Assemble report on all FQ files in a directory"""

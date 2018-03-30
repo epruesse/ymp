@@ -1,6 +1,8 @@
-localrules: human_db_download
+Env(name="humann2", base="bioconda", packages="humann2")
+
 
 with stage.references:
+    localrules: human_db_download
     rule human_db_download:
         """
         Download `HUMAnN2 <humann2>` reference databases
@@ -15,7 +17,7 @@ with stage.references:
         threads:
             1
         conda:
-            "humann2.yml"
+            "humann2"
         shell: """
         humann2_databases --download {wildcards.database} {wildcards.build} {output} >{log} 2>&1
         """
@@ -52,7 +54,7 @@ with Stage("humann2") as S:
             stderr     = "{:this:}/{sample}.log",
             trace      = "{:this:}/{sample}.trace",
         threads: 16
-        conda: "humann2.yml"
+        conda: "humann2"
         shell:
             "mkdir -p {output.tempdir};"
 
@@ -93,7 +95,7 @@ with Stage("humann2") as S:
         params:
             special = "y"
         conda:
-            "humann2.yml"
+            "humann2"
         shell:
             "humann2_renorm_table"
             " --input {input}"
@@ -125,7 +127,7 @@ with Stage("humann2") as S:
         log:
             "{output}.log"
         conda:
-            "humann2.yml"
+            "humann2"
         shell:
             "humann2_join_tables"
             " --input {params.basedir}"

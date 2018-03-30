@@ -1,3 +1,5 @@
+Env(name="raxml", base="bioconda", packages="raxml")
+
 rule raxml_tree:
     message:
         "RAxML building tree from {input}"
@@ -13,6 +15,8 @@ rule raxml_tree:
         bs_num="5",
     threads:
         32
+    conda:
+        "raxml"
     shell: """
     set -x
     x="`pwd`"

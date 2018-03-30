@@ -1,3 +1,6 @@
+Env(name="hisat2", base="bioconda", packages=["hisat2", "samtools"])
+
+
 rule hisat2_all:
     input: "{dir}.ht2/{:runs:}.sorted.bam.bai"
     output: touch("{dir}.ht2/all")
@@ -26,7 +29,7 @@ rule hisat2:
     threads:
         16
     conda:
-        "hisat2.yml"
+        "hisat2"
     shell:
         "hisat2"
         " -1 {input.pairs[0]}"

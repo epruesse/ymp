@@ -1,3 +1,10 @@
+Env(name="megahit", base="bioconda", packages=[
+    "megahit",
+    "pigz",
+    "coreutils",  # for tac
+    "sed"
+])
+
 with Stage("assemble_megahit") as S:
     S.doc("""
     Assemble metagenome using MegaHit.
@@ -31,7 +38,7 @@ with Stage("assemble_megahit") as S:
         threads:
             32
         conda:
-            "megahit.yml"
+            "megahit"
         shell: """
         # iff there is an existing opts.txt with an existing megahit temp dir,
         # then we can continue an existing run
