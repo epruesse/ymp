@@ -9,6 +9,7 @@ import subprocess
 from typing import Optional, Union
 
 import snakemake
+from ruamel.yaml import YAML
 
 from ymp.common import AttrDict, ensure_list
 from ymp.exceptions import YmpException
@@ -60,7 +61,8 @@ class Env(WorkflowObject, snakemake.conda.Env):
                  name: Optional[str] = None,
                  packages: Optional[Union[list, str]] = None,
                  base: str = "none",
-                 channels: Optional[Union[list, str]] = None) -> None:
+                 channels: Optional[Union[list, str]] = None,
+                 rule: Optional['Rule'] = None) -> None:
         """Creates an inline defined conda environment
 
         Args:
@@ -150,27 +152,27 @@ class Env(WorkflowObject, snakemake.conda.Env):
             "".format(self.path, " ".join(command)),
             shell=True).returncode
 
-    def export(self, dest, create=True, overwrite=False):
+    def export(self, stream, typ='yml'):
         """Freeze environment"""
-        if os.path.exists(dest) and not overwrite:
-            raise YmpEnvError(
-                f"Cannot export environment '{self.name}' to '{dest}': "
-                f"file exists")
-        if not self.installed:
-            if create:
-                self.create()
-            else:
-                raise YmpEnvError(
-                    f"Cannot export environment '{self.name}': "
-                    f"not installed")
-        log.warning("Exporting environment '%s' to '%s'", self.name, dest)
-        res = subprocess.run([
-            "conda", "env", "export",
-            "-p", self.path,
-            "-f", dest
-        ])
-        if res.returncode != 0:
-            raise YmpEnvError(f"Failed to export environment {self.name}")
+        log.warning("Exporting environment '%s'", self.name)
+        if typ == 'yml':
+            res = subprocess.run([
+                "conda", "env", "export",
+                "-p", self.path,
+            ], stdout=subprocess.PIPE)
+
+            yaml = YAML(typ='rt')
+            yaml.default_flow_style = False
+            env = yaml.load(res.stdout)
+            env['name'] = self.name
+            del env['prefix']
+            yaml.dump(env, stream)
+        elif typ == 'txt':
+            res = subprocess.run([
+                "conda", "list", "--explicit", "--md5",
+                "-p", self.path,
+            ], stdout=stream)
+        return res.returncode
 
     def __lt__(self, other):
         "Comparator for sorting"
@@ -218,6 +220,6 @@ class CondaPathExpander(BaseExpander):
                 for ext in "", ".yml", ".yaml":
                     env_file = abspath+ext
                     if op.exists(env_file):
-                        Env(env_file)
+                        Env(env_file, rule=self.current_rule)
                         return env_file
         return conda_env
