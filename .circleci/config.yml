@@ -116,10 +116,10 @@ variables:
   ymp_test_tools: &ymp_test_tools
     run:
       name: Running YMP Tool Tests
-      no_output_timeout: 10m # default 10m
+      no_output_timeout: 15m # default 10m
       command: |
         mkdir -p $JUNIT_REPORT_PATH
-        pytest -vv --cov --junit-xml $JUNIT_REPORT_PATH/report.xml -n 2 --run-tools -m runs_tool
+        pytest -vv --cov --junit-xml $JUNIT_REPORT_PATH/report.xml -n 2 --run-tools -m runs_tool --timeout=600
   ymp_store_test_failures: &ymp_store_test_failures
     store_artifacts:
       when: on_fail
