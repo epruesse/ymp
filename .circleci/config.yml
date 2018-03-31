@@ -6,20 +6,16 @@ variables:
     environment:
       JUNIT_REPORT_PATH: /tmp/junit_reports/ # trailing slash required
       MINICONDA: ~/miniconda
+
   macos: &macos
     macos:
       xcode: "9.0"
-      environment:
-        LC_ALL: en_US.UTF-8
-        LANG: en_US.UTF-8
-        OSNAME: macos
   linux: &linux
     docker:
       - image: circleci/python
         environment:
           LC_ALL: C.UTF-8
           LANG: C.UTF-8
-          OSNAME: linux
 
   ##### Handle miniconda installation
   restore_miniconda: &restore_miniconda
@@ -62,6 +58,10 @@ variables:
       name: Generating conda tool environments
       no_output_timeout: 60m # default 10m
       command: |
+        case $(uname) in
+        Linux) OSNAME=linux;;
+        Darwin) OSNAME=macos;;
+        esac
         echo $OSNAME
         mkdir -p envs/$OSNAME
         cd envs/$OSNAME
