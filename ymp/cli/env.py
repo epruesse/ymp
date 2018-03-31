@@ -190,7 +190,8 @@ def export(envnames, dest, overwrite, create_missing, skip_missing, filetype):
         envs = {name: env for name, env in envs.items() if env not in missing}
     elif create_missing:
         log.warning(f"Creating {len(missing)} missing environments...")
-        for env in missing:
+        for n, env in enumerate(missing):
+            log.warning(f"Step {n+1}/{len(missing)}:")
             env.create()
     else:
         if missing:
@@ -235,10 +236,12 @@ def export(envnames, dest, overwrite, create_missing, skip_missing, filetype):
         files *= len(envs)
 
     with files_stack:
-        generator = zip(envs.values(), files)
-        env, fd = next(generator)
+        generator = enumerate(zip(envs.values(), files))
+        n, (env, fd) = next(generator)
+        log.warning(f"Step {n+1}/{len(envs)}:")
         env.export(fd, typ=filetype)
-        for env, fd in generator:
+        for n, (env, fd) in generator:
+            log.warning(f"Step {n+1}/{len(envs)}: creating {fd.name}")
             if sep:
                 fd.write("---\n")
             env.export(fd, typ=filetype)
