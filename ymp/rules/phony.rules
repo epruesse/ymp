@@ -2,7 +2,7 @@ from ymp.config import icfg
 import shutil, pprint
 
 width, height = shutil.get_terminal_size((80, 20))
-pp = pprint.PrettyPrinter(indent=1, compact=True, width=width)
+pp = pprint.PrettyPrinter(indent=1, compact=True, width=width or 80)
 
 
 rule listprojects:
