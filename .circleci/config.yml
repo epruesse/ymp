@@ -12,12 +12,14 @@ variables:
       environment:
         LC_ALL: en_US.UTF-8
         LANG: en_US.UTF-8
+        OSNAME: macos
   linux: &linux
     docker:
       - image: circleci/python
         environment:
           LC_ALL: C.UTF-8
           LANG: C.UTF-8
+          OSNAME: linux
 
   ##### Handle miniconda installation
   restore_miniconda: &restore_miniconda
@@ -55,12 +57,51 @@ variables:
       name: Installing YMP
       command: |
         python setup.py install
-  ymp_env_prepare: &ymp_env_prepare
+  ymp_env_create: &ymp_env_create
     run:
-      name: Peparing YMP tool environments
+      name: Generating conda tool environments
       command: |
-        ymp env update
-        ymp env clean
+        mkdir -p envs/$OSNAME
+        cd envs/$OSNAME
+        ymp env export -fc -t txt -d .
+        ymp env export -fc -t yml -d .
+  ymp_env_store: &ymp_env_store
+    persist_to_workspace:
+      root: envs
+      paths:
+        - "*/*.yml"
+        - "*/*.txt"
+  ymp_env_restore: &ymp_env_restore
+    attach_workspace:
+      at: envs
+  ymp_env_commit: &ymp_env_commit
+    run:
+      name: Committing exported environments
+      command: |
+        cp -avr envs/* environments
+        cd environments
+        git pull
+        git add *
+        git commit -m "Updating environments"
+        git push
+  ymp_env_install: &ymp_env_install
+    run:
+      name: Installing conda tool environments
+      command: |
+        WD=`cwd`
+        cd $MINICONDA/pkgs
+        rm *.tar.bz2
+        grep -vEh "^#|^@" $WD/environments/$OSNAME/*.txt | sort -u | xargs -n1 -P8 -t wget -q
+        for tar in *.tar.bz2; do
+          dir=${tar%.tar.bz2}
+          if ! test -d $dir; then
+            echo "unpacking $tar -> $dir"
+            mkdir $dir
+            tar -C $dir -xjf $tar
+          else
+            echo "skipping $tar as $dir exists"
+          fi
+        done
   ymp_test: &ymp_test
     run:
       name: Running YMP Tests
@@ -138,6 +179,15 @@ variables:
       - *ymp_install
       - *ymp_test
       - *save_miniconda
+      - *ymp_env_create
+      - *ymp_env_store
+      - *ymp_test_tools
+  nightly_commit_steps: &nightly_commit_steps
+    steps:
+      - checkout
+      - *checkout_submodules
+      - *ymp_env_restore
+      - *ymp_env_commit
 
 
 jobs:
@@ -166,7 +216,10 @@ jobs:
     <<: *environment
     <<: *macos
     <<: *nightly_steps
-
+  nightly-commit:
+    <<: *environment
+    <<: *linux
+    <<: *nightly_commit_steps
 
 workflows:
   version: 2
@@ -184,6 +237,10 @@ workflows:
     jobs:
       - nightly-linux
       - nightly-macos
+      - nightly-commit:
+          requires:
+            - nightly-linux
+            - nightly-macos
     triggers:
       - schedule:
           cron: "0 0 * * *"
@@ -201,3 +258,10 @@ workflows:
           filters:
             branches:
               only: trigger-nightly
+      - nightly-commit:
+          filters:
+            branches:
+              only: trigger-nightly
+          requires:
+            - nightly-macos
+            - nightly-linux
