@@ -229,19 +229,21 @@ def export(envnames, dest, overwrite, create_missing, skip_missing, filetype):
     else:
         files = [sys.stdout]
         files_stack = ExitStack()
+        file_names = ["stdout"]
 
     sep = False
     if len(files) == 1:
         sep = True
         files *= len(envs)
+        file_names *= len(envs)
 
     with files_stack:
-        generator = enumerate(zip(envs.values(), files))
-        n, (env, fd) = next(generator)
-        log.warning(f"Step {n+1}/{len(envs)}:")
+        generator = enumerate(zip(envs.values(), files, file_names))
+        n, (env, fd, name) = next(generator)
+        log.warning(f"Step {n+1}/{len(envs)}: writing to {name}")
         env.export(fd, typ=filetype)
-        for n, (env, fd) in generator:
-            log.warning(f"Step {n+1}/{len(envs)}: creating {fd.name}")
+        for n, (env, fd, name) in generator:
+            log.warning(f"Step {n+1}/{len(envs)}: writing to {name}")
             if sep:
                 fd.write("---\n")
             env.export(fd, typ=filetype)
