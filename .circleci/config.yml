@@ -184,8 +184,10 @@ variables:
       - *ymp_test
       - *save_miniconda
       - *ymp_env_create
-      - *ymp_env_store
       - *ymp_test_tools
+      - *ymp_env_store
+      - *ymp_store_test_results
+      - *ymp_store_test_failures
   nightly_commit_steps: &nightly_commit_steps
     steps:
       - checkout
