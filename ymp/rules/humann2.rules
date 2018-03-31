@@ -1,4 +1,7 @@
-Env(name="humann2", base="bioconda", packages="humann2")
+Env(name="humann2", base="bioconda", packages=[
+    "humann2",
+    "tbb=2018" # needed by bowtie2; older versions log an error on macos 10.12 throwing humann2 off
+])
 
 
 with stage.references:
