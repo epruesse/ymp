@@ -4,8 +4,8 @@ Rules for visualizing results in Anvi'o
 
 Env(name="anvio", base="bioconda", packages=[
     "anvio",
-    "blast >=2.7.1"  # will pull 2.2 otherwise
-    "python >=3.6"   # unify py version
+    "blast >=2.7.1",  # will pull 2.2 otherwise
+    "python >=3.6",   # unify py version
 ])
 
 rule anvio_makedb:
