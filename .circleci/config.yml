@@ -60,11 +60,15 @@ variables:
   ymp_env_create: &ymp_env_create
     run:
       name: Generating conda tool environments
+      no_output_timeout: 60m # default 10m
       command: |
+        echo $OSNAME
         mkdir -p envs/$OSNAME
         cd envs/$OSNAME
+        pwd
         ymp env export -fc -t txt -d .
         ymp env export -fc -t yml -d .
+        ls -l
   ymp_env_store: &ymp_env_store
     persist_to_workspace:
       root: envs
