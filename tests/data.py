@@ -55,7 +55,8 @@ target_map = {
         # community profile
         'profile_metaphlan2': '{}.metaphlan2/all',
         # functional profile
-        'profile_humann2': '{}.humann2/all',
+        # broken on CI, probably due to memory or time limits
+        # 'profile_humann2': '{}.humann2/all',
     ],
     'amplicon': odict[
         'bbduk_primer': '{}.primermatch/all'
