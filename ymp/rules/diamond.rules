@@ -1,3 +1,6 @@
+Env(name="diamond", base="bioconda", packages="diamond")
+
+
 rule diamond_makedb:
     "Build Diamond index file"
     message:
@@ -11,7 +14,7 @@ rule diamond_makedb:
     log:
               "{params.db}.log"
     conda:
-        "diamond.yml"
+        "diamond"
     params:
         mem = icfg.mem("32g")
     threads:
@@ -43,7 +46,7 @@ with Stage("map_diamond") as S:
         threads:
             16
         conda:
-            "diamond.yml"
+            "diamond"
         shell: """
         diamond blastx \
         --db {input.db} \
@@ -69,7 +72,7 @@ with Stage("map_diamond") as S:
         output:
             "{:this:}/{file}.blast6"
         conda:
-            "diamond.yml"
+            "diamond"
         shell: """
         diamond view --daa {input} > {output}
         """

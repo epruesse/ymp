@@ -1,3 +1,5 @@
+Env(name="cdhit", base="bioconda", packages="cd-hit")
+
 rule cdhit_faa_single:
     """Clustering predicted genes using cdhit"""
     message:
@@ -15,6 +17,8 @@ rule cdhit_faa_single:
         slow=1,
         print_overlap=1,
         description_length=0
+    conda:
+        "cdhit"
     shell: """
     cd-hit \
     -T {threads} \
@@ -98,6 +102,8 @@ rule cdhit_fna_single:
         print_overlap=1,
         description_length=0,
         id=0.95
+    conda:
+        "cdhit"
     shell: """
     cd-hit-est \
     -i {input} \

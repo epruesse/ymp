@@ -1,3 +1,5 @@
+Env(name="centrifuge", base="bioconda", packages="centrifuge")
+
 with Stage("profile_centrifuge") as S:
     S.doc("""
     Classify reads using centrifuge
@@ -20,7 +22,7 @@ with Stage("profile_centrifuge") as S:
         threads:
             16
         conda:
-            "centrifuge.yml"
+            "centrifuge"
         params:
             mem = icfg.mem("32G")
         shell:

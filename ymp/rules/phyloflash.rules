@@ -8,6 +8,7 @@ TODO:
     deal with just one organism in the result.
 """
 
+Env(name="phyloflash", base="bioconda", packages="phyloflash")
 
 rule phyloFlash_makedb:
     """PhyloFlash: Building reference database"""
@@ -19,7 +20,7 @@ rule phyloFlash_makedb:
              univec="{:ref.UniVec:}.fasta.gz"
     params:
         version = 0
-    conda:   "phyloflash.yml"
+    conda:   "phyloflash"
     shell: """
     CWD="$PWD"
     rm -rf {output.dbhome}
@@ -43,7 +44,7 @@ rule phyloFlash:
     output:  "{dir}.pf/{sample}.phyloFlash.NTUabundance.csv"
     log:     "{dir}.pf/{sample}.log"
     threads: 16
-    conda:   "phyloflash.yml"
+    conda:   "phyloflash"
     params:  in2="-read2 ../{input[1]}",
              mem=icfg.mem("80g")
     shell: """
@@ -72,7 +73,7 @@ rule phyloFlash_heatmap:
     output:  "{:dir.reports:}/{dir}.phyloFlash.pdf"
     log:     "{dir}.pf/phyloFlash_heatmap.log"
     threads: 1
-    conda:   "phyloflash.yml"
+    conda:   "phyloflash"
     shell: """
     phyloFlash_heatmap.R {input[0]} {input} --out {output} >{log} 2>&1
     """

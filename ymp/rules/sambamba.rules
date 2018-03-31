@@ -1,3 +1,5 @@
+Env(name="sambamba", base="bioconda", packages="sambamba")
+
 rule sambamba_sort:
     message: "Sambamba: Sorting BAM file {input}"
     input:   "{path}.bam"
@@ -8,7 +10,7 @@ rule sambamba_sort:
     params:  mem=icfg.mem("32g"),
              compress=6
     threads: 8
-    conda: "sambamba.yml"
+    conda: "sambamba"
     shell:
         "sambamba sort"
         " --memory-limit={params.mem}MB"

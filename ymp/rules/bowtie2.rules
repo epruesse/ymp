@@ -1,3 +1,5 @@
+Env(name="bowtie2", base="bioconda", packages=["bowtie2", "samtools"])
+
 BT2IDX_SUFFIXES = "1.bt2 2.bt2 3.bt2 4.bt2 rev.1.bt2 rev.2.bt2".split()
 
 rule bowtie2_index:
@@ -14,7 +16,7 @@ rule bowtie2_index:
     log:
         "{path}/{source}.contigs.btbuild.log"
     conda:
-      "bowtie2.yml"
+        "bowtie2"
     shell:"""
     bowtie2-build-s \
       {input.contigs} \
@@ -47,7 +49,7 @@ with Stage("map_bowtie2") as S:
         threads:
             16
         conda:
-          "bowtie2.yml"
+            "bowtie2"
         shell:"""
         bowtie2 \
             -x {params.bt2_base} \

@@ -6,6 +6,8 @@ query sequences. E.g. "./query.faa".
 """
 import functools
 
+Env(name="blast", base="bioconda", packages="blast")
+
 # Define which format and values we'd like to have from BLAST
 # If you change this, all blast outputs have to be re-run!
 
@@ -60,7 +62,7 @@ rule makeblastdb:
     params:  db_name   = blast_db_name,
              db_title = blast_db_title
     threads: 1
-    conda:   "blast.yml"
+    conda:   "blast"
     shell: """
     makeblastdb -dbtype nucl \
                 -parse_seqids \
@@ -89,7 +91,7 @@ rule blastx_query:
         blastfmt = BLASTFMT
     threads:
         4
-    conda:   "blast.yml"
+    conda:   "blast"
     shell: """
     gunzip -c {input.contigs} |
     blastn \
@@ -116,7 +118,7 @@ rule tblastn_query:
     params:  db_name  = blast_db_name,
              blastfmt = BLASTFMT
     threads: 8
-    conda:   "blast.yml"
+    conda:   "blast"
     shell: """
     tblastn -db {params.db_name} -query {input.query} \
       -outfmt "{params.blastfmt}" \

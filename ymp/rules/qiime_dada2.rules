@@ -1,5 +1,6 @@
 from os.path import dirname
 
+
 rule dada2:
     """Use qiime_dada2.py to pick OTUs"""
     message:

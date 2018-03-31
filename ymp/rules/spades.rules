@@ -1,3 +1,5 @@
+Env(name="spades", base="bioconda", packages=["spades", "pigz"])
+
 localrules: metaspades_input_yaml
 rule metaspades_input_yaml:
     """
@@ -51,7 +53,7 @@ rule metaspades:
         tmpdir  = icfg.dir.tmp,
         memory  = icfg.mem("1000g", unit="g"),
         mem = icfg.mem("1000g")
-    conda: "spades.yml"
+    conda: "spades"
     threads:
         24
     shell: """

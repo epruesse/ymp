@@ -113,7 +113,6 @@ def install(envnames):
     envs = get_envs(envnames)
     log.warning(f"Creating {len(envs)} environments.")
     for env in envs.values():
-        log.error(env)
         env.create()
 
 

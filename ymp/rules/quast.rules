@@ -1,3 +1,5 @@
+Env(name="quast", base="bioconda", packages="quast >=4.5")
+
 rule metaquast_all_at_once:
     message:
         "MetaQUAST qc'ing {wildcards.dir} combined co-assemblies"
@@ -12,7 +14,7 @@ rule metaquast_all_at_once:
         targets = "{:targets:}",
         min_contig_len = 500
     conda:
-        "quast.yml"
+        "quast"
     threads:
         16
     shell:"""
@@ -39,7 +41,7 @@ rule metaquast_part:
     params:
         min_contig_len = 500
     conda:
-        "quast.yml"
+        "quast"
     threads:
         8
     shell:"""

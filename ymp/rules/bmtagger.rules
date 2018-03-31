@@ -3,9 +3,10 @@ BMTagger Rules
 
 """
 
-Env(name="bmtagger",
-    base="bioconda",
-    packages="bmtagger")
+Env(name="bmtagger", base="bioconda", packages=[
+    "bmtagger",
+    "blast >=2.7.1"  # make sure we don't get 2.2
+])
 
 rule bmtagger_bitmask:
     "Build BMTagger bitmask index"

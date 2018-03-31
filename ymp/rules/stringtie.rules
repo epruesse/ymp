@@ -1,3 +1,5 @@
+Env(name="stringtie", base="bioconda", packages="stringtie")
+
 rule stringtie:
     message:
         "Stringtie: Assembling transcripts ({log})"
@@ -15,7 +17,7 @@ rule stringtie:
     params:
         mem = icfg.mem("16G")
     conda:
-        "stringtie.yml"
+        "stringtie"
     shell:
         "stringtie"
         " {input.bam}"
@@ -42,7 +44,7 @@ rule stringtie_merge:
     params:
         mem = icfg.mem("16G")
     conda:
-        "stringtie.yml"
+        "stringtie"
     shell:
         "stringtie --merge"
         " {input.gtf}"
@@ -69,7 +71,7 @@ rule stringtie_abundance:
     params:
         mem = icfg.mem("16G")
     conda:
-        "stringtie.yml"
+        "stringtie"
     shell:
         "stringtie"
         " {input.bam}"

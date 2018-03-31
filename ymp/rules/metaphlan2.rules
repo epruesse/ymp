@@ -1,3 +1,10 @@
+# requires bowtie2
+
+Env(name="metaphlan2", base="bioconda", packages=[
+    "metaphlan2 =2.6*"  # newer versions clobber site-libraries
+])
+
+
 with Stage("metaphlan2") as S:
     S.doc("""
     Assess metagenome community composition using Metaphlan 2
@@ -19,7 +26,7 @@ with Stage("metaphlan2") as S:
         log:
             metaphlan_bam + ".log"
         conda:
-            "bowtie2.yml"
+            "bowtie2"
         threads:
             16
         params:
@@ -52,7 +59,7 @@ with Stage("metaphlan2") as S:
         log:
             "{:this:}/{sample}_profile.log"
         conda:
-            "metaphlan2.yml"
+            "metaphlan2"
         threads:
             1
         shell: """
@@ -80,7 +87,7 @@ with Stage("metaphlan2") as S:
         log:
             "{:this:}/merged_abundance_table.txt.log"
         conda:
-            "metaphlan2.yml"
+            "metaphlan2"
         threads:
             1
         shell: """

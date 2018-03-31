@@ -2,6 +2,13 @@
 Rules using tools from the BBTools / BBMap suite by Brian Bushnell
 """
 
+Env(name="bbmap", base="bioconda", packages=[
+    "bbmap",
+    "pigz",
+    "samtools",
+    "coreutils"  # for readlink -f
+])
+
 # TODO: find way to enable JNI
 
 bbstats  = "bhist qhist aqhist bqhist lhist ihist ehist qahist "
@@ -29,7 +36,7 @@ rule bbmap_makedb:
         mem=icfg.mem("80g")
     threads: 8
     conda:
-        "bbmap.yml"
+        "bbmap"
     shell: """
     bbmap.sh \
         path={params.path} \
@@ -66,7 +73,7 @@ with Stage("correct_bbmap") as S:
             inout2 = "in2={input[1]} out2={output[1]}",
             mem    = icfg.mem("80g")
         conda:
-            "bbmap.yml"
+            "bbmap"
         shell: """
         bbmerge.sh {params.inout} {params.inout2} \
                    outadapter={output.adapter} \
@@ -121,7 +128,7 @@ with Stage("trim_bbmap") as S:
             inout2 = "in2={input[1]} out2={output[1]}" # overriden by child rule
         threads: 16
         conda:
-            "bbmap.yml"
+            "bbmap"
         shell:
             # find adapter dir:
             'BB_RSRC="$(dirname $(readlink -f $(command -v bbduk.sh)))/resources";'
@@ -173,7 +180,7 @@ with Stage("dedup_bbmap") as S:
             mem = icfg.mem("80g")
         threads: 4
         conda:
-            "bbmap.yml"
+            "bbmap"
         shell:
             "dedupe.sh"
             " unpigz"
@@ -206,7 +213,7 @@ with Stage("dedup_bbmap") as S:
             mem = icfg.mem("80g")
         threads: 4
         conda:
-            "bbmap.yml"
+            "bbmap"
         shell:
             "dedupe.sh"
             " unpigz"
@@ -261,7 +268,7 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
         threads:
             16
         conda:
-            "bbmap.yml"
+            "bbmap"
         shell:
             "bbmap.sh "
             " minid={params.minid} "
@@ -315,7 +322,7 @@ rule bbduk_primer:
         k=12,
         rl=12,
         inout2="in2={input[1]} outm2={output.match[1]} outu2={output.fail[1]}"
-    conda: "bbmap.yml"
+    conda: "bbmap"
     shell:
         'bbduk.sh'
         ' in={input[0]} outm={output.match[0]} outu={output.fail[0]} '
@@ -363,7 +370,7 @@ with Stage("map_bbmap") as S:
         threads:
             8
         conda:
-            "bbmap.yml"
+            "bbmap"
         shell:
             "bbmap.sh"
             " threads={threads}"
