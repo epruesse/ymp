@@ -73,7 +73,7 @@ rule quast_report:
     params:
         dir = "{dir}.mq"
     conda:
-        "multiqc.yml"
+        "multiqc"
     threads:
         1
     shell: """

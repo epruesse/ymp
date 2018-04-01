@@ -17,7 +17,7 @@ rule multiqc:
     params:
         dir = "{dir}.fastqc"
     conda:
-        "multiqc.yml"
+        "multiqc"
     shell: """
     multiqc \
             --module fastqc \
