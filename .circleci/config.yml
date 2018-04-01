@@ -90,7 +90,7 @@ variables:
         cp -avr ../envs/* .
         git add */
         git add */*.txt */*.yml
-        git commit -m "Updating environments"
+        git diff --staged --exit-code || git commit -m "Updating environments"
         git push
   ymp_env_install: &ymp_env_install
     run:
