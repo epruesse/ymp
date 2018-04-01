@@ -834,8 +834,7 @@ class ConfigMgr(object):
             ds = dirname.split(".", 1)[0]
             return self._datasets[ds]
         except KeyError:
-            import pdb; pdb.set_trace()
-            raise KeyError("no datasetx found matching '{}'".format(dirname))
+            raise KeyError("no dataset found matching '{}'".format(dirname))
 
     def expand(self, item, **kwargs):
         expander = ConfigExpander(self)

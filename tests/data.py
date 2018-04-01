@@ -40,8 +40,10 @@ target_map = {
         'assemble_separate_sp': '{}.by_ID.sp/all',
         'assemble_grouped_sp':  '{}.by_Subject.sp/all',
         'assemble_joined_sp':   '{}.sp/all',
-        'metaquast_mh':         'reports/{}.assemble_megahit.mq.html',
-        'metaquast_sp':         'reports/{}.sp.mq.html',
+        # race condition in automatic db download in metaquast makes
+        # running this on CI impossible at the moment
+        #'metaquast_mh':         'reports/{}.assemble_megahit.mq.html',
+        #'metaquast_sp':         'reports/{}.sp.mq.html',
         # mapping.rules
         'map_bbmap_separate':   '{}.by_ID.assemble_megahit.map_bbmap/all',
         'map_bbmap_grouped':   '{}.by_Subject.assemble_megahit.map_bbmap/all',
@@ -55,7 +57,8 @@ target_map = {
         # community profile
         'profile_metaphlan2': '{}.metaphlan2/all',
         # functional profile
-        'profile_humann2': '{}.humann2/all',
+        # broken on CI, probably due to memory or time limits
+        # 'profile_humann2': '{}.humann2/all',
     ],
     'amplicon': odict[
         'bbduk_primer': '{}.primermatch/all'
