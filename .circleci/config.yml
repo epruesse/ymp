@@ -82,10 +82,13 @@ variables:
     run:
       name: Committing exported environments
       command: |
-        cp -avr envs/* environments
+        git config --global user.email "elmar.pruesse@ucdenver.edu"
+        git config --global user.name "Elmar Pruesse"
         cd environments
         git pull
-        git add *
+        cp -avr ../envs/* environments
+        git add */
+        git add */*.txt */*.yml
         git commit -m "Updating environments"
         git push
   ymp_env_install: &ymp_env_install
