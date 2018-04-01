@@ -85,8 +85,9 @@ variables:
         git config --global user.email "elmar.pruesse@ucdenver.edu"
         git config --global user.name "Elmar Pruesse"
         cd environments
+        git checkout master
         git pull
-        cp -avr ../envs/* environments
+        cp -avr ../envs/* .
         git add */
         git add */*.txt */*.yml
         git commit -m "Updating environments"
