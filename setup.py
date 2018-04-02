@@ -3,12 +3,28 @@
 import fastentrypoints  # NOQA pylint: disable=unused-import
 from setuptools import setup, find_packages
 
+
+def read_file(fn):
+    with open(fn) as f:
+        content = f.read()
+    return content
+
+
+def get_content_type(fn):
+    if fn.endswith(".md"):
+        return "text/markdown"
+    elif fn.endswith(".rst"):
+        return "text/x-rst"
+    else:
+        return "text/plain"
+
+
 setup(
     name="YMP",
     use_scm_version={'write_to': 'ymp/_version.py'},
-    #description=,
-    #long_description=,
-    #long_description_content_type='text/x-rst', test/markdown
+    description="Flexible multi-omic pipeline system",
+    long_description=read_file("README.md"),
+    long_description_content_type=get_content_type("README.md"),
     url="https://github.com/epruesse/ymp",
     author="Elmar Pruesse",
     author_email="elmar.pruesse@ucdenver.edu",
@@ -21,7 +37,7 @@ setup(
     project_urls={
         'Documentation': 'https://ymp.readthedocs.io',
         'Source': 'https://github.com/epruesse/ymp',
-    }
+    },
     packages=find_packages(exclude=['docs', 'tests']),
     zip_safe=False,
     setup_requires=[
