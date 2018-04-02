@@ -9,6 +9,7 @@ import subprocess
 from typing import Optional, Union
 
 import snakemake
+import snakemake.conda
 from ruamel.yaml import YAML
 
 from ymp.common import AttrDict, ensure_list
@@ -58,6 +59,7 @@ class Env(WorkflowObject, snakemake.conda.Env):
         ]
 
     def __init__(self, env_file: Optional[str] = None,
+                 dag: Optional[object] = None,
                  name: Optional[str] = None,
                  packages: Optional[Union[list, str]] = None,
                  base: str = "none",
@@ -117,14 +119,14 @@ class Env(WorkflowObject, snakemake.conda.Env):
 
         super().__init__(env_file, pseudo_dag)
 
-    def create(self):
+    def create(self, dryrun=False):
         """Create conda environment""
 
         Inherits from snakemake.conda.Env.create
         """
         log.warning("Creating environment '%s'", self.name)
         log.warning("Target dir is '%s'", self.path)
-        return super().create()
+        return super().create(dryrun)
 
     @property
     def installed(self):
@@ -181,6 +183,11 @@ class Env(WorkflowObject, snakemake.conda.Env):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.__dict__!r})"
 
+    def __eq__(self, other):
+        if isinstance(other, Env):
+            return self.hash == other.hash
+
+snakemake.conda.Env = Env
 
 class CondaPathExpander(BaseExpander):
     """Applies search path for conda environment specifications

@@ -914,8 +914,9 @@ class WorkflowObject(object):
                 names += ensure_list(getattr(self, attr))
 
         for name in names:
-            if name in objs and (self.filename != objs[name].filename
-                                 or self.lineno != objs[name].lineno):
+            if name in objs and self != objs[name] and \
+               (self.filename != objs[name].filename
+                or self.lineno != objs[name].lineno):
                 other = objs[name]
                 raise YmpRuleError(
                     self,
