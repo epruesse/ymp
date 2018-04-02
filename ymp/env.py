@@ -60,6 +60,7 @@ class Env(WorkflowObject, snakemake.conda.Env):
 
     def __init__(self, env_file: Optional[str] = None,
                  dag: Optional[object] = None,
+                 singularity_img=None,
                  name: Optional[str] = None,
                  packages: Optional[Union[list, str]] = None,
                  base: str = "none",
@@ -117,7 +118,7 @@ class Env(WorkflowObject, snakemake.conda.Env):
             }
         })
 
-        super().__init__(env_file, pseudo_dag)
+        super().__init__(env_file, pseudo_dag, singularity_img)
 
     def create(self, dryrun=False):
         """Create conda environment""
