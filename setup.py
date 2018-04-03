@@ -20,7 +20,7 @@ def get_content_type(fn):
 
 
 setup(
-    name="YMP",
+    name="ymp",
     use_scm_version={'write_to': 'ymp/_version.py'},
     description="Flexible multi-omic pipeline system",
     long_description=read_file("README.md"),
@@ -31,9 +31,18 @@ setup(
     license="GPL-3",
     classifiers=[
         'Development Status :: 4 - Beta',
+        'Environment :: Console',
+        'Intended Audience :: Science/Research',
+        'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
+        'Natural Language :: English',
+        'Operating System :: MacOS',
+        'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Snakemake',
+        'Topic :: Scientific/Engineering :: Bio-Informatics',
     ],
-    keywords="bioinformatics pipeline rnaseq metagenomics",
+    platforms=["linux", "macos"],
+    keywords="bioinformatics pipeline rnaseq metagenomics conda bioconda snakemake",
     project_urls={
         'Documentation': 'https://ymp.readthedocs.io',
         'Source': 'https://github.com/epruesse/ymp',
