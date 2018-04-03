@@ -2,7 +2,7 @@
 \#*\#
 
 # generated version file
-ymp/_version.py
+src/ymp/_version.py
 
 # coverage annotations
 *,cover
