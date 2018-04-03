@@ -244,10 +244,6 @@ jobs:
     <<: *environment
     <<: *linux
     <<: *deploy_steps
-  deploy-macos:
-    <<: *environment
-    <<: *macos
-    <<: *deploy_steps
   nightly-linux:
     <<: *environment
     <<: *linux
@@ -278,15 +274,6 @@ workflows:
             branches:
               ignore: trigger-nightly
       - deploy-linux:
-          requires:
-            - test-linux
-            - test-macos
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              ignore: /.*/
-      - deploy-macos:
           requires:
             - test-linux
             - test-macos
