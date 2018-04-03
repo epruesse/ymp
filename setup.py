@@ -4,28 +4,54 @@ import fastentrypoints  # NOQA pylint: disable=unused-import
 from setuptools import setup, find_packages
 
 
+def read_file(fn):
+    with open(fn) as f:
+        content = f.read()
+    return content
+
+
+def get_content_type(fn):
+    if fn.endswith(".md"):
+        return "text/markdown"
+    if fn.endswith(".rst"):
+        return "text/x-rst"
+    return "text/plain"
+
+
 setup(
-    name="YMP",
-    use_scm_version={'write_to': 'ymp/_version.py'},
+    name="ymp",
+    use_scm_version={'write_to': 'src/ymp/_version.py'},
+    description="Flexible multi-omic pipeline system",
+    long_description=read_file("README.md"),
+    long_description_content_type=get_content_type("README.md"),
+    url="https://github.com/epruesse/ymp",
     author="Elmar Pruesse",
     author_email="elmar.pruesse@ucdenver.edu",
-    url="https://github.com/epruesse/ymp",
-    #description=,
-    #long_description=,
-    #license=,
-    #keywords=,
-
-    packages=find_packages(),
-    package_data={ '': [
-        'rules/Snakefile',
-        'rules/*.rules',
-        'rules/*.yml',
-        'etc/*.yml'
-    ]},
+    license="GPL-3",
+    classifiers=[
+        'Development Status :: 4 - Beta',
+        'Environment :: Console',
+        'Intended Audience :: Science/Research',
+        'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
+        'Natural Language :: English',
+        'Operating System :: MacOS',
+        'Operating System :: POSIX :: Linux',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Snakemake',
+        'Topic :: Scientific/Engineering :: Bio-Informatics',
+    ],
+    platforms=["linux", "macos"],
+    keywords=("bioinformatics pipeline rnaseq metagenomics "
+              "conda bioconda snakemake"),
+    project_urls={
+        'Documentation': 'https://ymp.readthedocs.io',
+        'Source': 'https://github.com/epruesse/ymp',
+    },
+    packages=find_packages('src'),
+    package_dir={'': 'src'},
     zip_safe=False,
-
     setup_requires=[
-        'setuptools_scm',
+        'setuptools_scm>=1.17',
         'pytest-runner'
     ],
     tests_require=[
@@ -48,13 +74,10 @@ setup(
         'coloredlogs',
         'xdg'
     ],
-
+    python_requires='>=3.6',
+    include_package_data=True,
     entry_points='''
         [console_scripts]
         ymp=ymp.cli:main
     ''',
-
-    classifiers=[
-        'Programming Language :: Python :: 3.6',
-    ],
 )

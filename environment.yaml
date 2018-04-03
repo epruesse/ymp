@@ -13,10 +13,10 @@ dependencies:
   - pandas >=0.20  # need dtype support in python csv engine
   - xlrd         # excel support
   - coloredlogs
-  - setuptools_scm # versioning
+  - setuptools_scm >=1.17 # versioning
   - xdg # user paths
   #### for tests: ####
-  - networkx >= 2.0
+  - networkx >=2.0
   - pygraphviz
   - pytest
   - pytest-runner  # run from setup.py

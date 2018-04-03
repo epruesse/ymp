@@ -1,1 +1,2 @@
 include fastentrypoints.py
+recursive-include src/ymp/conda_envs *.txt *.yml *.md

@@ -84,10 +84,11 @@ variables:
       command: |
         git config --global user.email "elmar.pruesse@ucdenver.edu"
         git config --global user.name "Elmar Pruesse"
-        cd environments
+        WD=`pwd`
+        cd src/ymp/conda_env/latest
         git checkout master
         git pull
-        cp -avr ../envs/* .
+        cp -avr $WD/envs/* .
         git add */
         git add */*.txt */*.yml
         git diff --staged --exit-code || git commit -m "Updating environments"
@@ -153,6 +154,22 @@ variables:
           when: on_fail
           path: envs
 
+  ## Deploy
+  deploy_pypi: &deploy_pypi
+    run:
+      name: Deploying to PyPi
+      command: |
+        echo "[pypi]" > ~/.pypirc
+        echo "username = epruesse" >> ~/.pypirc
+        echo "password = $PYPI_PASS" >> ~/.pypirc
+        rm -rf dist
+        if [ x"`uname`" == x"Linux" ]; then
+          ./setup.py sdist
+        fi
+        ./setup.py bdist_wheel
+        pip install twine
+        twine upload dist/*
+
   ## Other
   upload_coverage: &upload_coverage
     run:
@@ -177,6 +194,11 @@ variables:
       - *ymp_store_test_results
       - *ymp_store_test_failures
       - *upload_coverage
+  deploy_steps: &deploy_steps
+    steps:
+      - checkout
+      - *checkout_submodules
+      - *deploy_pypi
   nightly_steps: &nightly_steps
     steps:
       - checkout
@@ -218,6 +240,14 @@ jobs:
     <<: *environment
     <<: *macos
     <<: *test_steps
+  deploy-linux:
+    <<: *environment
+    <<: *linux
+    <<: *deploy_steps
+  deploy-macos:
+    <<: *environment
+    <<: *macos
+    <<: *deploy_steps
   nightly-linux:
     <<: *environment
     <<: *linux
@@ -233,16 +263,38 @@ jobs:
 
 workflows:
   version: 2
-  test:
+  commit:
     jobs:
       - test-linux:
           filters:
+            tags:
+              only: /.*/
             branches:
               ignore: trigger-nightly
       - test-macos:
           filters:
+            tags:
+              only: /.*/
             branches:
               ignore: trigger-nightly
+      - deploy-linux:
+          requires:
+            - test-linux
+            - test-macos
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - deploy-macos:
+          requires:
+            - test-linux
+            - test-macos
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
   nightly:
     jobs:
       - nightly-linux
