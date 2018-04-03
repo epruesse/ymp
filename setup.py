@@ -20,7 +20,7 @@ def get_content_type(fn):
 
 setup(
     name="ymp",
-    use_scm_version={'write_to': 'ymp/_version.py'},
+    use_scm_version={'write_to': 'src/ymp/_version.py'},
     description="Flexible multi-omic pipeline system",
     long_description=read_file("README.md"),
     long_description_content_type=get_content_type("README.md"),
@@ -47,7 +47,8 @@ setup(
         'Documentation': 'https://ymp.readthedocs.io',
         'Source': 'https://github.com/epruesse/ymp',
     },
-    packages=find_packages(exclude=['docs', 'tests']),
+    packages=find_packages('src'),
+    package_dir={'': 'src'},
     zip_safe=False,
     setup_requires=[
         'setuptools_scm',

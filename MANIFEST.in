@@ -1,4 +1,2 @@
 include fastentrypoints.py
-graft ymp/rules
-graft ymp/etc
-graft ymp/conda_envs
+recursive-include src/ymp/conda_envs *.txt *.yml *.md
