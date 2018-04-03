@@ -104,6 +104,20 @@ variables:
           when: on_fail
           path: envs
 
+  ## Deploy
+  pypi_deply:
+    run:
+      name: Deploying to PyPi
+      command: |
+        echo "[pypi]" > ~/.pypirc
+        echo "username = epruesse" >> ~/.pypirc
+        echo "password = $PYPI_PASS" >> ~/.pypirc
+        rm -rf dist
+        ./setup.py sdist
+        ./setup.py bdist_wheel
+        pip install twine
+        twine upload dist/*
+
   ## Other
   upload_coverage: &upload_coverage
     run:
@@ -170,16 +184,29 @@ jobs:
 
 workflows:
   version: 2
-  test:
+  commit:
     jobs:
       - test-linux:
           filters:
+            tags:
+              only: /.*/
             branches:
               ignore: trigger-nightly
       - test-macos:
           filters:
+            tags:
+              only: /.*/
             branches:
               ignore: trigger-nightly
+      - deploy-pypi:
+          requires:
+            - test-linux
+            - test-macos
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
   nightly:
     jobs:
       - nightly-linux
