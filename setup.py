@@ -51,7 +51,7 @@ setup(
     package_dir={'': 'src'},
     zip_safe=False,
     setup_requires=[
-        'setuptools_scm',
+        'setuptools_scm>=1.17',
         'pytest-runner'
     ],
     tests_require=[
