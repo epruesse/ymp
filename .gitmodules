@@ -1,3 +1,4 @@
 [submodule "environments"]
 	path = src/ymp/conda_envs/latest
 	url = ../ymp_environments.git
+	branch = master

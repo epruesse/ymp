@@ -2,6 +2,7 @@
 This module manages the conda environments.
 """
 
+import io
 import logging
 import os
 import os.path as op
@@ -97,10 +98,19 @@ class Env(WorkflowObject, snakemake.conda.Env):
             self.dynamic = True
 
             env_file = op.join(icfg.absdir.dynamic_envs, f"{name}.yml")
-            with icfg.conda.defaults[base] as defaults:
-                defaults.dependencies.extend(ensure_list(packages))
-                defaults.channels.extend(ensure_list(channels))
-                contents = f"name: {name}\n{defaults}"
+            defaults = {
+                'name': self.name,
+                'dependencies': list(ensure_list(packages) +
+                                     icfg.conda.defaults[base].dependencies),
+                'channels': list(ensure_list(channels) +
+                                 icfg.conda.defaults[base].channels)
+            }
+            yaml = YAML(typ='rt')
+            yaml.default_flow_style = False
+            buf = io.StringIO()
+            yaml.dump(defaults, buf)
+            contents = buf.getvalue()
+
             disk_contents = ""
             if op.exists(env_file):
                 with open(env_file, "r") as inf:
