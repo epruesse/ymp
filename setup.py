@@ -37,7 +37,6 @@ setup(
         'Operating System :: MacOS',
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 3.6',
-        'Programming Language :: Snakemake',
         'Topic :: Scientific/Engineering :: Bio-Informatics',
     ],
     platforms=["linux", "macos"],

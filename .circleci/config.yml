@@ -167,8 +167,8 @@ variables:
           ./setup.py sdist
         fi
         ./setup.py bdist_wheel
-        pip install twine
-        twine upload dist/*
+        pip install --user twine
+         ~/.local/bin/twine upload dist/*
 
   ## Other
   upload_coverage: &upload_coverage
