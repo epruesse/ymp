@@ -13,10 +13,9 @@ def read_file(fn):
 def get_content_type(fn):
     if fn.endswith(".md"):
         return "text/markdown"
-    elif fn.endswith(".rst"):
+    if fn.endswith(".rst"):
         return "text/x-rst"
-    else:
-        return "text/plain"
+    return "text/plain"
 
 
 setup(
@@ -42,7 +41,8 @@ setup(
         'Topic :: Scientific/Engineering :: Bio-Informatics',
     ],
     platforms=["linux", "macos"],
-    keywords="bioinformatics pipeline rnaseq metagenomics conda bioconda snakemake",
+    keywords=("bioinformatics pipeline rnaseq metagenomics "
+              "conda bioconda snakemake"),
     project_urls={
         'Documentation': 'https://ymp.readthedocs.io',
         'Source': 'https://github.com/epruesse/ymp',
