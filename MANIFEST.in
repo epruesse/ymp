@@ -1,8 +1,4 @@
 include fastentrypoints.py
-include ymp/rules/Snakefile
-include ymp/rules/*.rules
-include ymp/rules/*.yml
-include ymp/etc/*.yml
-exclude .*
-exclude .*/*
-include environments
+graft ymp/rules
+graft ymp/etc
+graft ymp/conda_envs
