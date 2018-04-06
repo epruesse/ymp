@@ -71,7 +71,9 @@ setup(
         'pandas>=0.20',
         'networkx>=2',
         'coloredlogs',
-        'xdg'
+        'xdg',
+        'aiohttp',
+        'tqdm'
     ],
     python_requires='>=3.6',
     include_package_data=True,
