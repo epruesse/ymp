@@ -15,9 +15,8 @@ YMP processes data in stages, each of which is contained in its own directory.
 import logging
 from typing import TYPE_CHECKING
 
-from ymp.common import AttrDict
-from ymp.exceptions import YmpException
-from ymp.snakemake import ColonExpander, RuleInfo, WorkflowObject, get_workflow
+from ymp.exceptions import YmpRuleError
+from ymp.snakemake import ColonExpander, RuleInfo, WorkflowObject
 from ymp.string import PartialFormatter
 
 if TYPE_CHECKING:
@@ -25,18 +24,6 @@ if TYPE_CHECKING:
     from snakemake.rules import Rule
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
-
-
-class YmpStageError(YmpException):
-    """
-    Exception raised if something went wrong creating a stage.
-
-    Currently, cases are duplicating stage names or trying to
-    enter two stages at the same time.
-    """
-    def __init__(self, stage: 'Stage', msg: str) -> None:
-        msg = "Error in stage '{}': {}".format(stage, msg)
-        super().__init__(msg)
 
 
 class Stage(WorkflowObject):
@@ -99,9 +86,10 @@ class Stage(WorkflowObject):
 
     def __enter__(self):
         if Stage.active is not None:
-            raise YmpStageError(
-                self.name,
-                "Stage {} already active".format(self.active.name)
+            raise YmpRuleError(
+                self,
+                "Failed to enter stage '{self.name}', "
+                "already in stage {self.active.name}'."
             )
 
         Stage.active = self
