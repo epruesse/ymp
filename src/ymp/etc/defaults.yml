@@ -190,10 +190,10 @@ cluster:
       sync_arg:   "--wait"
       args:
         log:      "--output={:absdir.log:}/%x_%J.log"
-        threads:  "--cpus-per-task={threads} --nodes=1 -ntasks=1"
+        threads:  "--cpus-per-task={threads} --nodes=1 --ntasks=1"
         memory:   "--mem={params.mem}"
         walltime: "--time=23:59:59"
-        cluster_status: "python -m ymp.cluster slurm status"
+      cluster_status: "python -m ymp.cluster slurm status"
 
   rule_params:
     default:

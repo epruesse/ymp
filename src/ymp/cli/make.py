@@ -290,7 +290,7 @@ def submit(profile, **kwargs):
     # "
     config = icfg.cluster.profiles.default
     profile_name = profile or icfg.cluster.profile
-    if profile:
+    if profile_name:
         config.add_layer(profile_name,
                          icfg.cluster.profiles[profile_name])
     cli_params = {key: value
