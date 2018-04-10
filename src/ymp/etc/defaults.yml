@@ -176,7 +176,7 @@ cluster:
       cluster_cores: 2
     # Profile for Torque engine
     torque:
-      cmd:        "qsub"
+      command:    "qsub"
       sync_arg:   "-sync"
       args:
         log:      "-j oe -o {:absdir.log:}/"
