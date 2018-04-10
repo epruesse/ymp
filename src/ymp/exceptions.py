@@ -1,8 +1,9 @@
 """Exceptions raised by YMP"""
 
-from click import ClickException, echo
 from inspect import stack
 from typing import Optional
+
+from click import ClickException, echo
 
 
 class YmpException(Exception):
@@ -26,8 +27,10 @@ class YmpNoStackException(YmpException, ClickException):
     just prefix the ``msg`` with ``Error: ``.
     """
 
+
 class YmpSystemError(YmpNoStackException):
     """Indicates problem running YMP with available system software"""
+
 
 class YmpRuleError(YmpNoStackException):
     """Indicates an error in the rules files
