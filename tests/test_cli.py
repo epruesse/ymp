@@ -17,7 +17,7 @@ def test_submit_no_profile(invoker):
 def test_submit_profile_cfg(invoker, saved_tmpdir):
     "Test profile set from config"
     with open("ymp.yml", "w") as cfg:
-        cfg.write("conda:\n  profile: dummy]")
+        cfg.write("cluster:\n  profile: dummy")
     invoker.call("submit", invoker.icfg.dir.reports)
     assert os.path.isdir(invoker.icfg.dir.reports)
 
