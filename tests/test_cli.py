@@ -136,10 +136,13 @@ def test_env_list(invoker):
 
 def test_env_prepare(invoker, project_dir, mock_conda):
     """Test passing through to snakemake prepare"""
+    with open("ymp.yml", "a") as f:
+        f.write("directories:\n conda_prefix: '.'")
     res = invoker.call("env", "prepare",
                        "--conda-prefix=.",
                        "toy.trim_bbmap/all")
-    assert "bbmap.yml created" in res.output
+    assert "created" in res.output
+    assert "bbmap" in res.output
 
 
 def test_env_install(invoker, project_dir, mock_conda):
