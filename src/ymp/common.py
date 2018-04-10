@@ -73,7 +73,10 @@ class AttrDict(dict):
         try:
             return super().__getattr__(attr)
         except AttributeError:
-            val = self[attr]
+            try:
+                val = self[attr]
+            except KeyError as e:
+                raise AttributeError(e)
             if isinstance(val, dict):
                 return AttrDict(val)
             else:
