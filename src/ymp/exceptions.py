@@ -2,6 +2,7 @@
 
 from click import ClickException, echo
 from inspect import stack
+from typing import Optional
 
 
 class YmpException(Exception):
@@ -51,3 +52,26 @@ class YmpRuleError(YmpNoStackException):
             if not fi.filename.endswith(".py"):
                 echo(f"  included from {fi.filename}:{fi.lineno}")
 
+
+class YmpConfigError(YmpNoStackException):
+    """Indicates an error in the ymp.yml config files
+
+    Args:
+      obj: Subtree of config causing error
+      msg: The message to display
+      key: Key indicating part of ``obj`` causing error
+      exc: Upstream exception causing error
+    """
+    def __init__(self, obj: object, msg: str, key: Optional[object]=None,
+                 exc: Optional[Exception]=None) -> None:
+        self.obj = obj
+        self.stack = stack()
+        self.exc = exc
+        super().__init__(msg)
+
+
+class YmpWorkflowError(YmpNoStackException):
+    """Indicates an error during workflow execution
+
+    E.g. failures to expand dynamic variables
+    """
