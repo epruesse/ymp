@@ -7,7 +7,7 @@ from collections import Mapping, Sequence
 import ymp.yaml
 from ymp.common import AttrDict, MkdirDict, parse_number
 from ymp.env import CondaPathExpander
-from ymp.exceptions import YmpException
+from ymp.exceptions import YmpException, YmpConfigError, YmpWorkflowError
 from ymp.references import load_references
 from ymp.snakemake import \
     BaseExpander, \
@@ -21,26 +21,6 @@ from ymp.util import is_fq, make_local_path
 
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
-
-
-class YmpConfigError(YmpException):
-    pass
-
-
-class YmpConfigNotFound(YmpException):
-    pass
-
-
-class YmpConfigMalformed(YmpException):
-    pass
-
-
-class YmpConfigNoProjects(YmpException):
-    pass
-
-
-class YmpDataParserError(YmpException):
-    pass
 
 
 def load_data(cfg):
@@ -87,11 +67,11 @@ def load_data(cfg):
                 data = pd.read_excel(parts[0],
                                      parts[1] if len(parts) > 1 else 0)
             except ImportError:
-                raise YmpDataParserError(
-                    "Could not load specified data file '{}'."
+                raise YmpConfigError(
+                    cfg,
+                    "Could not load specified data file."
                     " If this is an Excel file, you might need"
                     " to install 'xlrd'."
-                    "".format(cfg)
                 )
         rdir = os.path.dirname(cfg)
         data = data.applymap(
@@ -109,33 +89,27 @@ def load_data(cfg):
             try:
                 return pd.merge(*tables)
             except MergeError as e:
-                log.exception("Failed to `join` configured data.\n"
-                              "Config Fragment:\n{}\n\n"
-                              "Joined table indices:\n{}\n\n"
-                              "".format(yaml.dump(cfg),
-                                        "\n".join(
-                                            [", ".join(table.columns.tolist())
-                                             for table in tables]
-                                        ))
-                              )
-                raise YmpDataParserError(e)
+                raise YmpConfigError(
+                    cfg,
+                    "Failed to `join` configured data.\n"
+                    "Joined table indices:\n{}\n\n"
+                    "".format("\n".join(", ".join(table.columns.tolist())
+                                        for table in tables)),
+                    exc=e)
         # PASTE
         if 'paste' in cfg:
             tables = list(map(load_data, cfg['paste']))
             manyrow = [table for table in tables if len(table) > 1]
-            if len(manyrow) > 0:
+            if manyrow:
                 nrows = len(manyrow[0])
                 if any(len(table) != nrows for table in manyrow[1:]):
-                    raise YmpDataParserError(
+                    raise YmpConfigError(
+                        cfg,
                         "Failed to `paste` configured data. "
                         "Row counts differ and are not 1."
-                        "Config Fragment:\n{}\n\n"
                         "Row counts: {}\n"
-                        "".format(yaml.dump(cfg),
-                                  ", ".join((str(len(table))
-                                             for table in manyrow))
-                                  )
-                    )
+                        "".format(", ".join(str(len(table))
+                                            for table in manyrow)))
                 tables = [
                     table if len(table) > 1
                     else pd.concat([table]*nrows, ignore_index=True)
@@ -149,7 +123,7 @@ def load_data(cfg):
                 for row in cfg['table']
                 for key, value in row.items()
             ))
-    raise YmpConfigMalformed(f"{cfg}")
+    raise YmpConfigError(cfg, "Unrecognized statement in data config")
 
 
 class Context(object):
@@ -298,7 +272,7 @@ class DatasetConfig(object):
         self._source_cfg = None
 
         if self.KEY_DATA not in self.cfg:
-            raise YmpConfigMalformed("Missing key " + self.KEY_DATA)
+            raise YmpConfigError(self.cfg, "Missing key " + self.KEY_DATA)
 
     def __repr__(self):
         return "{}(project={})".format(self.__class__.__name__, self.project)
@@ -335,23 +309,29 @@ class DatasetConfig(object):
         unique_columns = self._runs.columns[
             self._runs.apply(pd.Series.nunique) == self._runs.shape[0]
         ]
-        if len(unique_columns) == 0:
-            raise YmpConfigError("No unique columns in project")
+        if unique_columns.empty:
+            log.debug("Columns: %s", self._runs.columns)
+            log.debug("Rows: %s", self._runs)
+            raise YmpConfigError(
+                self.cfg,
+                "Project data has no column containing unique values for "
+                "each row. At least one is needed to identify samples!"
+            )
 
         if self.KEY_IDCOL in self.cfg:
             idcol = self.cfg[self.KEY_IDCOL]
             if idcol not in self._runs.columns:
                 raise YmpConfigError(
-                    "Configured column {}={} not found in data. "
-                    "Is the spelling correct?"
-                    "Available columns: {}"
-                    "".format(
-                        self.KEY_IDCOL, idcol, list(self._runs.columns)
-                    )
-                )
+                    self.cfg, key=self.KEY_IDCOL,
+                    msg="Configured column not found in data. "
+                    "Possible spelling error? "
+                    "Available columns: " +
+                    ", ".join(str(c) for c in self._runs.columns))
+
             if idcol not in unique_columns:
                 raise YmpConfigError(
-                    "Configured column {}={} is not unique. "
+                    self.cfg, key=self.KEY_IDCOL,
+                    msg="Configured column is not unique. "
                     "Unique columns: {}"
                     "".format(
                         self.KEY_IDCOL, idcol, list(unique_columns)
