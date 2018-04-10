@@ -44,7 +44,8 @@ rule fastq_dump:
         "{:dir.scratch:}/SRR/{SRR}_2.fastq.gz"
     params:
         outdir = icfg.dir.scratch + "/SRR",
-        p = lambda wc,threads: int(threads/2+.5)
+        p      = lambda wc, threads: int(threads/2+.5),
+        mem    = icfg.mem("200M")
     conda:
         "sratools.yml"
     threads:
