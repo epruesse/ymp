@@ -26,6 +26,8 @@ class YmpNoStackException(YmpException, ClickException):
     just prefix the ``msg`` with ``Error: ``.
     """
 
+class YmpSystemError(YmpNoStackException):
+    """Indicates problem running YMP with available system software"""
 
 class YmpRuleError(YmpNoStackException):
     """Indicates an error in the rules files

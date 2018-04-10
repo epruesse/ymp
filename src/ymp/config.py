@@ -7,7 +7,7 @@ from collections import Mapping, Sequence
 import ymp.yaml
 from ymp.common import AttrDict, MkdirDict, parse_number
 from ymp.env import CondaPathExpander
-from ymp.exceptions import YmpException, YmpConfigError, YmpWorkflowError
+from ymp.exceptions import YmpConfigError, YmpException, YmpSystemError
 from ymp.references import load_references
 from ymp.snakemake import \
     BaseExpander, \
@@ -854,5 +854,16 @@ class ConfigMgr(object):
 
         return int(mem / div)
 
+    @property
+    def platform(self):
+        if not self._platform:
+            import platform
+            system = platform.System()
+            if system == "Darwin":
+                self._platform = "macos"
+            elif system == "Linux":
+                self._platform = "linux"
+            else:
+                raise YmpSystemError(f"YMP does not support system '{system}'")
 
 ConfigMgr.init()
