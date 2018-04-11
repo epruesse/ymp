@@ -15,7 +15,7 @@ dependencies:
   - coloredlogs
   - setuptools_scm >=1.17 # versioning
   - xdg # user paths
-  - tqdm >= 4.21 # progress bar
+  - tqdm >=4.21 # progress bar
   - aiohttp # async http
   #### for tests: ####
   - networkx >=2.0
@@ -29,3 +29,5 @@ dependencies:
   - codecov
   #### avoid mkl ~ 700MB ###
   - nomkl
+  #### for reathedocs ####
+  - urllib3 =1.22
