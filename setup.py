@@ -63,7 +63,7 @@ setup(
         'xlrd',
     ],
     install_requires=[
-        'snakemake',
+        'snakemake>=4.8',
         'Click',
         'Click-completion',
         'ruamel.yaml>0.15',
@@ -73,7 +73,7 @@ setup(
         'coloredlogs',
         'xdg',
         'aiohttp',
-        'tqdm',
+        'tqdm>=4.21.0',
     ],
     extras_require={
         'docs': [
