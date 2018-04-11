@@ -172,7 +172,9 @@ class FileDownloader(object):
 
     Downloads happen concurrently using asyncronous network IO.
     """
-    def __init__(self, block_size=4096, timeout=60, parallel=4, progress=True):
+    def __init__(self, block_size=4096, timeout=60, parallel=4, progress=None):
+        if not progress:
+            progress = log.getEffectiveLevel() <= logging.WARNING
         self._block_size = block_size
         self._timeout = timeout
         self._parallel = parallel
@@ -214,7 +216,10 @@ class FileDownloader(object):
                 if not resp.status == 200:
                     return
                 size = int(resp.headers.get('content-length', 0))
-                self._sum_bar.total += size
+                try:
+                    self._sum_bar.total += size
+                except AttributeError:
+                    pass
                 with open(part, mode="wb") as out, \
                      tqdm(total=size,
                           unit='B', unit_scale=True, unit_divisor=1024,
