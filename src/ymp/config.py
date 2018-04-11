@@ -856,14 +856,15 @@ class ConfigMgr(object):
 
     @property
     def platform(self):
-        if not self._platform:
+        if not (hasattr(self, '_platform') and self._platform):
             import platform
-            system = platform.System()
+            system = platform.system()
             if system == "Darwin":
                 self._platform = "macos"
             elif system == "Linux":
                 self._platform = "linux"
             else:
                 raise YmpSystemError(f"YMP does not support system '{system}'")
+        return self._platform
 
 ConfigMgr.init()
