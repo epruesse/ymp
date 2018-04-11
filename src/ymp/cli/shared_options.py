@@ -3,6 +3,7 @@ import os
 import sys
 
 import click
+import tqdm
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -94,6 +95,16 @@ nohup_option = click.option(
 )
 
 
+class TqdmHandler(logging.StreamHandler):
+    """Tqdm aware logging StreamHandler
+
+    Passes all log writes through tqdm to allow progress bars
+    and log messages to coexist without clobbering terminal
+    """
+    def emit(self, record):
+        tqdm.tqdm.write(self.format(record))
+
+
 class Log(object):
     """
     Set up Logging
@@ -114,7 +125,7 @@ class Log(object):
 
         log = logging.getLogger("ymp")
         log.setLevel(logging.WARNING)
-        log_handler = logging.StreamHandler()
+        log_handler = TqdmHandler()
         log_handler.setLevel(logging.DEBUG)  # no filtering here
         formatter = ColoredFormatter("YMP: %(message)s")
         log_handler.setFormatter(formatter)
