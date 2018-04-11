@@ -51,7 +51,7 @@ setup(
     zip_safe=False,
     setup_requires=[
         'setuptools_scm>=1.17',
-        'pytest-runner'
+        'pytest-runner',
     ],
     tests_require=[
         'pytest-xdist',
@@ -60,7 +60,7 @@ setup(
         'pygraphviz',
         'pytest',
         'yappi',
-        'xlrd'
+        'xlrd',
     ],
     install_requires=[
         'snakemake',
@@ -73,8 +73,18 @@ setup(
         'coloredlogs',
         'xdg',
         'aiohttp',
-        'tqdm'
+        'tqdm',
     ],
+    extras_require={
+        'docs': [
+            'sphinx >=1.4',
+            'cloud_sptheme',
+            'sphinxcontrib-fulltoc',
+            'sphinx-click',
+            'sphinx_autodoc_typehins',
+            'ftputil',
+        ]
+    },
     python_requires='>=3.6',
     include_package_data=True,
     entry_points='''
