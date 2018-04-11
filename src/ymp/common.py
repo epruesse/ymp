@@ -1,20 +1,23 @@
 """
 Collection of shared utility classes and methods
 """
-import atexit
 import asyncio
+import atexit
 import logging
-import shelve
+import hashlib
 import os
+import shelve
 from collections import Iterable, Mapping, OrderedDict
-from typing import List
+from typing import List, Optional
 from urllib.parse import urlsplit
 
 import aiohttp
+
 from tqdm import tqdm
+
 import xdg
 
-log = logging.getLogger(__name__)  # pylint: disable=invalid-name
+LOG = logging.getLogger(__name__)
 
 
 class OrderedDictMaker(object):
@@ -88,7 +91,7 @@ class MkdirDict(AttrDict):
     def __getattr__(self, attr):
         dirname = super().__getattr__(attr)
         if not os.path.exists(dirname):
-            log.info("Creating directory %s", dirname)
+            LOG.info("Creating directory %s", dirname)
             os.makedirs(dirname)
         return dirname
 
@@ -172,15 +175,18 @@ class FileDownloader(object):
 
     Downloads happen concurrently using asyncronous network IO.
     """
-    def __init__(self, block_size=4096, timeout=60, parallel=4, progress=None):
-        if not progress:
-            progress = log.getEffectiveLevel() <= logging.WARNING
+    def __init__(self, block_size=4096, timeout=60, parallel=4,
+                 loglevel=logging.WARNING):
         self._block_size = block_size
         self._timeout = timeout
         self._parallel = parallel
         self._sem = asyncio.Semaphore(parallel)
-        self._progress = progress
+        self._progress = LOG.getEffectiveLevel() <= loglevel
+        self._loglevel = loglevel
         self._sum_bar = None
+
+    def log(self, msg, *args, modlvl=0, **kwargs):
+        LOG.log(self._loglevel + modlvl, msg, *args, **kwargs)
 
     @staticmethod
     def make_bar_format(desc_width=20, count_width=0, rate=False, eta=False):
@@ -200,22 +206,55 @@ class FileDownloader(object):
             right += ' ETA {remaining}'
         return left + '|{bar}|' + right
 
-    async def _get_file(self, session, url, dest):
+    async def _get_file(self, session, url, dest, md5=None):
         parts = urlsplit(url)
         if os.path.isdir(dest):
             name = os.path.basename(parts.path)
             dest = os.path.join(dest, name)
         else:
             name = os.path.basename(dest)
-
         part = dest+".part"
+
+        if md5:
+            md5_new = hashlib.md5()
+
+        exists = False
+        if os.path.exists(dest):
+            exists = True
+            if md5 and not isinstance(md5, bool):
+                with open(dest, 'rb') as f:
+                    while True:
+                        block = f.read(8192)
+                        if not block:
+                            break
+                        md5_new.update(block)
+                if md5_new.hexdigest() == md5.strip():
+                    self.log("Download skipped: %s "
+                             "(file exists, md5 verified)",
+                             name)
+                    return True
 
         try:
             async with self._sem, \
                        session.get(url, timeout=self._timeout) as resp:
                 if not resp.status == 200:
-                    return
+                    self.log("Download failed: %s (error code %i)")
+                    return False
                 size = int(resp.headers.get('content-length', 0))
+
+                if exists:
+                    existing_size = os.path.getsize(dest)
+                    if existing_size == size:
+                        if md5:
+                            self.log("Overwriting: %s (md5 failed)", name)
+                        else:
+                            self.log("Download skipped: %s (file exists)",
+                                     name)
+                            return True
+                    else:
+                        self.log("Overwriting: %s (size mismatch %i!=%i)",
+                                 name, size, existing_size)
+
                 try:
                     self._sum_bar.total += size
                 except AttributeError:
@@ -231,20 +270,35 @@ class FileDownloader(object):
                         if not block:
                             break
                         out.write(block)
+                        if md5:
+                            md5_new.update(block)
                         t.update(len(block))
                         self._sum_bar.update(len(block))
             os.rename(part, dest)
-            log.warning("Download complete: %s", name)
+            if md5:
+                md5_hash = md5_new.hexdigest()
+                if isinstance(md5, bool):
+                    self.log("Download complete: %s (md5=%s)", name,
+                             md5_hash.strip())
+                elif md5.strip() == md5_hash:
+                    self.log("Download complete: %s (md5 verified)", name)
+                else:
+                    self.log("Download failed: %s (md5 failed)", name,
+                             modlvl=10)
+                    return False
+            return True
         except asyncio.CancelledError:
             if os.path.exists(part):
                 os.unlink(part)
             raise
 
-    async def _get_all(self, urls, dest):
-        log.warning("Downloading %i files.", len(urls))
+    async def _get_all(self, urls, dest, md5s=None):
+        self.log("Downloading %i files.", len(urls))
+        if not md5s:
+            md5s = [None]*len(urls)
         with aiohttp.ClientSession() as session:
-            coros = [asyncio.ensure_future(self._get_file(session, url, dest))
-                     for url in urls]
+            coros = [asyncio.ensure_future(self._get_file(session, url, dest, md5))
+                     for url, md5 in zip(urls, md5s)]
             with tqdm(asyncio.as_completed(coros), total=len(coros),
                       unit="Files", desc="Total files:",
                       disable=not self._progress, leave=False,
@@ -255,16 +309,18 @@ class FileDownloader(object):
                       disable=not self._progress, leave=False, miniters=1,
                       bar_format=self.make_bar_format(20, 7, rate=True)) as t2:
                 self._sum_bar = t2
-                for coro in t:
-                    await coro
-        log.warning("Finished downloads.")
+                result = [await coro for coro in t]
+        self.log("Finished downloads.")
+        return result
 
-    def get(self, urls: List[str], dest: str) -> None:
+    def get(self, urls: List[str], dest: str,
+            md5s: Optional[List[str]]=None) -> None:
         """Download a list of URLs
 
         Args:
           urls: List of URLs
           dest: Destination folder
+          md5s: List of MD5 sums to check
         """
 
         if not os.path.exists(dest):
@@ -273,7 +329,7 @@ class FileDownloader(object):
         loop = asyncio.get_event_loop()
 
         try:
-            task = asyncio.ensure_future(self._get_all(urls, dest))
+            task = asyncio.ensure_future(self._get_all(urls, dest, md5s))
             loop.run_until_complete(task)
         except KeyboardInterrupt:
             end = asyncio.gather(*asyncio.Task.all_tasks())
@@ -285,3 +341,5 @@ class FileDownloader(object):
             raise
         finally:
             loop.close()
+
+        return all(task.result())
