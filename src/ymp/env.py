@@ -11,6 +11,8 @@ from typing import Optional, Union
 
 import snakemake
 import snakemake.conda
+from snakemake.rules import Rule
+
 from ruamel.yaml import YAML
 
 from ymp.common import AttrDict, ensure_list

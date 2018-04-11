@@ -366,7 +366,7 @@ def collect_pages(app: Sphinx):
 
     for snakefile in app.env._snakefiles:
         try:
-            with open(os.path.join("..", snakefile), 'r') as f:
+            with open(os.path.join(BASEPATH, snakefile), 'r') as f:
                 code = f.read()
         except IOError:
             logger.error("failed to open {}".format(snakefile))

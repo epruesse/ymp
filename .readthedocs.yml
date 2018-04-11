@@ -6,5 +6,6 @@ python:
     pip_install: true
     extra_requirements:
       - docs
+
 conda:
   file: environment.yaml

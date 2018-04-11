@@ -8,13 +8,13 @@
 
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.pardir))
+sys.path.insert(0, os.path.join(os.path.abspath(os.pardir), 'src'))
 
 import ymp
 import cloud_sptheme as csp
 
 docdir = os.path.dirname(__file__)
-ympdir = os.path.dirname(docdir)
+ympdir = os.path.join(os.path.dirname(docdir), 'src')
 
 
 
@@ -142,10 +142,9 @@ def run_apidoc(_):
     """
     Calls sphinx-apidoc to generate template .rst files for each module
     """
-    from sphinx import apidoc
+    from sphinx.ext import apidoc
     apidoc.OPTIONS = ['members', 'show-inheritance']
-    apidoc.main(['',
-                 '--output-dir', docdir,
+    apidoc.main(['--output-dir', docdir,
                  '--doc-project', 'API',
                  '--force',
                  '--module-first',
