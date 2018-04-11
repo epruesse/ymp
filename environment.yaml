@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - python =3.6.*
-  - snakemake
+  - snakemake >=4.8
   # disabled, breaks R in utils, but unused. FIXME
   #  - rpy2 =2.8.5  # pinned to keep conda from taking for ever
   - click
@@ -15,7 +15,7 @@ dependencies:
   - coloredlogs
   - setuptools_scm >=1.17 # versioning
   - xdg # user paths
-  - tqdm # progress bar
+  - tqdm >= 4.21 # progress bar
   - aiohttp # async http
   #### for tests: ####
   - networkx >=2.0
