@@ -81,7 +81,7 @@ setup(
             'cloud_sptheme',
             'sphinxcontrib-fulltoc',
             'sphinx-click',
-            'sphinx_autodoc_typehins',
+            'sphinx_autodoc_typehints',
             'ftputil',
         ]
     },
