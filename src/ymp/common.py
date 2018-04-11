@@ -201,7 +201,10 @@ class FileDownloader(object):
     async def _get_file(self, session, url, dest):
         parts = urlsplit(url)
         if os.path.isdir(dest):
-            dest = os.path.join(dest, os.path.basename(parts.path))
+            name = os.path.basename(parts.path)
+            dest = os.path.join(dest, name)
+        else:
+            name = os.path.basename(dest)
 
         part = dest+".part"
 
@@ -215,7 +218,7 @@ class FileDownloader(object):
                 with open(part, mode="wb") as out, \
                      tqdm(total=size,
                           unit='B', unit_scale=True, unit_divisor=1024,
-                          desc=os.path.basename(dest), leave=False,
+                          desc=name, leave=False,
                           miniters=1, disable=not self._progress,
                           bar_format=self.make_bar_format(40, 7, rate=True)) as t:
                     while True:
@@ -225,28 +228,31 @@ class FileDownloader(object):
                         out.write(block)
                         t.update(len(block))
                         self._sum_bar.update(len(block))
+            os.rename(part, dest)
+            log.warning("Download complete: %s", name)
         except asyncio.CancelledError:
             if os.path.exists(part):
                 os.unlink(part)
             raise
-        os.rename(part, dest)
 
     async def _get_all(self, urls, dest):
+        log.warning("Downloading %i files.", len(urls))
         with aiohttp.ClientSession() as session:
             coros = [asyncio.ensure_future(self._get_file(session, url, dest))
                      for url in urls]
             with tqdm(asyncio.as_completed(coros), total=len(coros),
                       unit="Files", desc="Total files:",
-                      disable=not self._progress,
+                      disable=not self._progress, leave=False,
                       bar_format=self.make_bar_format(20, 7, eta=True)) as t, \
                  tqdm(total=0,
                       unit="B", desc="Total bytes:",
                       unit_scale=True, unit_divisor=1024,
-                      disable=not self._progress, miniters=1,
+                      disable=not self._progress, leave=False, miniters=1,
                       bar_format=self.make_bar_format(20, 7, rate=True)) as t2:
                 self._sum_bar = t2
                 for coro in t:
                     await coro
+        log.warning("Finished downloads.")
 
     def get(self, urls: List[str], dest: str) -> None:
         """Download a list of URLs
@@ -255,6 +261,10 @@ class FileDownloader(object):
           urls: List of URLs
           dest: Destination folder
         """
+
+        if not os.path.exists(dest):
+            os.mkdir(dest)
+
         loop = asyncio.get_event_loop()
 
         try:
