@@ -339,7 +339,5 @@ class FileDownloader(object):
             except asyncio.CancelledError:
                 pass
             raise
-        finally:
-            loop.close()
 
         return all(task.result())
