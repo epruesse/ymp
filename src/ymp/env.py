@@ -170,6 +170,7 @@ class Env(WorkflowObject, snakemake.conda.Env):
 
         # Skip if environment already exists
         if os.path.exists(self.path):
+            log.info("Environment '%s' already exists", self.name)
             return self.path
 
         # Try to get urls, md5s and files from env spec
@@ -303,6 +304,8 @@ class Env(WorkflowObject, snakemake.conda.Env):
         if isinstance(other, Env):
             return self.hash == other.hash
 
+
+# Patch Snakemake's Env class with our own
 snakemake.conda.Env = Env
 
 
