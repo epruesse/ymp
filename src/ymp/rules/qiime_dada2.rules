@@ -6,17 +6,17 @@ rule dada2:
         fastqs = "{dir}/{:fwd_fq_names:}.fq.gz"
     output:
         otu_table = "{dir}.qd2{skip_len}{trunc_len}/otu_table.biom",
-        fasta = "{dir}.qd2{skip_len}{trunc_len}/rep_set.fa.gz",
+        fasta = "{dir}.qd2{skip_len}{trunc_len}/rep_set.fa",
         tree = "{dir}.qd2{skip_len}{trunc_len}/rep_set.tre"
     wildcard_constraints:
-        skip_len = "s[1-9][0-9]*"
+        skip_len = "s[1-9][0-9]*",
         trunc_len = "t[1-9][0-9]*"
     log:
         "{dir}.qd2{skip_len}{trunc_len}/log.txt"
     threads:
         8
     conda:
-        "dada2_qiime1.yml"
+        "qiime_dada2.yml"
     params:
         temp_dir="ymp_dada2_tmp",
         fastqs = lambda wc, input: ' '.join(input.fastqs),
@@ -26,7 +26,7 @@ rule dada2:
     shadow: "shallow"
     shell: """
     mkdir {params.temp_dir}
-    cp {params.fastqs} {params.temp_dir}/
+    cp {params.fastqs} {params.temp_dir}
     qiime_dada2.py \
     -i {params.temp_dir} \
     -o {params.output} \
@@ -35,7 +35,7 @@ rule dada2:
     --procs {threads} \
     --skip_split > {log} 2>&1
     mv {params.output}/dada2_w_tax_no_pynast_failures.biom {output.otu_table}
-    cat {params.output}/dada2_no_pynast_failures.fasta | gzip > {output.fasta}
+    mv {params.output}/dada2_no_pynast_failures.fasta {output.fasta}
     mv {params.output}/dada2.tre {output.tree}
     """
 
@@ -45,15 +45,19 @@ rule pick_open_otus_on_dada2:
     message:
         "Open reference OTU picking on dada2 selected sequences"
     input:
-        otu_table = "{dir}.qd2{params}/otu_table.biom",
-        fasta = "{dir}.qd2{params}/rep_set.fa",
+        otu_table = "{dir}.qd2{skip_len}{trunc_len}/otu_table.biom",
+        fasta = "{dir}.qd2{skip_len}{trunc_len}/rep_set.fa",
         gg = "{:dir.references:}/greengenes/rep_set/{similarity}_otus.fasta"
     output:
-        otu_table = "{dir}.qd2{params}.o{similarity}/otu_table.biom",
-        tree = "{dir}.qd2{params}.o{similarity}/rep_set.tre",
-        rep_set = "{dir}.qd2{params}.o{similarity}/rep_set.fa.gz"
+        otu_table = "{dir}.qd2{skip_len}{trunc_len}.o{similarity}/otu_table.biom",
+        tree = "{dir}.qd2{skip_len}{trunc_len}.o{similarity}/rep_set.tre",
+        rep_set = "{dir}.qd2{skip_len}{trunc_len}.o{similarity}/rep_set.fa.gz"
+    wildcard_constraints:
+        similarity = "(94|97|99)",
+        skip_len = "s[1-9][0-9]*",
+        trunc_len = "t[1-9][0-9]*"
     conda:
-        "dada2_qiime1.yml"
+        "qiime_dada2.yml"
     params:
         method = "uclust_ref",
         similarity = lambda wc: wc.similarity if wc.similarity else 97,
@@ -61,7 +65,7 @@ rule pick_open_otus_on_dada2:
     shadow: "shallow"
     shell: """
     if [ ! -e "{input.gg}" ]; then
-      echo Failed to find GreenGenes reference file {params.ref_fasta}.
+      echo Failed to find GreenGenes reference file {input.gg}.
       exit 1
     fi
 
@@ -70,7 +74,7 @@ rule pick_open_otus_on_dada2:
     pick_closed_reference_otus.py \
     -i {input.fasta} \
     -o {params.output} \
-    -r {params.ref_fasta} \
+    -r {input.gg} \
     -p qiime_params.txt
 
     filter_fasta.py \
