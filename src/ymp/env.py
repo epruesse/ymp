@@ -6,25 +6,24 @@ import io
 import logging
 import os
 import os.path as op
+import shutil
 import subprocess
+from glob import glob
 from typing import Optional, Union
+
+from ruamel.yaml import YAML
 
 import snakemake
 import snakemake.conda
 from snakemake.rules import Rule
 
-from ruamel.yaml import YAML
-
+import ymp
 from ymp.common import AttrDict, ensure_list
-from ymp.exceptions import YmpException
-from ymp.snakemake import BaseExpander, get_workflow, WorkflowObject
+from ymp.exceptions import YmpRuleError, YmpWorkflowError
+from ymp.snakemake import BaseExpander, WorkflowObject
 
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
-
-
-class YmpEnvError(YmpException):
-    """Failure in env"""
 
 
 class Env(WorkflowObject, snakemake.conda.Env):
@@ -68,7 +67,7 @@ class Env(WorkflowObject, snakemake.conda.Env):
                  packages: Optional[Union[list, str]] = None,
                  base: str = "none",
                  channels: Optional[Union[list, str]] = None,
-                 rule: Optional['Rule'] = None) -> None:
+                 rule: Optional[Rule] = None) -> None:
         """Creates an inline defined conda environment
 
         Args:
@@ -85,7 +84,8 @@ class Env(WorkflowObject, snakemake.conda.Env):
 
         # must have either name or env_file:
         if (name and env_file) or not (name or env_file):
-            raise YmpEnvError("Env must have exactly one of `name` and `file`")
+            raise YmpRuleError(
+                "Env must have exactly one of `name` and `file`")
 
         if name:
             self.name = name
@@ -132,13 +132,116 @@ class Env(WorkflowObject, snakemake.conda.Env):
 
         super().__init__(env_file, pseudo_dag, singularity_img)
 
+    def set_prefix(self, prefix):
+        self._env_dir = os.path.abspath(prefix)
+
     def create(self, dryrun=False):
-        """Create conda environment""
+        """Ensure the conda environment has been created""
 
         Inherits from snakemake.conda.Env.create
+
+        Behavior of super class
+        ~~~~~~~~~~~~~~~~~~~~~~~
+
+        The environment is installed in a folder in ``conda_prefix``
+        named according to a hash of the ``environment.yaml`` defining
+        the environment and the value of ``conda-prefix``
+        (``Env.hash``). The latter is included as installed
+        environments cannot be moved.
+
+        - If this folder (``Env.path``) exists, nothing is done.
+
+        - If a folder named according to the hash of just the contents
+        of ``environment.yaml`` exists, the environment is created by
+        unpacking the tar balls in that folder.
+
+        Handling pre-computed environment specs
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        In addition to freezing environments by maintaining a copy of
+        the package binaries, we allow maintaining a copy of the
+        package binary URLs, from which the archive folder is populated
+        on demand.
+
+        If a file ``{Env.name}.txt`` exists in ``conda.spec
+
         """
+        from ymp.config import icfg
+
+        # Skip if environment already exists
+        if os.path.exists(self.path):
+            return self.path
+
+        # Try to get urls, md5s and files from env spec
+        if icfg.conda.env_specs:
+            spec_file = os.path.join(
+                ymp._env_dir,
+                icfg.conda.env_specs,
+                icfg.platform,
+                self.name + ".txt"
+            )
+            if os.path.exists(spec_file):
+                with open(spec_file) as sf:
+                    urls = [line for line in sf
+                            if line and line[0] != "@" and line[0] != "#"]
+
+                md5s = [url.split("#")[1] for url in urls]
+                files = [url.split("#")[0].split("/")[-1] for url in urls]
+
+        if os.path.exists(self.archive_file):
+            found_files = glob(os.path.join(self.archive_file, "*.tar.bz2"))
+            if files:
+                # Sort files according to spec file as far as possible
+                files = ([fn for fn in files if fn in found_files]
+                         + [fn for fn in found_files if fn not in files])
+            else:
+                files = found_files
+            install_files = [os.path.join(self.archive_file, fn)
+                             for fn in files]
+        elif urls:
+            from ymp.common import FileDownloader
+            if dryrun:
+                log.info("Would download %i files", len(urls))
+            else:
+                dest = self.archive_file
+                res = FileDownloader().get(urls, dest, md5s)
+                if not res:
+                    # remove partially download archive folder
+                    shutil.rmtree(self.archive_file, ignore_errors=True)
+                    raise YmpWorkflowError(
+                        f"Unable to create environment {self.name}, "
+                        f"because downloads failed. See log for details.")
+            install_files = [os.path.join(dest, fn) for fn in files]
+
+        # Install from packages if we have packages
+        # We re-implement this here although superclass does it, because
+        # 1. superclass will passes `--copy` to conda, forcing it to bypass
+        #    hard linking option, wasting time and space
+        # 2. superclass will not order files correctly
+        # This is also done by Snakemake's Env, reproduced here
+        # only because Snakemake passed "--copy" to conda, forcing it
+        # to copy rather than hard link files.
+        if install_files:
+            log.info("Installing environment '%s' from package files",
+                     self.name)
+            if not dryrun:
+                log.warning("Calling conda...")
+                sp = subprocess.run(["conda", "create", "--prefix",
+                                     self.path] + install_files)
+                if sp.returncode != 0:
+                    # make sure we don't leave partially installed env around
+                    shutil.rmtree(self.path, ignore_errors=True)
+                    raise YmpWorkflowError(
+                        f"Unable to create environment {self.name}, "
+                        f"because conda create failed"
+                    )
+                log.warning("Conda complete")
+        else:
+            log.warning("Neither spec file nor package archive found for '%s',"
+                        " falling pack to native resolver", self.name)
+
         log.warning("Creating environment '%s'", self.name)
-        log.warning("Target dir is '%s'", self.path)
+        log.debug("Target dir is '%s'", self.path)
         return super().create(dryrun)
 
     @property
@@ -201,6 +304,7 @@ class Env(WorkflowObject, snakemake.conda.Env):
             return self.hash == other.hash
 
 snakemake.conda.Env = Env
+
 
 class CondaPathExpander(BaseExpander):
     """Applies search path for conda environment specifications

@@ -18,6 +18,7 @@ _rule_dir = os.path.join(_rsc_dir, "rules")
 _etc_dir = os.path.join(_rsc_dir, "etc")
 _snakefile = os.path.join(_rule_dir, "Snakefile")
 _defaults_file = os.path.join(_etc_dir, "defaults.yml")
+_env_dir = os.path.join(_rsc_dir, "conda_envs")
 
 
 # Set to 1 to print the next rule during parsing (debug)

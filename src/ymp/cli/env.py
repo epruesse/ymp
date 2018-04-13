@@ -107,20 +107,32 @@ def prepare(**kwargs):
 
 
 @env.command()
+@click.option(
+    "--conda-prefix", "-p",
+    help="Override location for conda environments"
+)
 @click.argument("ENVNAMES", nargs=-1)
-def install(envnames):
+def install(conda_prefix, envnames):
     "Install conda software environments"
     envs = get_envs(envnames)
     log.warning(f"Creating {len(envs)} environments.")
     for env in envs.values():
+        if conda_prefix:
+            env.set_prefix(conda_prefix)
         env.create()
 
 
 @env.command()
+@click.option(
+    "--reinstall",
+    help="Remove and reinstall environments rather than trying to update"
+)
 @click.argument("ENVNAMES", nargs=-1)
-def update(envnames):
+def update(envnames, reinstall):
     "Update conda environments"
     envs = get_envs(envnames)
+    if reinstall:
+        raise NotImplementedError("FIXME")
     log.warning(f"Updating {len(envs)} environments.")
     for env in get_envs(envnames).values():
         env.update()

@@ -12,15 +12,21 @@ directories:
     dynamic_envs: &dynamic_envs '.ymp/envs'
     conda_prefix: '~/.ymp/conda'
     conda_archive_prefix: "~/.ymp/conda_archive"
+    conda_spec_prefix: &conda_frozen_specs "env_specs"
 
 conda:
-  # Location for installed conda environments:
-
   # Search path for environment.yml files:
   env_path:
     10: "."
     20: *dynamic_envs
-    30: "../conda_envs"
+
+  # If set, use frozen environments from this set
+  env_specs: latest
+
+  # Search path for archived environments:
+  archived_env_path:
+    10: "../conda_envs"
+    20: *conda_frozen_specs
 
   # Parameters for generating environments:
   defaults:
