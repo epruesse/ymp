@@ -172,6 +172,8 @@ class Env(WorkflowObject, snakemake.conda.Env):
         if os.path.exists(self.path):
             log.info("Environment '%s' already exists", self.name)
             return self.path
+        log.warning("Creating environment '%s'", self.name)
+        log.debug("Target dir is '%s'", self.path)
 
         # Try to get urls, md5s and files from env spec
         if icfg.conda.env_specs:
@@ -226,7 +228,7 @@ class Env(WorkflowObject, snakemake.conda.Env):
             log.info("Installing environment '%s' from package files",
                      self.name)
             if not dryrun:
-                log.warning("Calling conda...")
+                log.info("Calling conda...")
                 sp = subprocess.run(["conda", "create", "--prefix",
                                      self.path] + install_files)
                 if sp.returncode != 0:
@@ -236,14 +238,14 @@ class Env(WorkflowObject, snakemake.conda.Env):
                         f"Unable to create environment {self.name}, "
                         f"because conda create failed"
                     )
-                log.warning("Conda complete")
+                log.info("Conda complete")
         else:
             log.warning("Neither spec file nor package archive found for '%s',"
                         " falling pack to native resolver", self.name)
 
-        log.warning("Creating environment '%s'", self.name)
-        log.debug("Target dir is '%s'", self.path)
-        return super().create(dryrun)
+        res = super().create(dryrun)
+        log.info("Created env %s", self.name)
+        return res
 
     @property
     def installed(self):
