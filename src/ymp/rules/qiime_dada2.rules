@@ -1,6 +1,3 @@
-from os.path import dirname
-
-
 rule dada2:
     """Use qiime_dada2.py to pick OTUs"""
     message:
@@ -8,13 +5,14 @@ rule dada2:
     input:
         fastqs = "{dir}/{:fwd_fq_names:}.fq.gz"
     output:
-        otu_table = "{dir}.qd2{skip_len}/otu_table.biom",
-        fasta = "{dir}.qd2{skip_len}/rep_set.fa.gz",
-        tree = "{dir}.qd2{skip_len}/rep_set.tre"
+        otu_table = "{dir}.qd2{skip_len}{trunc_len}/otu_table.biom",
+        fasta = "{dir}.qd2{skip_len}{trunc_len}/rep_set.fa.gz",
+        tree = "{dir}.qd2{skip_len}{trunc_len}/rep_set.tre"
     wildcard_constraints:
         skip_len = "s[1-9][0-9]*"
+        trunc_len = "t[1-9][0-9]*"
     log:
-        "{dir}.qd2{skip_len}/log.txt"
+        "{dir}.qd2{skip_len}{trunc_len}/log.txt"
     threads:
         8
     conda:
@@ -23,6 +21,7 @@ rule dada2:
         temp_dir="ymp_dada2_tmp",
         fastqs = lambda wc, input: ' '.join(input.fastqs),
         skip_len = lambda wc: wc.skip_len[1:] if wc.skip_len else 10,
+        trunc_len = lambda wc: wc.trunc_len[1:] if wc.trunc_len else None,
         output = "qd2"
     shadow: "shallow"
     shell: """
@@ -32,6 +31,7 @@ rule dada2:
     -i {params.temp_dir} \
     -o {params.output} \
     --skip_len {params.skip_len} \
+    --trunc_len {params.trunc_len} \
     --procs {threads} \
     --skip_split > {log} 2>&1
     mv {params.output}/dada2_w_tax_no_pynast_failures.biom {output.otu_table}
@@ -45,25 +45,22 @@ rule pick_open_otus_on_dada2:
     message:
         "Open reference OTU picking on dada2 selected sequences"
     input:
-        otu_table = "{dir}.qd2{skip_len}/otu_table.biom",
-        fasta = "{dir}.qd2{skip_len}/rep_set.fa",
-        gg = "{:dir.references:}/greengenes/"
-    wildcard_constraints:
-        similarity = "([0-9][0-9])?"
+        otu_table = "{dir}.qd2{params}/otu_table.biom",
+        fasta = "{dir}.qd2{params}/rep_set.fa",
+        gg = "{:dir.references:}/greengenes/rep_set/{similarity}_otus.fasta"
     output:
-        otu_table = "{dir}.qd2{skip_len}.o{similarity}/otu_table.biom",
-        tree = "{dir}.qd2{skip_len}.o{similarity}/rep_set.tre",
-        rep_set = "{dir}.qd2{skip_len}.o{similarity}/rep_set.fa.gz"
+        otu_table = "{dir}.qd2{params}.o{similarity}/otu_table.biom",
+        tree = "{dir}.qd2{params}.o{similarity}/rep_set.tre",
+        rep_set = "{dir}.qd2{params}.o{similarity}/rep_set.fa.gz"
     conda:
         "dada2_qiime1.yml"
     params:
-        ref_fasta = lambda wc, input: input.gg + "/rep_set/{similarity}_otus.fasta".format(**wc),
         method = "uclust_ref",
         similarity = lambda wc: wc.similarity if wc.similarity else 97,
         output = "qd2.o{similarity}"
     shadow: "shallow"
     shell: """
-    if [ ! -e "{params.ref_fasta}" ]; then
+    if [ ! -e "{input.gg}" ]; then
       echo Failed to find GreenGenes reference file {params.ref_fasta}.
       exit 1
     fi
