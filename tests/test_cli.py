@@ -198,7 +198,7 @@ def test_env_update(invoker, project_dir, mock_conda):
     assert "Updating 1 environments" in res.output
     assert "'bbmap'" in res.output
     assert "bbmap" in mock_conda.calls[0]
-    assert "conda env create" in mock_conda.calls[0]
+    assert "conda create" in mock_conda.calls[0]
     assert "bbmap" in mock_conda.calls[1]
     assert "conda env update" in mock_conda.calls[1]
 
