@@ -155,7 +155,8 @@ def test_env_install(invoker, project_dir, mock_conda):
     assert "Creating 1 environments" in res.output
     assert "'bbmap'" in res.output
     assert "bbmap" in mock_conda.calls[0]
-    assert "conda env create" in mock_conda.calls[0]
+    assert "--prefix "+str(project_dir) in mock_conda.calls[0]
+    assert len(mock_conda.calls) == 1
 
     # no double install
     res = invoker.call("env", "install", "bbmap")
@@ -169,14 +170,15 @@ def test_env_install(invoker, project_dir, mock_conda):
     assert "Creating 1 environments" in res.output
     assert "'bbmap'" in res.output
     assert "bbmap" in mock_conda.calls[1]
-    assert "conda env create" in mock_conda.calls[1]
+    assert "--prefix "+str(project_dir) in mock_conda.calls[1]
+    assert len(mock_conda.calls) == 2
 
     # dynamic env
     res = invoker.call("env", "install", "sickle")
     assert "Creating 1 environments" in res.output
     assert "'sickle'" in res.output
     assert "sickle" in mock_conda.calls[2]
-    assert "conda env create" in mock_conda.calls[2]
+    assert "--prefix "+str(project_dir) in mock_conda.calls[2]
 
 
 def test_env_update(invoker, project_dir, mock_conda):
@@ -267,3 +269,4 @@ def test_env_activate(invoker, project_dir, mock_conda):
     with open("ymp.yml", "a") as f:
         f.write("directories:\n conda_prefix: '.'")
     res = invoker.call("env", "activate", "bbmap")
+    assert str(project_dir) in res.output
