@@ -765,6 +765,13 @@ class ConfigMgr(object):
         return AttrDict(self._references)
 
     @property
+    def projects(self):
+        """
+        Configured projects
+        """
+        return AttrDict(self._datasets)
+
+    @property
     def datasets(self):
         """
         Names of all configured datasets
