@@ -296,7 +296,7 @@ class FileDownloader(object):
         self.log("Downloading %i files.", len(urls))
         if not md5s:
             md5s = [None]*len(urls)
-        with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession() as session:
             coros = [asyncio.ensure_future(self._get_file(session, url, dest, md5))
                      for url, md5 in zip(urls, md5s)]
             with tqdm(asyncio.as_completed(coros), total=len(coros),
