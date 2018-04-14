@@ -162,7 +162,6 @@ def test_env_install(invoker, project_dir, mock_conda):
     res = invoker.call("env", "install", "bbmap")
     assert "Creating 1 environments" in res.output
     assert "'bbmap'" in res.output
-    assert "bbmap" in mock_conda.calls[0]
     assert "--prefix "+str(project_dir) in mock_conda.calls[0]
     assert len(mock_conda.calls) == 1
 
@@ -177,7 +176,6 @@ def test_env_install(invoker, project_dir, mock_conda):
     res = invoker.call("env", "install", "bb?ap", "bbma*")
     assert "Creating 1 environments" in res.output
     assert "'bbmap'" in res.output
-    assert "bbmap" in mock_conda.calls[1]
     assert "--prefix "+str(project_dir) in mock_conda.calls[1]
     assert len(mock_conda.calls) == 2
 
@@ -185,7 +183,6 @@ def test_env_install(invoker, project_dir, mock_conda):
     res = invoker.call("env", "install", "sickle")
     assert "Creating 1 environments" in res.output
     assert "'sickle'" in res.output
-    assert "sickle" in mock_conda.calls[2]
     assert "--prefix "+str(project_dir) in mock_conda.calls[2]
 
 
@@ -197,9 +194,7 @@ def test_env_update(invoker, project_dir, mock_conda):
     res = invoker.call("env", "update", "bbmap")
     assert "Updating 1 environments" in res.output
     assert "'bbmap'" in res.output
-    assert "bbmap" in mock_conda.calls[0]
     assert "conda create" in mock_conda.calls[0]
-    assert "bbmap" in mock_conda.calls[1]
     assert "conda env update" in mock_conda.calls[1]
 
 
