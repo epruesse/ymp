@@ -58,6 +58,7 @@ variables:
       name: Generating conda tool environments
       no_output_timeout: 60m # default 10m
       command: |
+        rm -rf ~/.ymp/  # guard against leftover stuff by failed unit tests
         case $(uname) in
         Linux) OSNAME=linux;;
         Darwin) OSNAME=macos;;
