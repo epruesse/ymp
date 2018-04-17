@@ -147,6 +147,7 @@ limits:
   min_mem: 10M
   max_mem_per_thread: 1T
   min_mem_per_thread: 10M
+  default_walltime: 23:59:59
 
 # Default projects (none)
 projects: {}
@@ -188,7 +189,7 @@ cluster:
         log:      "-j oe -o {:absdir.log:}/"
         name:     "-N ymp.{rule}"
         threads:  "-l nodes=1:ppn={threads}"
-        walltime: "-l walltime=23:59:59"
+        walltime: "-l walltime={params.walltime}"
         memory:   "-l mem={params.mem}"
     # Profile for SLURM engine
     slurm:
@@ -198,7 +199,7 @@ cluster:
         log:      "--output={:absdir.log:}/%x_%J.log"
         threads:  "--cpus-per-task={threads} --nodes=1 --ntasks=1"
         memory:   "--mem={params.mem}"
-        walltime: "--time=23:59:59"
+        walltime: "--time={params.walltime}"
       cluster_status: "python -m ymp.cluster slurm status"
 
   rule_params:

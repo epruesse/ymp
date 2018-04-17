@@ -701,7 +701,10 @@ class ConfigMgr(object):
             ConfigExpander(self),
             CondaPathExpander(self),
             OverrideExpander(self),
-            DefaultExpander(params=([], {'mem': self.mem()})),
+            DefaultExpander(params=([], {
+                'mem': self.mem(),
+                'walltime': self.limits.default_walltime
+            })),
             InheritanceExpander(),
             StageExpander()
         )
