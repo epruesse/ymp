@@ -56,21 +56,14 @@ def print_ruleinfo(rule: Rule, ruleinfo: RuleInfo, func=log.debug):
     func(ruleinfo.func.__code__)
 
 
-def load_workflow(snakefile=ymp._snakefile):
-    workflow = ExpandableWorkflow(snakefile=snakefile)
-    workflow.include(snakefile)
-    return workflow
+def load_workflow(snakefile):
+    "Load new workflow"
+    return ExpandableWorkflow.load_workflow(snakefile)
 
 
 def get_workflow():
-    workflow = ExpandableWorkflow.global_workflow
-    if workflow is None:
-        ExpandableWorkflow.activate()
-        workflow = ExpandableWorkflow.global_workflow
-        if workflow is None:
-            workflow = load_workflow()
-    return workflow
-
+    "Get active workflow, loading one if necessary"
+    return ExpandableWorkflow.ensure_global_workflow()
 
 class CircularReferenceException(RuleException):
     """Exception raised if parameters in rule contain a circular reference"""
@@ -261,6 +254,21 @@ class ExpandableWorkflow(Workflow):
         except ImportError:
             log.debug("ExpandableWorkflow not installed: "
                       "Failed to import workflow object.")
+    @classmethod
+    def load_workflow(cls, snakefile=ymp._snakefile):
+        workflow = cls(snakefile=snakefile)
+        workflow.include(snakefile)
+        return workflow
+
+    @classmethod
+    def ensure_global_workflow(cls):
+        if cls.global_workflow is None:
+            log.debug("Trying to activate ExpandableWorkflow")
+            cls.activate()
+        if cls.global_workflow is None:
+            log.debug("Failed; loading default workflow")
+            cls.load_workflow()
+        return cls.global_workflow
 
     def __init__(self, *args, **kwargs):
         """Constructor for ExpandableWorkflow overlay attributes
