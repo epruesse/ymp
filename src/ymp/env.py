@@ -82,15 +82,29 @@ class Env(WorkflowObject, snakemake.conda.Env):
         """
         from ymp.config import icfg
 
+        pseudo_dag = AttrDict({
+            'workflow': {
+                'persistence': {
+                    'conda_env_path': icfg.absdir.conda_prefix,
+                    'conda_env_archive_path': icfg.absdir.conda_archive_prefix
+                }
+            }
+        })
+
+        super().__init__(env_file, pseudo_dag, singularity_img)
+
         # must have either name or env_file:
         if (name and env_file) or not (name or env_file):
             raise YmpRuleError(
+                self,
                 "Env must have exactly one of `name` and `file`")
 
         if name:
             self.name = name
         else:
             self.name, _ = op.splitext(op.basename(env_file))
+
+        self.register()
 
         if env_file:
             self.dynamic = False
@@ -121,16 +135,6 @@ class Env(WorkflowObject, snakemake.conda.Env):
                 with open(env_file, "w") as out:
                     out.write(contents)
 
-        pseudo_dag = AttrDict({
-            'workflow': {
-                'persistence': {
-                    'conda_env_path': icfg.absdir.conda_prefix,
-                    'conda_env_archive_path': icfg.absdir.conda_archive_prefix
-                }
-            }
-        })
-
-        super().__init__(env_file, pseudo_dag, singularity_img)
 
     def set_prefix(self, prefix):
         self._env_dir = os.path.abspath(prefix)

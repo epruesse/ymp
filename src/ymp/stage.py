@@ -57,6 +57,7 @@ class Stage(WorkflowObject):
         # Alternate stage name
         self.altname: str = altname
         super().__init__()
+        self.register()
         # Rules in this stage
         self.rules: List[Rule] = []
 

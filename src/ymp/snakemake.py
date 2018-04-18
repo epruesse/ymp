@@ -906,6 +906,8 @@ class WorkflowObject(object):
             #: int: Line number of object definition
             self.lineno = caller.lineno
 
+    def register(self):
+        """Add self to registry"""
         objs = self.get_registry()
 
         names = []
