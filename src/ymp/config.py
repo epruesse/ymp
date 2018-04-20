@@ -15,7 +15,8 @@ from ymp.snakemake import \
     DefaultExpander, \
     ExpandableWorkflow, \
     InheritanceExpander, \
-    RecursiveExpander
+    RecursiveExpander, \
+    SnakemakeExpander
 from ymp.stage import StageExpander
 from ymp.util import is_fq, make_local_path
 
@@ -697,6 +698,7 @@ class ConfigMgr(object):
         self._references = load_references(self, ref_cfg)
 
         self._workflow = ExpandableWorkflow.register_expanders(
+            SnakemakeExpander(),
             RecursiveExpander(),
             ConfigExpander(self),
             CondaPathExpander(self),
