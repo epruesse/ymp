@@ -53,10 +53,10 @@ class Env(WorkflowObject, snakemake.conda.Env):
 
     @staticmethod
     def get_installed_env_hashes():
-        from ymp.config import icfg
+        cfg = ymp.get_config()
         return [
             dentry.name
-            for dentry in os.scandir(icfg.absdir.conda_prefix)
+            for dentry in os.scandir(cfg.absdir.conda_prefix)
             if dentry.is_dir()
         ]
 
@@ -80,18 +80,16 @@ class Env(WorkflowObject, snakemake.conda.Env):
             the newly created environment. Sets are defined in conda.defaults
             in ``yml.yml``
         """
-        from ymp.config import icfg
+        cfg = ymp.get_config()
 
         pseudo_dag = AttrDict({
             'workflow': {
                 'persistence': {
-                    'conda_env_path': icfg.absdir.conda_prefix,
-                    'conda_env_archive_path': icfg.absdir.conda_archive_prefix
+                    'conda_env_path': cfg.absdir.conda_prefix,
+                    'conda_env_archive_path': cfg.absdir.conda_archive_prefix
                 }
             }
         })
-
-        super().__init__(env_file, pseudo_dag, singularity_img)
 
         # must have either name or env_file:
         if (name and env_file) or not (name or env_file):
@@ -104,8 +102,6 @@ class Env(WorkflowObject, snakemake.conda.Env):
         else:
             self.name, _ = op.splitext(op.basename(env_file))
 
-        self.register()
-
         if env_file:
             self.dynamic = False
             self.filename = env_file
@@ -113,13 +109,13 @@ class Env(WorkflowObject, snakemake.conda.Env):
         else:
             self.dynamic = True
 
-            env_file = op.join(icfg.ensuredir.dynamic_envs, f"{name}.yml")
+            env_file = op.join(cfg.ensuredir.dynamic_envs, f"{name}.yml")
             defaults = {
                 'name': self.name,
                 'dependencies': list(ensure_list(packages) +
-                                     icfg.conda.defaults[base].dependencies),
+                                     cfg.conda.defaults[base].dependencies),
                 'channels': list(ensure_list(channels) +
-                                 icfg.conda.defaults[base].channels)
+                                 cfg.conda.defaults[base].channels)
             }
             yaml = YAML(typ='rt')
             yaml.default_flow_style = False
@@ -135,6 +131,8 @@ class Env(WorkflowObject, snakemake.conda.Env):
                 with open(env_file, "w") as out:
                     out.write(contents)
 
+        super().__init__(env_file, pseudo_dag, singularity_img)
+        self.register()
 
     def set_prefix(self, prefix):
         self._env_dir = os.path.abspath(prefix)
@@ -170,7 +168,8 @@ class Env(WorkflowObject, snakemake.conda.Env):
         If a file ``{Env.name}.txt`` exists in ``conda.spec
 
         """
-        from ymp.config import icfg
+        cfg = ymp.get_config()
+        log.error(cfg.conda.to_yaml(show_source=True))
 
         # Skip if environment already exists
         if os.path.exists(self.path):
@@ -180,11 +179,11 @@ class Env(WorkflowObject, snakemake.conda.Env):
         log.debug("Target dir is '%s'", self.path)
 
         # Try to get urls, md5s and files from env spec
-        if icfg.conda.env_specs:
+        if cfg.conda.env_specs:
             spec_file = os.path.join(
                 ymp._env_dir,
-                icfg.conda.env_specs,
-                icfg.platform,
+                cfg.conda.env_specs,
+                cfg.platform,
                 self.name + ".txt"
             )
             if os.path.exists(spec_file):
@@ -194,6 +193,7 @@ class Env(WorkflowObject, snakemake.conda.Env):
 
                 md5s = [url.split("#")[1] for url in urls]
                 files = [url.split("#")[0].split("/")[-1] for url in urls]
+                log.debug("Using env spec '%s'", spec_file)
 
         if os.path.exists(self.archive_file):
             found_files = glob(os.path.join(self.archive_file, "*.tar.bz2"))
@@ -326,13 +326,7 @@ class CondaPathExpander(BaseExpander):
     backwards. If no file is found, the original name is returned.
     """
     def __init__(self, config, *args, **kwargs):
-        try:
-            from snakemake.workflow import workflow
-            self._workflow = workflow
-            super().__init__(*args, **kwargs)
-        except ImportError:
-            log.debug("CondaPathExpander not registered -- needs workflow")
-
+        super().__init__(*args, **kwargs)
         self._search_paths = config.conda.env_path
         self._envs = None
 
@@ -347,7 +341,7 @@ class CondaPathExpander(BaseExpander):
         if conda_env in self._envs:
             return self._envs[conda_env].file
 
-        for snakefile in reversed(self._workflow.included_stack):
+        for snakefile in reversed(self.workflow.included_stack):
             basepath = op.dirname(snakefile)
             for _, relpath in sorted(self._search_paths.items()):
                 searchpath = op.join(basepath, relpath)

@@ -4,6 +4,7 @@ import logging
 
 import click
 
+import ymp
 from ymp.cli.shared_options import command
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -95,9 +96,7 @@ def show(ctx, prop, source):
         show_help(ctx)
 
     log.debug(f"querying prop {prop}")
-    from ymp.config import icfg
-
-    obj = icfg
+    obj = ymp.get_config()
     while prop:
         key, _, prop = prop.partition(".")
         key, _, slice_str = key.partition("[")

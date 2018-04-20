@@ -4,6 +4,8 @@ import os
 import click
 import pytest
 
+import ymp
+cfg = ymp.get_config()
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -16,15 +18,15 @@ def test_submit_no_profile(invoker):
 
 def test_submit_profile_cfg(invoker, saved_tmpdir):
     "Test profile set from config"
-    with open("ymp.yml", "w") as cfg:
-        cfg.write("cluster:\n  profile: dummy")
-    invoker.call("submit", invoker.icfg.dir.reports)
-    assert os.path.isdir(invoker.icfg.dir.reports)
+    with open("ymp.yml", "w") as ymp_yml:
+        ymp_yml.write("cluster:\n  profile: dummy")
+    invoker.call("submit", cfg.dir.reports)
+    assert os.path.isdir(cfg.dir.reports)
 
 
 def test_submit_profiles(invoker):
     "try all profiles, but override the cmd to echo"
-    for profile_name, profile in invoker.icfg.cluster.profiles.items():
+    for profile_name, profile in cfg.cluster.profiles.items():
         if not profile.get('command'):
             continue
         # patch the submit command relative to CWD:
@@ -33,15 +35,15 @@ def test_submit_profiles(invoker):
         with open(cmd, "w") as f:
             f.write('#!/bin/sh\necho "$@">tmpfile\nexec "$@"\n')
             os.chmod(cmd, 0o755)
-        if os.path.isdir(invoker.icfg.dir.reports):
-            os.rmdir(invoker.icfg.dir.reports)
+        if os.path.isdir(cfg.dir.reports):
+            os.rmdir(cfg.dir.reports)
         invoker.initialized = False
         invoker.call("submit",
                      "-p",
                      "--profile", profile_name,
                      "--command", profile.command,
-                     invoker.icfg.dir.reports)
-        assert os.path.isdir(invoker.icfg.dir.reports)
+                     cfg.dir.reports)
+        assert os.path.isdir(cfg.dir.reports)
 
 
 def test_show(invoker, saved_tmpdir):

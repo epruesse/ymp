@@ -5,6 +5,8 @@ import py
 
 import pytest
 
+import ymp
+
 log = logging.getLogger(__name__)
 
 
@@ -186,9 +188,9 @@ def project_dir(request, project, saved_tmpdir):
 def target(request, project_dir):
     with project_dir.as_cwd():
         log.info("Switched to directory {}".format(project_dir))
-        import ymp.config as c
-        c.icfg.init(force=True)
-        targets = [request.param.format(ds) for ds in c.icfg]
+        cfg = ymp.get_config()
+        cfg.reload()
+        targets = [request.param.format(prj) for prj in cfg.projects]
         with open("target.txt", "w") as out:
             out.write("\n".join(targets))
         yield from targets
@@ -210,11 +212,6 @@ class Invoker(object):
         self.main = main
         self.initialized = False
 
-    @property
-    def icfg(self):
-        from ymp.config import icfg
-        return icfg
-
     def call(self, *args, standalone_mode=False, **kwargs):
         """Call into YMP CLI
 
@@ -223,8 +220,8 @@ class Invoker(object):
 
         """
         if not self.initialized:
-            self.icfg.init(force=True)
-            self.initialized = True
+            cfg = ymp.get_config()
+            cfg.reload()
 
         if not os.path.exists("cmd.sh"):
             with open("cmd.sh", "w") as f:

@@ -1,7 +1,6 @@
 import os
 import ymp
-from ymp.config import icfg
-icfg.init()
+icfg = ymp.get_config()
 from ymp.stage import Stage
 from ymp.env import Env
 
