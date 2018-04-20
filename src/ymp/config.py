@@ -750,6 +750,14 @@ class ConfigMgr(object):
     def absdir(self):
         """
         Dictionary of absolute paths of named YMP directories
+        """
+        return AttrDict({name: os.path.abspath(os.path.expanduser(value))
+                         for name, value in self.dir.items()})
+
+    @property
+    def ensuredir(self):
+        """
+        Dictionary of absolute paths of named YMP directories
 
         Directories will be created on the fly as they are requested.
         """

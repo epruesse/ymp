@@ -186,7 +186,7 @@ cluster:
       command:    "qsub"
       sync_arg:   "-sync"
       args:
-        log:      "-j oe -o {:absdir.log:}/"
+        log:      "-j oe -o {:ensuredir.log:}/"
         name:     "-N ymp.{rule}"
         threads:  "-l nodes=1:ppn={threads}"
         walltime: "-l walltime={params.walltime}"
@@ -196,7 +196,7 @@ cluster:
       command:        "sbatch --parsable"
       sync_arg:   "--wait"
       args:
-        log:      "--output={:absdir.log:}/%x_%J.log"
+        log:      "--output={:ensuredir.log:}/%x_%J.log"
         threads:  "--cpus-per-task={threads} --nodes=1 --ntasks=1"
         memory:   "--mem={params.mem}"
         walltime: "--time={params.walltime}"

@@ -113,7 +113,7 @@ class Env(WorkflowObject, snakemake.conda.Env):
         else:
             self.dynamic = True
 
-            env_file = op.join(icfg.absdir.dynamic_envs, f"{name}.yml")
+            env_file = op.join(icfg.ensuredir.dynamic_envs, f"{name}.yml")
             defaults = {
                 'name': self.name,
                 'dependencies': list(ensure_list(packages) +
