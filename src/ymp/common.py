@@ -324,7 +324,7 @@ class FileDownloader(object):
         """
 
         if not os.path.exists(dest):
-            os.mkdir(dest)
+            os.makedirs(dest)
 
         loop = asyncio.get_event_loop()
 
