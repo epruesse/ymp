@@ -1,13 +1,15 @@
 import pytest
 
+import ymp
+
 
 @pytest.mark.parametrize("project",
                          ['ibd', 'toy', 'mpic', 'complex_data'],
                          indirect=True)
 def test_config(project_dir):
     with project_dir.as_cwd():
-        from ymp.config import icfg
-        icfg.init()
+        cfg = ymp.get_config()
+        cfg.reload()
 
 
 @pytest.mark.parametrize("project, fq_names",
@@ -17,12 +19,12 @@ def test_config(project_dir):
                          indirect=['project'])
 def test_fqfiles(project_dir, fq_names):
     with project_dir.as_cwd():
-        from ymp import config as c
-        c.icfg.init(force=True)
-        for ds in c.icfg.datasets:
-            assert len(c.icfg[ds].fq_names) == fq_names[0]
-            assert len(c.icfg[ds].pe_fq_names) == fq_names[1]
-            assert len(c.icfg[ds].se_fq_names) == fq_names[2]
-            assert len(c.icfg[ds].fwd_pe_fq_names) == fq_names[3]
-            assert len(c.icfg[ds].rev_pe_fq_names) == fq_names[4]
-            assert len(c.icfg[ds].fwd_fq_names) == fq_names[5]
+        cfg = ymp.get_config()
+        cfg.reload()
+        for ds in cfg.projects.values():
+            assert len(ds.fq_names) == fq_names[0]
+            assert len(ds.pe_fq_names) == fq_names[1]
+            assert len(ds.se_fq_names) == fq_names[2]
+            assert len(ds.fwd_pe_fq_names) == fq_names[3]
+            assert len(ds.rev_pe_fq_names) == fq_names[4]
+            assert len(ds.fwd_fq_names) == fq_names[5]

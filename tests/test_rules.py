@@ -8,6 +8,9 @@ import pytest
 
 from .data import parametrize_target
 
+import ymp
+
+
 log = logging.getLogger(__name__)
 
 
@@ -19,7 +22,7 @@ def test_run_rules(target, invoker):
 
 @parametrize_target()
 def test_graph_complete(target, project, invoker):
-    import ymp.config as c
+    cfg = ymp.get_config()
 
     res = invoker.call("make", "-qq", "--dag", target)
 
@@ -34,7 +37,7 @@ def test_graph_complete(target, project, invoker):
         out.write(output)
 
     g = DiGraph(AGraph(output))
-    n_runs = len(c.icfg[project].runs)
+    n_runs = len(cfg[project].runs)
 
     n_start_nodes = len(
         [1 for node, degree in g.in_degree()
@@ -48,4 +51,4 @@ def test_graph_complete(target, project, invoker):
          if g.node[node]['label'].startswith('symlink_raw_reads')])
     log.info("Testing symlinks ({}) == 2 * runs ({})"
              "".format(n_symlinks, n_runs))
-    assert n_symlinks == len(c.icfg[project].fq_names)
+    assert n_symlinks == len(cfg[project].fq_names)

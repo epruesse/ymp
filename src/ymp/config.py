@@ -452,7 +452,7 @@ class DatasetConfig(object):
         kind = source[0]
         if kind == 'srr':
             srr = self.run_data.loc[run][source[1]]
-            f = os.path.join(icfg.dir.scratch,
+            f = os.path.join(self.cfgmgr.dir.scratch,
                              "SRR",
                              "{}_{}.fastq.gz".format(srr, pair+1))
             return f
@@ -512,7 +512,7 @@ class DatasetConfig(object):
                     or self.source_cfg.loc[run][0] == 'srr')
 
         return [
-            "{}.{}".format(run, icfg.pairnames[pair])
+            "{}.{}".format(run, self.cfgmgr.pairnames[pair])
             for run in self.runs
             for pair in pairs
             if have_file(run, pair)
@@ -593,7 +593,6 @@ class ConfigExpander(ColonExpander):
 
             return super().get_value(field_name, args, kwargs)
 
-
 class OverrideExpander(BaseExpander):
     """
     Apply rule attribute overrides from ymp.yml config
@@ -627,11 +626,18 @@ class OverrideExpander(BaseExpander):
                 attr[val_name] = value
 
 
-icfg = None
-
-
 class ConfigMgr(object):
-    """Interface to configuration. Singleton as "icfg" """
+    """Manages workflow configuration
+
+    This is a singleton object of which only one instance should be around
+    at a given time. It is available in the rules files as ``icfg`` and
+    via `ymp.get_config()` elsewhere.
+
+    ConfigMgr loads and maintains the workflow configuration as given
+    in the ``ymp.yml`` files located in the workflow root directory,
+    the user config folder (``~/.ymp``) and the installation ``etc``
+    folder.
+    """
     KEY_PROJECTS = 'projects'
     KEY_REFERENCES = 'references'
     CONF_FNAME = 'ymp.yml'
@@ -639,9 +645,26 @@ class ConfigMgr(object):
     CONF_USER_FNAME = os.path.expanduser("~/.ymp/ymp.yml")
     RULE_MAIN_FNAME = ymp._snakefile
 
+    __instance = None
+
     @classmethod
     def find_config(cls):
-        """Locates ymp config files and sets ymp root"""
+        """Locates ymp config files and ymp root
+
+        The root ymp work dir is determined as the first (parent)
+        directory containing a file named `ConfigMgr.CONF_FNAME`
+        (default ``ymp.yml``).
+
+        The stack of config files comprises 1. the default config
+        ``ConfigMgr.CONF_DEFAULT_FNAME` (``etc/defaults.yml`` in the
+        ymp package directory), 2. the user config
+        `ConfigMgr.CONF_USER_FNAME` (``~/.ymp/ymp.yml``) and 3. the
+        `yml.yml` in the ymp root.
+
+        Returns:
+          root: Root working directory
+          conffiles: list of active configuration files
+        """
         # always include defaults
         conffiles = [cls.CONF_DEFAULT_FNAME]
 
@@ -669,30 +692,28 @@ class ConfigMgr(object):
         return root, conffiles
 
     @classmethod
-    def init(cls, force=False):
-        global icfg
-        root, conffiles = cls.find_config()
-        if force or (icfg is None or icfg.root != root or
-                     icfg.conffiles != conffiles or
-                     icfg._workflow is None):
-            if force:
-                ExpandableWorkflow.clear()
-            icfg = cls(root, conffiles)
+    def instance(cls):
+        """Returns the active Ymp ConfigMgr instance
+
+        """
+        if cls.__instance is None:
+            cls.__instance = cls(*cls.find_config())
+        return cls.__instance
 
     def __init__(self, root, conffiles):
-        log.debug("Inizializing ICFG")
+        log.debug("Inizializing ConfigMgr")
         self._root = root
         self._conffiles = conffiles
         self._config = ymp.yaml.load(self._conffiles)
+
+        # lazy filled by accessors
         self._snakefiles = None
 
-        projects = self._config.get(self.KEY_PROJECTS) or {}
+        prj_cfg = self._config.get(self.KEY_PROJECTS) or {}
         self._datasets = {
             project:  DatasetConfig(self, project, cfg)
-            for project, cfg in projects.items()
+            for project, cfg in prj_cfg.items()
         }
-        if len(self._datasets) == 0:
-            log.info("No projects found in configuration")
 
         ref_cfg = self._config.get(self.KEY_REFERENCES) or {}
         self._references = load_references(self, ref_cfg)
@@ -711,25 +732,53 @@ class ConfigMgr(object):
             StageExpander()
         )
 
+    def reload(self):
+        log.debug("Reloading ConfigMgr")
+        ExpandableWorkflow.clear()
+        self.__init__(*self.find_config())
+
     @property
     def root(self):
+        """Workflow root directory"""
         return self._root
 
     @property
     def conffiles(self):
+        """List of active configuration files"""
         return self._conffiles
 
-    def __len__(self):
+    @property
+    def datasets(self): # deprecated
+        """
+        Names of all configured datasets
+        """
+        return self._datasets.keys()
+
+    def __len__(self):  # deprecated
         "Our length is the number of datasets"
         return len(self._datasets)
 
-    def __getitem__(self, key):
+    def __getitem__(self, key):  # deprecated
         "Returns DatasetConfig"
         return self._datasets[key]
 
-    def __iter__(self):
+    def __iter__(self):  # deprecated
         "Returns iterator over DatasetConfigs"
         return iter(self._datasets.keys())
+
+    @property
+    def projects(self):
+        """
+        Configured projects
+        """
+        return AttrDict(self._datasets)
+
+    @property
+    def ref(self):
+        """
+        Configure references
+        """
+        return AttrDict(self._references)
 
     @property
     def pairnames(self):
@@ -773,23 +822,6 @@ class ConfigMgr(object):
         """
         return self._config.cluster
 
-    @property
-    def ref(self):
-        return AttrDict(self._references)
-
-    @property
-    def projects(self):
-        """
-        Configured projects
-        """
-        return AttrDict(self._datasets)
-
-    @property
-    def datasets(self):
-        """
-        Names of all configured datasets
-        """
-        return self._datasets.keys()
 
     @property
     def limits(self):
@@ -886,5 +918,3 @@ class ConfigMgr(object):
             else:
                 raise YmpSystemError(f"YMP does not support system '{system}'")
         return self._platform
-
-ConfigMgr.init()

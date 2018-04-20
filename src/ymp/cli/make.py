@@ -42,8 +42,8 @@ class TargetParam(click.ParamType):
         options: list = []
 
         if len(query_stages) == 1:  # expand projects
-            from ymp.config import icfg
-            options = icfg.datasets
+            cfg = ymp.get_config()
+            options = cfg.projects.keys()
         else:  # expand stages
             if 'stages' in cache:
                 stages = cache['stages']
@@ -130,8 +130,8 @@ def start_snakemake(kwargs):
 
     Fixes paths of kwargs['targets'] to be relative to YMP root.
     """
-    from ymp.config import icfg
-    root_path = icfg.root
+    cfg = ymp.get_config()
+    root_path = cfg.root
     cur_path = os.path.abspath(os.getcwd())
     if not cur_path.startswith(root_path):
         raise YmpException("internal error - CWD moved out of YMP root?!")
@@ -282,17 +282,17 @@ def submit(profile, **kwargs):
     includes base profiles for the "torque" and "slurm" cluster engines.
 
     """
-    from ymp.config import icfg
+    cfg = ymp.get_config()
 
     # The cluster config uses profiles, which are assembled by layering
     # the default profile, the selected profile and additional command
     # line parameters. The selected profile is either specified via
     # "
-    config = icfg.cluster.profiles.default
-    profile_name = profile or icfg.cluster.profile
+    config = cfg.cluster.profiles.default
+    profile_name = profile or cfg.cluster.profile
     if profile_name:
         config.add_layer(profile_name,
-                         icfg.cluster.profiles[profile_name])
+                         cfg.cluster.profiles[profile_name])
     cli_params = {key: value
                   for key, value in kwargs.items()
                   if value is not None}
@@ -321,7 +321,7 @@ def submit(profile, **kwargs):
         exist or is not executable. Please check your cluster configuration.
         """)
 
-    config[param] = icfg.expand(" ".join(cmd))
+    config[param] = cfg.expand(" ".join(cmd))
 
     rval = start_snakemake(config)
     if not rval:

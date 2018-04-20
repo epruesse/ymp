@@ -23,3 +23,11 @@ _env_dir = os.path.join(_rsc_dir, "conda_envs")
 
 # Set to 1 to print the next rule during parsing (debug)
 print_rule = 0
+
+
+def get_config():
+    """
+    Return instance of current YMP Config Manager
+    """
+    from ymp.config import ConfigMgr
+    return ConfigMgr.instance()
