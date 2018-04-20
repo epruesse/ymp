@@ -111,9 +111,18 @@ def prepare(**kwargs):
     "--conda-prefix", "-p",
     help="Override location for conda environments"
 )
+@click.option(
+    "--conda-env-spec", "-e",
+    help="Override conda env specs settings"
+)
 @click.argument("ENVNAMES", nargs=-1)
-def install(conda_prefix, envnames):
+def install(conda_prefix, conda_env_spec, envnames):
     "Install conda software environments"
+    if conda_env_spec:
+        cfg = ymp.get_config()
+        cfg.conda.env_spec = conda_env_spec
+        log.error(cfg.conda.env_spec)
+
     envs = get_envs(envnames)
     log.warning(f"Creating {len(envs)} environments.")
     for env in envs.values():
