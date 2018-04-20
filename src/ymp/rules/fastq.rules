@@ -1,9 +1,3 @@
-from ymp.config import icfg
-import ymp
-from ymp.stage import Stage
-import os
-
-
 """
 This file contains the rules dealing with FQ file provisioning and preparation. 
 """
