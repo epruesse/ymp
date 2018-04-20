@@ -169,7 +169,6 @@ class Env(WorkflowObject, snakemake.conda.Env):
 
         """
         cfg = ymp.get_config()
-        log.error(cfg.conda.to_yaml(show_source=True))
 
         # Skip if environment already exists
         if os.path.exists(self.path):
@@ -194,6 +193,10 @@ class Env(WorkflowObject, snakemake.conda.Env):
                 md5s = [url.split("#")[1] for url in urls]
                 files = [url.split("#")[0].split("/")[-1] for url in urls]
                 log.debug("Using env spec '%s'", spec_file)
+        else:
+            files = []
+            urls = []
+            install_files = []
 
         if os.path.exists(self.archive_file):
             found_files = glob(os.path.join(self.archive_file, "*.tar.bz2"))
@@ -229,8 +232,9 @@ class Env(WorkflowObject, snakemake.conda.Env):
         # only because Snakemake passed "--copy" to conda, forcing it
         # to copy rather than hard link files.
         if install_files:
-            log.info("Installing environment '%s' from package files",
-                     self.name)
+            log.info("Installing environment '%s' from %i package files",
+                     self.name, len(install_files))
+            log.debug("Files: %s", install_files)
             if not dryrun:
                 log.info("Calling conda...")
                 sp = subprocess.run(["conda", "create", "--prefix",
