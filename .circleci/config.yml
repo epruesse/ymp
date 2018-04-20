@@ -67,6 +67,7 @@ variables:
         mkdir -p envs/$OSNAME
         cd envs/$OSNAME
         pwd
+        ymp env install -e ''
         ymp env export -fc -t txt -d .
         ymp env export -fc -t yml -d .
         ls -l
