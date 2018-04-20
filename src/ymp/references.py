@@ -1,10 +1,10 @@
 import logging
-from typing import Optional, Dict
 import os
 from hashlib import sha1
+from typing import Dict, Optional
 
-from ymp.util import make_local_path
 from ymp.snakemake import make_rule
+from ymp.util import make_local_path
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -39,6 +39,7 @@ class Archive(object):
 
         Files:
         """
+
         item_tpl = """
         - {}
         """
@@ -84,7 +85,7 @@ class Reference(object):
                 archive = Archive(name=self.name,
                                   dirname=self.dir,
                                   tar=downloaded_path,
-                                  url = rsc['url'],
+                                  url=rsc['url'],
                                   files=rsc['files'],
                                   strip=rsc.get('strip_components', 0))
                 self.files.update(archive.get_files())
@@ -94,12 +95,9 @@ class Reference(object):
                           "".format(type_name, self.name))
 
     def get_file(self, filename):
-        #log.debug("getting {}".format(filename))
         downloaded_path = self.files.get(filename)
         if downloaded_path:
             return downloaded_path
-        #log.debug("Files in Ref {}: {}".format(self.name,
-        #                                       "\n".join(self.files)))
         return ("YMP_FILE_NOT_FOUND__" +
                 "No file {} in Reference {}"
                 "".format(filename, self.name).replace(" ", "_"))
@@ -108,8 +106,6 @@ class Reference(object):
         for archive in self.archives:
             yield archive.make_unpack_rule(baserule)
 
-
-    # fixme remove?
     def __str__(self):
         return os.path.join(self.dir, "ALL.contigs")
 
