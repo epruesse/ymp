@@ -234,9 +234,10 @@ ruleinfo_fields = {
 class ExpandableWorkflow(Workflow):
     """Adds hook for additional rule expansion methods to Snakemake"""
     global_workflow = None
+    __expanders = []
 
-    @staticmethod
-    def activate():
+    @classmethod
+    def activate(cls):
         """Installs the ExpandableWorkflow
 
         Replaces the Workflow object in the snakemake.workflow module
@@ -245,25 +246,28 @@ class ExpandableWorkflow(Workflow):
         """
         try:
             from snakemake.workflow import workflow
-
-            if workflow.__class__ != ExpandableWorkflow:
-                workflow.__class__ = ExpandableWorkflow
-                ExpandableWorkflow.global_workflow = workflow
-                ExpandableWorkflow.global_workflow.__init__()
-
         except ImportError:
-            log.debug("ExpandableWorkflow not installed: "
-                      "Failed to import workflow object.")
+            workflow = None
+
+        if workflow and workflow.__class__ != ExpandableWorkflow:
+            # Monkey patch the existing, initialized workflow class
+            workflow.__class__ = ExpandableWorkflow
+            # ExpandableWorkflow.__init__ understands it may be
+            # called on already initialized superclass, so this works:
+            workflow.__init__()
+            cls.global_workflow = workflow
+
     @classmethod
     def load_workflow(cls, snakefile=ymp._snakefile):
         workflow = cls(snakefile=snakefile)
+        cls.global_workflow = workflow
         workflow.include(snakefile)
         return workflow
 
     @classmethod
     def ensure_global_workflow(cls):
         if cls.global_workflow is None:
-            log.debug("Trying to activate ExpandableWorkflow")
+            log.debug("Trying to activate %s...", cls.__name__)
             cls.activate()
         if cls.global_workflow is None:
             log.debug("Failed; loading default workflow")
@@ -273,37 +277,39 @@ class ExpandableWorkflow(Workflow):
     def __init__(self, *args, **kwargs):
         """Constructor for ExpandableWorkflow overlay attributes
 
-        This is called on an already initialized Workflow object.
+        This may be called on an already initialized Workflow object.
         """
+        # Only call super().__init__ if that hasn't happened yet
+        # (as indicated by no instance attributes written to __dict__)
         if not self.__dict__:
             # only call constructor if this object hasn't been initialized yet
             super().__init__(*args, **kwargs)
-            ExpandableWorkflow.global_workflow = self
-        if not hasattr(self, '_expanders'):
-            self._expanders = [SnakemakeExpander()]
-            self._ruleinfos = {}
-            self._last_rule_name = None
-            self.ymp_object_registry = {}
 
-    @staticmethod
-    def register_expanders(*expanders):
+        # There can only be one
+        ExpandableWorkflow.global_workflow = self
+
+        for expander in self.__expanders:
+            expander.link_workflow(self)
+
+        self._ruleinfos = {}
+        self._last_rule_name = None
+        self.ymp_object_registry = {}
+
+    @classmethod
+    def register_expanders(cls, *expanders):
         """
         Register an object the expand() function of which will be called
         on each RuleInfo object before it is passed on to snakemake.
         """
-        ExpandableWorkflow.activate()
-        if ExpandableWorkflow.global_workflow:
-            workflow = ExpandableWorkflow.global_workflow
-            workflow._expanders.extend(expanders)
-            for expander in expanders:
-                expander.workflow = workflow
-            return workflow
-        return None
+        cls.__expanders = expanders
+        if cls.global_workflow:
+            for expander in cls.__expanders:
+                expander.link_workflow(cls.global_workflow)
 
-    @staticmethod
-    def clear():
-        if ExpandableWorkflow.global_workflow:
-            ExpandableWorkflow.global_workflow = None
+    @classmethod
+    def clear(cls):
+        if cls.global_workflow:
+            cls.global_workflow = None
 
     def add_rule(self, name=None, lineno=None, snakefile=None):
         """Add a rule.
@@ -343,7 +349,7 @@ class ExpandableWorkflow(Workflow):
                 print_ruleinfo(rule, ruleinfo, log.error)
                 rule._ymp_print_rule = True
 
-            for expander in reversed(self._expanders):
+            for expander in reversed(self.__expanders):
                 expander.expand(rule, ruleinfo)
                 if ymp.print_rule == 1:
                     log.error("### expanded with " + type(expander).__name__)
@@ -384,6 +390,18 @@ class BaseExpander(object):
     work on the entire RuleInfo object or the :meth:format and
     :meth:expands_field methods if they intend to modify specific fields.
     """
+    def __init__(self):
+        self.workflow = None
+
+    def link_workflow(self, workflow):
+        """Called when the Expander is associated with a workflow
+
+        May be called multiple times if a new workflow object is created.
+        """
+        log.debug("Linking %s with %s",
+                  self.__class__.__name__, workflow.__class__.__name__)
+        self.workflow = workflow
+
     def format(self, item, *args, **kwargs):
         """Format *item* using *\*args* and *\*\*kwargs*"""
         return item
@@ -777,7 +795,6 @@ class InheritanceExpander(BaseExpander):
         self.ruleinfos = {}
         self.snakefiles = {}
         self.linemaps = None
-        log.debug("Ineritance Enabled")
 
     def get_code_line(self, rule: Rule) -> str:
         """Returns the source line defining *rule*"""
@@ -896,16 +913,20 @@ class DefaultExpander(InheritanceExpander):
 class WorkflowObject(object):
     """
     Base for extension classes defined from snakefiles
+
+    This currently encompasses `ymp.env.Env` and `ymp.stage.Stage`.
+
+    This mixin sets the properties ``filename`` and ``lineno`` according
+    to the definition source in the rules file. It also maintains a registry
+    within the Snakemake workflow object and provides an accessor method
+    to this registry.
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # Fill filename and lineno
-        #
-        # For simplicity, we assume that's two levels up on the call stack.
-        # One level up is our derived class, above that should be the rule
-        # file.
-
+        # We assume the creating call is the first up the stack
+        # that is not a constructor call (i.e. not __init__)
         caller = next(fi for fi in stack() if fi.function != "__init__")
         if not hasattr(self, 'filename'):
             #: str: Name of file in which object was defined
