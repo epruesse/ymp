@@ -87,7 +87,7 @@ variables:
         git config --global user.email "elmar.pruesse@ucdenver.edu"
         git config --global user.name "Elmar Pruesse"
         WD=`pwd`
-        cd src/ymp/conda_env/latest
+        cd src/ymp/conda_envs/latest
         git checkout master
         git pull
         cp -avr $WD/envs/* .
