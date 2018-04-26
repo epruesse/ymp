@@ -194,6 +194,18 @@ variables:
       - *ymp_store_test_results
       - *ymp_store_test_failures
       - *upload_coverage
+  test_tools_steps: &test_tools_steps
+    steps:
+      - checkout
+      - *checkout_submodules
+      - *restore_miniconda
+      - *setup_miniconda
+      - *store_miniconda_status
+      - *ymp_install
+      - *ymp_test_tools
+      - *ymp_store_test_results
+      - *ymp_store_test_failures
+      - *upload_coverage
   deploy_steps: &deploy_steps
     steps:
       - checkout
@@ -240,6 +252,14 @@ jobs:
     <<: *environment
     <<: *macos
     <<: *test_steps
+  test-tools-linux:
+    <<: *environment
+    <<: *linux
+    <<: *test_tools_steps
+  test-tools-macos:
+    <<: *environment
+    <<: *macos
+    <<: *test_tools_steps
   deploy-linux:
     <<: *environment
     <<: *linux
@@ -273,10 +293,30 @@ workflows:
               only: /.*/
             branches:
               ignore: trigger-nightly
+      - test-tools-linux:
+          requires:
+            - test-linux
+            - test-macos
+          filters:
+            tags:
+              only: /.*/
+            branches:
+              ignore: trigger-nightly
+      - test-tools-macos:
+          requires:
+            - test-linux
+            - test-macos
+          filters:
+            tags:
+              only: /.*/
+            branches:
+              ignore: trigger-nightly
       - deploy-linux:
           requires:
             - test-linux
             - test-macos
+            - test-tools-linux
+            - test-tools-macos
           filters:
             tags:
               only: /^v.*/
