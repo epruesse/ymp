@@ -332,7 +332,7 @@ class FileDownloader(object):
                     self.error("Download failed: %s (md5 failed)", name)
                     return False
             return True
-        except asyncio.CancelledError:
+        except (asyncio.CancelledError, asyncio.TimeoutError):
             if os.path.exists(part):
                 os.unlink(part)
             raise
