@@ -126,7 +126,8 @@ variables:
       no_output_timeout: 15m # default 10m
       command: |
         mkdir -p $JUNIT_REPORT_PATH
-        pytest -vv --cov --junit-xml $JUNIT_REPORT_PATH/report.xml -n 2 --run-tools -m runs_tool --timeout=600
+        rm -rf ~/.ymp
+        pytest -vvvs --cov --junit-xml $JUNIT_REPORT_PATH/report.xml -n 1 --run-tools -m runs_tool --timeout=600
   ymp_store_test_failures: &ymp_store_test_failures
     store_artifacts:
       when: on_fail
@@ -196,6 +197,18 @@ variables:
       - *ymp_store_test_results
       - *ymp_store_test_failures
       - *upload_coverage
+  test_tools_steps: &test_tools_steps
+    steps:
+      - checkout
+      - *checkout_submodules
+      - *restore_miniconda
+      - *setup_miniconda
+      - *store_miniconda_status
+      - *ymp_install
+      - *ymp_test_tools
+      - *ymp_store_test_results
+      - *ymp_store_test_failures
+      - *upload_coverage
   deploy_steps: &deploy_steps
     steps:
       - checkout
@@ -242,6 +255,14 @@ jobs:
     <<: *environment
     <<: *macos
     <<: *test_steps
+  test-tools-linux:
+    <<: *environment
+    <<: *linux
+    <<: *test_tools_steps
+  test-tools-macos:
+    <<: *environment
+    <<: *macos
+    <<: *test_tools_steps
   deploy-linux:
     <<: *environment
     <<: *linux
@@ -275,10 +296,30 @@ workflows:
               only: /.*/
             branches:
               ignore: trigger-nightly
+      - test-tools-linux:
+          requires:
+            - test-linux
+            - test-macos
+          filters:
+            tags:
+              only: /.*/
+            branches:
+              ignore: trigger-nightly
+      - test-tools-macos:
+          requires:
+            - test-linux
+            - test-macos
+          filters:
+            tags:
+              only: /.*/
+            branches:
+              ignore: trigger-nightly
       - deploy-linux:
           requires:
             - test-linux
             - test-macos
+            - test-tools-linux
+            - test-tools-macos
           filters:
             tags:
               only: /^v.*/
