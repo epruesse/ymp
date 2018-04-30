@@ -88,7 +88,7 @@ references:
   greengenes:
     - url: ftp://greengenes.microbio.me/greengenes_release/gg_13_5/gg_13_8_otus.tar.gz
       type: dir
-      strip-components: 1
+      strip_components: 1
       files:
         - rep_set/99_otus.fasta
         - rep_set/97_otus.fasta
