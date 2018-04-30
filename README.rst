@@ -1,7 +1,19 @@
 YMP - a Flexible Omics Pipeline
 ===============================
 
+
 |CircleCI| |Read the Docs| |Codacy grade| |Codecov|
+
+.. |CircleCI| image:: https://img.shields.io/circleci/project/github/epruesse/ymp.svg?label=CircleCI
+   :target: https://circleci.com/gh/epruesse/ymp
+.. |Read the Docs| image:: https://img.shields.io/readthedocs/ymp/latest.svg
+   :target: https://ymp.readthedocs.io/en/latest
+.. |Codacy grade| image:: https://img.shields.io/codacy/grade/07ec32ae80194ec8b9184e1f6b5e6649.svg
+   :target: https://app.codacy.com/app/elmar/ymp
+.. |Codecov| image:: https://img.shields.io/codecov/c/github/epruesse/ymp.svg
+   :target: https://codecov.io/gh/epruesse/ymp
+
+.. begin intro
 
 YMP is a tool that makes it easy to process large amounts of NGS read
 data. It comes "batteries included" with everything needed to
@@ -12,17 +24,19 @@ stages. When your needs exceed what the stock YMP processing stages
 provide, you can easily add your own, using YMP to drive novel tools,
 tools specific to your area of research, or tools you wrote yourself.
 
+.. end intro
+
 :Note:
     Intrigued, but think YMP doesn't exactly fit your needs?
 
     Missing processing stages for your favorite tool? Found a bug?
 
     Open an issue, create a PR, or better yet, join the team!
-
-
+   
 The `YMP documentation <http://ymp.readthedocs.io/>`__ is available at
 readthedocs.
 
+.. begin features
 
 Features:
 ---------
@@ -56,7 +70,7 @@ explore alternative workflows
   and storage.
 
 go beyond the beaten path
-  Built on top of Bioconda and Snakemake, YMP is easily extended with
+  Built on top of Bioconda_ and Snakemake_, YMP is easily extended with
   your own Snakefiles, allowing you to integrate any type of
   processing you desire into YMP, including your own, custom made
   tools. Within the YMP framework, you can also make use of the
@@ -64,6 +78,12 @@ go beyond the beaten path
   values, inheritance, recursive wildcard expansion, etc.), making
   writing rules less error prone and repetative.
 
+.. _Snakemake: https://snakemake.readthedocs.io
+.. _Bioconda: https://bioconda.github.io
+  
+.. end features
+
+.. begin background
 
 Background
 ----------
@@ -93,80 +113,77 @@ come without predefined workflows.
 
 YMP strives to walk the middle ground between these. It brings
 everything needed to classic metagenome and RNA-Seq workflows, yet
-built on the workflow management system Snakemake, it can be easily
+built on the workflow management system Snakemake_, it can be easily
 expanded by simply adding Snakemake rules files. Designed around the
 needs of processing primarily multi-omic NGS read data, it brings a
 framework for handling read file meta data, provisioning reference
 databases, and organizing rules into semantic stages.
 
-FIXME: finish :)
+.. _Snakemake: https://snakemake.readthedocs.io
 
+.. end background
+
+.. begin developer info
 
 Working with the Github Development Version
 -------------------------------------------
 
-1. Installing YMP from git
+
+Installing from GitHub
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-1. Clone the repository:
-
-   .. code:: shell
+1. Clone the repository::
 
       git clone --recurse-submodules git@github.com:epruesse/ymp.git
       
-      # or, if you have an SSH key set up:
-      # git clone  --recurse-submodules https://github.com/epruesse/ymp.git
+   Or, if your have github ssh keys set up::
 
-2. Create and activate conda environment:
-   
-   .. code:: shell
+      git clone  --recurse-submodules https://github.com/epruesse/ymp.git
+
+2. Create and activate conda environment::
 
       conda env create -n ymp --file environment.yaml
       source activate ymp
 
-3. Install YMP into conda environment
+3. Install YMP into conda environment::
    
-   .. code:: shell
-
       pip install -e .
 
-4. Verify all is ok
-   
-   .. code:: shell
+4. Verify that YMP works::
 
       source activate ymp
-      ymp --help``
+      ymp --help
 
-2. Updating YMP installed from git
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Usually, all you need to do is a pull:
+Updating Development Version
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. code:: shell
+Usually, all you need to do is a pull::
    
-   git pull
+  git pull
+
+If environments where updated, you may want to regenerate the local
+installations and clean out environments no longer used to save disk
+space::
+
+   source activate ymp
+   ymp env update
+   ymp env clean
+   # alternatively, you can just delete existing envs and let YMP
+   # reinstall as needed:
+   # rm -rf ~/.ymp/conda*
+   conda clean -a
 
 If you see errors before jobs are executed, the core requirements may
-have changed. Try updating the conda environment:
+have changed. To update the YMP conda environment, enter the folder
+where you installed YMP and run the following::
 
-.. code:: shell
-	  
-   source activate ymp
-   conda env update --file environment.yaml
+  source activate ymp
+  conda env update --file environment.yaml
   
-If something changed in ``setup.py``, a re-install may be necessary:
-
-.. code:: shell
+If something changed in ``setup.py``, a re-install may be necessary::
 
    source activate ymp
    pip install -U -e .
 
-
-.. |CircleCI| image:: https://img.shields.io/circleci/project/github/epruesse/ymp.svg?label=CircleCI
-   :target: https://circleci.com/gh/epruesse/ymp
-.. |Read the Docs| image:: https://img.shields.io/readthedocs/ymp/latest.svg
-   :target: https://ymp.readthedocs.io/en/latest
-.. |Codacy grade| image:: https://img.shields.io/codacy/grade/07ec32ae80194ec8b9184e1f6b5e6649.svg
-   :target: https://app.codacy.com/app/elmar/ymp
-.. |Codecov| image:: https://img.shields.io/codecov/c/github/epruesse/ymp.svg
-   :target: https://codecov.io/gh/epruesse/ymp
+.. end developer info
