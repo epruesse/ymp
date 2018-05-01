@@ -27,6 +27,6 @@ with Stage("prodigal") as S:
 
     rule prodigal_all:
         input:
-            "{dir}.genes/{: targets :}.prodigal.gff.gz"
+            "{:this:}/{:targets:}.prodigal.gff.gz"
         output:
-            "{dir}.genes/complete"
+            "{:this:}/complete"
