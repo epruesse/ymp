@@ -161,6 +161,7 @@ Updating Development Version
 Usually, all you need to do is a pull::
    
   git pull
+  git submodule update --recursive --remote
 
 If environments where updated, you may want to regenerate the local
 installations and clean out environments no longer used to save disk
