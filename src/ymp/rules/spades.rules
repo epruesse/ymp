@@ -1,82 +1,84 @@
 Env(name="spades", base="bioconda", packages=["spades", "pigz"])
 
-localrules: metaspades_input_yaml
-rule metaspades_input_yaml:
-    """
-    Prepares a dataset config for spades. Spades commandline is limited to
-    at most 9 pairs of fq files, so to allow arbitrary numbers we need to
-    use the dataset config option.
+with Stage("assemble_metaspades") as S:
+    S.doc("""Assemble reads using metaspades""")
 
-    Preparing in a separate rule so that the main metaspades rule can use
-    the `shell:` rule and not `run:`, which would preclude it from
-    using conda environments.
-    """
-    message:
-        "Preparing Config YAML for MetaSpades: {output}"
-    input:
-        r1 = "{dir}/{: sources :}.{: pairnames[0] :}.fq.gz",
-        r2 = "{dir}/{: sources :}.{: pairnames[1] :}.fq.gz"
-    output:
-        yaml = "{dir}{by}.sp/{target}.yaml"
-    run:
-        import yaml
-        from ymp.util import filter_out_empty
+    localrules: metaspades_input_yaml
+    rule metaspades_input_yaml:
+        """
+        Prepares a dataset config for spades. Spades commandline is limited to
+        at most 9 pairs of fq files, so to allow arbitrary numbers we need to
+        use the dataset config option.
 
-        r1, r2 = filter_out_empty(input.r1, input.r2)
+        Preparing in a separate rule so that the main metaspades rule can use
+        the `shell:` rule and not `run:`, which would preclude it from
+        using conda environments.
+        """
+        message:
+            "Preparing Config YAML for MetaSpades: {output}"
+        input:
+            r1 = "{:prev:}/{:sources:}.{:pairnames[0]:}.fq.gz",
+            r2 = "{:prev:}/{:sources:}.{:pairnames[1]:}.fq.gz"
+        output:
+            yaml = "{:this:}/{target}.yaml"
+        run:
+            import yaml
+            from ymp.util import filter_out_empty
 
-        with open(output.yaml, "w") as cfg:
-            cfg.write(yaml.safe_dump([{
-                "left reads": ["../"+r for r in r1],
-                "right reads": ["../"+r for r in r2],
-                "type": "paired-end",
-                "orientation": "fr"
-            }]))
+            r1, r2 = filter_out_empty(input.r1, input.r2)
 
+            with open(output.yaml, "w") as cfg:
+                cfg.write(yaml.safe_dump([{
+                    "left reads": ["../"+r for r in r1],
+                    "right reads": ["../"+r for r in r2],
+                    "type": "paired-end",
+                    "orientation": "fr"
+                }]))
 
-rule metaspades:
-    """
-    Runs MetaSpades. Supports reads.by_COLUMN.sp/complete as target for
-    by group co-assembly.
-    """
-    message:
-        "(Co-)Assembling {wildcards.target} with MetaSpades"
-        " in {wildcards.dir}{wildcards.by}"
-    input:
-        conf = "{dir}{by}.sp/{target}.yaml"
-    output:
-        fasta = "{dir}{by}.sp/{target}.contigs.fasta.gz",
-        fastg = "{dir}{by}.sp/{target}.contigs.fastg.gz"
-    log:
-        "{dir}{by}.sp/{target}.log.gz"
-    params:
-        workdir = "{dir}{by}.sp/{target}/",
-        tmpdir  = icfg.dir.tmp,
-        memory  = icfg.mem("1000g", unit="g"),
-        mem = icfg.mem("1000g")
-    conda: "spades"
-    threads:
-        24
-    shell: """
-    CONTINUE=""
-    if [ -e "{params.workdir}" ]; then
-        if [ -e "{params.workdir}/params.txt" ]; then
-           CONTINUE="--continue"
-        else
-           rm -rf "{params.workdir}"
+    rule metaspades:
+        """
+        Runs MetaSpades. Supports reads.by_COLUMN.sp/complete as target for
+        by group co-assembly.
+        """
+        message:
+            "(Co-)Assembling {wildcards.target} with MetaSpades"
+            " in {wildcards.dir}{wildcards.by}"
+        input:
+            conf    = "{:this:}/{target}.yaml"
+        output:
+            fasta   = "{:this:}/{target}.contigs.fasta.gz",
+            fastg   = "{:this:}/{target}.contigs.fastg.gz"
+        log:
+                    "{:this:}/{target}.log.gz"
+        params:
+            workdir = "{:this:}/{target}/",
+            tmpdir  = "{:dir.tmp}",
+            mem     = icfg.mem("1000g")
+        conda:
+            "spades"
+        threads:
+            24
+        shell: """
+        CONTINUE=""
+        if [ -e "{params.workdir}" ]; then
+          if [ -e "{params.workdir}/params.txt" ]; then
+            CONTINUE="--continue"
+          else
+            rm -rf "{params.workdir}"
+          fi
         fi
-    fi
 
-    metaspades.py \
-        -o {params.workdir} \
-        --threads {threads} \
-        --tmp-dir {params.tmpdir} \
-        --dataset {input.conf} \
-        --memory {params.memory} \
-        $CONTINUE
+        metaspades.py \
+          -o {params.workdir} \
+          --threads {threads} \
+          --tmp-dir {params.tmpdir} \
+          --dataset {input.conf} \
+          --memory $(({params.mem}/1024)) \
+          $CONTINUE
 
-    pigz -p {threads} -9 -c {params.workdir}/scaffolds.fasta > {output.fasta}
-    pigz -p {threads} -9 -c {params.workdir}/assembly_graph.fastg > {output.fastg}
-    cat {params.workdir}/{{params.txt,spades.log}} | pigz -p {threads} -9 > {log}
-    # rm -rf {params.workdir}
-    """
+        pigz -p {threads} -9 -c {params.workdir}/scaffolds.fasta > {output.fasta}
+        pigz -p {threads} -9 -c {params.workdir}/assembly_graph.fastg > {output.fastg}
+        cat {params.workdir}/{{params.txt,spades.log}} | pigz -p {threads} -9 > {log}
+        rm -rf {params.workdir}
+        """
 
