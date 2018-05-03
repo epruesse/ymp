@@ -1,5 +1,5 @@
-localrules: download_file
-rule download_file:
+localrules: download_file_ftp
+rule download_file_ftp:
     """
     Downloads remote file using *wget*
     """
@@ -10,7 +10,7 @@ rule download_file:
     log:
         "{:dir.downloads:}/{protocol}/{server}/{path}.log"
     wildcard_constraints:
-        protocol="(http|https|ftp|ftps)",
+        protocol="(ftp|ftps)",
         server="[^/]+"
     params:
         url="{protocol}://{server}/{path}"
@@ -18,8 +18,30 @@ rule download_file:
     shell: """
     wget  "{params.url}" -O "{output[0]}" > {log} 2>&1
     """
-ruleorder: download_file > gunzip
-ruleorder: download_file > fq2fa
+ruleorder: download_file_ftp > gunzip
+ruleorder: download_file_ftp > fq2fa
+
+rule download_file_http:
+    """
+    Downloads remote file using internal downloader
+    """
+    message:
+        "Downloading {params.url}"
+    output:
+        "{:dir.downloads:}/{protocol}/{server}/{path}"
+    log:
+        "{:dir.downloads:}/{protocol}/{server}/{path}.log"
+    wildcard_constraints:
+        protocol="(http|https)",
+        server="[^/]+"
+    params:
+        url="{protocol}://{server}/{path}"
+    run:
+        from ymp.common import FileDownloader
+        FileDownloader(loglevel=0).get(params.url, output[0])
+ruleorder: download_file_http > gunzip
+ruleorder: download_file_http > fq2fa
+
 
 with Stage("references") as S:
     S.doc("""
@@ -35,7 +57,7 @@ with Stage("references") as S:
         - Compresses references provided uncompressed upstream
         """
         message:
-            "Preparing {input}"
+            "Preparing {output}"
         input:
             files = lambda wc: icfg.ref[wc.refname].get_file(wc.path)
         output:
