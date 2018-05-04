@@ -52,7 +52,7 @@ with Stage("trim_trimmomatic") as S:
         """
 
     rule trimmomatic_adapter_se:  # ymp: extends trimmomatic_adapter
-        input:  "{dir}/{sample}.{:pairnames[0]:}.fq.gz"
+        input:  "{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"
         output: "{:this:}{adapter}/{sample}.{:pairnames[0]:}.fq.gz"
         params: arg_pe  = "SE",
                 outargs = "{output}"
