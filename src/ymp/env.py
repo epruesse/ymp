@@ -177,6 +177,10 @@ class Env(WorkflowObject, snakemake.conda.Env):
         log.warning("Creating environment '%s'", self.name)
         log.debug("Target dir is '%s'", self.path)
 
+        files = []
+        urls = []
+        install_files = []
+
         # Try to get urls, md5s and files from env spec
         if cfg.conda.env_specs:
             spec_file = os.path.join(
@@ -193,10 +197,6 @@ class Env(WorkflowObject, snakemake.conda.Env):
                 md5s = [url.split("#")[1] for url in urls]
                 files = [url.split("#")[0].split("/")[-1] for url in urls]
                 log.debug("Using env spec '%s'", spec_file)
-        else:
-            files = []
-            urls = []
-            install_files = []
 
         if os.path.exists(self.archive_file):
             found_files = glob(os.path.join(self.archive_file, "*.tar.bz2"))
@@ -249,7 +249,7 @@ class Env(WorkflowObject, snakemake.conda.Env):
                 log.info("Conda complete")
         else:
             log.warning("Neither spec file nor package archive found for '%s',"
-                        " falling pack to native resolver", self.name)
+                        " falling back to native resolver", self.name)
 
         res = super().create(dryrun)
         log.info("Created env %s", self.name)
