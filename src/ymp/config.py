@@ -307,12 +307,13 @@ class DatasetConfig(object):
         """
         import pandas as pd
 
-        unique_columns = self._runs.columns[
-            self._runs.apply(pd.Series.nunique) == self._runs.shape[0]
-        ]
+        column_frequencies = self._runs.apply(pd.Series.nunique)
+        log.debug("Column frequencies: {}".format(column_frequencies))
+        nrows = self._runs.shape[0]
+        log.debug("Row count: {}".format(nrows))
+        unique_columns = self._runs.columns[column_frequencies == nrows]
+
         if unique_columns.empty:
-            log.debug("Columns: %s", self._runs.columns)
-            log.debug("Rows: %s", self._runs)
             raise YmpConfigError(
                 self.cfg,
                 "Project data has no column containing unique values for "
@@ -330,12 +331,15 @@ class DatasetConfig(object):
                     ", ".join(str(c) for c in self._runs.columns))
 
             if idcol not in unique_columns:
+                duplicated = self._runs.duplicated(subset=[idcol], keep=False)
+                dup_rows = self._runs[duplicated].sort_values(by=idcol)
                 raise YmpConfigError(
                     self.cfg, key=self.KEY_IDCOL,
-                    msg="Configured column is not unique. "
+                    msg="Configured id_col column '{}' is not unique.\n"
+                    "Duplicated rows:\n {}\n"
                     "Unique columns: {}"
                     "".format(
-                        self.KEY_IDCOL, idcol, list(unique_columns)
+                        idcol, dup_rows, list(unique_columns)
                     )
                 )
         else:

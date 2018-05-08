@@ -25,6 +25,10 @@ class YmpNoStackException(YmpException, ClickException):
     Note that click will call the ``show`` method on this object to
     print the exception. The default implementation from click will
     just prefix the ``msg`` with ``Error: ``.
+
+    FIXME: This does not work if the exception is raised from within
+        the snakemake workflow as snakemake.snakemake catches and
+        reformats exceptions.
     """
 
 
