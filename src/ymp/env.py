@@ -221,7 +221,7 @@ class Env(WorkflowObject, snakemake.conda.Env):
                     raise YmpWorkflowError(
                         f"Unable to create environment {self.name}, "
                         f"because downloads failed. See log for details.")
-            install_files = [os.path.join(dest, fn) for fn in files]
+                install_files = [os.path.join(dest, fn) for fn in files]
 
         # Install from packages if we have packages
         # We re-implement this here although superclass does it, because
