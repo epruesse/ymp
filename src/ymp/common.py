@@ -3,12 +3,13 @@ Collection of shared utility classes and methods
 """
 import asyncio
 import atexit
-import logging
 import hashlib
+import logging
 import os
 import shelve
+import threading
 from collections import Iterable, Mapping, OrderedDict
-from typing import List, Optional
+from typing import List, Optional, Union
 from urllib.parse import urlsplit
 
 import aiohttp
@@ -174,22 +175,54 @@ class FileDownloader(object):
     """Manages download of a set of URLs
 
     Downloads happen concurrently using asyncronous network IO.
+
+    Args:
+      block_size: Byte size of chunks to download
+      timeout:    Aiohttp cumulative timeout
+      parallel:   Number of files to download in parallel
+      loglevel:   Log level for messages send to logging
+                  (Errors are send with loglevel+10)
     """
-    def __init__(self, block_size=4096, timeout=60, parallel=4,
-                 loglevel=logging.WARNING):
+    def __init__(self, block_size: int=4096, timeout: int=300, parallel: int=4,
+                 loglevel: int=logging.WARNING):
         self._block_size = block_size
         self._timeout = timeout
         self._parallel = parallel
+
+        try:
+            self.loop = asyncio.get_event_loop()
+        except RuntimeError:
+            # no loop in context (i.e. running in thread)
+            self.loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self.loop)
+
         self._sem = asyncio.Semaphore(parallel)
         self._progress = LOG.getEffectiveLevel() <= loglevel
         self._loglevel = loglevel
         self._sum_bar = None
 
-    def log(self, msg, *args, modlvl=0, **kwargs):
+    def log(self, msg: str, *args, modlvl: int=0, **kwargs) -> None:
+        """Send message to logger
+
+        Honors loglevel set for the FileDownloader object.
+
+        Args:
+          msg: The log message
+          modlvl: Added to default logging level for object
+        """
         LOG.log(self._loglevel + modlvl, msg, *args, **kwargs)
 
+    def error(self, msg: str, *args, **kwargs) -> None:
+        """Send error to logger
+
+        Message is sent with a log level 10 higher than the default
+        for this object.
+        """
+        self.log(msg, *args, modlvl=10, **kwargs)
+
     @staticmethod
-    def make_bar_format(desc_width=20, count_width=0, rate=False, eta=False):
+    def make_bar_format(desc_width: int=20, count_width: int=0,
+                        rate: bool=False, eta: bool=False) -> str:
         """Construct bar_format for tqdm
 
         Args:
@@ -206,7 +239,20 @@ class FileDownloader(object):
             right += ' ETA {remaining}'
         return left + '|{bar}|' + right
 
-    async def _get_file(self, session, url, dest, md5=None):
+    async def _download(self, session: aiohttp.ClientSession,
+                        url: str, dest: str, md5: Optional[str]=None) -> bool:
+        """Asynchronously download a single file
+
+        If ``dest`` points to an existing directory, the file name
+        is derived from the trailing path portion of the URL.
+
+        Args:
+          session: aiohttp session object
+          url:     source url
+          dest:    destination file path
+          md5:     optional md5 checksum to verify
+
+        """
         parts = urlsplit(url)
         if os.path.isdir(dest):
             name = os.path.basename(parts.path)
@@ -283,8 +329,7 @@ class FileDownloader(object):
                 elif md5.strip() == md5_hash:
                     self.log("Download complete: %s (md5 verified)", name)
                 else:
-                    self.log("Download failed: %s (md5 failed)", name,
-                             modlvl=10)
+                    self.error("Download failed: %s (md5 failed)", name)
                     return False
             return True
         except asyncio.CancelledError:
@@ -292,28 +337,51 @@ class FileDownloader(object):
                 os.unlink(part)
             raise
 
-    async def _get_all(self, urls, dest, md5s=None):
-        self.log("Downloading %i files.", len(urls))
+    async def _run(self, urls: List[str], dest: str,
+                   md5s: Optional[List[str]]=None) -> List[bool]:
+        """Executes a download session
+
+        Args:
+          urls: List of URLs
+          dest: Destination path
+          md5s: Optional list of md5 checksums
+        """
         if not md5s:
             md5s = [None]*len(urls)
         async with aiohttp.ClientSession() as session:
-            coros = [asyncio.ensure_future(self._get_file(session, url, dest, md5))
-                     for url, md5 in zip(urls, md5s)]
-            with tqdm(asyncio.as_completed(coros), total=len(coros),
-                      unit="Files", desc="Total files:",
-                      disable=not self._progress, leave=False,
-                      bar_format=self.make_bar_format(20, 7, eta=True)) as t, \
-                 tqdm(total=0,
-                      unit="B", desc="Total bytes:",
-                      unit_scale=True, unit_divisor=1024,
-                      disable=not self._progress, leave=False, miniters=1,
-                      bar_format=self.make_bar_format(20, 7, rate=True)) as t2:
-                self._sum_bar = t2
-                result = [await coro for coro in t]
-        self.log("Finished downloads.")
+            if len(urls) == 0:
+                # No need to show progress bar for just 1 file
+                self.log("Downloading 1 file.")
+                result = await asyncio.ensure_future(
+                    self._download(session, urls[0], dest, md5s[0])
+                )
+                self.log("Finished download.")
+            else:
+                self.log("Downloading %i files.", len(urls))
+                coros = [
+                    asyncio.ensure_future(
+                        self._download(session, url, dest, md5)
+                    )
+                    for url, md5 in zip(urls, md5s)
+                ]
+                with tqdm(
+                    asyncio.as_completed(coros), total=len(coros),
+                    unit="Files", desc="Total files:",
+                    disable=not self._progress, leave=False,
+                    bar_format=self.make_bar_format(20, 7, eta=True)
+                ) as t, tqdm(
+                    total=0,
+                    unit="B", desc="Total bytes:",
+                    unit_scale=True, unit_divisor=1024,
+                    disable=not self._progress, leave=False, miniters=1,
+                    bar_format=self.make_bar_format(20, 7, rate=True)
+                ) as t2:
+                    self._sum_bar = t2
+                    result = [await coro for coro in t]
+                self.log("Finished downloads.")
         return result
 
-    def get(self, urls: List[str], dest: str,
+    def get(self, urls: Union[str, List[str]], dest: str,
             md5s: Optional[List[str]]=None) -> None:
         """Download a list of URLs
 
@@ -323,21 +391,54 @@ class FileDownloader(object):
           md5s: List of MD5 sums to check
         """
 
-        if not os.path.exists(dest):
-            os.makedirs(dest)
-
-        loop = asyncio.get_event_loop()
+        urls = ensure_list(urls)
+        if not urls:
+            return True  # nothing to do
+        if len(urls) > 1:
+            if not os.path.exists(dest):
+                os.makedirs(dest)
 
         try:
-            task = asyncio.ensure_future(self._get_all(urls, dest, md5s))
-            loop.run_until_complete(task)
+            task = asyncio.ensure_future(self._run(urls, dest, md5s))
+            self.loop.run_until_complete(task)
         except KeyboardInterrupt:
             end = asyncio.gather(*asyncio.Task.all_tasks())
             end.cancel()
             try:
-                loop.run_until_complete(end)
+                self.loop.run_until_complete(end)
             except asyncio.CancelledError:
                 pass
             raise
 
         return all(task.result())
+
+
+class DownloadThread(object):
+    def __init__(self):
+        LOG.error("made downloader")
+        self.loop = asyncio.new_event_loop()
+        self.thread = threading.Thread(target=self.main)
+        self.thread.start()
+        atexit.register(self.terminate)
+
+    def terminate(self):
+        self.loop.call_soon_threadsafe(self.loop.stop)
+
+    def main(self):
+        LOG.error("here")
+        asyncio.set_event_loop(self.loop)
+        self.downloader = FileDownloader()
+        self.loop.run_forever()
+
+    def get(self, url, dest, md5):
+        LOG.error("scheduling get %s", url)
+        self.loop.call_soon_threadsafe(
+            self.downloader.get(url, dest, md5)
+        )
+
+
+#DOWNLOADER = DownloadThread()
+
+#def download(url, dest, md5=None):
+#    LOG.error("called download %s", url)
+#    DOWNLOADER.get(url, dest, md5)

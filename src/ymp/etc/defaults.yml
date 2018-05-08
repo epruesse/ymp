@@ -54,8 +54,10 @@ references:
     - url: ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5ss.fa.gz
   hg18:
     - url: http://deweylab.biostat.wisc.edu/rsem/human_refseq_NMonly_125bpPolyATail_extractedFromHumanGenome_hg18.tar.gz
-  GRCh38:  # (Ensembl Build)
+  GRCh38.index:  # hisat2 default hg reference
     - url: ftp://ftp.ccb.jhu.edu/pub/infphilo/hisat2/data/grch38_snp_tran.tar.gz
+      type: dir
+      strip_components: 1
       files:
         - genome_snp_tran.1.ht2
         - genome_snp_tran.2.ht2
@@ -65,8 +67,11 @@ references:
         - genome_snp_tran.6.ht2
         - genome_snp_tran.7.ht2
         - genome_snp_tran.8.ht2
+  GRCh38_84:
     - url: ftp://ftp.ensembl.org/pub/release-84/gtf/homo_sapiens/Homo_sapiens.GRCh38.84.gtf.gz
     - url: ftp://ftp.ensembl.org/pub/release-84/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+  hg38_snp144:
+    - url: http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/snp144Common.txt
   # Synthetic Sequences
   phiX:
     - url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/819/615/GCF_000819615.1_ViralProj14015/GCF_000819615.1_ViralProj14015_genomic.fna.gz
@@ -78,7 +83,7 @@ references:
   # rRNA Sequences
   silva:
     - url: https://www.arb-silva.de/fileadmin/silva_databases/release_128/Exports/SILVA_128_SSURef_Nr99_tax_silva_trunc.fasta.gz
-      type: fasta.gz
+      type: fasta
   mothur_SEED:
     - url: https://www.mothur.org/w/images/a/a4/Silva.seed_v128.tgz
       type: dir

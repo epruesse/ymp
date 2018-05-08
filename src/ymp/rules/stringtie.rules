@@ -1,84 +1,84 @@
 Env(name="stringtie", base="bioconda", packages="stringtie")
 
-rule stringtie:
-    message:
-        "Stringtie: Assembling transcripts ({log})"
-    input:
-        bam = "{dir}.ht2/{sample}.sorted.bam",
-        gtf = "{:dir.references:}/hisat_GRCh38_gtf.gtf"
-    output:
-        gtf = "{dir}.ht2.st/{sample}.transscripts.gtf",
-        abd = "{dir}.ht2.st/{sample}.gene_abundances.tsv",
-        bgn = "{dir}.ht2.st/indidivdual_{sample}.ballgown"
-    log:
-              "{dir}.ht2.st/{sample}.log"
-    threads:
-        16
-    params:
-        mem = icfg.mem("16G")
-    conda:
-        "stringtie"
-    shell:
-        "stringtie"
-        " {input.bam}"
-        " -G {input.gtf}"
-        " -p {threads}"
-        " -A {output.abd}"
-        " -o {output.gtf}"
-        " -b {output.bgn}"
-        " >{log} 2>&1"
+with Stage("count_stringtie"):
+    rule stringtie:
+        message:
+            "Stringtie: Assembling transcripts ({log})"
+        input:
+            bam = "{:prev:}/{sample}.sorted.bam",
+            gtf = "{:reference:}.gtf"
+        output:
+            gtf = "{:this:}/{sample}.transscripts.gtf",
+            abd = "{:this:}/{sample}.gene_abundances.tsv",
+            bgn = "{:this:}/indidivdual_{sample}.ballgown"
+        log:
+                  "{:this:}/{sample}.log"
+        threads:
+            16
+        params:
+            mem = icfg.mem("16G")
+        conda:
+            "stringtie"
+        shell:
+            "stringtie"
+            " {input.bam}"
+            " -G {input.gtf}"
+            " -p {threads}"
+            " -A {output.abd}"
+            " -o {output.gtf}"
+            " -b {output.bgn}"
+            " >{log} 2>&1"
 
 
-rule stringtie_merge:
-    message:
-        "Stringtie: Merging transcript assemblies ({log})"
-    input:
-        gtf = "{dir}.ht2.st/{:sources:}.transscripts.gtf",
-        ref = "{:dir.references:}/hisat_GRCh38_gtf.gtf"
-    output:
-        gtf = "{dir}.ht2.st/{target}_merged.gtf"
-    log:
-              "{dir}.ht2.st/{target}_merged.log"
-    threads:
-        16
-    params:
-        mem = icfg.mem("16G")
-    conda:
-        "stringtie"
-    shell:
-        "stringtie --merge"
-        " {input.gtf}"
-        " -G {input.ref}"
-        " -o {output.gtf}"
-        " -p {threads}"
-        " >{log} 2>&1"
+    rule stringtie_merge:
+        message:
+            "Stringtie: Merging transcript assemblies ({log})"
+        input:
+            gtf = "{:this:}/{:sources:}.transscripts.gtf",
+            ref = "{:reference:}.gtf"
+        output:
+            gtf = "{:this:}/{target}_merged.gtf"
+        log:
+                  "{:this:}/{target}_merged.log"
+        threads:
+            16
+        params:
+            mem = icfg.mem("16G")
+        conda:
+            "stringtie"
+        shell:
+            "stringtie --merge"
+            " {input.gtf}"
+            " -G {input.ref}"
+            " -o {output.gtf}"
+            " -p {threads}"
+            " >{log} 2>&1"
 
-
-rule stringtie_abundance:
-    message:
-        "Stringtie: Estimating abundances ({log})"
-    input:
-        bam = "{dir}.ht2/{sample}.sorted.bam",
-        ref = "{dir}.ht2.st/{target}_merged.gtf"
-    output:
-        bgn = "{dir}.ht2.st/{target}_{sample}.ballgown",
-        abd = "{dir}.ht2.st/{target}_{sample}.gene_abundances.tsv",
-        gtf = "{dir}.ht2.st/{target}_{sample}.gtf"
-    log:
-              "{dir}.ht2.st/{target}_{sample}.log"
-    threads:
-        16
-    params:
-        mem = icfg.mem("16G")
-    conda:
-        "stringtie"
-    shell:
-        "stringtie"
-        " {input.bam}"
-        " -G {input.ref}"
-        " -e"
-        " -b {output.bgn}"
-        " -A {output.abd}"
-        " -p {threads}"
-        " -o {output.gtf}"
-        " >{log} 2>&1"
+    rule stringtie_abundance:
+        message:
+            "Stringtie: Estimating abundances ({log})"
+        input:
+            bam = "{:prev:}/{sample}.sorted.bam",
+            ref = "{:this:}/{target}_merged.gtf"
+        output:
+            bgn = "{:this:}/{target}_{sample}.ballgown",
+            abd = "{:this:}/{target}_{sample}.gene_abundances.tsv",
+            gtf = "{:this:}/{target}_{sample}.gtf"
+        log:
+                  "{:this:}/{target}_{sample}.log"
+        threads:
+            16
+        params:
+            mem = icfg.mem("16G")
+        conda:
+            "stringtie"
+        shell:
+            "stringtie"
+            " {input.bam}"
+            " -G {input.ref}"
+            " -e"
+            " -b {output.bgn}"
+            " -A {output.abd}"
+            " -p {threads}"
+            " -o {output.gtf}"
+            " >{log} 2>&1"
