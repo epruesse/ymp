@@ -22,16 +22,13 @@ with Stage("qc_fastqc") as S:
         log:
             "{:this:}/{file}_fastqc.log"
         threads:
-            1
+            1  # fastqc cannot use more than 1 thread per file
         params:
-            k=10,
-            mem=icfg.mem("8g")
+            k=7,
+            mem=icfg.mem("4g")
         conda:
             "fastqc"
         shell: """
-        # override too low memory requested by fastqc 0.11.5 of 256M per thread:
-        export _JAVA_OPTIONS="-Xmx{params.mem}m"
-
         fastqc \
          -t {threads} \
          -o $(dirname {output[0]}) \
