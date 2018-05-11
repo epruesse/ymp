@@ -55,13 +55,16 @@ with Stage("references") as S:
 
         - Creates symlinks to downloaded references
         - Compresses references provided uncompressed upstream
+        - Connects files requested by stages with downloaded files and unpacked archives
         """
         message:
             "Preparing {output}"
         input:
-            files = lambda wc: icfg.ref[wc.refname].get_file(wc.path)
+            files = lambda wc: icfg.ref[wc.refname].get_file(wc.path, wc.stage)
         output:
-            "{:dir.references:}/{refname}/{path}"
+            "{:dir.references:}/{refname}{stage}/{path}"
+        wildcard_constraints:
+            stage = "(\.[^/]+|)"
         run:
             if isinstance(input.files, str):
                 infile = input.files
@@ -84,6 +87,9 @@ with Stage("references") as S:
             if (wildcards.path.endswith(".gz")
                 and not infile.endswith(".gz")):
                     shell("gzip -c '{infile}' > '{output}'")
+            elif (not wildcards.path.endswith(".gz")
+                  and infile.endswith(".gz")):
+                    shell("gunzip -c '{infile}' > '{output}'")
             else:
                 outdir = os.path.dirname(output[0])
                 input_relpath = os.path.relpath(infile, outdir)

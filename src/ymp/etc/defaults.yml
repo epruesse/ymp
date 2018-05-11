@@ -54,24 +54,26 @@ references:
     - url: ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/hs37d5ss.fa.gz
   hg18:
     - url: http://deweylab.biostat.wisc.edu/rsem/human_refseq_NMonly_125bpPolyATail_extractedFromHumanGenome_hg18.tar.gz
-  GRCh38.index:  # hisat2 default hg reference
+  GRCh38:  # hisat2 default hg reference
     - url: ftp://ftp.ccb.jhu.edu/pub/infphilo/hisat2/data/grch38_snp_tran.tar.gz
-      type: dir
       strip_components: 1
+      type: dir
+      stage: .index
       files:
-        - genome_snp_tran.1.ht2
-        - genome_snp_tran.2.ht2
-        - genome_snp_tran.3.ht2
-        - genome_snp_tran.4.ht2
-        - genome_snp_tran.5.ht2
-        - genome_snp_tran.6.ht2
-        - genome_snp_tran.7.ht2
-        - genome_snp_tran.8.ht2
-  GRCh38_84:
+        ALL.contigs.1.ht2: genome_snp_tran.1.ht2
+        ALL.contigs.2.ht2: genome_snp_tran.2.ht2
+        ALL.contigs.3.ht2: genome_snp_tran.3.ht2
+        ALL.contigs.4.ht2: genome_snp_tran.4.ht2
+        ALL.contigs.5.ht2: genome_snp_tran.5.ht2
+        ALL.contigs.6.ht2: genome_snp_tran.6.ht2
+        ALL.contigs.7.ht2: genome_snp_tran.7.ht2
+        ALL.contigs.8.ht2: genome_snp_tran.8.ht2
     - url: ftp://ftp.ensembl.org/pub/release-84/gtf/homo_sapiens/Homo_sapiens.GRCh38.84.gtf.gz
+      type: gtf
     - url: ftp://ftp.ensembl.org/pub/release-84/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
-  hg38_snp144:
+      type: fasta
     - url: http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/snp144Common.txt
+      type: snp
   # Synthetic Sequences
   phiX:
     - url: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/819/615/GCF_000819615.1_ViralProj14015/GCF_000819615.1_ViralProj14015_genomic.fna.gz

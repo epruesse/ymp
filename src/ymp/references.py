@@ -17,9 +17,10 @@ class Archive(object):
     strip_components = None
     files = None
 
-    def __init__(self, name, dirname, tar, url, strip, files):
+    def __init__(self, name, dirname, stage, tar, url, strip, files):
         self.name = name
         self.dirname = dirname
+        self.stage = stage
         self.tar = tar
         self.url = url
         self.strip = strip
@@ -29,7 +30,14 @@ class Archive(object):
         self.prefix = os.path.join(self.dirname, "_unpacked_" + self.hash)
 
     def get_files(self):
-        return {fn: os.path.join(self.prefix, fn) for fn in self.files}
+        if isinstance(self.files, list):
+            return {self.stage + fn: os.path.join(self.prefix, fn)
+                    for fn in self.files}
+        elif isinstance(self.files, dict):
+            return {self.stage + fn_ymp: os.path.join(self.prefix, fn_arch)
+                    for fn_ymp, fn_arch in self.files.items()}
+        else:
+            raise Exception("unknown data type for reference.files")
 
     def make_unpack_rule(self, baserule: 'Rule'):
         docstr_tpl = """
@@ -62,6 +70,7 @@ class Reference(object):
     """
     Represents (remote) reference file/database configuration
     """
+    ONEFILE = "ALL.contigs"
 
     def __init__(self, cfgmgr, reference, cfg):
         self.name = reference
@@ -75,15 +84,21 @@ class Reference(object):
         for rsc in cfg:
             if isinstance(rsc, str):
                 rsc = {'url': rsc}
+            type_name = rsc.get('type', 'fasta').lower()
+            stage = rsc.get("stage", "") + "/"
             downloaded_path = make_local_path(self.cfgmgr, rsc['url'])
-            type_name = rsc['type'].lower() if 'type' in rsc else 'fasta'
             if type_name == 'fasta':
-                self.files['ALL.contigs.fasta.gz'] = downloaded_path
+                self.files[stage + 'ALL.contigs.fasta.gz'] = downloaded_path
             elif type_name == 'fastp':
-                self.files['ALL.contigs.fastp.gz'] = downloaded_path
+                self.files[stage + 'ALL.contigs.fastp.gz'] = downloaded_path
+            elif type_name == 'gtf':
+                self.files[stage + 'ALL.contigs.gtf'] = downloaded_path
+            elif type_name == 'snp':
+                self.files[stage + 'ALL.contigs.snp'] = downloaded_path
             elif type_name == 'dir':
                 archive = Archive(name=self.name,
                                   dirname=self.dir,
+                                  stage=stage,
                                   tar=downloaded_path,
                                   url=rsc['url'],
                                   files=rsc['files'],
@@ -94,8 +109,8 @@ class Reference(object):
                 log.debug("unknown type {} used in reference {}"
                           "".format(type_name, self.name))
 
-    def get_file(self, filename):
-        downloaded_path = self.files.get(filename)
+    def get_file(self, filename, stage):
+        downloaded_path = self.files.get(stage + "/" + filename)
         if downloaded_path:
             return downloaded_path
         return ("YMP_FILE_NOT_FOUND__" +
