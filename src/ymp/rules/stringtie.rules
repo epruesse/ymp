@@ -5,14 +5,14 @@ with Stage("count_stringtie"):
         message:
             "Stringtie: Assembling transcripts ({log})"
         input:
-            bam = "{:prev:}/{sample}.sorted.bam",
-            gtf = "{:reference:}.gtf"
+            bam = "{:prev:}/{target}.{source}.sorted.bam",
+            gtf = "{:reference.dir:}/{target}.contigs.gtf"
         output:
-            gtf = "{:this:}/{sample}.transscripts.gtf",
-            abd = "{:this:}/{sample}.gene_abundances.tsv",
-            bgn = "{:this:}/indidivdual_{sample}.ballgown"
+            gtf = "{:this:}/{target}.{source}.transscripts.gtf",
+            abd = "{:this:}/{target}.{source}.gene_abundances.tsv",
+            bgn = "{:this:}/indidivdual_{target}.{source}.ballgown"
         log:
-                  "{:this:}/{sample}.log"
+                  "{:this:}/{target}.{source}.log"
         threads:
             16
         params:
@@ -29,17 +29,16 @@ with Stage("count_stringtie"):
             " -b {output.bgn}"
             " >{log} 2>&1"
 
-
     rule stringtie_merge:
         message:
             "Stringtie: Merging transcript assemblies ({log})"
         input:
-            gtf = "{:this:}/{:sources:}.transscripts.gtf",
-            ref = "{:reference:}.gtf"
+            gtf = "{:this:}/{target}.{:sources:}.transscripts.gtf",
+            ref = "{:reference.dir:}/{target}.contigs.gtf"
         output:
-            gtf = "{:this:}/{target}_merged.gtf"
+            gtf = "{:this:}/{target}.gtf"
         log:
-                  "{:this:}/{target}_merged.log"
+                  "{:this:}/{target}.log"
         threads:
             16
         params:
@@ -58,14 +57,14 @@ with Stage("count_stringtie"):
         message:
             "Stringtie: Estimating abundances ({log})"
         input:
-            bam = "{:prev:}/{sample}.sorted.bam",
-            ref = "{:this:}/{target}_merged.gtf"
+            bam = "{:prev:}/{target}.{source}.sorted.bam",
+            ref = "{:this:}/{target}.gtf"
         output:
-            bgn = "{:this:}/{target}_{sample}.ballgown",
-            abd = "{:this:}/{target}_{sample}.gene_abundances.tsv",
-            gtf = "{:this:}/{target}_{sample}.gtf"
+            bgn = "{:this:}/{target}.{source}.ballgown",
+            abd = "{:this:}/{target}.{source}.gene_abundances.tsv",
+            gtf = "{:this:}/{target}.{source}.gtf"
         log:
-                  "{:this:}/{target}_{sample}.log"
+                  "{:this:}/{target}.{source}.abundance.log"
         threads:
             16
         params:
@@ -82,3 +81,21 @@ with Stage("count_stringtie"):
             " -p {threads}"
             " -o {output.gtf}"
             " >{log} 2>&1"
+
+    rule stringtie_all_target:
+        message:
+            "Stringtie: finished {output}"
+        input:
+            "{:this:}/{target}.{:sources:}.ballgown",
+        output:
+            touch("{:this:}/all_{target}")
+
+
+    rule stringtie_all:
+        message:
+            "Stringtie: finished {output}"
+        input:
+            touch("{:this:}/all_{:targets:}")
+        output:
+            touch("{:this:}/all")
+
