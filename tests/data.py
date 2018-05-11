@@ -22,24 +22,24 @@ target_map = {
         'trim_sickleQ10':    '{}.trim_sickleQ10/all',
         'trim_sickleL10':    '{}.trim_sickleL10/all',
         'trim_sickleQ10L10': '{}.trim_sickleQ10L10/all',
+        'time_trimmomaticT32': '{}.trim_trimmomaticT32/all',
         'filter_bbmap':      '{}.ref_phiX.remove_bbmap/all',
         'filter_bmtagger':   '{}.ref_phiX.filter_bmtagger/all',
         'dedup_bbmap':       '{}.dedup_bbmap/all',
         'rm_bmtagger':       '{}.ref_phiX.remove_bmtagger/all',
         # fails due to bugs in phyloFlash with too few organisms
         #'phyloFlash':     'reports/{}.phyloFlash.pdf',
-        'fastqc':         '{}.qc_fastqc/all',
-        'multiqc':        'reports/{}.fastqc.html',
-        'trimmomaticT32': '{}.trimmomaticT32/all',
+        #'fastqc':            '{}.qc_fastqc/all',
+        'multiqc':           '{}.qc_fastqc.qc_multiqc.html',
     ],
     'metagenome': odict[
         # assembly.rules
         'assemble_separate_mh': '{}.by_ID.assemble_megahit/all',
         'assemble_grouped_mh':  '{}.by_Subject.assemble_megahit/all',
         'assemble_joined_mh':   '{}.assemble_megahit/all',
-        'assemble_separate_sp': '{}.by_ID.sp/all',
-        'assemble_grouped_sp':  '{}.by_Subject.sp/all',
-        'assemble_joined_sp':   '{}.sp/all',
+        'assemble_separate_sp': '{}.by_ID.assemble_metaspades/all',
+        'assemble_grouped_sp':  '{}.by_Subject.assemble_metaspades/all',
+        'assemble_joined_sp':   '{}.assemble_metaspades/all',
         # race condition in automatic db download in metaquast makes
         # running this on CI impossible at the moment
         #'metaquast_mh':         'reports/{}.assemble_megahit.mq.html',
