@@ -2,7 +2,7 @@ Env(name="hisat2", base="bioconda", packages=["hisat2", "samtools"])
 
 HT2IDX_SUFFIXES = ["{}.ht2".format(n+1) for n in range(8)]
 
-with Stage("map_hisat2", "remove_hisat2") as S:
+with Stage("map_hisat2") as S:
     rule hisat2:
         """
         For hisat we always assume a pre-build index as providing SNPs and haplotypes
@@ -11,7 +11,7 @@ with Stage("map_hisat2", "remove_hisat2") as S:
         message: "Hisat2: mapping "
         input:
             pairs = "{:prev:}/{source}.{: pairnames :}.fq.gz",
-            index = expand("{{:reference.dir:}}.index/genome_snp_tran.{ext}",
+            index = expand("{{:reference.dir:}}.index/{{target}}.contigs.{ext}",
                            ext=HT2IDX_SUFFIXES)
         output:
             bam   = temp("{:this:}/{target}.{source}.bam"),
@@ -37,8 +37,14 @@ with Stage("map_hisat2", "remove_hisat2") as S:
             " 2>{log}"
             " | samtools view -b -o {output.bam} -"
 
+    rule hisat2_all_for_target:
+        message: "Hisat2: Mapping target {wildcards.target} done"
+        input:        "{:this:}/{target}.{:sources:}.sorted.bam.bai"
+        output: touch("{:this:}/stamp.all_{target}")
+
     rule hisat2_all:
-        input: "{:this:}/{:runs:}.sorted.bam.bai"
+        message: "Hisat2: Mapped all in {output}"
+        input:        "{:this:}/stamp.all_{:targets:}"
         output: touch("{:this:}/all")
 
 
