@@ -31,12 +31,3 @@ rule fq_all:
     output: touch("{dir}/all")
 
 
-localrules: assemble_all
-rule assemble_all:
-    message:
-        "Assembly of {wildcards.dir} with {wildcards.assembler} done"
-    input:
-        "{dir}.{assembler}/{:targets:}.contigs.fasta.gz"
-    output:
-        touch("{dir}.{assembler}/all")
-

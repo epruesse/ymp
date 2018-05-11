@@ -82,3 +82,12 @@ with Stage("assemble_metaspades") as S:
         rm -rf {params.workdir}
         """
 
+    rule metaspades_all:
+        message:
+            "Completed Metaspades assemblies"
+        input:
+            "{:this:}/{:targets:}.contigs.fasta.gz"
+        output:
+            "{:this:}/all"
+        shell:
+            "touch {output}"
