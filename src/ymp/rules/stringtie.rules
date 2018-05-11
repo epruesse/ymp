@@ -1,4 +1,5 @@
 Env(name="stringtie", base="bioconda", packages="stringtie")
+Env(name="ballgown", base="bioconda", packages="bioconductor-ballgown")
 
 with Stage("count_stringtie"):
     rule stringtie:
@@ -81,6 +82,23 @@ with Stage("count_stringtie"):
             " -p {threads}"
             " -o {output.gtf}"
             " >{log} 2>&1"
+
+    rule stringtie_gather_ballgown:
+        input:
+            "{:this:}/{target}.{:sources:}.ballgown"
+        output:
+            "{:this:}/{target}.rda"
+        log:
+            "{:this:}/{target}.rda.log"
+        threads:
+            1
+        params:
+            mem = icfg.mem("32G"), # needs lots!
+            rscript = srcdir("../R/ballgown_collect.R")
+        conda:
+            "ballgown"
+        shell:
+            "Rscript {params.rscript} {output} {input} >{log} 2>&1"
 
     rule stringtie_all_target:
         message:
