@@ -7,7 +7,7 @@ from collections import Mapping, Sequence
 import ymp.yaml
 from ymp.common import AttrDict, MkdirDict, parse_number
 from ymp.env import CondaPathExpander
-from ymp.exceptions import YmpConfigError, YmpException, YmpSystemError
+from ymp.exceptions import YmpConfigError, YmpException, YmpSystemError, YmpUsageError
 from ymp.references import load_references
 from ymp.snakemake import \
     BaseExpander, \
@@ -202,7 +202,7 @@ class Context(object):
         matches = re_ref.findall(stackstr)
 
         if not matches:
-            raise KeyError("No reference found for {} and {}"
+            raise KeyError("No reference found for {} and {!r}"
                            "".format(self.rule, self.wc))
 
         ref_name = matches[-1]
@@ -870,7 +870,9 @@ class ConfigMgr(object):
             ds = dirname.split(".", 1)[0]
             return self._datasets[ds]
         except KeyError:
-            raise KeyError("no dataset found matching '{}'".format(dirname))
+            raise YmpUsageError(
+                "No dataset '{}' found in configuration. "
+                     "Are you in the right directory?".format(ds))
 
     def expand(self, item, **kwargs):
         expander = ConfigExpander(self)

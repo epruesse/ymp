@@ -31,6 +31,8 @@ class YmpNoStackException(YmpException, ClickException):
         reformats exceptions.
     """
 
+class YmpUsageError(YmpNoStackException):
+    pass
 
 class YmpSystemError(YmpNoStackException):
     """Indicates problem running YMP with available system software"""
