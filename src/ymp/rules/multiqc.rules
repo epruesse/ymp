@@ -2,36 +2,40 @@ Env(name="multiqc", base="bioconda", packages=[
     "multiqc >=1.4"
 ])
 
-rule multiqc:
-    """Assemble report on all FQ files in a directory"""
-    message:
-        "Aggregating QC reports for {wildcards.dir}"
-    input:
-        "{dir}.qc_fastqc/{:fq_names:}_fastqc.zip"
-    output:
-        "{:dir.reports:}/{dir}.fastqc.html",
-    log:
-        "{dir}.qc_fastqc/multiqc.log"
-    threads:
-        1
-    params:
-        dir = "{dir}.fastqc"
-    conda:
-        "multiqc"
-    shell: """
-    multiqc \
-            --module fastqc \
-            --outdir {params.dir} \
-            --title  {wildcards.dir} \
-            --force \
-            {wildcards.dir}.qc_fastqc \
-            > {log} 2>&1
-    if [ -e  {params.dir}/multiqc_report.html ]; then
-        mv {params.dir}/multiqc_report.html {output[0]}
-    else
-        # never versions of multiqc put title in output file name
-        mv {params.dir}/{wildcards.dir}_multiqc_report.html {output[0]}
-    fi
-    """
+with Stage("qc_multiqc") as S:
+    S.doc("""
+    Aggregate QC reports using MultiQC
+    """)
+    rule multiqc_fastqc:
+        """Assemble report on all FQ files in a directory"""
+        message:
+            "Aggregating QC reports for {params.pdir}"
+        input:
+            fastqc  = "{:prev:}/{:fq_names:}_fastqc.zip"
+        output:
+            flist   = "{:this:}/file_list.txt",
+            report  = "{:this:}/multiqc_report.html",
+            report2 = "{:dir.reports:}/{:this:}.html",
+            a = touch("{:this:}/all")
+        log:
+                     "{:this:}/multiqc.log"
+        params:
+            pdir   = "{:prev:}"
+        threads:
+            1
+        conda:
+            "multiqc"
+        shell: """
+        echo {input.fastqc} | tr ' ' '\n' > {output.flist}
+        multiqc \
+          --verbose \
+          --module fastqc \
+          --file-list {output.flist} \
+          --filename {output.report} \
+          --title  {params.pdir} \
+          --force \
+          > {log} 2>&1
+        cp {output.report} {output.report2}
+        """
 
 
