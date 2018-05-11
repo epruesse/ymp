@@ -214,6 +214,7 @@ class Env(WorkflowObject, snakemake.conda.Env):
                 log.info("Would download %i files", len(urls))
             else:
                 dest = self.archive_file
+                os.makedirs(dest)
                 res = FileDownloader().get(urls, dest, md5s)
                 if not res:
                     # remove partially download archive folder
