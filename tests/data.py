@@ -30,7 +30,7 @@ target_map = {
         # fails due to bugs in phyloFlash with too few organisms
         #'phyloFlash':     'reports/{}.phyloFlash.pdf',
         #'fastqc':            '{}.qc_fastqc/all',
-        'multiqc':           '{}.qc_fastqc.qc_multiqc.html',
+        'multiqc':           '{}.qc_fastqc.qc_multiqc/all',
     ],
     'metagenome': odict[
         # assembly.rules
@@ -61,7 +61,7 @@ target_map = {
         # 'profile_humann2': '{}.humann2/all',
     ],
     'amplicon': odict[
-        'bbduk_primer': '{}.primermatch/all'
+        'bbmap_primer': '{}.primermatch_bbmap/all'
     ]
 }
 
