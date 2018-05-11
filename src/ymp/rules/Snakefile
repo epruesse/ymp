@@ -38,7 +38,7 @@ wildcard_constraints:
     reference = refname,
     refname = refname,
     assembler = "(mh|mhc|sp|trinity|ref_{})".format(refname),
-    mapper = "(bt2|bbm|map_bbmap|map_bowtie2)",
+    mapper = "(map_bbmap|map_bowtie2)",
     genefind = "(blast)",
 
     fasta = "(fasta|fna|fa)",
