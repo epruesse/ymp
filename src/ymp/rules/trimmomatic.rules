@@ -4,7 +4,7 @@ with Stage("trim_trimmomatic") as S:
     rule trimmomatic_adapter:
         """Trimming with Trimmomatic"""
         message:
-            "Trimmomatic {wildcards.dir}/{wildcards.sample}"
+            "Trimmomatic: trimming {input}"
         input:
             "{:prev:}/{sample}.{:pairnames:}.fq.gz"
         wildcard_constraints:
