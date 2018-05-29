@@ -6,6 +6,7 @@ import py
 import pytest
 
 import ymp
+import ymp.config
 
 log = logging.getLogger(__name__)
 
@@ -220,6 +221,7 @@ class Invoker(object):
 
         """
         if not self.initialized:
+            ymp.config.ConfigMgr.CONF_USER_FNAME = "ymp_user.yml"
             cfg = ymp.get_config()
             cfg.reload()
 
