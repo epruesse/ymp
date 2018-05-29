@@ -31,6 +31,8 @@ def test_graph_complete(target, project, invoker):
     # first line if it is the spurious Snakemake log message
     if res.output.startswith("Building DAG of jobs..."):
         _, output = res.output.split("\n", 1)
+    else:
+        output = res.output
     assert output.startswith("digraph")
 
     with open("dat.dot", "w") as out:
