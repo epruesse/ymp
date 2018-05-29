@@ -220,7 +220,7 @@ rule blast7_extract:
 
         
 localrules: blast7_extract_merge
-rule blast7_exctract_merge:
+rule blast7_extract_merge:
     """
     Merges extracted csv/fasta pairs over all samples.
     """
