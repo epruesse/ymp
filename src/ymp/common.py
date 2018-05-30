@@ -284,7 +284,8 @@ class FileDownloader(object):
             async with self._sem, \
                        session.get(url, timeout=self._timeout) as resp:
                 if not resp.status == 200:
-                    self.log("Download failed: %s (error code %i)")
+                    self.log("Download failed: %s (error code %i)",
+                             name, resp.status)
                     return False
                 size = int(resp.headers.get('content-length', 0))
 
