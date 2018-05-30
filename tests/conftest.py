@@ -230,7 +230,7 @@ class Invoker(object):
                 f.write("#!/bin/bash -x\n")
 
         with open("cmd.sh", "w") as f:
-            f.write(f"PATH={os.environ['PATH']} ymp {' '.join(args)}\n")
+            f.write(f"PATH={os.environ['PATH']} ymp {' '.join(args)} \"$@\"\n")
 
         result = self.runner.invoke(self.main, args, **kwargs,
                                     standalone_mode=standalone_mode)
