@@ -275,3 +275,21 @@ def test_env_activate(invoker, project_dir, mock_conda):
         f.write("directories:\n conda_prefix: '.'")
     res = invoker.call("env", "activate", "bbmap")
     assert str(project_dir) in res.output
+
+
+def test_env_run(invoker, project_dir, mock_conda, capfd):
+    with open("ymp.yml", "a") as f:
+        f.write("directories:\n conda_prefix: '.'")
+
+    with pytest.raises(click.UsageError) as exc:
+        res = invoker.call("env", "run", "bbmapx", "bbmap.sh")
+    assert exc.value.message == "Environment bbmapx unknown"
+
+    with pytest.raises(click.UsageError) as exc:
+        res = invoker.call("env", "run", "*", "bbmap.sh")
+    assert exc.value.message.startswith("Multiple environments match")
+
+    res = invoker.call("env", "run", "bbmap", "echo $PATH")
+    assert res.exit_code == 0
+    cap = capfd.readouterr()
+    assert "Not a conda environment" in cap.err
