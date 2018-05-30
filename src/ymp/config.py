@@ -119,11 +119,11 @@ def load_data(cfg):
             return pd.concat(tables, axis=1)
         # TABLE
         if 'table' in cfg:
-            return pd.DataFrame.from_items((
-                (key, value.split(','))
+            return pd.DataFrame.from_dict({
+                key: value.split(',')
                 for row in cfg['table']
                 for key, value in row.items()
-            ))
+            })
     raise YmpConfigError(cfg, "Unrecognized statement in data config")
 
 
