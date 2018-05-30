@@ -42,7 +42,6 @@ with Stage("assemble_metaspades") as S:
         """
         message:
             "(Co-)Assembling {wildcards.target} with MetaSpades"
-            " in {wildcards.dir}{wildcards.by}"
         input:
             conf    = "{:this:}/{target}.yaml"
         output:
