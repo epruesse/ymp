@@ -277,7 +277,7 @@ class Env(WorkflowObject, snakemake.conda.Env):
 
         Returns exit code of command run.
         """
-        command = "source activate {}; {}".format(self.path, " ".join(command))
+        command = ". activate {}; {}".format(self.path, " ".join(command))
         log.debug("Running: %s", command)
         return subprocess.run(command, shell=True).returncode
 
