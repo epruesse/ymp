@@ -134,11 +134,11 @@ Installing from GitHub
 
 1. Clone the repository::
 
-      git clone --recurse-submodules git@github.com:epruesse/ymp.git
+      git clone  --recurse-submodules https://github.com/epruesse/ymp.git
       
    Or, if your have github ssh keys set up::
 
-      git clone  --recurse-submodules https://github.com/epruesse/ymp.git
+      git clone --recurse-submodules git@github.com:epruesse/ymp.git
 
 2. Create and activate conda environment::
 
