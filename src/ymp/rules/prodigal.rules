@@ -26,6 +26,8 @@ with Stage("prodigal") as S:
         """
 
     rule prodigal_all:
+        message:
+            "Prodigal: finished ({output})"
         input:
             "{:this:}/{:targets:}.prodigal.gff.gz"
         output:
