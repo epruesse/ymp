@@ -1,5 +1,6 @@
-import logging
 import io
+import logging
+import os
 from collections.abc import (
     Mapping, Sequence, MappingView, ItemsView, KeysView, ValuesView
 )
@@ -279,6 +280,16 @@ class LayeredConfProxy(MultiMapProxy):
 
     def __exit__(self, *args):
         self.remove_layer("dynamic")
+
+    def save(self, outstream=None, layer=0):
+        outfile = None
+        if outstream:
+            rt_yaml.dump(self._maps[layer][1], outstream)
+        else:
+            outfile = self._maps[layer][0]
+            with open(outfile+".tmp", "w") as outstream:
+                rt_yaml.dump(self._maps[layer][1], outstream)
+            os.rename(outfile+".tmp", outfile)
 
 
 RoundTripRepresenter.add_representer(LayeredConfProxy,
