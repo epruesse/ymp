@@ -57,15 +57,16 @@ class AttrItemAccessMixin(object):
 
 class MultiProxy(object):
     """Base class for layered container structure"""
-    def __init__(self, maps, parent=None):
+    def __init__(self, maps, parent=None, key=None):
         self._maps = list(maps)
         self._parent = parent
+        self._key = key
 
-    def make_map_proxy(self, items):
-        return self.__class__(items, parent=self)
+    def make_map_proxy(self, key, items):
+        return MultiMapProxy(items, parent=self, key=key)
 
-    def make_seq_proxy(self, items):
-        return MultiSeqProxy(items, parent=self)
+    def make_seq_proxy(self, key, items):
+        return MultiSeqProxy(items, parent=self, key=key)
 
     def to_yaml(self, show_source=False):
         buf = io.StringIO()
@@ -162,12 +163,30 @@ class MultiMapProxy(Mapping, MultiProxy, AttrItemAccessMixin):
                 f"types differ: {typs}"
             )
         if isinstance(items[0][1], Mapping):
-            return self.make_map_proxy(items)
+            return self.make_map_proxy(key, items)
         if isinstance(items[0][1], str):
             return items[0][1]
         if isinstance(items[0][1], Sequence):
-            return self.make_seq_proxy(items)
+            return self.make_seq_proxy(key, items)
         return items[0][1]
+
+    def __setitem__(self, key, value):
+        # we want to set to the top layer, so get that first
+        mp = self
+        keys = []
+        while mp._parent:
+            keys.append(mp._key)
+            mp = mp._parent
+        # now walk back down
+        for k in reversed(keys):
+            if k not in mp._maps[0][1]:
+                mp._maps[0][1][k] = dict()
+            mp = mp[k]
+        # and set the value, potentially on a different object than self
+        mp._maps[0][1][key] = value
+
+    def __delitem__(self, key):
+        raise NotImplementedError()
 
     def __iter__(self):
         for key in set(k for _, m in self._maps for k in m):
@@ -187,15 +206,6 @@ class MultiMapProxy(Mapping, MultiProxy, AttrItemAccessMixin):
 
     def values(self):
         return MultiMapProxyValuesView(self)
-
-    def __setitem__(self, key, value):
-        self._maps[0][1][key] = value
-
-    def __delitem__(self, key):
-        raise NotImplementedError()
-
-    def __missing__(self, key):
-        raise NotImplementedError()
 
 
 class MultiSeqProxy(Sequence, MultiProxy, AttrItemAccessMixin):
