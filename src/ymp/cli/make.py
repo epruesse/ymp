@@ -137,8 +137,6 @@ def start_snakemake(kwargs):
         raise YmpException("internal error - CWD moved out of YMP root?!")
     cur_path = cur_path[len(root_path):]
 
-    kwargs['workdir'] = root_path
-
     # translate renamed arguments to snakemake synopsis
     arg_map = {
         'immediate': 'immediate_submit',
@@ -156,6 +154,7 @@ def start_snakemake(kwargs):
     kwargs = {arg_map.get(key, key): value
               for key, value in kwargs.items()
               if arg_map.get(key, key) is not None}
+    kwargs['workdir'] = root_path
 
     # our debug flag sets a new excepthoook handler, to we use this
     # to decide whether snakemake should run in debug mode
