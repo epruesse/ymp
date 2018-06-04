@@ -289,7 +289,7 @@ def test_env_run(invoker, project_dir, mock_conda, capfd):
         res = invoker.call("env", "run", "*", "bbmap.sh")
     assert exc.value.message.startswith("Multiple environments match")
 
-    res = invoker.call("env", "run", "bbmap", "echo $PATH")
+    res = invoker.call("env", "run", "bbmap", "true")
     assert res.exit_code == 0
     cap = capfd.readouterr()
     assert "Not a conda environment" in cap.err
