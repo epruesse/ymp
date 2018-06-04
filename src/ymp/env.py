@@ -277,9 +277,11 @@ class Env(WorkflowObject, snakemake.conda.Env):
 
         Returns exit code of command run.
         """
-        command = ". activate {}; {}".format(self.path, " ".join(command))
+        cfg = ymp.get_config()
+        command = "source activate {}; {}".format(self.path, " ".join(command))
         log.debug("Running: %s", command)
-        return subprocess.run(command, shell=True).returncode
+        return subprocess.run(command,
+                              shell=True, executable=cfg.shell).returncode
 
     def export(self, stream, typ='yml'):
         """Freeze environment"""

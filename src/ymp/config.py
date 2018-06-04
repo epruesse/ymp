@@ -913,6 +913,10 @@ class ConfigMgr(object):
         return int(mem / div)
 
     @property
+    def shell(self):
+        return self._config.shell
+
+    @property
     def platform(self):
         if not (hasattr(self, '_platform') and self._platform):
             import platform

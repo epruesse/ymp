@@ -8,7 +8,7 @@ stage = Stage.get_registry()
 env = Env.get_registry()
 
 # make sure rules are executed in bash (not sh, dash or worse)
-shell.executable("/bin/bash")
+shell.executable(icfg.shell)
 
 refname = str("({})".format("|".join(icfg.ref)))
 

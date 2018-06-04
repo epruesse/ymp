@@ -221,4 +221,5 @@ pairnames:
     - R1
     - R2
 
+shell: "/bin/bash"
 
