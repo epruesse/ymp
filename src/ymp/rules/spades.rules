@@ -51,7 +51,7 @@ with Stage("assemble_metaspades") as S:
                     "{:this:}/{target}.log.gz"
         params:
             workdir = "{:this:}/{target}/",
-            tmpdir  = "{:dir.tmp}",
+            tmpdir  = "{:dir.tmp:}",
             mem     = icfg.mem("1000g")
         conda:
             "spades"
