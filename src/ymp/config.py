@@ -273,7 +273,7 @@ class DatasetConfig(object):
         self._source_cfg = None
 
         if self.KEY_DATA not in self.cfg:
-            raise YmpConfigError(self.cfg, "Missing key " + self.KEY_DATA)
+            raise YmpConfigError(self.cfg, "Missing key '{}'".format(self.KEY_DATA))
 
     def __repr__(self):
         return "{}(project={})".format(self.__class__.__name__, self.project)
