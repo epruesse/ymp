@@ -6,6 +6,8 @@ from collections.abc import (
 )
 
 from ruamel.yaml import YAML, RoundTripRepresenter
+from ruamel.yaml.comments import CommentedMap
+
 import ruamel.yaml
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -181,7 +183,7 @@ class MultiMapProxy(Mapping, MultiProxy, AttrItemAccessMixin):
         # now walk back down
         for k in reversed(keys):
             if k not in mp._maps[0][1]:
-                mp._maps[0][1][k] = dict()
+                mp._maps[0][1][k] = CommentedMap()
             mp = mp[k]
         # and set the value, potentially on a different object than self
         mp._maps[0][1][key] = value
