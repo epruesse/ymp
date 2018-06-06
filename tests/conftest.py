@@ -1,6 +1,7 @@
 import logging
 import os
 import shlex
+import shutil
 
 import py
 
@@ -220,6 +221,7 @@ class Invoker(object):
         from ymp.cli import main
         self.main = main
         self.initialized = False
+        self.toclean = []
 
     def call(self, *args, standalone_mode=False, **kwargs):
         """Call into YMP CLI
@@ -234,6 +236,8 @@ class Invoker(object):
             cfg.reload()
         cfg.dir.conda_prefix = "conda"
         cfg.dir.conda_archive_prefix = "conda_archive"
+        self.toclean += "conda"
+        self.toclean += "conda_archive"
 
         if not os.path.exists("cmd.sh"):
             with open("cmd.sh", "w") as f:
@@ -257,6 +261,10 @@ class Invoker(object):
     def call_raises(self, *args, **kwargs):
         return self.call(*args, standalone_mode=True, **kwargs)
 
+    def clean(self):
+        for toclean in self.toclean:
+            shutil.rmtree(toclean, ignore_errors=True)
+
 
 @pytest.fixture()
 def invoker(saved_cwd):
@@ -264,4 +272,6 @@ def invoker(saved_cwd):
     # worklows -- unless this is set:
     os.environ['CIRCLECI'] = "true"
 
-    return Invoker()
+    invoker = Invoker()
+    yield invoker
+    invoker.clean()
