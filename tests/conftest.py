@@ -123,6 +123,13 @@ class MockCmd(object):
 
 
 @pytest.fixture
+def mock_cmd(request, bin_dir):
+    cmd, script = request.param
+    print("###", cmd, script)
+    yield MockCmd(bin_dir, cmd, script)
+
+
+@pytest.fixture
 def mock_conda(bin_dir):
     yield MockCmd(bin_dir, "conda", "\n".join([
         'cmd=""',

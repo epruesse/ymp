@@ -24,26 +24,26 @@ def test_submit_profile_cfg(invoker, saved_tmpdir):
     assert os.path.isdir(cfg.dir.reports)
 
 
-def test_submit_profiles(invoker):
-    "try all profiles, but override the cmd to echo"
-    for profile_name, profile in cfg.cluster.profiles.items():
-        if not profile.get('command'):
-            continue
-        # patch the submit command relative to CWD:
-        profile.command = os.sep.join([".", profile.command])
-        cmd = profile.command.split()[0]
-        with open(cmd, "w") as f:
-            f.write('#!/bin/sh\necho "$@">tmpfile\nexec "$@"\n')
-            os.chmod(cmd, 0o755)
-        if os.path.isdir(cfg.dir.reports):
-            os.rmdir(cfg.dir.reports)
-        invoker.initialized = False
-        invoker.call("submit",
-                     "-p",
-                     "--profile", profile_name,
-                     "--command", profile.command,
-                     cfg.dir.reports)
-        assert os.path.isdir(cfg.dir.reports)
+# don't test profiles that have no command set on them
+# (that's primarily the default profile)
+profiles = {name: profile
+            for name, profile in cfg.cluster.profiles.items()
+            if profile.get('command')}
+
+
+@pytest.mark.parametrize(
+    "mock_cmd,prof_name,prof_cmd",
+    [((profile.command.split()[0], '#!/bin/bash\nexec "$@"\n'),
+      name, profile.command)
+     for name, profile in profiles.items()],
+    ids=list(profiles.keys()),
+    indirect=['mock_cmd'])
+def test_submit_profiles(invoker, mock_cmd, prof_name, prof_cmd):
+    invoker.call("submit",
+                 "--profile", prof_name,
+                 "--command", prof_cmd,
+                 cfg.dir.reports)
+    assert os.path.isdir(cfg.dir.reports)
 
 
 def test_show(invoker, saved_tmpdir):
