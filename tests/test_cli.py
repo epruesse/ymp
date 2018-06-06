@@ -24,19 +24,19 @@ def test_submit_profile_cfg(invoker, saved_tmpdir):
     assert os.path.isdir(cfg.dir.reports)
 
 
-# don't test profiles that have no command set on them
-# (that's primarily the default profile)
-profiles = {name: profile
-            for name, profile in cfg.cluster.profiles.items()
-            if profile.get('command')}
+# - don't test profiles that have no command set on them (default profile)
+# - sort profiles so we can test in parallel reliably
+profiles = sorted((name, profile)
+                  for name, profile in cfg.cluster.profiles.items()
+                  if profile.get('command'))
 
 
 @pytest.mark.parametrize(
     "mock_cmd,prof_name,prof_cmd",
     [((profile.command.split()[0], '#!/bin/bash\nexec "$@"\n'),
       name, profile.command)
-     for name, profile in profiles.items()],
-    ids=list(profiles.keys()),
+     for name, profile in profiles],
+    ids=[name for name, profile in profiles],
     indirect=['mock_cmd'])
 def test_submit_profiles(invoker, mock_cmd, prof_name, prof_cmd):
     invoker.call("submit",
