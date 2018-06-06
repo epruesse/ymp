@@ -6,6 +6,7 @@ import atexit
 import hashlib
 import logging
 import os
+import re
 import shelve
 import threading
 from collections import Iterable, Mapping, OrderedDict
@@ -182,12 +183,26 @@ class FileDownloader(object):
       parallel:   Number of files to download in parallel
       loglevel:   Log level for messages send to logging
                   (Errors are send with loglevel+10)
+      alturls:    List of regexps modifying URLs
     """
     def __init__(self, block_size: int=4096, timeout: int=300, parallel: int=4,
-                 loglevel: int=logging.WARNING):
+                 loglevel: int=logging.WARNING, alturls=None):
         self._block_size = block_size
         self._timeout = timeout
         self._parallel = parallel
+
+        self._alturls = []
+        alturls = ["///"] + (alturls or [])
+        for pat in alturls:
+            sep = pat[0]
+            if pat.strip(sep):
+                patsub = re.split(r"(?<=[^\\])"+sep, pat.strip(sep))
+                if len(patsub) != 2:
+                    raise ValueError("Malformed regular expression '{}'"
+                                     "".format(pat))
+            else:
+                patsub = ["", ""]
+            self._alturls.append(patsub)
 
         try:
             self.loop = asyncio.get_event_loop()
@@ -243,43 +258,51 @@ class FileDownloader(object):
                         url: str, dest: str, md5: Optional[str]=None) -> bool:
         """Asynchronously download a single file
 
-        If ``dest`` points to an existing directory, the file name
+        - If ``dest`` points to an existing directory, the file name
         is derived from the trailing path portion of the URL.
+
+        - Will skip download for existing files with matching MD5
 
         Args:
           session: aiohttp session object
           url:     source url
-          dest:    destination file path
+          dest:    destination path
           md5:     optional md5 checksum to verify
-
         """
-        parts = urlsplit(url)
         if os.path.isdir(dest):
-            name = os.path.basename(parts.path)
-            dest = os.path.join(dest, name)
+            parts = urlsplit(url)
+            basename = os.path.basename(parts.path)
+            destfile = os.path.join(dest, basename)
         else:
-            name = os.path.basename(dest)
-        part = dest+".part"
+            basename = os.path.basename(dest)
+            destfile = dest
 
+        if os.path.exists(destfile) and md5 and not isinstance(md5, bool):
+            self._check_md5(basename, destfile, md5)
+
+        tryurls = [re.sub(pat, rep, url) for pat, rep in self._alturls]
+        for url in tryurls:
+            if await self._download_one(session, basename, url, destfile, md5):
+                return True
+        return False
+
+    def _check_md5(self, name, fname, md5):
+        md5_new = hashlib.md5()
+        with open(fname, 'rb') as f:
+            while True:
+                block = f.read(8192)
+                if not block:
+                    break
+                md5_new.update(block)
+        if md5_new.hexdigest() == md5.strip():
+            self.log("Download skipped: %s (file exists, md5 verified)", name)
+            return True
+        return False
+
+    async def _download_one(self, session, name, url, dest, md5):
+        part = dest+".part"
         if md5:
             md5_new = hashlib.md5()
-
-        exists = False
-        if os.path.exists(dest):
-            exists = True
-            if md5 and not isinstance(md5, bool):
-                with open(dest, 'rb') as f:
-                    while True:
-                        block = f.read(8192)
-                        if not block:
-                            break
-                        md5_new.update(block)
-                if md5_new.hexdigest() == md5.strip():
-                    self.log("Download skipped: %s "
-                             "(file exists, md5 verified)",
-                             name)
-                    return True
-
         try:
             async with self._sem, \
                        session.get(url, timeout=self._timeout) as resp:
@@ -289,7 +312,7 @@ class FileDownloader(object):
                     return False
                 size = int(resp.headers.get('content-length', 0))
 
-                if exists:
+                if os.path.exists(dest):
                     existing_size = os.path.getsize(dest)
                     if existing_size == size:
                         if md5:
@@ -307,11 +330,11 @@ class FileDownloader(object):
                 except AttributeError:
                     pass
                 with open(part, mode="wb") as out, \
-                     tqdm(total=size,
-                          unit='B', unit_scale=True, unit_divisor=1024,
-                          desc=name, leave=False,
-                          miniters=1, disable=not self._progress,
-                          bar_format=self.make_bar_format(40, 7, rate=True)) as t:
+                    tqdm(total=size,
+                         unit='B', unit_scale=True, unit_divisor=1024,
+                         desc=name, leave=False,
+                         miniters=1, disable=not self._progress,
+                         bar_format=self.make_bar_format(40, 7, rate=True)) as t:
                     while True:
                         block = await resp.content.read(self._block_size)
                         if not block:

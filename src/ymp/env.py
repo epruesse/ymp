@@ -187,6 +187,9 @@ class Env(WorkflowObject, snakemake.conda.Env):
                     log.info("Would download %i files", len(urls))
                 else:
                     self._download_files(urls, md5s)
+                    packages = op.join(self.archive_file, "packages.txt")
+                    with open(packages, "w") as f:
+                        f.write("\n".join(files) + "\n")
 
         # still nothing?
         if not files:
@@ -260,10 +263,11 @@ class Env(WorkflowObject, snakemake.conda.Env):
 
     def _download_files(self, urls, md5s):
         from ymp.common import FileDownloader
-        # FIXME: use but verify existing files instead of clearing dir
-        shutil.rmtree(self.archive_file, ignore_errors=True)
-        os.makedirs(self.archive_file)
-        if not FileDownloader().get(urls, self.archive_file, md5s):
+        if not op.exists(self.archive_file):
+            os.makedirs(self.archive_file)
+        cfg = ymp.get_config()
+        fd = FileDownloader(alturls=cfg.conda.alturls)
+        if not fd.get(urls, self.archive_file, md5s):
             # remove partially download archive folder
             shutil.rmtree(self.archive_file, ignore_errors=True)
             raise YmpWorkflowError(

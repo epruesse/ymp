@@ -42,7 +42,9 @@ conda:
       channels:
         - conda-forge
       dependencies: []
-
+  # Alternate URL patterns
+  alturls:
+    - /bioconda/bioconda-legacy/ # try bioconda-legacy
 # Default references
 references:
   # Human Genomes
