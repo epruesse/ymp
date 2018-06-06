@@ -1,5 +1,6 @@
 import logging
 import os
+import shlex
 
 import py
 
@@ -229,8 +230,9 @@ class Invoker(object):
             with open("cmd.sh", "w") as f:
                 f.write("#!/bin/bash -x\n")
 
+        argstr = " ".join(shlex.quote(arg) for arg in args)
         with open("cmd.sh", "w") as f:
-            f.write(f"PATH={os.environ['PATH']} ymp {' '.join(args)} \"$@\"\n")
+            f.write(f"PATH={os.environ['PATH']} ymp {argstr} \"$@\"\n")
 
         result = self.runner.invoke(self.main, args, **kwargs,
                                     standalone_mode=standalone_mode)
