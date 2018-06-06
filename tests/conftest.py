@@ -232,6 +232,8 @@ class Invoker(object):
             ymp.config.ConfigMgr.CONF_USER_FNAME = "ymp_user.yml"
             cfg = ymp.get_config()
             cfg.reload()
+        cfg.dir.conda_prefix = "conda"
+        cfg.dir.conda_archive_prefix = "conda_archive"
 
         if not os.path.exists("cmd.sh"):
             with open("cmd.sh", "w") as f:
