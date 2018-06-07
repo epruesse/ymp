@@ -48,9 +48,10 @@ with Stage("assemble_metaspades") as S:
             fasta   = "{:this:}/{target}.contigs.fasta.gz",
             fastg   = "{:this:}/{target}.contigs.fastg.gz"
         log:
-                    "{:this:}/{target}.log.gz"
+            console = "{:this:}/{target}.log",
+            spades  = "{:this:}/{target}.spades.log.gz"
         params:
-            workdir = "{:this:}/{target}/",
+            workdir = "{:this:}/tmp.{target}/",
             tmpdir  = "{:dir.tmp:}",
             mem     = icfg.mem("1000g")
         conda:
@@ -73,11 +74,12 @@ with Stage("assemble_metaspades") as S:
           --tmp-dir {params.tmpdir} \
           --dataset {input.conf} \
           --memory $(({params.mem}/1024)) \
-          $CONTINUE
+          $CONTINUE \
+          >{log.console} 2>&1
 
         pigz -p {threads} -9 -c {params.workdir}/scaffolds.fasta > {output.fasta}
         pigz -p {threads} -9 -c {params.workdir}/assembly_graph.fastg > {output.fastg}
-        cat {params.workdir}/{{params.txt,spades.log}} | pigz -p {threads} -9 > {log}
+        cat {params.workdir}/{{params.txt,spades.log}} | pigz -p {threads} -9 > {log.spades}
         rm -rf {params.workdir}
         """
 
