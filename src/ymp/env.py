@@ -85,8 +85,8 @@ class Env(WorkflowObject, snakemake.conda.Env):
         pseudo_dag = AttrDict({
             'workflow': {
                 'persistence': {
-                    'conda_env_path': cfg.absdir.conda_prefix,
-                    'conda_env_archive_path': cfg.absdir.conda_archive_prefix
+                    'conda_env_path': cfg.ensuredir.conda_prefix,
+                    'conda_env_archive_path': cfg.ensuredir.conda_archive_prefix
                 }
             }
         })
