@@ -1,29 +1,11 @@
-"""
-  *.blast/ rules
-
-The rules assume that there are files in $workdir containing
-query sequences. E.g. "./query.faa". 
-"""
-import functools
-
 Env(name="blast", base="bioconda", packages="blast")
 
-# Define which format and values we'd like to have from BLAST
-# If you change this, all blast outputs have to be re-run!
+BLASTFMT =  "7 qacc sacc pident length mismatch gapopen qstart qend sstart send evalue bitscore"
+BLASTFMT += " sstrand sframe score"
 
-BLASTFMT="7 qacc sacc pident length mismatch gapopen qstart qend sstart send evalue bitscore"
-BLASTFMT+=" sstrand sframe score"
+BLASTIDX_SUFFIXES = "nin nhr nsi nsd nsq nog".split()
 
-DBEXT = "nin nhr nsi nsd nsq nog".split(" ")
 
-blast_query_file  = "{query}.faa"
-
-blast_db_files    = temp(expand("{{dir}}.blast/{{sample}}.fasta.{ext}", ext=DBEXT))
-blast_db_name     = "{dir}.blast/{sample}.fasta"
-blast_db_title    = "{sample}"
-
-blast_result_file      = "{dir}.blast/{sample}.{query}.blast7"
-blast_result_csv       = "{dir}.blast/{sample}.{query}.{gene}.csv",
 blast_result_fasta     = "{dir}.blast/{sample}.{query}.{gene}.fasta"
 blast_assembly_results = "{dir}.blast/{: targets :}.contigs.{query}.blast7"
 blast_assembly_results_fa  = "{dir}.blast/{: targets :}.contigs.{query}.{gene}.fasta"
@@ -34,30 +16,35 @@ blast_results_by_gene_fa  = "{dir}.blast/{query}.{gene}.fasta.gz"
 blast_results_by_gene_csv = "{dir}.blast/{query}.{gene}.csv"
 
 blast_result_fasta = "{dir}.blast/{sample}.{query}.{gene}.fasta"
-blast_result_csv = "{dir}.blast/{sample}.{query}.{gene}.csv"
 
 
-# rules
-
-rule makeblastdb:
-    """
-    Builds a (temporary) blast index from a fasta file.
-    """
-    message: "BLAST building db {params.db_name}"
-    input:   "{dir}/{sample}.fasta"
-    output:  blast_db_files
-    log:     blast_db_name+".log"
-    params:  db_name   = blast_db_name,
-             db_title = blast_db_title
-    threads: 1
-    conda:   "blast"
+rule blast_makedb:
+    "Build Blast index"
+    message:
+        "BLAST: indexing {params.db}"
+    input:
+        ref   = "{path}/{file}.fasta.gz"
+    params:
+        db    = "{path}.index/{file}",
+        typ   = "nucl",
+        title = "{file}"
+    output:
+        db    = expand("{{path}}.index/{{file}}.{ext}", ext=BLASTIDX_SUFFIXES)
+    log:
+                 "{path}.index/{file}.blast.log"
+    threads:
+        1
+    conda:
+        "blast"
     shell: """
-    makeblastdb -dbtype nucl \
-                -parse_seqids \
-                -in {input} \
-                -out {params.db_name} \
-                -title {params.db_title} \
-                &> {log} 2>&1
+    gunzip -c {input.ref} | \
+    makeblastdb \
+    -in - \
+    -dbtype {params.typ} \
+    -parse_seqids \
+    -out {params.db} \
+    -title {params.title} \
+    &> {log} 2>&1
     """
 
 rule blast7_to_gtf:
@@ -89,6 +76,49 @@ rule blast7_to_gtf:
                 writer.write(feature)
 
 
+with Stage("annotate_tblastn") as S:
+    S.doc("""
+    Runs ``tblastn``
+    """)
+    rule tblastn_query:
+        """
+        Runs a TBLASTN search against an assembly.
+        """
+        message:
+            "TBLASTN: "
+        output:
+            "{:this:}/{sample}.blast7"
+        input:
+            db_files = temp(expand("{{:prev:}}.index/{{sample}}.contigs.{ext}",
+                                   ext=BLASTIDX_SUFFIXES)),
+            query    = "{:reference.dir:}/ALL.contigs.fastp.gz"
+        log:
+            "{:this:}/{sample}.blast7.log"
+        params:
+            db_name  = "{:prev:}.index/{sample}.contigs",
+            blastfmt = BLASTFMT
+        threads:
+            8
+        conda:
+            "blast"
+        shell: """
+        gunzip -c {input.query} |
+        tblastn \
+          -query - \
+          -db {params.db_name} \
+          -outfmt "{params.blastfmt}" \
+          -out {output} \
+          -num_threads {threads} \
+          &> {log} 2>&1
+        """
+
+    rule tblastn_all:
+        output:
+            touch("{:this:}/all")
+        input:
+            "{:this:}/{:targets:}.gtf"
+
+
 rule blastx_query_all:
     input:
         b7 = "{dir}.refblast/{:targets:}.{ref}.csv"
@@ -98,7 +128,8 @@ rule blastx_query_all:
 rule blastx_query:
     input:
         contigs="{dir}/{target}.contigs.fasta.gz",
-        db =  temp(expand("{{:dir.references:}}.blast/{{ref}}.fasta.{ext}", ext=DBEXT))
+        db = expand("{{:dir.references:}}.blast/{{ref}}.fasta.{ext}",
+                    ext=BLASTIDX_SUFFIXES)
     output:
         "{dir}.refblast/{target}.{ref}.csv"
     log:
@@ -122,27 +153,6 @@ rule blastx_query:
     > {log} 2>&1
     """
 
-rule tblastn_query:
-    """
-    Runs a TBLASTN search against an assembly.
-    """
-    message:
-        "TBLASTN searching {wildcards.dir} {wildcards.sample} for {wildcards.query}"
-    output:  blast_result_file
-    input:   db_files = blast_db_files,
-             query    = blast_query_file
-    log:     blast_result_file + ".log"
-    params:  db_name  = blast_db_name,
-             blastfmt = BLASTFMT
-    threads: 8
-    conda:   "blast"
-    shell: """
-    tblastn -db {params.db_name} -query {input.query} \
-      -outfmt "{params.blastfmt}" \
-      -out {output} \
-      -num_threads {threads} \
-      &> {log} 2>&1
-    """
 
 
 localrules: blast7_merge
@@ -184,13 +194,14 @@ rule blast7_extract:
     """
     message:
         "Collecting hits for {wildcards.query}/{wildcards.gene}"
-    input:   db     = blast_db_files,
-             blast  = blast_result_file
+    input:   db     = expand("{{:dir.references:}}.blast/{{ref}}.fasta.{ext}", \
+                             ext=BLASTIDX_SUFFIXES),
+             blast  = "{dir}.blast/{sample}.{query}.blast7"
     output:  fasta  = blast_result_fasta,
-             csv    = blast_result_csv
+             csv    = "{dir}.blast/{sample}.{query}.{gene}.csv",
     params:  re     = blast_assembly_results_re,
              gene   = "{gene}",
-             db     = blast_db_name,
+             db     = "{path}.index/{file}",
              sample = "{sample}"
     threads: 1
     run:
