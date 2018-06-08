@@ -1,6 +1,7 @@
+import functools
 import os
-import textwrap
 import re
+import textwrap
 
 from snakemake.io import Namedlist
 from snakemake.utils import format as snake_format
@@ -50,6 +51,18 @@ def filter_out_empty(*args):
             for arg in args)
     return zip(*(t for t in zip(*args)
                  if all(map(file_not_empty, t))))
+
+
+@functools.lru_cache()
+def fasta_names(fasta_file):
+    print("Calling fasta_names on {}".format(fasta_file))
+    res = []
+    with open(fasta_file, "r") as f:
+        for line in f:
+            if line[0] != ">":
+                continue
+            res += [line[1:].split(" ", 1)[0]]
+    return res
 
 
 def read_propfiles(files):

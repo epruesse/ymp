@@ -36,18 +36,6 @@ blast_results_by_gene_csv = "{dir}.blast/{query}.{gene}.csv"
 blast_result_fasta = "{dir}.blast/{sample}.{query}.{gene}.fasta"
 blast_result_csv = "{dir}.blast/{sample}.{query}.{gene}.csv"
 
-# functions
-
-@functools.lru_cache()
-def fasta_names(fasta_file):
-    print("Calling fasta_names on {}".format(fasta_file))
-    res=[]
-    with open(fasta_file, "r") as f:
-        for line in f:
-            if line[0] != ">": continue
-            res += [line[1:].split(" ",1)[0]]
-    return res
-
 
 # rules
 
