@@ -1,18 +1,5 @@
 "Generic file conversion rules"
 
-from ymp import blast, gff
-
-# FIXME: this doesn't work due to gff/blast hit conversion missing
-rule blast7_to_gff:
-    input:
-        "{path}.blast7"
-    output:
-        "{path}.gff"
-    run:
-        with open(input[0], "r") as inf, open(output[0], "w") as outf:
-            gfff = gff.writer(outf)
-            for hit in blast.reader(inf):
-                gfff.write(gff.Feature(hit))
 
 
 # FIXME: how can I make these localrules?
