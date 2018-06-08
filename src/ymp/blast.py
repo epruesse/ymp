@@ -3,12 +3,12 @@ from collections import namedtuple
 
 def reader(fileobj, t=7):
     if t == 7:
-        return fmt7_parser(fileobj)
+        return Fmt7Parser(fileobj)
     else:
         ValueError("other formats not implemented")
 
 
-class blast_parser(object):
+class BlastParser(object):
     "Base class for BLAST parsers"
 
     # Map between field short and long names
@@ -47,7 +47,7 @@ class blast_parser(object):
     }
 
 
-class fmt7_parser(blast_parser):
+class Fmt7Parser(BlastParser):
     """
     Parses BLAST results in fmt7 (CSV with comments)
     """
