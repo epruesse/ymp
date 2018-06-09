@@ -192,7 +192,7 @@ class Context(object):
         Returns the currently selected reference
         """
         references = self.dcfg.cfgmgr.ref.keys()
-        re_ref = re.compile(r"\.(ref_(?:{})|assemble_megahit)(?=[./]|$)"
+        re_ref = re.compile(r"\.(ref_(?:{})|assemble_(?:megahit|metaspades|trinity))(?=[./]|$)"
                             r"".format("|".join(references)))
         stackstr = "".join(
             getattr(self.wc, key)

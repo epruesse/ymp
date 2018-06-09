@@ -16,7 +16,7 @@ wildcard_constraints:
     _YMP_PRJ = "({})".format("|".join(icfg.datasets)),
     _YMP_DIR = "(\.[^./]+)*?",
     _YMP_VRT = "(\.ref_({})|\.by_({})|)*".format(refname, "[^./]+"),
-    _YMP_ASM = "(\.(sp|trinity)|\.assemble_megahit|)",
+    _YMP_ASM = "(\.assemble_(megahit|metaspades|trinity)|)",
     dir      = "[^/]+?",
     dir1     = "[^/]+",
     dir2     = "[^/]+",
