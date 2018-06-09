@@ -200,9 +200,16 @@ cluster:
         threads:  "-l nodes=1:ppn={threads}"
         walltime: "-l walltime={params.walltime}"
         memory:   "-l mem={params.mem}"
+    # Profile for Gridengine
+    gridengine:
+      command:    "qsub"
+      sync_arg:   "-sync y"
+      args:
+        log:      "-j y -o {:ensuredir.log:}/"
+        name:     "-N ymp.{rule}"
     # Profile for SLURM engine
     slurm:
-      command:        "sbatch --parsable"
+      command:    "sbatch --parsable"
       sync_arg:   "--wait"
       args:
         log:      "--output={:ensuredir.log:}/%x_%J.log"
