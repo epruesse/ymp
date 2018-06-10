@@ -64,6 +64,11 @@ def saved_tmpdir(request, tmpdir):
         name_parts = request.node.name.replace("]", "").split("[")
         cwd_save_dir = request.config.getoption("--cwd-save-dir")
         destdir = py.path.local(cwd_save_dir).join(*name_parts)
+        # delete conda / conda_archive before saving tmpdir
+        for path in ("conda", "conda_archive"):
+            delpath = tmpdir.join(path)
+            if delpath.check(exists=1):
+                delpath.remove(rec=True)
         if destdir.check(exists=1):
             destdir.remove(rec=True)
         destdir.dirpath().ensure_dir()
