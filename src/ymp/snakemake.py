@@ -469,91 +469,19 @@ class BaseExpander(object):
         if item is None:
             item = None
         elif isinstance(item, RuleInfo):
-            self.current_rule = rule
-            for field in filter(self.expands_field, ruleinfo_fields):
-                attr = getattr(item, field)
-                setattr(item, field, self.expand(rule, attr,
-                                                 expand_args=expand_args,
-                                                 rec=rec))
-            self.current_rule = None
+            item = self.expand_ruleinfo(rule, item, expand_args, rec)
         elif isinstance(item, str):
-            try:
-                expand_args['rule'] = rule
-                item = self.format_annotated(item, expand_args)
-            except KeyError:
-                if cb:
-                    # we already are being called: fail
-                    raise
-                # try expanding once we have wildcards
-                _item = item
-
-                def item(wc):
-                    return self.expand(rule, _item,
-                                       expand_args={'wc': wc, 'rule': rule},
-                                       cb=True)
+            item = self.expand_str(rule, item, expand_args, rec, cb)
         elif hasattr(item, '__call__'):
-            # continue expansion of function later by wrapping it
-            _item = item
-
-            @functools.wraps(item)
-            def late_expand(*args, **kwargs):
-                if debug:
-                    log.debug("{}{} late {} {} "
-                              "".format(" "*rec*4, type(self).__name__,
-                                        args, kwargs))
-                res = self.expand(rule, _item(*args, **kwargs),
-                                  expand_args={'wc': args[0]},
-                                  rec=rec,
-                                  cb=True)
-                if debug:
-                    log.debug("{}=> {}"
-                              "".format(" "*rec*4, res))
-                return res
-            item = late_expand
+            item = self.expand_func(rule, item, expand_args, rec, debug)
         elif isinstance(item, int) or isinstance(item, float):
             pass
         elif isinstance(item, dict):
-            for key, value in item.items():
-                _item = self.expand(rule, value, expand_args=expand_args,
-                                    rec=rec)
-
-                # Snakemake can't have functions in lists in dictionaries.
-                # Let's fix that, even if we have to jump a lot of hoops here.
-                if isinstance(item[key], list) and \
-                   any(callable(x) for x in _item):
-                    from inspect import signature
-
-                    def wrapper(*args, **kwargs):
-                        for i, subitem in enumerate(_item):
-                            if callable(subitem):
-                                subparms = signature(subitem).parameters
-                                extra_args = {
-                                    k: v
-                                    for k, v in kwargs.items()
-                                    if k in subparms
-                                }
-                                _item[i] = subitem(*args, **extra_args)
-                        return _item
-                    # Gather the arguments
-                    parms = tuple(set(flatten([
-                        list(signature(x).parameters.values())
-                        for x in _item
-                        if callable(x)
-                    ])))
-                    # Rewrite signature
-                    wrapper.__signature__ = \
-                        signature(wrapper).replace(parameters=parms)
-                    item[key] = wrapper
-                else:
-                    item[key] = _item
+            item = self.expand_dict(rule, item, expand_args, rec)
         elif isinstance(item, list):
-            for i, subitem in enumerate(item):
-                item[i] = self.expand(rule, subitem,
-                                      expand_args=expand_args, rec=rec)
+            item = self.expand_list(rule, item, expand_args, rec)
         elif isinstance(item, tuple):
-            item = tuple(self.expand(rule, subitem,
-                                     expand_args=expand_args, rec=rec)
-                         for subitem in item)
+            item = self.expand_tuple(rule, item, expand_args, rec)
         else:
             raise ValueError("unable to expand item '{}' with args '{}'"
                              "".format(repr(item),
@@ -564,6 +492,83 @@ class BaseExpander(object):
                       "".format(" "*(rec*4), type(item).__name__, item))
 
         return item
+
+    def expand_ruleinfo(self, rule, item, expand_args, rec):
+        self.current_rule = rule
+        for field in filter(self.expands_field, ruleinfo_fields):
+            attr = getattr(item, field)
+            value = self.expand(rule, attr, expand_args=expand_args, rec=rec)
+            setattr(item, field, value)
+        self.current_rule = None
+        return item
+
+    def expand_str(self, rule, item, expand_args, rec, cb):
+        expand_args['rule'] = rule
+        try:
+            return self.format_annotated(item, expand_args)
+        except KeyError:
+            # avoid recursion:
+            if cb:
+                raise
+
+            def item_wrapped(wc):
+                return self.expand(rule, item,
+                                   expand_args={'wc': wc, 'rule': rule},
+                                   cb=True)
+            return item_wrapped
+
+    def expand_func(self, rule, item, expand_args, rec, debug):
+        @functools.wraps(item)
+        def late_expand(*args, **kwargs):
+            if debug:
+                log.debug("{}{} late {} {} ".format(
+                    " "*rec*4, type(self).__name__, args, kwargs))
+            res = self.expand(rule, item(*args, **kwargs),
+                              expand_args={'wc': args[0]}, rec=rec, cb=True)
+            if debug:
+                log.debug("{}=> {}".format(" "*rec*4, res))
+            return res
+        return late_expand
+
+    def expand_dict(self, rule, item, expand_args, rec):
+        for key, value in item.items():
+            value = self.expand(rule, value, expand_args=expand_args, rec=rec)
+
+            # Snakemake can't have functions in lists in dictionaries.
+            # Let's fix that, even if we have to jump a lot of hoops here.
+            if isinstance(item[key], list) and any(callable(x) for x in value):
+                from inspect import signature
+
+                def wrapper(*args, **kwargs):
+                    for i, subitem in enumerate(value):
+                        if callable(subitem):
+                            subparms = signature(subitem).parameters
+                            extra_args = {
+                                k: v
+                                for k, v in kwargs.items()
+                                if k in subparms
+                            }
+                            value[i] = subitem(*args, **extra_args)
+                    return value
+                # Gather the arguments
+                parms = tuple(set(flatten([
+                    list(signature(x).parameters.values())
+                    for x in value if callable(x)
+                ])))
+                # Rewrite signature
+                wrapper.__signature__ = signature(wrapper).replace(parameters=parms)
+                item[key] = wrapper
+            else:
+                item[key] = value
+        return item
+
+    def expand_list(self, rule, item, expand_args, rec):
+        return [self.expand(rule, subitem, expand_args=expand_args, rec=rec)
+                for subitem in item]
+
+    def expand_tuple(self, rule, item, expand_args, rec):
+        return tuple(self.expand(rule, subitem, expand_args=expand_args, rec=rec)
+                     for subitem in item)
 
 
 class SnakemakeExpander(BaseExpander):
