@@ -128,6 +128,10 @@ variables:
         mkdir -p $JUNIT_REPORT_PATH
         rm -rf ~/.ymp
         pytest -vvvs --cov --junit-xml $JUNIT_REPORT_PATH/report.xml -n 1 --run-tools -m runs_tool --timeout=600
+        # the below shouldn't even be here, but let's make sure we don't upload huge files
+        # if they are:
+        find . -type d -name conda -print0 | xargs -0 rm -rf
+        find . -type d -name conda_archive -print0 | xargs -0 rm -rf
   ymp_store_test_failures: &ymp_store_test_failures
     store_artifacts:
       when: on_fail
