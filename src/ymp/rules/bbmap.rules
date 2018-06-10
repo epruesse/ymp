@@ -100,25 +100,21 @@ with Stage("trim_bbmap") as S:
       Q20: append to select phred score cutoff (default 20)
       L20: append to select minimum read length (default 20)
     """)
+    S.add_param("A", typ="flag", param="adapt", value="ref=$BB_RSRC/adapters.fa ")
+    S.add_param("Q", typ="int", param="qual", default=20)
+    S.add_param("L", typ="int", param="length", default=20)
     rule bbmap_trim:
         """Trimming and Adapter Removal using BBTools BBDuk"""
         message:
             "BBMap: Trimming {input[0]} "
-            "({params.adapt}Q={params.qual} L={params.length})"
-        wildcard_constraints:
-            A = "(A?)",
-            Q = "(Q\d+|)",
-            L = "(L\d+|)"
+            #"({params.adapt}Q={params.qual} L={params.length})"
         input:
             "{:prev:}/{sample}.{:pairnames:}.fq.gz"
         output:
-            "{:this:}{A}{Q}{L}/{sample}.{:pairnames:}.fq.gz"
+            "{:this:}/{sample}.{:pairnames:}.fq.gz"
         log:
-            "{:this:}{A}{Q}{L}/{sample}.log"
+            "{:this:}/{sample}.log"
         params:
-            length = lambda wc: wc.L[1:] if wc.L else 20,
-            qual   = lambda wc: wc.Q[1:] if wc.Q else 20,
-            adapt  = lambda wc: 'ref=$BB_RSRC/adapters.fa ' if wc.A else '',
             k      = 23,
             mink   = 11,
             hdist  = 1,
@@ -153,7 +149,7 @@ with Stage("trim_bbmap") as S:
         input:
             ["{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"]
         output:
-            ["{:this:}{A}{Q}{L}/{sample}.{:pairnames[0]:}.fq.gz"]
+            ["{:this:}/{sample}.{:pairnames[0]:}.fq.gz"]
         params:
             inout2 = ""
 

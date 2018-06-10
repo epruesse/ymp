@@ -15,7 +15,7 @@ YMP processes data in stages, each of which is contained in its own directory.
 import logging
 from typing import TYPE_CHECKING
 
-from ymp.exceptions import YmpRuleError
+from ymp.exceptions import YmpRuleError, YmpException
 from ymp.snakemake import ColonExpander, RuleInfo, WorkflowObject
 from ymp.string import PartialFormatter
 
@@ -60,6 +60,8 @@ class Stage(WorkflowObject):
         self.register()
         # Rules in this stage
         self.rules: List[Rule] = []
+        # Stage Parameters
+        self.params: List[Param] = []
 
         self.doc(doc or "")
         self.env(env)
@@ -111,6 +113,32 @@ class Stage(WorkflowObject):
         rule.ymp_stage = self
         self.rules.append(rule)
 
+    def add_param(self, char, typ, param, value=None, default=None):
+        """Add parameter to stage
+
+        Example:
+            >>> with Stage("test") as S
+            >>>   S.add_param("N", "int", "nval", default=50)
+            >>>   rule:
+            >>>      shell: "echo {param.nval}"
+
+            This would add a stage "test", optionally callable as "testN123",
+            printing "50" or in the case of "testN123" printing "123".
+
+        Args:
+          char: The character to use in the Stage name
+          typ:  The type of the parameter (int, flag)
+          param: The name under which the parameter value should appear in params
+          value: [for flag] value ``{param.xyz}`` should be set to if param given
+          default [for int] default value for `{{param.xyz}}`` if no param given
+        """
+        if typ == 'flag':
+            self.params.append(ParamFlag(self, char, param, value, default))
+        elif typ == 'int':
+            self.params.append(ParamInt(self, char, param, value, default))
+        else:
+            raise YmpRuleError(self, f"Unknown Stage Parameter type '{typ}'")
+
     @property
     def prev(self):
         """
@@ -127,10 +155,13 @@ class Stage(WorkflowObject):
             raise YmpException(
                 "Use of {:this:} requires active Stage"
             )
+        stage = Stage.active
+
         return "".join([
             self.prev,
             "{_YMP_VRT}{_YMP_ASM}.",
-            Stage.active.name
+            stage.name,
+            "".join(p.pattern for p in stage.params)
         ])
 
     @property
@@ -169,6 +200,13 @@ class StageExpander(ColonExpander):
             if not item.conda_env and stage.conda_env:
                 item.conda_env = stage.conda_env
 
+            if stage.params:
+                if not item.params:
+                    item.params = ((), {})
+                for param in stage.params:
+                    item.params[1][param.param] = param.param_func()
+
+        # run colon expand
         return super().expand(rule, item, **kwargs)
 
     def expands_field(self, field):
@@ -180,3 +218,71 @@ class StageExpander(ColonExpander):
             if hasattr(stage, key):
                 return getattr(stage, key)
             return super().get_value(key, args, kwargs)
+
+
+class Param(object):
+    """Stage Parameter (base class)"""
+    def __init__(self, stage, char, param, value=None, default=None):
+        if len(char) != 1:
+            raise YmpRuleError(
+                stage,
+                f"Stage Parameter key '{char}' invalid. Must be length 1.")
+        self.stage = stage
+        self.char = char
+        self.param = param
+        self.value = value
+        self.default = default
+
+        self.wildcard = f"_yp_{self.char}"
+        self.constraint = ""
+
+    @property
+    def pattern(self):
+        """String to add to filenames passed to Snakemake
+
+        I.e. a pattern of the form ``{wildcard,constraint}``
+        """
+        return f"{{{self.wildcard}{self.constraint}}}"
+
+
+class ParamFlag(Param):
+    """Stage Flag Parameter"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.value:
+            raise YmpRuleError(
+                self.stage,
+                f"Stage Flag Parameter must have 'value' set")
+
+        self.constraint = f",({self.char}?)"
+
+    def param_func(self):
+        """Returns function that will extract parameter value from wildcards"""
+        def name2param(wildcards):
+            if getattr(wildcards, self.wildcard, None):
+                return self.value
+            else:
+                return ""
+        return name2param
+
+
+class ParamInt(Param):
+    """Stage Int Parameter"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.default:
+            raise YmpRuleError(
+                self.stage,
+                f"Stage Int Parameter must have 'default' set")
+
+        self.constraint = f",({self.char}\d+|)"
+
+    def param_func(self):
+        """Returns function that will extract parameter value from wildcards"""
+        def name2param(wildcards):
+            val = getattr(wildcards, self.wildcard, None)
+            if val:
+                return val[1:]
+            else:
+                return self.default
+        return name2param
