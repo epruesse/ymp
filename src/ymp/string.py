@@ -186,8 +186,11 @@ class PartialFormatter(Formatter):
 
     def get_field(self, field_name, args, kwargs):
         try:
-            return super().get_field(field_name, args, kwargs)
-        except (KeyError, IndexError):
+            val = super().get_field(field_name, args, kwargs)
+            if type(val[0]).__name__ == "function":
+                raise IndexError()
+            return val
+        except (KeyError, IndexError, TypeError):
             return getattr(self, "spec", "{{{}}}").format(field_name), None
 
 
