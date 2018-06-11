@@ -750,9 +750,15 @@ class RecursiveExpander(BaseExpander):
                 except IndexError as e:
                     raise RuleException(
                         "Unable to format '{}' using '{}'".format(value, args))
-                args[name][idx] = value2
+                names = [name.split(".")[0].split("[")[0] for name in get_names(value2)]
+                if 'input' in names:
+                    def late_input(wc, input):
+                        return partial_format(value2, input=input)
+                    args[name][idx] = late_input
+                else:
+                    args[name][idx] = value2
                 if ymp.print_rule == 1:
-                    log.error("{}::{}: {} => {}".format(rule.name,
+                    log.debug("{}::{}: {} => {}".format(rule.name,
                                                         node, value, value2))
 
         # update ruleinfo
