@@ -157,14 +157,12 @@ class Stage(WorkflowObject):
             raise YmpException(
                 "Use of {:this:} requires active Stage"
             )
-        stage = Stage.active
-        assert stage == self
 
         return "".join([
             "{_YMP_PRJ}{_YMP_DIR}",
             "{_YMP_VRT}{_YMP_ASM}.",
-            stage.name,
-            "".join(p.pattern for p in stage.params)
+            self.name,
+            "".join(p.pattern for p in self.params)
         ])
 
     @property
