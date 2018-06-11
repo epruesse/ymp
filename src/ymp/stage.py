@@ -16,7 +16,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from ymp.exceptions import YmpRuleError, YmpException
-from ymp.snakemake import ColonExpander, RuleInfo, WorkflowObject
+from ymp.snakemake import ColonExpander, RuleInfo, WorkflowObject, ExpandLateException
 from ymp.string import PartialFormatter
 
 if TYPE_CHECKING:
@@ -139,11 +139,13 @@ class Stage(WorkflowObject):
         else:
             raise YmpRuleError(self, f"Unknown Stage Parameter type '{typ}'")
 
-    @property
-    def prev(self):
+    def prev(self, args=None, kwargs={}):
         """
         Directory of previous stage
         """
+        if "wc" not in kwargs:
+            raise ExpandLateException()
+
         return "{_YMP_PRJ}{_YMP_DIR}"
 
     @property
@@ -156,9 +158,10 @@ class Stage(WorkflowObject):
                 "Use of {:this:} requires active Stage"
             )
         stage = Stage.active
+        assert stage == self
 
         return "".join([
-            self.prev,
+            "{_YMP_PRJ}{_YMP_DIR}",
             "{_YMP_VRT}{_YMP_ASM}.",
             stage.name,
             "".join(p.pattern for p in stage.params)
@@ -180,7 +183,7 @@ class Stage(WorkflowObject):
                 "Use of {:that:} requires with altname"
             )
         return "".join([
-            self.prev,
+            "{_YMP_PRJ}{_YMP_DIR}",
             "{_YMP_VRT}{_YMP_ASM}.",
             Stage.active.altname
         ])
@@ -190,24 +193,31 @@ class StageExpander(ColonExpander):
     """
     Registers rules with stages when they are created
     """
-    def expand(self, rule, item, **kwargs):
+    def expand_ruleinfo(self, rule, item, expand_args, rec):
         if not Stage.active:
             return item
         stage = Stage.active
 
-        if isinstance(item, RuleInfo):
-            stage._add_rule(rule)
-            if not item.conda_env and stage.conda_env:
-                item.conda_env = stage.conda_env
+        stage._add_rule(rule)
+        if not item.conda_env and stage.conda_env:
+            item.conda_env = stage.conda_env
 
-            if stage.params:
-                if not item.params:
-                    item.params = ((), {})
-                for param in stage.params:
-                    item.params[1][param.param] = param.param_func()
+        if stage.params:
+            if not item.params:
+                item.params = ((), {})
+            for param in stage.params:
+                item.params[1][param.param] = param.param_func()
 
-        # run colon expand
-        return super().expand(rule, item, **kwargs)
+        return super().expand_ruleinfo(rule, item, expand_args, rec)
+
+    def expand_str(self, rule, item, expand_args, rec, cb):
+        if cb:
+            stage = Stage.active
+            Stage.active = rule.ymp_stage
+        val = super().expand_str(rule, item, expand_args, rec, cb)
+        if cb:
+            Stage.active = stage
+        return val;
 
     def expands_field(self, field):
         return field not in 'func'
@@ -216,7 +226,11 @@ class StageExpander(ColonExpander):
         def get_value(self, key, args, kwargs):
             stage = Stage.active
             if hasattr(stage, key):
-                return getattr(stage, key)
+                val = getattr(stage, key)
+                if isinstance(val, str):
+                    return val
+                return val(args, kwargs)
+
             return super().get_value(key, args, kwargs)
 
 
