@@ -65,6 +65,11 @@ def get_workflow():
     "Get active workflow, loading one if necessary"
     return ExpandableWorkflow.ensure_global_workflow()
 
+
+class ExpandLateException(Exception):
+    pass
+
+
 class CircularReferenceException(RuleException):
     """Exception raised if parameters in rule contain a circular reference"""
     def __init__(self, deps, rule, include=None, lineno=None, snakefile=None):
@@ -506,7 +511,7 @@ class BaseExpander(object):
         expand_args['rule'] = rule
         try:
             return self.format_annotated(item, expand_args)
-        except KeyError:
+        except (KeyError, TypeError, ExpandLateException):
             # avoid recursion:
             if cb:
                 raise
