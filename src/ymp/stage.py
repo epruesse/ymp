@@ -136,6 +136,8 @@ class Stage(WorkflowObject):
             self.params.append(ParamFlag(self, char, param, value, default))
         elif typ == 'int':
             self.params.append(ParamInt(self, char, param, value, default))
+        elif typ == 'choice':
+            self.params.append(ParamChoice(self, char, param, value, default))
         else:
             raise YmpRuleError(self, f"Unknown Stage Parameter type '{typ}'")
 
@@ -288,6 +290,27 @@ class ParamInt(Param):
                 f"Stage Int Parameter must have 'default' set")
 
         self.constraint = f",({self.char}\d+|)"
+
+    def param_func(self):
+        """Returns function that will extract parameter value from wildcards"""
+        def name2param(wildcards):
+            val = getattr(wildcards, self.wildcard, None)
+            if val:
+                return val[1:]
+            else:
+                return self.default
+        return name2param
+
+
+class ParamChoice(Param):
+    """Stage Choice Parameter"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.default or not self.value:
+            raise YmpRuleError(
+                self.stage,
+                f"Stage Choice Parameter must have 'default' and 'value' set")
+        self.constraint = f",({self.char}({'|'.join(self.value)})|)"
 
     def param_func(self):
         """Returns function that will extract parameter value from wildcards"""
