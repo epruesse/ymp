@@ -320,7 +320,7 @@ def submit(profile, **kwargs):
         exist or is not executable. Please check your cluster configuration.
         """)
 
-    config[param] = cfg.expand(" ".join(cmd))
+    config.add_layer("<computed>", {param: cfg.expand(" ".join(cmd))})
 
     rval = start_snakemake(config)
     if not rval:
