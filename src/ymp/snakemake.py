@@ -541,11 +541,12 @@ class BaseExpander(object):
 
             # Snakemake can't have functions in lists in dictionaries.
             # Let's fix that, even if we have to jump a lot of hoops here.
-            if isinstance(item[key], list) and any(callable(x) for x in value):
+            if isinstance(value, list) and any(callable(x) for x in value):
                 from inspect import signature
-
+                local_value = value
                 def wrapper(*args, **kwargs):
-                    for i, subitem in enumerate(value):
+                    res = []
+                    for subitem in local_value:
                         if callable(subitem):
                             subparms = signature(subitem).parameters
                             extra_args = {
@@ -553,8 +554,10 @@ class BaseExpander(object):
                                 for k, v in kwargs.items()
                                 if k in subparms
                             }
-                            value[i] = subitem(*args, **extra_args)
-                    return value
+                            res.append(subitem(*args, **extra_args))
+                        else:
+                            res.append(subitem)
+                    return res
                 # Gather the arguments
                 parms = tuple(set(flatten([
                     list(signature(x).parameters.values())
