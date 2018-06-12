@@ -1,21 +1,20 @@
 Env(name="trimmomatic", base="bioconda", packages="trimmomatic")
 
 with Stage("trim_trimmomatic") as S:
+    S.add_param(char="A", typ="choice", param="adapter", value=('N', 'T2', 'T3', 'T32'), default="N")
     rule trimmomatic_adapter:
         """Trimming with Trimmomatic"""
         message:
             "Trimmomatic: trimming {input}"
         input:
             "{:prev:}/{sample}.{:pairnames:}.fq.gz"
-        wildcard_constraints:
-            adapter="(N|T(2|3|32))"
         output:
-            "{:this:}{adapter}/{sample}.{:pairnames[0]:}.fq.gz",
-            "{:this:}{adapter}/{sample}.unpaired.{:pairnames[0]:}.fq.gz",
-            "{:this:}{adapter}/{sample}.{:pairnames[1]:}.fq.gz",
-            "{:this:}{adapter}/{sample}.unpaired.{:pairnames[1]:}.fq.gz"
+            "{:this:}/{sample}.{:pairnames[0]:}.fq.gz",
+            "{:this:}/{sample}.unpaired.{:pairnames[0]:}.fq.gz",
+            "{:this:}/{sample}.{:pairnames[1]:}.fq.gz",
+            "{:this:}/{sample}.unpaired.{:pairnames[1]:}.fq.gz"
         log:
-            "{:this:}{adapter}/{sample}.log"
+            "{:this:}/{sample}.log"
         params:
             seed_mismatches = 2,
             palindrome_clip_thresh = 30,
@@ -28,7 +27,7 @@ with Stage("trim_trimmomatic") as S:
         threads:
             1
         shell:"""
-        case {wildcards.adapter} in
+        case {params.adapter} in
           N)   ADAPTER=NexteraPE-PE.fa ;;
           T2)  ADAPTER=TruSeq2-PE.fa ;;
           T3)  ADAPTER=TruSeq3-PE.fa ;;
@@ -53,6 +52,5 @@ with Stage("trim_trimmomatic") as S:
 
     rule trimmomatic_adapter_se:  # ymp: extends trimmomatic_adapter
         input:  "{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"
-        output: "{:this:}{adapter}/{sample}.{:pairnames[0]:}.fq.gz"
-        params: arg_pe  = "SE",
-                outargs = "{output}"
+        output: "{:this:}/{sample}.{:pairnames[0]:}.fq.gz"
+        params: arg_pe  = "SE"
