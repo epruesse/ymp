@@ -18,6 +18,7 @@ from ymp.snakemake import \
     RecursiveExpander, \
     SnakemakeExpander
 from ymp.stage import StageExpander
+from ymp.string import PartialFormatter
 from ymp.util import is_fq, make_local_path
 
 
@@ -125,128 +126,6 @@ def load_data(cfg):
                 for key, value in row.items()
             })
     raise YmpConfigError(cfg, "Unrecognized statement in data config")
-
-
-class Context(object):
-    """
-    Computes available targets from stage stack encoded in directory name
-
-    sources:
-    targets:
-    target:
-    reference:
-
-    Computes the current groups and group members based on
-    the 'context': DatasetConfig and wildcards
-    """
-    RE_BY = re.compile(r"\.by_([^./]*)(?:[./]|$)")
-
-    def __init__(self, dcfg, kwargs):
-        self.dcfg = dcfg
-        self.kwargs = kwargs
-        self.wc = kwargs.get('wc', None)
-        self.rule = kwargs.get('rule', None)
-        self._group_by = None
-        log.debug("new context for {}".format(kwargs))
-
-    @property
-    def group_by(self):
-        if self._group_by is not None:
-            return self._group_by
-
-        df = self.dcfg.run_data
-        import pandas as pd
-
-        groupbys = []
-        # extract groupby column from dir or by key, with by having preference
-        for key in ['_YMP_DIR', 'dir', '_YMP_VRT', 'by']:
-            if hasattr(self.wc, key):
-                groupbys += self.RE_BY.findall(getattr(self.wc, key))
-
-        if len(groupbys) == 0 or groupbys[-1] == "ALL":
-            # no grouping desired
-            # fake by grouping with virtual column containing "ALL" as value
-            self._group_by = df.groupby(pd.Series("ALL", index=df.index))
-        elif groupbys[-1] == "ID":
-            # individual grouping desired
-            # fake by grouping according to index
-            self._group_by = df.groupby(df.index)
-        else:
-            try:
-                self._group_by = df.groupby(groupbys[-1])
-            except KeyError:
-                raise YmpConfigError("Unkown column in groupby: {}"
-                                     "".format(groupbys[-1]))
-        return self._group_by
-
-    def __repr__(self):
-        return "{}(wc={},groups={})".format(
-            self.__class__.__name__,
-            list(self.wc.allitems()),
-            self.group_by.groups
-        )
-
-    @property
-    def reference(self):
-        """
-        Returns the currently selected reference
-        """
-        references = self.dcfg.cfgmgr.ref.keys()
-        re_ref = re.compile(r"\.(ref_(?:{})|assemble_(?:megahit|metaspades|trinity))(?=[./]|$)"
-                            r"".format("|".join(references)))
-        stackstr = "".join(
-            getattr(self.wc, key)
-            for key in ['dir', '_YMP_PRJ', '_YMP_DIR', '_YMP_VRT', '_YMP_ASM']
-            if hasattr(self.wc, key)
-        )
-        matches = re_ref.findall(stackstr)
-
-        if not matches:
-            raise KeyError("No reference found for {} and {!r}"
-                           "".format(self.rule, self.wc))
-
-        ref_name = matches[-1]
-        if ref_name.startswith("ref_"):
-            reference = self.dcfg.cfgmgr.ref[ref_name[4:]]
-        else:
-            target = getattr(self.wc, 'target', 'ALL')
-            reference = "{}/{}.contigs".format(stackstr, target)
-
-        log.debug("Reference selected for {}: {}".format(self.rule, reference))
-
-        return reference
-
-    @property
-    def targets(self):
-        """
-        Returns the current targets:
-
-         - all "runs" if no by_COLUMN is active
-         - the unique values for COLUMN if grouping is active
-        """
-        return list(self.group_by.indices)
-
-    @property
-    def sources(self):
-        """
-        Returns the runs associated with the current target
-        """
-        try:
-            target = self.wc.target
-        except AttributeError:
-            raise YmpException(
-                "Using '{:sources:}' requires '{target}' wildcard"
-            )
-
-        try:
-            sources = self.group_by.groups[target]
-        except KeyError:
-            log.debug(list(self.wc.allitems()))
-            raise YmpException(
-                "Target '{}' not available. Possible choices are '{}'"
-                "".format(target, list(self.group_by.groups.keys()))
-            )
-        return sources
 
 
 class DatasetConfig(object):
@@ -423,10 +302,6 @@ class DatasetConfig(object):
 
         return source_cfg
 
-    # @lru_cache()
-    def get_context(self, kwargs):
-        return Context(self, kwargs)
-
     def FQpath(self, run, pair, nosplit=False):
         """Get path for FQ file for `run` and `pair`
         """
@@ -562,7 +437,7 @@ class ConfigExpander(ColonExpander):
     def expands_field(self, field):
         return field not in 'func'
 
-    class Formatter(ColonExpander.Formatter):
+    class Formatter(ColonExpander.Formatter, PartialFormatter):
         def get_value(self, field_name, args, kwargs):
             cfg = self.expander.config_mgr
 
@@ -586,12 +461,6 @@ class ConfigExpander(ColonExpander):
                     # try to resolve as part of dataset
                     ds = cfg.getDatasetFromDir(dirname)
                     res = getattr(ds, field_name, None)
-                    if res is not None:
-                        return res
-
-                    # try to resolve as part of context
-                    ct = ds.get_context(kwargs)
-                    res = getattr(ct, field_name, None)
                     if res is not None:
                         return res
 
@@ -725,15 +594,15 @@ class ConfigMgr(object):
         self._workflow = ExpandableWorkflow.register_expanders(
             SnakemakeExpander(),
             RecursiveExpander(),
-            ConfigExpander(self),
             CondaPathExpander(self),
+            StageExpander(),
+            ConfigExpander(self),
             OverrideExpander(self),
             DefaultExpander(params=([], {
                 'mem': self.mem(),
                 'walltime': self.limits.default_walltime
             })),
             InheritanceExpander(),
-            StageExpander()
         )
 
     def reload(self):

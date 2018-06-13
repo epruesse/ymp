@@ -13,8 +13,10 @@ YMP processes data in stages, each of which is contained in its own directory.
 """
 
 import logging
+import re
 from typing import TYPE_CHECKING
 
+import ymp
 from ymp.exceptions import YmpRuleError, YmpException
 from ymp.snakemake import ColonExpander, RuleInfo, WorkflowObject, ExpandLateException
 from ymp.string import PartialFormatter
@@ -24,6 +26,106 @@ if TYPE_CHECKING:
     from snakemake.rules import Rule
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
+
+
+class StageStack(object):
+    """
+    Computes available targets from stage stack encoded in directory name
+
+    sources:
+    targets:
+    target:
+    reference:
+
+    Computes the current groups and group members based on
+    the 'context': DatasetConfig and wildcards
+    """
+    RE_BY = re.compile(r"\.by_([^./]*)(?:[./]|$)")
+
+    def __init__(self, path):
+        self.stages = path.split(".")
+        self.group = None
+        for stage in reversed(self.stages):
+            if stage.startswith("by_"):
+                self.group = stage[3:]
+                break
+        if self.group is None:
+            self.group = "ALL"
+        cfg = ymp.get_config()
+        self.project = cfg.projects[self.stages[0]]
+
+    @property
+    def group_by(self):
+        df = self.project.run_data
+
+        if self.group == "ALL":
+            import pandas as pd
+            return df.groupby(pd.Series("ALL", index=df.index))
+        elif self.group == "ID":
+            return df.groupby(df.index)
+        else:
+            try:
+               return df.groupby(self.group)
+            except KeyError:
+                raise YmpConfigError("Unkown column in groupby: {self.group}")
+
+    @property
+    def reference(self):
+        """
+        Returns the currently selected reference
+        """
+        references = self.dcfg.cfgmgr.ref.keys()
+        re_ref = re.compile(r"\.(ref_(?:{})|assemble_(?:megahit|metaspades|trinity))(?=[./]|$)"
+                            r"".format("|".join(references)))
+        stackstr = "".join(
+            getattr(self.wc, key)
+            for key in ['dir', '_YMP_PRJ', '_YMP_DIR', '_YMP_VRT', '_YMP_ASM']
+            if hasattr(self.wc, key)
+        )
+        matches = re_ref.findall(stackstr)
+
+        if not matches:
+            raise KeyError("No reference found for {} and {!r}"
+                           "".format(self.rule, self.wc))
+
+        ref_name = matches[-1]
+        if ref_name.startswith("ref_"):
+            reference = self.dcfg.cfgmgr.ref[ref_name[4:]]
+        else:
+            target = getattr(self.wc, 'target', 'ALL')
+            reference = "{}/{}.contigs".format(stackstr, target)
+
+        log.debug("Reference selected for {}: {}".format(self.rule, reference))
+
+        return reference
+
+    @property
+    def targets(self):
+        """
+        Returns the current targets:
+
+         - all "runs" if no by_COLUMN is active
+         - the unique values for COLUMN if grouping is active
+        """
+        return list(self.group_by.indices)
+
+    def sources(self, wc):
+        """
+        Returns the runs associated with the current target
+        """
+        target = wc.get("target")
+        if not target:
+            raise YmpException("Using '{:sources:}' requires '{target}' wildcard")
+
+        try:
+            sources = self.group_by.groups[target]
+        except KeyError:
+            log.debug(list(wc.allitems()))
+            raise YmpException(
+                "Target '{}' not available. Possible choices are '{}'"
+                "".format(target, list(self.group_by.groups.keys()))
+            )
+        return sources
 
 
 class Stage(WorkflowObject):
@@ -147,11 +249,34 @@ class Stage(WorkflowObject):
         """
         if "wc" not in kwargs:
             raise ExpandLateException()
+        item = kwargs['item']
+        _, _, item = item.partition("{:prev:}")
+
+        if self.name == "assemble_megahit":
+            log.debug("prev: %s", item)
 
         return "{_YMP_PRJ}{_YMP_DIR}"
 
-    @property
-    def this(self):
+    def sources(self, args=None, kwargs=None):
+        if not kwargs or "wc" not in kwargs:
+           raise ExpandLateException()
+        wc = kwargs["wc"]
+        path = self.get_path(wc)
+        stack = StageStack(path)
+        return stack.sources(wc)
+
+    def targets(self, args=None, kwargs=None):
+        if not kwargs or "wc" not in kwargs:
+           raise ExpandLateException()
+        wc = kwargs["wc"]
+        path = self.get_path(wc)
+        stack = StageStack(path)
+        return stack.targets
+
+    def get_path(self, wc):
+        return "".join(val for key, val in wc.allitems() if key.startswith("_YMP"))
+
+    def this(self, args=None, kwargs={}):
         """
         Directory of current stage
         """
@@ -159,6 +284,14 @@ class Stage(WorkflowObject):
             raise YmpException(
                 "Use of {:this:} requires active Stage"
             )
+
+        item = kwargs.get('item')
+        if item is None:
+            raise YmpException("Internal Error")
+        prefix, _, pattern = item.partition("{:this:}")
+
+        #if pattern:
+        #    log.error("Stage %s: %s", self.name, pattern)
 
         return "".join([
             "{_YMP_PRJ}{_YMP_DIR}",
@@ -214,10 +347,11 @@ class StageExpander(ColonExpander):
         if cb:
             stage = Stage.active
             Stage.active = rule.ymp_stage
+        expand_args['item'] = item
         val = super().expand_str(rule, item, expand_args, rec, cb)
         if cb:
             Stage.active = stage
-        return val;
+        return val
 
     def expands_field(self, field):
         return field not in 'func'
