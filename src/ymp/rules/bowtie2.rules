@@ -2,28 +2,30 @@ Env(name="bowtie2", base="bioconda", packages=["bowtie2", "samtools"])
 
 BT2IDX_SUFFIXES = "1.bt2 2.bt2 3.bt2 4.bt2 rev.1.bt2 rev.2.bt2".split()
 
-rule bowtie2_index:
-    message:
-        "Bowtie2: Indexing {input.contigs}"
-    input:
-        contigs="{path}/{source}.contigs.fasta.gz"
-    output:
-        temp(expand("{{path}}/{{source}}.contigs.{ext}", ext=BT2IDX_SUFFIXES))
-    params:
-        bt2_base="{path}/{source}.contigs"
-    threads:
-        8
-    log:
-        "{path}/{source}.contigs.btbuild.log"
-    conda:
-        "bowtie2"
-    shell:"""
-    bowtie2-build-s \
-      {input.contigs} \
-      {params.bt2_base} \
-      --threads {threads} \
-      >& {log}
-    """
+with Stage("index_bowtie2") as S:
+    rule bowtie2_index:
+        message:
+            "Bowtie2: Indexing {input}"
+        input:
+            "{:prev:}/{target}.fasta.gz"
+        output:
+            expand("{{:this:}}/{{target}}.{ext}",
+                   ext=BT2IDX_SUFFIXES)
+        params:
+            bt2_base="{:this:}/{target}"
+        threads:
+            8
+        log:
+            "{:this:}/{target}.btbuild.log"
+        conda:
+            "bowtie2"
+        shell:"""
+        bowtie2-build-s \
+          {input} \
+          {params.bt2_base} \
+          --threads {threads} \
+          >& {log}
+        """
 
 with Stage("map_bowtie2") as S:
     S.doc("""
