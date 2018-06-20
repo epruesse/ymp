@@ -17,7 +17,7 @@ from ymp.snakemake import \
     InheritanceExpander, \
     RecursiveExpander, \
     SnakemakeExpander
-from ymp.stage import StageExpander
+from ymp.stage import Stage, StageExpander
 from ymp.string import PartialFormatter
 from ymp.util import is_fq, make_local_path
 
@@ -128,7 +128,7 @@ def load_data(cfg):
     raise YmpConfigError(cfg, "Unrecognized statement in data config")
 
 
-class DatasetConfig(object):
+class DatasetConfig(Stage):
     """Contains configuration for a source dataset to be processed"""
     KEY_DATA = 'data'
     KEY_IDCOL = 'id_col'
@@ -144,12 +144,18 @@ class DatasetConfig(object):
     RE_FILE = re.compile(r"^(?!http://).*(?:fq|fastq)(?:|\.gz)$")
 
     def __init__(self, cfgmgr, project, cfg):
+        #super().__init__(project)
         self.project = project
+        self.name = project
+        self.altname = None
         self.cfgmgr = cfgmgr
         self.cfg = cfg
         self.fieldnames = None
         self._runs = None
         self._source_cfg = None
+        self.outputs = set(("/{sample}.R1.fq.gz", "/{sample}.R2.fq.gz",
+                            "/{:samples:}.R1.fq.gz", "/{:samples:}.R2.fq.gz"))
+        self.inputs = set()
 
         if self.KEY_DATA not in self.cfg:
             raise YmpConfigError(self.cfg, "Missing key '{}'".format(self.KEY_DATA))
