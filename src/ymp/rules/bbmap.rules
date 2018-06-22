@@ -369,12 +369,12 @@ with Stage("map_bbmap") as S:
             fa = "{:reference:}.fasta.gz",
         output:
             bam   = temp("{:this:}/{target}.{source}.bam"),
-            stats =      "{:this:}/{target}.contigs.{source}.stats",
-            ihist =      "{:this:}/{target}.contigs.{source}.ihist"
+            stats =      "{:this:}/{target}.{source}.stats",
+            ihist =      "{:this:}/{target}.{source}.ihist"
         log:
-                         "{:this:}/{target}.contigs.{source}.log"
+                         "{:this:}/{target}.{source}.log"
         benchmark:
-            "benchmarks/bbmap/{:this:}/{target}.contigs.{source}.txt"
+            "benchmarks/bbmap/{:this:}/{target}.{source}.txt"
         params:
             mem = icfg.mem("80g")
         threads:

@@ -13,7 +13,7 @@ def get_basename(wc, input):
 blast_assembly_results = "{dir}.blast/{: targets :}.{query}.blast7"
 blast_assembly_results_fa  = "{dir}.blast/{: targets :}.{query}.{gene}.fasta"
 blast_assembly_results_csv = "{dir}.blast/{: targets :}.{query}.{gene}.csv"
-blast_assembly_results_re = "{dir}.blast/(.+).contigs.{query}.blast7"
+blast_assembly_results_re = "{dir}.blast/(.+).{query}.blast7"
 blast_results_by_gene  = "{dir}.blast/{query}.{gene}.blast7"
 blast_results_by_gene_fa  = "{dir}.blast/{query}.{gene}.fasta.gz"
 blast_results_by_gene_csv = "{dir}.blast/{query}.{gene}.csv"
@@ -126,7 +126,7 @@ with Stage("annotate_tblastn") as S:
 
 rule blastx_query:
     input:
-        contigs="{dir}/{target}.contigs.fasta.gz",
+        contigs="{dir}/{target}.fasta.gz",
         db = expand("{{:dir.references:}}.blast/{{ref}}.fasta.{ext}",
                     ext=BLASTIDX_SUFFIXES)
     output:
@@ -169,7 +169,7 @@ rule blast7_merge:
         "Merging BLAST results for {wildcards.query} in {wildcards.dir}"
     input:   blast_assembly_results
     output:  blast_results_by_gene
-    params:  re="{dir}.blast/(.+).contigs.{query}.blast7",
+    params:  re="{dir}.blast/(.+).{query}.blast7",
              gene="{gene}"
     threads: 1
     run:

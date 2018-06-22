@@ -40,7 +40,7 @@ rule anvio_convert_input_fasta:
     to unpack the sequences and modify the headers.
     """
     message:      "Preparing contigs for Anvio import"
-    input:        "{dir}/{sample}.contigs.fasta.gz"
+    input:        "{dir}/{sample}.fasta.gz"
     output:  temp("{dir}.anvio/{sample}.fa")
     threads: 1
     conda:   "pigz.yml"
@@ -167,8 +167,8 @@ rule anvio_profile_partial_coassembly:
     message:
         "Importing BAM files into Anvio"
     input:
-        bam="{dir}.map/{target}.contigs.{source}.bowtie2.sorted.bam",
-        bai="{dir}.map/{target}.contigs.{source}.bowtie2.sorted.bam.bai",
+        bam="{dir}.map/{target}.{source}.bowtie2.sorted.bam",
+        bai="{dir}.map/{target}.{source}.bowtie2.sorted.bam.bai",
         db="{dir}.anvio/{target}.db",
         stamp="{dir}.anvio/{target}.stamp_hmm"
     output:

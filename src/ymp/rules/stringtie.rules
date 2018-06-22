@@ -7,7 +7,7 @@ with Stage("count_stringtie"):
             "Stringtie: Assembling transcripts ({log})"
         input:
             bam = "{:prev:}/{target}.{source}.sorted.bam",
-            gtf = "{:reference.dir:}/{target}.contigs.gtf"
+            gtf = "{:reference.dir:}/{target}.gtf"
         output:
             gtf = "{:this:}/{target}.{source}.transscripts.gtf",
             abd = "{:this:}/{target}.{source}.gene_abundances.tsv",
@@ -35,7 +35,7 @@ with Stage("count_stringtie"):
             "Stringtie: Merging transcript assemblies ({log})"
         input:
             gtf = "{:this:}/{target}.{:sources:}.transscripts.gtf",
-            ref = "{:reference.dir:}/{target}.contigs.gtf"
+            ref = "{:reference.dir:}/{target}.gtf"
         output:
             gtf = "{:this:}/{target}.gtf"
         log:

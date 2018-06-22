@@ -7,8 +7,8 @@ rule rsem_index:
     message:
         "RSEM: Indexing {input.contigs}"
     input:
-        contigs = "{path}/{source}.contigs.fasta",
-        gtf     = "{path}/{source}.contigs.gtf"
+        contigs = "{path}/{source}.fasta",
+        gtf     = "{path}/{source}.gtf"
     output:
         index   = expand("{{params.index}}.{ext}", ext=RSEM_IDX)
     log:

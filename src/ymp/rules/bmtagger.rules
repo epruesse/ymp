@@ -75,8 +75,8 @@ with Stage("filter_bmtagger", "remove_bmtagger", env="bmtagger") as S:
             "BMTagger: matching reads from {input.fq} to "#{:reference:}"
         input:
             fq      = "{:prev:}/{source}.{:pairnames:}.fq.gz",
-            bitmask = "{:reference.dir:}.index_bmtagger/ALL.contigs.bitmask",
-            srprism = "{:reference.dir:}.index_bmtagger/ALL.contigs.srprism",
+            bitmask = "{:reference.dir:}.index_bmtagger/ALL.bitmask",
+            srprism = "{:reference.dir:}.index_bmtagger/ALL.srprism",
             tmpdir  = ancient("{:dir.tmp:}")
         output:
             matches = temp("{:this:}/{source}.txt"),
