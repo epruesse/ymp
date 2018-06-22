@@ -13,12 +13,13 @@ YMP processes data in stages, each of which is contained in its own directory.
 """
 
 import logging
+from itertools import chain
 import re
 from typing import TYPE_CHECKING
 
 import ymp
-from ymp.exceptions import YmpRuleError, YmpException
-from ymp.snakemake import ColonExpander, RuleInfo, WorkflowObject, ExpandLateException
+from ymp.exceptions import YmpException, YmpRuleError, YmpStageError
+from ymp.snakemake import ColonExpander, ExpandLateException, WorkflowObject
 from ymp.string import PartialFormatter
 
 if TYPE_CHECKING:
@@ -28,74 +29,181 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
+def norm_wildcards(pattern):
+    for n in ("{target}", "{source}", "{:target:}"):
+        pattern = pattern.replace(n, "{sample}")
+    for n in ("{:targets:}", "{:sources:}"):
+        pattern = pattern.replace(n, "{:samples:}")
+    return pattern
+
+
 class StageStack(object):
-    """
-    Computes available targets from stage stack encoded in directory name
+    stacks = {}
 
-    sources:
-    targets:
-    target:
-    reference:
+    @classmethod
+    def get(cls, path, stage=None):
+        """
+        Cached access to StageStack
 
-    Computes the current groups and group members based on
-    the 'context': DatasetConfig and wildcards
-    """
-    RE_BY = re.compile(r"\.by_([^./]*)(?:[./]|$)")
+        Args:
+          path: Stage path
+          stage: Stage object at head of stack
+        """
+        if path not in cls.stacks:
+            cls.stacks[path] = StageStack(path, stage)
+        return cls.stacks[path]
 
-    def __init__(self, path):
-        self.stages = path.split(".")
+    def __str__(self):
+        return self.path
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.name}, {self.stage})"
+
+    def __init__(self, path, stage):
+        if "/" in path:
+            import pdb; pdb.set_trace()
+        self.name = path
+        self.stage = stage
+        # stage stacks this stack's top level stage draws from
+        self.prevs = []
+        # grouping columns active
         self.group = None
-        for stage in reversed(self.stages):
-            if stage.startswith("by_"):
-                self.group = stage[3:]
-                break
-        if self.group is None:
-            self.group = "ALL"
+        self.path = getattr(stage, "dir", path)
+
         cfg = ymp.get_config()
-        self.project = cfg.projects[self.stages[0]]
+        registry = Stage.get_registry()
+
+        stage_names = path.split(".")
+        # project for this stage stack
+        self.project = cfg.projects.get(stage_names[0])
+
+        assert stage_names.pop() == stage.name
+        self.group = getattr(stage, "group", None)
+        if stage_names and stage_names[-1].startswith("group_"):
+            self.group = [stage_names.pop().split("_")[1]]
+
+        # gather prev stage stacks for this stack, going backwards
+        # through stack until all inputs have been satisfied
+        inputs = set(self.stage.inputs)
+        while stage_names and inputs:
+            path = ".".join(stage_names)
+            stage_name = stage_names.pop()
+            stage_parts = stage_name.partition("_")
+            if stage_parts[0] == "group":
+                continue
+            elif stage_parts[0] == "ref" and stage_parts[2] in cfg.ref:
+                stage = cfg.ref[stage_parts[2]]
+            elif stage_name in registry:
+                stage = registry[stage_name]
+            elif stage_name in cfg.projects:
+                stage = cfg.projects[stage_name]
+            else:
+                log.error("Unknown stage %s?!", stage_name)
+                continue
+
+            provides = inputs.intersection(stage.outputs)
+            if provides:
+                inputs -= provides
+                self.prevs.append(self.get(path, stage))
+
+        if inputs:
+            # Can't find the right types, try to present useful error message:
+            words = []
+            for suffix in inputs:
+                words.extend((suffix, "--"))
+                words.extend([name for name, stage in registry.items()
+                              if suffix in stage.outputs])
+                words.extend('\n')
+            text = ' '.join(words)
+
+            raise YmpStageError(
+                f"""
+                File type(s) '{" ".join(inputs)}' required by '{self.stage}'
+                not found in '{self.name}'. Stages providing missing
+                file types:
+                {text}
+                """
+            )
+
+        if self.group is None:
+            groups = list(dict.fromkeys(group
+                                        for p in reversed(self.prevs)
+                                        for group in p.group))
+            if len(groups) > 1:
+                groups = [g for g in groups if g != "ALL"]
+            if not groups:
+                groups = ["ID"]
+            self.group = groups
+
+        log.warning("building %s (%s)", self,  '-'.join(self.group))
 
     @property
     def group_by(self):
         df = self.project.run_data
-
-        if self.group == "ALL":
+        group = self.group
+        if group == ["ALL"]:
             import pandas as pd
-            return df.groupby(pd.Series("ALL", index=df.index))
-        elif self.group == "ID":
-            return df.groupby(df.index)
-        else:
-            try:
-               return df.groupby(self.group)
-            except KeyError:
-                raise YmpConfigError("Unkown column in groupby: {self.group}")
+            group = pd.Series("ALL", index=df.index)
+        elif group == ["ID"]:
+            group = self.project.runs
 
-    @property
-    def reference(self):
+        try:
+            return df.groupby(group)
+        except KeyError:
+            raise YmpStageError(f"Unkown column in groupby: {self.group}")
+
+    def prev(self, args=None, kwargs=None):
+        """
+        Directory of previous stage
+        """
+        prefix, _, suffix = kwargs.get('item').partition("{:prev:}")
+        if not kwargs or "wc" not in kwargs:
+            raise ExpandLateException()
+        item = kwargs['item']
+        _, _, item = item.partition("{:prev:}")
+        suffix = norm_wildcards(suffix)
+
+        for stack in self.prevs:
+            if suffix in stack.stage.outputs:
+                return stack
+
+    def target(self, args, kwargs):
+        """Finds the target in the prev stage matching current target"""
+        prev = self.get(self.prev(args, kwargs).name)
+        if prev.group == self.group:
+            return kwargs['wc'].target
+        if prev.group == ["ALL"]:
+            return "ALL"
+
+    def reference(self, *args, **kwargs):
         """
         Returns the currently selected reference
         """
-        references = self.dcfg.cfgmgr.ref.keys()
+        wc = kwargs.get('wc')
+        import ymp
+        cfg = ymp.get_config()
+        references = cfg.ref.keys()
         re_ref = re.compile(r"\.(ref_(?:{})|assemble_(?:megahit|metaspades|trinity))(?=[./]|$)"
                             r"".format("|".join(references)))
         stackstr = "".join(
-            getattr(self.wc, key)
-            for key in ['dir', '_YMP_PRJ', '_YMP_DIR', '_YMP_VRT', '_YMP_ASM']
-            if hasattr(self.wc, key)
+            getattr(wc, key)
+            for key in ['dir', '_YMP_DIR']
+            if hasattr(wc, key)
         )
         matches = re_ref.findall(stackstr)
 
         if not matches:
             raise KeyError("No reference found for {} and {!r}"
-                           "".format(self.rule, self.wc))
+                           "".format(self.name, wc))
 
         ref_name = matches[-1]
         if ref_name.startswith("ref_"):
-            reference = self.dcfg.cfgmgr.ref[ref_name[4:]]
+            reference = cfg.ref[ref_name[4:]]
         else:
-            target = getattr(self.wc, 'target', 'ALL')
+            target = getattr(wc, 'target', 'ALL')
             reference = "{}/{}.contigs".format(stackstr, target)
 
-        log.debug("Reference selected for {}: {}".format(self.rule, reference))
+        log.debug("Reference selected for {}: {}".format("FIXME", reference))
 
         return reference
 
@@ -109,21 +217,24 @@ class StageStack(object):
         """
         return list(self.group_by.indices)
 
-    def sources(self, wc):
+    def sources(self, args, kwargs):
         """
         Returns the runs associated with the current target
         """
+        wc = kwargs.get('wc')
         target = wc.get("target")
         if not target:
-            raise YmpException("Using '{:sources:}' requires '{target}' wildcard")
+            raise YmpException(
+                "Using '{:sources:}' requires '{target}' wildcard")
 
         try:
             sources = self.group_by.groups[target]
         except KeyError:
-            log.debug(list(wc.allitems()))
-            raise YmpException(
-                "Target '{}' not available. Possible choices are '{}'"
-                "".format(target, list(self.group_by.groups.keys()))
+            raise YmpStageError(
+                f"In stage {self.stage:} at {self.name}: "
+                f"Target '{target}' not available. "
+                f"Active grouping: {self.group}. "
+                f"Possible choices are '{self.group_by.groups.keys()}'"
             )
         return sources
 
@@ -164,6 +275,9 @@ class Stage(WorkflowObject):
         self.rules: List[Rule] = []
         # Stage Parameters
         self.params: List[Param] = []
+        # Input / Output types
+        self.inputs = set()
+        self.outputs = set()
 
         self.doc(doc or "")
         self.env(env)
@@ -209,7 +323,8 @@ class Stage(WorkflowObject):
         return self.name
 
     def __repr__(self):
-        return f"{self.__class__.__name__} ({self.filename}:{self.lineno})"
+        return (f"{self.__class__.__name__} {self!s} "
+                f"({self.filename}:{self.lineno})")
 
     def _add_rule(self, rule):
         rule.ymp_stage = self
@@ -230,9 +345,9 @@ class Stage(WorkflowObject):
         Args:
           char: The character to use in the Stage name
           typ:  The type of the parameter (int, flag)
-          param: The name under which the parameter value should appear in params
-          value: [for flag] value ``{param.xyz}`` should be set to if param given
-          default [for int] default value for `{{param.xyz}}`` if no param given
+          param: Name of parameter in params
+          value: value ``{param.xyz}`` should be set to if param given
+          default: default value for `{{param.xyz}}`` if no param given
         """
         if typ == 'flag':
             self.params.append(ParamFlag(self, char, param, value, default))
@@ -243,40 +358,20 @@ class Stage(WorkflowObject):
         else:
             raise YmpRuleError(self, f"Unknown Stage Parameter type '{typ}'")
 
-    def prev(self, args=None, kwargs={}):
-        """
-        Directory of previous stage
-        """
-        if "wc" not in kwargs:
-            raise ExpandLateException()
-        item = kwargs['item']
-        _, _, item = item.partition("{:prev:}")
+    def wc2path(self, wc):
+        wildcards = self._wildcards
+        for p in self.params:
+            wildcards = wildcards.replace(p.constraint, "")
+        return wildcards.format(**wc)
 
-        if self.name == "assemble_megahit":
-            log.debug("prev: %s", item)
+    def prev(self, args, kwargs):
+        """Gathers {:prev:} calls from rules"""
+        prefix, _, suffix = kwargs.get('item').partition("{:prev:}")
+        if not prefix:
+            self.inputs.add(norm_wildcards(suffix))
+        return None
 
-        return "{_YMP_PRJ}{_YMP_DIR}"
-
-    def sources(self, args=None, kwargs=None):
-        if not kwargs or "wc" not in kwargs:
-           raise ExpandLateException()
-        wc = kwargs["wc"]
-        path = self.get_path(wc)
-        stack = StageStack(path)
-        return stack.sources(wc)
-
-    def targets(self, args=None, kwargs=None):
-        if not kwargs or "wc" not in kwargs:
-           raise ExpandLateException()
-        wc = kwargs["wc"]
-        path = self.get_path(wc)
-        stack = StageStack(path)
-        return stack.targets
-
-    def get_path(self, wc):
-        return "".join(val for key, val in wc.allitems() if key.startswith("_YMP"))
-
-    def this(self, args=None, kwargs={}):
+    def this(self, args=None, kwargs=None):
         """
         Directory of current stage
         """
@@ -284,21 +379,21 @@ class Stage(WorkflowObject):
             raise YmpException(
                 "Use of {:this:} requires active Stage"
             )
+        prefix, _, suffix = kwargs.get('item').partition("{:this:}")
+        if not prefix:
+            self.outputs.add(norm_wildcards(suffix))
 
         item = kwargs.get('item')
         if item is None:
             raise YmpException("Internal Error")
         prefix, _, pattern = item.partition("{:this:}")
 
-        #if pattern:
-        #    log.error("Stage %s: %s", self.name, pattern)
+        return self._wildcards
 
-        return "".join([
-            "{_YMP_PRJ}{_YMP_DIR}",
-            "{_YMP_VRT}{_YMP_ASM}.",
-            self.name,
-            "".join(p.pattern for p in self.params)
-        ])
+    @property
+    def _wildcards(self):
+        return "".join(["{_YMP_DIR}.", self.name] +
+                       [p.pattern for p in self.params])
 
     @property
     def that(self):
@@ -315,11 +410,8 @@ class Stage(WorkflowObject):
             raise YmpException(
                 "Use of {:that:} requires with altname"
             )
-        return "".join([
-            "{_YMP_PRJ}{_YMP_DIR}",
-            "{_YMP_VRT}{_YMP_ASM}.",
-            Stage.active.altname
-        ])
+        return "".join(["{_YMP_DIR}.", self.altname] +
+                       [p.pattern for p in self.params])
 
 
 class StageExpander(ColonExpander):
@@ -358,13 +450,30 @@ class StageExpander(ColonExpander):
 
     class Formatter(ColonExpander.Formatter, PartialFormatter):
         def get_value(self, key, args, kwargs):
+            try:
+                return self.get_value_(key, args, kwargs)
+            except Exception as e:
+                if not isinstance(e, ExpandLateException):
+                    log.warning(f"{self.__class__.__name__}: Exception", exc_info=True)
+                raise
+
+        def get_value_(self, key, args, kwargs):
             stage = Stage.active
             if hasattr(stage, key):
                 val = getattr(stage, key)
-                if isinstance(val, str):
+                if hasattr(val, "__call__"):
+                    val = val(args, kwargs)
+                if val is not None:
                     return val
-                return val(args, kwargs)
-
+            if "wc" not in kwargs:
+                raise ExpandLateException()
+            stack = StageStack.get(stage.wc2path(kwargs['wc']), stage)
+            if hasattr(stack, key):
+                val = getattr(stack, key)
+                if hasattr(val, "__call__"):
+                    val = val(args, kwargs)
+                if val is not None:
+                    return val
             return super().get_value(key, args, kwargs)
 
 

@@ -109,11 +109,11 @@ with Stage("trim_bbmap") as S:
             "BBMap: Trimming {input[0]} "
             #"({params.adapt}Q={params.qual} L={params.length})"
         input:
-            "{:prev:}/{sample}.{:pairnames:}.fq.gz"
+            "{:prev:}/{target}.{:pairnames:}.fq.gz"
         output:
-            "{:this:}/{sample}.{:pairnames:}.fq.gz"
+            "{:this:}/{target}.{:pairnames:}.fq.gz"
         log:
-            "{:this:}/{sample}.log"
+            "{:this:}/{target}.log"
         params:
             k      = 23,
             mink   = 11,
@@ -147,11 +147,20 @@ with Stage("trim_bbmap") as S:
 
     rule bbmap_trim_se:  # ymp: extends bbmap_trim
         input:
-            ["{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"]
+            ["{:prev:}/{target}.{:pairnames[0]:}.fq.gz"]
         output:
-            ["{:this:}/{sample}.{:pairnames[0]:}.fq.gz"]
+            ["{:this:}/{target}.{:pairnames[0]:}.fq.gz"]
         params:
             inout2 = ""
+
+    localrules: bbmap_trim_all
+    rule bbmap_trim_all:
+        message:
+            "BBMap: finished {output}"
+        input:
+            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
+        output:
+            touch("{:this:}/all")
 
 
 with Stage("dedup_bbmap") as S:

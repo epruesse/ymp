@@ -73,13 +73,13 @@ class Reference(object):
     ONEFILE = "ALL.contigs"
 
     def __init__(self, cfgmgr, reference, cfg):
-        self.name = reference
+        self.name = "ref_" + reference
         self.cfgmgr = cfgmgr
         self.cfg = cfg
         self.files = {}
         self.archives = []
         self.dir = os.path.join(self.cfgmgr.dir.references,
-                                self.name)
+                                reference)
 
         for rsc in cfg:
             if isinstance(rsc, str):
@@ -88,13 +88,13 @@ class Reference(object):
             stage = rsc.get("stage", "") + "/"
             downloaded_path = make_local_path(self.cfgmgr, rsc['url'])
             if type_name == 'fasta':
-                self.files[stage + 'ALL.contigs.fasta.gz'] = downloaded_path
+                self.files[stage + 'ALL.fasta.gz'] = downloaded_path
             elif type_name == 'fastp':
-                self.files[stage + 'ALL.contigs.fastp.gz'] = downloaded_path
+                self.files[stage + 'ALL.fastp.gz'] = downloaded_path
             elif type_name == 'gtf':
-                self.files[stage + 'ALL.contigs.gtf'] = downloaded_path
+                self.files[stage + 'ALL.gtf'] = downloaded_path
             elif type_name == 'snp':
-                self.files[stage + 'ALL.contigs.snp'] = downloaded_path
+                self.files[stage + 'ALL.snp'] = downloaded_path
             elif type_name == 'dir':
                 archive = Archive(name=self.name,
                                   dirname=self.dir,
@@ -109,6 +109,10 @@ class Reference(object):
                 log.debug("unknown type {} used in reference {}"
                           "".format(type_name, self.name))
 
+        self.outputs = set(f.replace("ALL", "{sample}") for f in self.files)
+        self.inputs = set()
+        self.group = ["ALL"]
+
     def get_file(self, filename, stage):
         downloaded_path = self.files.get(stage + "/" + filename)
         if downloaded_path:
@@ -122,7 +126,7 @@ class Reference(object):
             yield archive.make_unpack_rule(baserule)
 
     def __str__(self):
-        return os.path.join(self.dir, "ALL.contigs")
+        return os.path.join(self.dir, "ALL")
 
 
 def load_references(cfgmgr, cfg: Optional[dict]) -> Dict[str, Reference]:

@@ -13,10 +13,7 @@ shell.executable(icfg.shell)
 refname = str("({})".format("|".join(icfg.ref)))
 
 wildcard_constraints:
-    _YMP_PRJ = "({})".format("|".join(icfg.datasets)),
-    _YMP_DIR = "(\.[^./]+)*?",
-    _YMP_VRT = "(\.ref_({})|\.by_({})|)*".format(refname, "[^./]+"),
-    _YMP_ASM = "(\.assemble_(megahit|metaspades|trinity)|)",
+    _YMP_DIR = "[^/]+",
     dir      = "[^/]+?",
     dir1     = "[^/]+",
     dir2     = "[^/]+",
