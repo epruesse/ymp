@@ -144,7 +144,11 @@ class DatasetConfig(Stage):
     RE_FILE = re.compile(r"^(?!http://).*(?:fq|fastq)(?:|\.gz)$")
 
     def __init__(self, cfgmgr, project, cfg):
-        #super().__init__(project)
+        # Fixme: put line in config here
+        self.filename = "fn"
+        self.lineno = 0
+        # triggers early workflow load, breaking things... :/
+        # super().__init__(project)
         self.project = project
         self.name = project
         self.altname = None
@@ -158,7 +162,8 @@ class DatasetConfig(Stage):
         self.inputs = set()
 
         if self.KEY_DATA not in self.cfg:
-            raise YmpConfigError(self.cfg, "Missing key '{}'".format(self.KEY_DATA))
+            raise YmpConfigError(
+                self.cfg, "Missing key '{}'".format(self.KEY_DATA))
 
     def __repr__(self):
         return "{}(project={})".format(self.__class__.__name__, self.project)
