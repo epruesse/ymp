@@ -113,7 +113,7 @@ def load_data(cfg):
     raise YmpConfigError(cfg, "Unrecognized statement in data config")
 
 
-class DatasetConfig(Stage):
+class Project(Stage):
     """Contains configuration for a source dataset to be processed"""
     KEY_DATA = 'data'
     KEY_IDCOL = 'id_col'
@@ -427,6 +427,6 @@ class DatasetConfig(Stage):
 def load_projects(cfgmgr, cfg):
     if not cfg:
         return {}
-    projects = {name: DatasetConfig(cfgmgr, name, data)
+    projects = {name: Project(cfgmgr, name, data)
                 for name, data in cfg.items()}
     return projects
