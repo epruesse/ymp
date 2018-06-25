@@ -51,8 +51,8 @@ with Stage("map_bowtie2") as S:
         conda:
             "bowtie2"
         shell:"""
-        INDEX = {input.index[0]}
-        INDEX = "${{INDEX%.1.bt2}}"
+        INDEX={input.index[0]}
+        INDEX="${{INDEX%.1.bt2}}"
         bowtie2 \
             -x "$INDEX" \
             -1 {input.fq[0]} -2 {input.fq[1]} \
