@@ -100,9 +100,9 @@ with Stage("trim_bbmap") as S:
       Q20: append to select phred score cutoff (default 20)
       L20: append to select minimum read length (default 20)
     """)
-    S.add_param("A", typ="flag", param="adapt", value="ref=$BB_RSRC/adapters.fa ")
-    S.add_param("Q", typ="int", param="qual", default=20)
-    S.add_param("L", typ="int", param="length", default=20)
+    S.add_param("A", typ="flag", name="adapt", value="ref=$BB_RSRC/adapters.fa ")
+    S.add_param("Q", typ="int", name="qual", default=20)
+    S.add_param("L", typ="int", name="length", default=20)
     rule bbmap_trim:
         """Trimming and Adapter Removal using BBTools BBDuk"""
         message:

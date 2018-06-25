@@ -1,7 +1,8 @@
 Env(name="trimmomatic", base="bioconda", packages="trimmomatic")
 
 with Stage("trim_trimmomatic") as S:
-    S.add_param(char="A", typ="choice", param="adapter", value=('N', 'T2', 'T3', 'T32'), default="N")
+    S.add_param(key="A", typ="choice", name="adapter",
+                value=['N', 'T2', 'T3', 'T32'], default="N")
     rule trimmomatic_adapter:
         """Trimming with Trimmomatic"""
         message:

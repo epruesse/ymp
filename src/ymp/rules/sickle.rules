@@ -5,8 +5,8 @@ with Stage("trim_sickle", env="sickle") as S:
     S.doc("""
     Perform read trimming using Sickle
     """)
-    S.add_param("Q", typ="int", param="qual", default=20)
-    S.add_param("L", typ="int", param="length", default=20)
+    S.add_param("Q", typ="int", name="qual", default=20)
+    S.add_param("L", typ="int", name="length", default=20)
     rule sickle:
         message:
             "Trimming with Sickle: {wildcards.sample} "

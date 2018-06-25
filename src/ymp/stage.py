@@ -330,7 +330,7 @@ class Stage(WorkflowObject):
         rule.ymp_stage = self
         self.rules.append(rule)
 
-    def add_param(self, char, typ, param, value=None, default=None):
+    def add_param(self, key, typ, name, value=None, default=None):
         """Add parameter to stage
 
         Example:
@@ -350,11 +350,11 @@ class Stage(WorkflowObject):
           default: default value for `{{param.xyz}}`` if no param given
         """
         if typ == 'flag':
-            self.params.append(ParamFlag(self, char, param, value, default))
+            self.params.append(ParamFlag(self, key, name, value, default))
         elif typ == 'int':
-            self.params.append(ParamInt(self, char, param, value, default))
+            self.params.append(ParamInt(self, key, name, value, default))
         elif typ == 'choice':
-            self.params.append(ParamChoice(self, char, param, value, default))
+            self.params.append(ParamChoice(self, key, name, value, default))
         else:
             raise YmpRuleError(self, f"Unknown Stage Parameter type '{typ}'")
 
@@ -431,7 +431,7 @@ class StageExpander(ColonExpander):
             if not item.params:
                 item.params = ((), {})
             for param in stage.params:
-                item.params[1][param.param] = param.param_func()
+                item.params[1][param.name] = param.param_func()
 
         return super().expand_ruleinfo(rule, item, expand_args, rec)
 
@@ -479,19 +479,20 @@ class StageExpander(ColonExpander):
 
 class Param(object):
     """Stage Parameter (base class)"""
-    def __init__(self, stage, char, param, value=None, default=None):
-        if len(char) != 1:
-            raise YmpRuleError(
-                stage,
-                f"Stage Parameter key '{char}' invalid. Must be length 1.")
+    def __init__(self, stage, key, name, value=None, default=None):
         self.stage = stage
-        self.char = char
-        self.param = param
+        self.key = key
+        self.name = name
         self.value = value
         self.default = default
 
-        self.wildcard = f"_yp_{self.char}"
-        self.constraint = ""
+        self.wildcard = f"_yp_{self.name}"
+
+    @property
+    def constraint(self):
+        if self.regex:
+            return "," + self.regex
+        return ""
 
     @property
     def pattern(self):
@@ -507,11 +508,9 @@ class ParamFlag(Param):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if not self.value:
-            raise YmpRuleError(
-                self.stage,
-                f"Stage Flag Parameter must have 'value' set")
+            self.value = self.key
 
-        self.constraint = f",({self.char}?)"
+        self.regex = f"({self.key}?)"
 
     def param_func(self):
         """Returns function that will extract parameter value from wildcards"""
@@ -532,14 +531,14 @@ class ParamInt(Param):
                 self.stage,
                 f"Stage Int Parameter must have 'default' set")
 
-        self.constraint = f",({self.char}\d+|)"
+        self.regex = f"({self.key}\d+|)"
 
     def param_func(self):
         """Returns function that will extract parameter value from wildcards"""
         def name2param(wildcards):
             val = getattr(wildcards, self.wildcard, None)
             if val:
-                return val[1:]
+                return val[len(self.key):]
             else:
                 return self.default
         return name2param
@@ -549,18 +548,21 @@ class ParamChoice(Param):
     """Stage Choice Parameter"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if not self.default or not self.value:
+        if not self.value:
             raise YmpRuleError(
                 self.stage,
-                f"Stage Choice Parameter must have 'default' and 'value' set")
-        self.constraint = f",({self.char}({'|'.join(self.value)})|)"
+                f"Stage Choice Parameter must have and 'value' set")
+        if self.default is not None:
+            self.value += [""]
+        log.error(self.value)
+        self.regex = f"({self.key}({'|'.join(self.value)}))"
 
     def param_func(self):
         """Returns function that will extract parameter value from wildcards"""
         def name2param(wildcards):
             val = getattr(wildcards, self.wildcard, None)
             if val:
-                return val[1:]
+                return val[len(self.key):]
             else:
                 return self.default
         return name2param
