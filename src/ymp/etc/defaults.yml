@@ -62,14 +62,14 @@ references:
       type: dir
       stage: .index
       files:
-        ALL.contigs.1.ht2: genome_snp_tran.1.ht2
-        ALL.contigs.2.ht2: genome_snp_tran.2.ht2
-        ALL.contigs.3.ht2: genome_snp_tran.3.ht2
-        ALL.contigs.4.ht2: genome_snp_tran.4.ht2
-        ALL.contigs.5.ht2: genome_snp_tran.5.ht2
-        ALL.contigs.6.ht2: genome_snp_tran.6.ht2
-        ALL.contigs.7.ht2: genome_snp_tran.7.ht2
-        ALL.contigs.8.ht2: genome_snp_tran.8.ht2
+        ALL.1.ht2: genome_snp_tran.1.ht2
+        ALL.2.ht2: genome_snp_tran.2.ht2
+        ALL.3.ht2: genome_snp_tran.3.ht2
+        ALL.4.ht2: genome_snp_tran.4.ht2
+        ALL.5.ht2: genome_snp_tran.5.ht2
+        ALL.6.ht2: genome_snp_tran.6.ht2
+        ALL.7.ht2: genome_snp_tran.7.ht2
+        ALL.8.ht2: genome_snp_tran.8.ht2
     - url: ftp://ftp.ensembl.org/pub/release-84/gtf/homo_sapiens/Homo_sapiens.GRCh38.84.gtf.gz
       type: gtf
     - url: ftp://ftp.ensembl.org/pub/release-84/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
