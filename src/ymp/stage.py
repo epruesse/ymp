@@ -554,7 +554,6 @@ class ParamChoice(Param):
                 f"Stage Choice Parameter must have and 'value' set")
         if self.default is not None:
             self.value += [""]
-        log.error(self.value)
         self.regex = f"({self.key}({'|'.join(self.value)}))"
 
     def param_func(self):
