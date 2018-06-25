@@ -60,8 +60,6 @@ class StageStack(object):
         return f"{self.__class__.__name__}({self.name}, {self.stage})"
 
     def __init__(self, path, stage):
-        if "/" in path:
-            import pdb; pdb.set_trace()
         self.name = path
         self.stage = stage
         # stage stacks this stack's top level stage draws from
@@ -77,7 +75,12 @@ class StageStack(object):
         # project for this stage stack
         self.project = cfg.projects.get(stage_names[0])
 
-        assert stage_names.pop() == stage.name
+        top_stage = stage_names.pop()
+        if not stage.match(top_stage):
+            import pdb; pdb.set_trace()
+            raise YmpStageError(
+                f"Internal error: {top_stage} not matched by {stage}")
+
         self.group = getattr(stage, "group", None)
         if stage_names and stage_names[-1].startswith("group_"):
             self.group = [stage_names.pop().split("_")[1]]
@@ -89,15 +92,20 @@ class StageStack(object):
             path = ".".join(stage_names)
             stage_name = stage_names.pop()
             stage_parts = stage_name.partition("_")
+            stage = None
             if stage_parts[0] == "group":
                 continue
             elif stage_parts[0] == "ref" and stage_parts[2] in cfg.ref:
                 stage = cfg.ref[stage_parts[2]]
             elif stage_name in registry:
                 stage = registry[stage_name]
-            elif stage_name in cfg.projects:
-                stage = cfg.projects[stage_name]
             else:
+                for st in registry.values():
+                    if st.match(stage_name):
+                        stage = st
+                        break
+
+            if not stage:
                 log.error("Unknown stage %s?!", stage_name)
                 continue
 
@@ -278,6 +286,8 @@ class Stage(WorkflowObject):
         # Input / Output types
         self.inputs = set()
         self.outputs = set()
+        # Regex matching self
+        self._regex = None
 
         self.doc(doc or "")
         self.env(env)
@@ -359,10 +369,19 @@ class Stage(WorkflowObject):
             raise YmpRuleError(self, f"Unknown Stage Parameter type '{typ}'")
 
     def wc2path(self, wc):
-        wildcards = self._wildcards
+        wildcards = self.wildcards
         for p in self.params:
             wildcards = wildcards.replace(p.constraint, "")
         return wildcards.format(**wc)
+
+    def stack(self, wc):
+        return StageStack.get(self.wc2path(wc), self)
+
+    def match(self, name):
+        if not self._regex:
+            self._regex = re.compile(self.name +
+                                     "".join(p.regex for p in self.params))
+        return self._regex.fullmatch(name)
 
     def prev(self, args, kwargs):
         """Gathers {:prev:} calls from rules"""
@@ -388,12 +407,8 @@ class Stage(WorkflowObject):
             raise YmpException("Internal Error")
         prefix, _, pattern = item.partition("{:this:}")
 
-        return self._wildcards
+        return self.wildcards
 
-    @property
-    def _wildcards(self):
-        return "".join(["{_YMP_DIR}.", self.name] +
-                       [p.pattern for p in self.params])
 
     @property
     def that(self):
@@ -410,7 +425,12 @@ class Stage(WorkflowObject):
             raise YmpException(
                 "Use of {:that:} requires with altname"
             )
-        return "".join(["{_YMP_DIR}.", self.altname] +
+        return "".join(["{_YMP_DIR}", self.altname] +
+                       [p.pattern for p in self.params])
+
+    @property
+    def wildcards(self):
+        return "".join(["{_YMP_DIR}", self.name] +
                        [p.pattern for p in self.params])
 
 
@@ -467,7 +487,7 @@ class StageExpander(ColonExpander):
                     return val
             if "wc" not in kwargs:
                 raise ExpandLateException()
-            stack = StageStack.get(stage.wc2path(kwargs['wc']), stage)
+            stack = stage.stack(kwargs['wc'])
             if hasattr(stack, key):
                 val = getattr(stack, key)
                 if hasattr(val, "__call__"):

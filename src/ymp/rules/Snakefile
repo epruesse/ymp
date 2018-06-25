@@ -13,7 +13,7 @@ shell.executable(icfg.shell)
 refname = str("({})".format("|".join(icfg.ref)))
 
 wildcard_constraints:
-    _YMP_DIR = "[^/]+",
+    _YMP_DIR = "([^/]+\.|)",
     dir      = "[^/]+?",
     dir1     = "[^/]+",
     dir2     = "[^/]+",

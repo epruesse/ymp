@@ -61,31 +61,58 @@ rule fastq_dump:
       cut -f 5-8 | tr "\t" "\\n" | pigz -p {params.p} > {output[1]}
     """
 
+with Stage("") as import_stage:
+    import_stage.add_param(typ="choice", name="project", value=icfg.projects.keys(),key="")
+    import_stage.doc("here")
 
-rule export_qiime_map_file:
-    message:
-        "Creating Qiime map file for project {params.proj}"
-    output:
-        "{:proj:}/qiime_mapping.tsv"
-    params:
-        proj = "{:proj:}"
-    run:
-        import pandas as pd
-        df = icfg[params.proj].run_data
-        cols = df.columns.tolist()
+    localrules: symlink_raw_reads
+    rule symlink_raw_reads:
+        """Normalize FQ names by creating symlinks to original files"""
+        message:
+            "Creating symlink {output} -> {input}"
+        input:
+            # extract path from config file:
+            lambda wc: import_stage.stack(wc).project.FQpath(wc.sample, 0),
+            lambda wc: import_stage.stack(wc).project.FQpath(wc.sample, 1)
+        output:
+            "{:this:}/{sample}.{:pairnames:}.fq.gz"
+        run:
+            for n in range(2):
+                if not os.path.isabs(input[n]):
+                    input[n] = os.path.join("..", input[n])
+                os.symlink(input[n], output[n])
 
-        try:
-            desc_idx = cols.index("Description")
-            cols = cols[:desc_idx] + cols[desc_idx+1:] + [cols[desc_idx]]
-            df = df[cols]
-        except ValueError:
-            df["Description"] = ""
+    rule export_qiime_map_file:
+        message:
+            "Creating Qiime map file for project {params.proj}"
+        output:
+            "{:this:}/qiime_mapping.tsv"
+        run:
+            import pandas as pd
+            df = import_stage.stack(wc).project.run_data
+            cols = df.columns.tolist()
 
-        df.to_csv(output[0], sep="\t", index=False)
+            try:
+                desc_idx = cols.index("Description")
+                cols = cols[:desc_idx] + cols[desc_idx+1:] + [cols[desc_idx]]
+                df = df[cols]
+            except ValueError:
+                df["Description"] = ""
 
-        # TODO: Rename bccol to "BarcodeSequence"
-        #       Fake LinkerPrimerSequence col if not exists
-        #       Make first/index column be called "#SampleID"
+                df.to_csv(output[0], sep="\t", index=False)
+
+                # TODO: Rename bccol to "BarcodeSequence"
+                #       Fake LinkerPrimerSequence col if not exists
+                #       Make first/index column be called "#SampleID"
+
+
+    rule import_all:
+        message:
+            "Created project data directory"
+        output:
+            touch("{:this:}/all")
+        input:
+            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
 
 
 rule split_library:
@@ -142,20 +169,6 @@ rule split_library_compress_sample:
 ###
     
 
-localrules: symlink_raw_reads
-rule symlink_raw_reads:
-    """Normalize FQ names by creating symlinks to original files"""
-    message:
-        "Creating symlink {output} -> {input}"
-    input:
-        # extract path from config file:
-        lambda wc: icfg.projects[wc.project].FQpath(wc.run, wc.pairsuff)
-    output:
-        "{project}/{run}.{pairsuff}.fq.gz"
-    run:
-        if not os.path.isabs(input[0]):
-            input[0] = os.path.join("..", input[0])
-        os.symlink(input[0], output[0])
 
 
 
