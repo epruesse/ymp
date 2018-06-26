@@ -1,7 +1,7 @@
 Env(name="trimmomatic", base="bioconda", packages="trimmomatic")
 
 with Stage("trim_trimmomatic") as S:
-    S.add_param(key="A", typ="choice", name="adapter",
+    S.add_param(key="",typ="choice", name="adapter",
                 value=['N', 'T2', 'T3', 'T32'], default="N")
     rule trimmomatic_adapter:
         """Trimming with Trimmomatic"""
@@ -55,3 +55,11 @@ with Stage("trim_trimmomatic") as S:
         input:  "{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"
         output: "{:this:}/{sample}.{:pairnames[0]:}.fq.gz"
         params: arg_pe  = "SE"
+
+    rule trimmomatic_adapter_all:
+        message:
+            "Trimmomatic: complete"
+        output:
+            touch("{:this:}/all")
+        input:
+            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
