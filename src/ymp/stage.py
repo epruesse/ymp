@@ -107,10 +107,12 @@ class StageStack(object):
                 log.error("Unknown stage %s?!", stage_name)
                 continue
 
-            provides = inputs.intersection(stage.outputs)
+            stack = self.get(path, stage)
+
+            provides = inputs.intersection(stack.outputs)
             if provides:
                 inputs -= provides
-                self.prevs.append(self.get(path, stage))
+                self.prevs.append(stack)
 
         if inputs:
             # Can't find the right types, try to present useful error message:
@@ -132,31 +134,43 @@ class StageStack(object):
             )
 
         if self.group is None:
+            df = self.project.run_data
+            import pandas as pd
+
             groups = list(dict.fromkeys(group
                                         for p in reversed(self.prevs)
                                         for group in p.group))
-            if len(groups) > 1:
-                groups = [g for g in groups if g != "ALL"]
             if not groups:
                 groups = [self.project.idcol]
+            if len(groups) > 1:
+                groups = [g for g in groups if g != 'ALL']
+            if len(groups) > 1:
+                redundant = set()
+                for g in groups:
+                    if g in redundant:
+                        continue
+                    cols = set(df.columns[df.groupby(g).agg('nunique').eq(1).all()])
+                    cols.remove(g)
+                    redundant |= cols
+                groups = [g for g in groups if g not in redundant]
+
+            m = {'ALL': pd.Series(df.index)}
+            groups = [m.get(g, g) for g in groups]
+
             self.group = groups
 
-        log.warning("building %s (%s)", self,  '-'.join(self.group))
 
     @property
     def group_by(self):
         df = self.project.run_data
-        group = self.group
-        if group == ["ALL"]:
-            import pandas as pd
-            group = pd.Series("ALL", index=df.index)
-        elif group == ["ID"]:
-            group = self.project.runs
-
         try:
-            return df.groupby(group)
+            return df.groupby(self.group)
         except KeyError:
-            raise YmpStageError(f"Unkown column in groupby: {self.group}")
+            raise YmpStageError(f"Unknown column in groupby: {self.group}")
+
+    @property
+    def outputs(self):
+        return self.stage.outputs
 
     def prev(self, args=None, kwargs=None):
         """
@@ -170,16 +184,27 @@ class StageStack(object):
         suffix = norm_wildcards(suffix)
 
         for stack in self.prevs:
-            if suffix in stack.stage.outputs:
+            if suffix in stack.outputs:
                 return stack
 
     def target(self, args, kwargs):
         """Finds the target in the prev stage matching current target"""
         prev = self.get(self.prev(args, kwargs).name)
+        target = kwargs['wc'].target
         if prev.group == self.group:
-            return kwargs['wc'].target
+            return target
         if prev.group == ["ALL"]:
             return "ALL"
+        if len(prev.group) > 1 or len(self.group) > 1:
+            raise YmpStageError("FIXME: multi column targetting not implemented")
+
+        df = self.project.run_data
+        vals = set(df[df[self.group[0]] == target][prev.group[0]])
+        if len(vals) > 1:
+            raise YmpStageError(
+                f"""Incompatible groupings requested. Matching {target} from {self.group}
+                to {prev.group} yields multiple values {vals}.""")
+        return vals.pop()
 
     def reference(self, *args, **kwargs):
         """
@@ -221,7 +246,10 @@ class StageStack(object):
          - all "runs" if no by_COLUMN is active
          - the unique values for COLUMN if grouping is active
         """
-        return list(self.group_by.indices)
+        targets = list(self.group_by.indices)
+        targets = [t if isinstance(t, str) else '.'.join(t) for t in targets]
+        log.warning(targets)
+        return targets
 
     def sources(self, args, kwargs):
         """
@@ -407,7 +435,6 @@ class Stage(WorkflowObject):
 
         return self.wildcards
 
-
     @property
     def that(self):
         """
@@ -472,7 +499,8 @@ class StageExpander(ColonExpander):
                 return self.get_value_(key, args, kwargs)
             except Exception as e:
                 if not isinstance(e, ExpandLateException):
-                    log.warning(f"{self.__class__.__name__}: Exception", exc_info=True)
+                    log.warning(f"key={key} args={args} kwargs={kwargs}",
+                                exc_info=True)
                 raise
 
         def get_value_(self, key, args, kwargs):
