@@ -13,7 +13,6 @@ YMP processes data in stages, each of which is contained in its own directory.
 """
 
 import logging
-from itertools import chain
 import re
 from typing import TYPE_CHECKING
 
@@ -70,14 +69,13 @@ class StageStack(object):
 
         cfg = ymp.get_config()
         registry = Stage.get_registry()
-
         stage_names = path.split(".")
+
         # project for this stage stack
         self.project = cfg.projects.get(stage_names[0])
 
         top_stage = stage_names.pop()
         if not stage.match(top_stage):
-            import pdb; pdb.set_trace()
             raise YmpStageError(
                 f"Internal error: {top_stage} not matched by {stage}")
 
@@ -140,7 +138,7 @@ class StageStack(object):
             if len(groups) > 1:
                 groups = [g for g in groups if g != "ALL"]
             if not groups:
-                groups = ["ID"]
+                groups = [self.project.idcol]
             self.group = groups
 
         log.warning("building %s (%s)", self,  '-'.join(self.group))

@@ -142,6 +142,7 @@ class Project(Stage):
         self.fieldnames = None
         self._runs = None
         self._source_cfg = None
+        self._idcol = None
         self.outputs = set(("/{sample}.R1.fq.gz", "/{sample}.R2.fq.gz",
                             "/{:samples:}.R1.fq.gz", "/{:samples:}.R2.fq.gz"))
         self.inputs = set()
@@ -222,8 +223,16 @@ class Project(Stage):
             log.info("Autoselected column %s=%s",
                      self.KEY_IDCOL, self.cfg[self.KEY_IDCOL])
 
+        self._idcol = self.cfg[self.KEY_IDCOL]
+
         self._runs.set_index(self.cfg[self.KEY_IDCOL],
                              drop=False, inplace=True)
+
+    @property
+    def idcol(self):
+        if self._idcol is None:
+            self.choose_id_column()
+        return self._idcol
 
     @property
     def source_cfg(self):
