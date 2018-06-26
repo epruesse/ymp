@@ -594,10 +594,6 @@ class ParamChoice(Param):
     """Stage Choice Parameter"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if not self.value:
-            raise YmpRuleError(
-                self.stage,
-                f"Stage Choice Parameter must have and 'value' set")
         if self.default is not None:
             self.value += [""]
         self.regex = f"({self.key}({'|'.join(self.value)}))"
