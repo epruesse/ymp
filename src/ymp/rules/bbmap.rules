@@ -18,34 +18,35 @@ bbstats  = bbstats.split()
 bbduk_stats = "bhist qhist qchist aqhist bqhist lhist gchist".split()
 
 
-rule bbmap_makedb:
-    """
-    Precomputes BBMap index
-    """
-    message:
-        "BBMap: preparing index for ref={input}"
-    input:
-        "{path}/{file}.fasta.gz"
-    output:
-        "{path}/{file}.bbidx/ref/genome/1/summary.txt",
-        "{path}/{file}.bbidx"
-    log:
-        "{path}/{file}.bbidx/bbmap_index.log"
-    params:
-        path="{path}/{file}.bbidx/",
-        mem=icfg.mem("80g")
-    threads: 8
-    conda:
-        "bbmap"
-    shell: """
-    bbmap.sh \
-        path={params.path} \
-        ref={input} \
-        threads={threads} \
-        pigz unpigz \
-        -Xmx{params.mem}m \
-        >{log} 2>&1
-    """
+with Stage("index_bbmap") as S:
+    rule bbmap_makedb:
+        """
+        Precomputes BBMap index
+        """
+        message:
+            "BBMap: Indexing {input}"
+        input:
+            "{:prev:}/{target}.fasta.gz"
+        output:
+            "{:this:}/{target}/ref/genome/1/summary.txt",
+        log:
+            "{:this:}/{target}.log"
+        params:
+            path="{:this:}/{target}/",
+            mem=icfg.mem("80g")
+        threads: 8
+        conda:
+            "bbmap"
+        shell: """
+        mkdir {params.path} || true
+        bbmap.sh \
+            path={params.path} \
+            ref={input} \
+            threads={threads} \
+            pigz unpigz \
+            -Xmx{params.mem}m \
+            >{log} 2>&1
+        """
 
 
 with Stage("correct_bbmap") as S:
@@ -84,9 +85,20 @@ with Stage("correct_bbmap") as S:
 
     # FIXME: Is this applicable?
     rule bbmap_error_correction_se:  # ymp: extends bbmap_error_correction
-        input:  ["{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"],
-        output: ["{:this:}/{sample}.{:pairnames[0]:}.fq.gz"],
-        params: inout2 = ""
+        input:
+            ["{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"],
+        output:
+            ["{:this:}/{sample}.{:pairnames[0]:}.fq.gz"],
+        params:
+            inout2 = ""
+
+    rule bbmap_error_correction_all:
+        message:
+            "BBMap: error correction complete"
+        output:
+            touch("{:this:}/all")
+        input:
+            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
 
 
 with Stage("trim_bbmap") as S:
@@ -107,7 +119,6 @@ with Stage("trim_bbmap") as S:
         """Trimming and Adapter Removal using BBTools BBDuk"""
         message:
             "BBMap: Trimming {input[0]} "
-            #"({params.adapt}Q={params.qual} L={params.length})"
         input:
             "{:prev:}/{target}.{:pairnames:}.fq.gz"
         output:
