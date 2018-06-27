@@ -6,10 +6,10 @@ import pytest
 data_types = ['any', 'metagenome', 'amplicon']
 
 dataset_map = {
-    'any': ['toy', 'mpic'],
+    'any': ['toy'], # 'mpic'],
     'metagenome': ['toy'],
     'large': ['ibd'],
-    'amplicon': ['mpic']
+    'amplicon': [] #'mpic']
 }
 
 target_map = {
@@ -30,7 +30,7 @@ target_map = {
         # fails due to bugs in phyloFlash with too few organisms
         #'phyloFlash':     'reports/{}.phyloFlash.pdf',
         #'fastqc':            '{}.qc_fastqc/all',
-        'multiqc':           '{}.qc_fastqc.qc_multiqc/all',
+        #'multiqc':           '{}.qc_fastqc.qc_multiqc/all',
     ],
     'metagenome': odict[
         # assembly.rules
@@ -55,7 +55,7 @@ target_map = {
         'map_bbmap_reference': '{}.ref_genome.map_bbmap/all',
         'map_bowtie2_reference': '{}.ref_genome.index_bowtie2.map_bowtie2/all',
         # community profile
-        'profile_metaphlan2': '{}.metaphlan2/all',
+        #'profile_metaphlan2': '{}.metaphlan2/all',
         # functional profile
         # broken on CI, probably due to memory or time limits
         # 'profile_humann2': '{}.humann2/all',
