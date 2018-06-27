@@ -70,5 +70,5 @@ with Stage("map_bowtie2") as S:
         output:
             touch("{:this:}/all")
         input:
-            "{:this:}/{:targets:}.bam"
+            "{:this:}/{:targets:}.sorted.bam"
 

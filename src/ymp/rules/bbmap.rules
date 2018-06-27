@@ -344,13 +344,16 @@ with Stage("primermatch_bbmap", "primerfail_bbmap") as S:
         """
         Splits reads based on primer matching into "primermatch" and "primerfail".
         """
-        message: "BBduk: Filtering {wildcards.sample} for primer set {input.primer}"
-        input:            "{:prev:}/{sample}.{:pairnames:}.fq.gz",
-                 primer = "primers.fasta"
-        output:  match  = "{:this:}/{sample}.{:pairnames:}.fq.gz",
-                 fail   = "{:that:}/{sample}.{:pairnames:}.fq.gz",
-                 stats  = expand("{{:this:}}/{{sample}}.{x}", x=bbduk_stats)
-        log:              "{:this:}/{sample}.log"
+        message:
+            "BBduk: Filtering {wildcards.sample} for primer set {input.primer}"
+        input:
+            "{:prev:}/{:target:}.{:pairnames:}.fq.gz",
+            primer = "primers.fasta"
+        output:
+            match  = "{:this:}/{target}.{:pairnames:}.fq.gz",
+            fail   = "{:that:}/{target}.{:pairnames:}.fq.gz",
+            stats  = expand("{{:this:}}/{{target}}.{x}", x=bbduk_stats)
+        log:              "{:this:}/{target}.log"
         threads: 8
         params:
             stats   = lambda wc, output: ["{}={}".format(x,y) for x,y in zip(bbstats, output.stats)],
@@ -376,10 +379,18 @@ with Stage("primermatch_bbmap", "primerfail_bbmap") as S:
 
 
     rule bbduk_primer_se:  # ymp: extends bbduk_primer
-        input:          "{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"
-        output: match = ["{:this:}/{sample}.{:pairnames[0]:}.fq.gz"],
-                fail  = ["{:that:}/{sample}.{:pairnames[0]:}.fq.gz"]
+        input:          "{:prev:}/{target}.{:pairnames[0]:}.fq.gz"
+        output: match = ["{:this:}/{target}.{:pairnames[0]:}.fq.gz"],
+                fail  = ["{:that:}/{target}.{:pairnames[0]:}.fq.gz"]
         params: inout2 = ""
+
+    rule bbduk_primer_all:
+        message:
+            "BBMap: primer filter done"
+        output:
+            touch("{:this:}/all")
+        input:
+            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
 
 
 with Stage("map_bbmap") as S:
@@ -391,16 +402,16 @@ with Stage("map_bbmap") as S:
         message:
             "BBMap mapping {input.fq[0]} to {input.fa}"
         input:
-            fq = "{:prev:}/{source}.{:pairnames:}.fq.gz",
-            fa = "{:reference:}.fasta.gz",
+            fq = "{:prev:}/{:target:}.{:pairnames:}.fq.gz",
+            fa = "{:prev:}/{:target:}.fasta.gz",
         output:
-            bam   = temp("{:this:}/{target}.{source}.bam"),
-            stats =      "{:this:}/{target}.{source}.stats",
-            ihist =      "{:this:}/{target}.{source}.ihist"
+            bam   = temp("{:this:}/{target}.bam"),
+            stats =      "{:this:}/{target}.stats",
+            ihist =      "{:this:}/{target}.ihist"
         log:
-                         "{:this:}/{target}.{source}.log"
+                         "{:this:}/{target}.log"
         benchmark:
-            "benchmarks/bbmap/{:this:}/{target}.{source}.txt"
+            "benchmarks/bbmap/{:this:}/{target}.txt"
         params:
             mem = icfg.mem("80g")
         threads:
@@ -426,3 +437,10 @@ with Stage("map_bbmap") as S:
             " 2>{log}"              # log error
             " | samtools view -b -o {output.bam} -" # convert to bam
 
+    rule bbmap_map_all:
+        message:
+            "BBMap: mapping done"
+        output:
+            touch("{:this:}/all")
+        input:
+            "{:this:}/{:targets:}.sorted.bam"
