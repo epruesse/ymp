@@ -29,6 +29,7 @@ with Stage("index_bbmap") as S:
             "{:prev:}/{target}.fasta.gz"
         output:
             "{:this:}/{target}/ref/genome/1/summary.txt",
+            touch("{:this:}/{target}.bbmap_index")
         log:
             "{:this:}/{target}.log"
         params:
@@ -270,7 +271,7 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
             "BBMap filtering - {input[0]}"
         input:
             fq    = "{:prev:}/{target}.{:pairnames:}.fq.gz",
-            ref   = "{:prev:}/{:target:}/ref/genome/1/summary.txt"
+            ref   = "{:prev:}/{:target:}.bbmap_index"
         output:
             clean = "{:this:}/{target}.{:pairnames:}.fq.gz",
             human = "{:that:}/{target}.{:pairnames:}.fq.gz",
@@ -279,6 +280,7 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
                     "{:this:}/{target}.log"
         params:
             stats    = lambda wc, output: ["{}={}".format(x,y) for x,y in zip(bbstats, output.stats)],
+            ref = lambda wc, input: input.ref[:-(len(".bbmap_index"))],
             minid    = 0.95,
             maxindel = 3,
             bwr      = 0.16,
@@ -301,7 +303,7 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
             " bw={params.bw} "
             " {params.flags} "
             " minhits={params.minhits} "
-            " path={input.ref} "
+            " path={params.ref} "
             " qtrim={params.qtrim} "
             " trimq={params.trimq} "
             " -Xmx{params.mem}m "
@@ -329,6 +331,14 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
             touch("{:this:}/all")
         input:
             "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
+
+    rule bbmap_split_all_remove:
+        message:
+            "BBMap: split complete"
+        output:
+            touch("{:that:}/all")
+        input:
+            "{:that:}/{:targets:}.{:pairnames:}.fq.gz"
 
 
 ###
