@@ -171,8 +171,12 @@ def start_snakemake(kwargs):
         kwargs['verbose'] = True
     kwargs['use_conda'] = True
     if 'targets' in kwargs:
-        kwargs['targets'] = [os.path.join(cur_path, t)
-                             for t in kwargs['targets']]
+        if cur_path:
+            kwargs['targets'] = [os.path.join(cur_path, t)
+                                 for t in kwargs['targets']]
+        else:
+            kwargs['targets'] = [t if '/' in t else os.path.join(t, 'all')
+                                 for t in kwargs['targets']]
 
     log.debug("Running snakemake.snakemake with args: %s", kwargs)
     import snakemake
