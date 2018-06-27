@@ -209,12 +209,7 @@ class StageStack(object):
 
         df = self.project.run_data
         vals = set(df[df[self.group[0]] == target][prev.group[0]])
-        if len(vals) > 1:
-            raise YmpStageError(
-                f"""Incompatible groupings requested. Matching {target} from {self.group}
-                to {prev.group} yields multiple values {vals}.""")
-        return vals.pop()
-
+        return vals
 
     def sources(self, args, kwargs):
         """
