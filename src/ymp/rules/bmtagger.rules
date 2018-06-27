@@ -150,7 +150,7 @@ with Stage("filter_bmtagger", "remove_bmtagger") as S:
     rule bmtagger_filter_out: # ymp: extends bmtagger_filter
         "Filter-out reads using reference"
         message:
-            "BMTagger: filtering out {input.fq} using "
+            "BMTagger: filtering out {input.fq}"
         output:
                       "{:that:}/{target}.{pairsuff}.fq.gz"
         log:
@@ -166,3 +166,10 @@ with Stage("filter_bmtagger", "remove_bmtagger") as S:
         input:
             "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
 
+    rule bmtagger_remove_all:
+        message:
+            "BMTagge: done"
+        output:
+            touch("{:that:}/all")
+        input:
+            "{:that:}/{:targets:}.{:pairnames:}.fq.gz"
