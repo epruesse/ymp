@@ -95,8 +95,6 @@ class StageStack(object):
                 continue
             elif stage_parts[0] == "ref" and stage_parts[2] in cfg.ref:
                 stage = cfg.ref[stage_parts[2]]
-            elif stage_name in registry:
-                stage = registry[stage_name]
             else:
                 for st in registry.values():
                     if st.match(stage_name):
