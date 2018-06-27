@@ -204,38 +204,6 @@ class StageStack(object):
                 to {prev.group} yields multiple values {vals}.""")
         return vals.pop()
 
-    def reference(self, *args, **kwargs):
-        """
-        Returns the currently selected reference
-        """
-        wc = kwargs.get('wc')
-        import ymp
-        cfg = ymp.get_config()
-        references = cfg.ref.keys()
-        re_ref = re.compile(r"\.(ref_(?:{})|assemble_(?:megahit|metaspades|trinity))(?=[./]|$)"
-                            r"".format("|".join(references)))
-        stackstr = "".join(
-            getattr(wc, key)
-            for key in ['dir', '_YMP_DIR']
-            if hasattr(wc, key)
-        )
-        matches = re_ref.findall(stackstr)
-
-        if not matches:
-            raise KeyError("No reference found for {} and {!r}"
-                           "".format(self.name, wc))
-
-        ref_name = matches[-1]
-        if ref_name.startswith("ref_"):
-            reference = cfg.ref[ref_name[4:]]
-        else:
-            target = getattr(wc, 'target', 'ALL')
-            reference = "{}/{}.contigs".format(stackstr, target)
-
-        log.debug("Reference selected for {}: {}".format("FIXME", reference))
-
-        return reference
-
     @property
     def targets(self):
         """
