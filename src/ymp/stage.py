@@ -206,6 +206,8 @@ class StageStack(object):
             return target
         if prev.group == ["ALL"]:
             return "ALL"
+        if self.group == ["ALL"]:
+            return prev.targets
 
         df = self.project.run_data
         vals = set(df[df[self.group[0]] == target][prev.group[0]])
