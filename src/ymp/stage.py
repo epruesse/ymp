@@ -152,17 +152,19 @@ class StageStack(object):
                     redundant |= cols
                 groups = [g for g in groups if g not in redundant]
 
-            m = {'ALL': pd.Series(df.index)}
-            groups = [m.get(g, g) for g in groups]
+            if len(groups) > 1:
+                raise YmpStageError("multi-idx grouping not implemented")
 
             self.group = groups
 
-
     @property
     def group_by(self):
+        import pandas as pd
         df = self.project.run_data
+        m = {'ALL': pd.Series(df.index)}
+        groups = [m.get(g, g) for g in self.group]
         try:
-            return df.groupby(self.group)
+            return df.groupby(groups)
         except KeyError:
             raise YmpStageError(f"Unknown column in groupby: {self.group}")
 
@@ -193,8 +195,6 @@ class StageStack(object):
             return target
         if prev.group == ["ALL"]:
             return "ALL"
-        if len(prev.group) > 1 or len(self.group) > 1:
-            raise YmpStageError("FIXME: multi column targetting not implemented")
 
         df = self.project.run_data
         vals = set(df[df[self.group[0]] == target][prev.group[0]])
