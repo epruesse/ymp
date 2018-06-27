@@ -17,8 +17,8 @@ with Stage("assemble_metaspades") as S:
         message:
             "Preparing Config YAML for MetaSpades: {output}"
         input:
-            r1 = "{:prev:}/{:sources:}.{:pairnames[0]:}.fq.gz",
-            r2 = "{:prev:}/{:sources:}.{:pairnames[1]:}.fq.gz"
+            r1 = "{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz",
+            r2 = "{:prev:}/{:target:}.{:pairnames[1]:}.fq.gz"
         output:
             yaml = "{:this:}/{target}.yaml"
         run:

@@ -19,8 +19,8 @@ with Stage("assemble_megahit") as S:
         message:
             "(Co-)Assembling {wildcards.target} with megahit"
         input:
-            r1 = "{:prev:}/{:sources:}.{:pairnames[0]:}.fq.gz",
-            r2 = "{:prev:}/{:sources:}.{:pairnames[1]:}.fq.gz",
+            r1 = "{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz",
+            r2 = "{:prev:}/{:target:}.{:pairnames[1]:}.fq.gz",
             tmpdir = ancient(icfg.dir.tmp)
         output:
             fasta = "{:this:}/{target}.fasta.gz",
