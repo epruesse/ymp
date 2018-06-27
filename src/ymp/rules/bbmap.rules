@@ -187,11 +187,11 @@ with Stage("dedup_bbmap") as S:
         message:
             "BBTools dedupe'ing {input}"
         input:
-            "{:prev:}/{sample}.{:pairnames:}.fq.gz"
+            "{:prev:}/{:target:}.{:pairnames:}.fq.gz"
         output:
-            "{:this:}/{sample}.{:pairnames:}.fq.gz"
+            "{:this:}/{target}.{:pairnames:}.fq.gz"
         log:
-            "{:this:}/{sample}.log"
+            "{:this:}/{target}.log"
         params:
             mem = icfg.mem("80g")
         threads: 4
@@ -220,11 +220,11 @@ with Stage("dedup_bbmap") as S:
         message:
             "BBTools dedupe'ing {input}"
         input:
-            "{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"
+            "{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz"
         output:
-            "{:this:}/{sample}.{:pairnames[0]:}.fq.gz"
+            "{:this:}/{target}.{:pairnames[0]:}.fq.gz"
         log:
-            "{:this:}/{sample}.log"
+            "{:this:}/{target}.log"
         params:
             mem = icfg.mem("80g")
         threads: 4
@@ -240,6 +240,14 @@ with Stage("dedup_bbmap") as S:
             " 2>{log}"
             " |"
             " pigz -p {threads} > {output[0]}"
+
+    rule bbmap_dedupe_all:
+        message:
+            "BBMap: dedupe done"
+        output:
+            touch("{:this:}/all")
+        input:
+            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
 
 
 ruleorder: bbmap_dedupe > bbmap_dedupe_se
