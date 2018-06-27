@@ -187,6 +187,17 @@ class StageStack(object):
             if suffix in stack.outputs:
                 return stack
 
+    @property
+    def targets(self):
+        """
+        Returns the current targets
+        """
+        if self.group == ['ALL']:
+            return 'ALL'
+        targets = list(self.group_by.indices)
+        #targets = [t if isinstance(t, str) else '.'.join(t) for t in targets]
+        return targets
+
     def target(self, args, kwargs):
         """Finds the target in the prev stage matching current target"""
         prev = self.get(self.prev(args, kwargs).name)
@@ -204,18 +215,6 @@ class StageStack(object):
                 to {prev.group} yields multiple values {vals}.""")
         return vals.pop()
 
-    @property
-    def targets(self):
-        """
-        Returns the current targets:
-
-         - all "runs" if no by_COLUMN is active
-         - the unique values for COLUMN if grouping is active
-        """
-        targets = list(self.group_by.indices)
-        targets = [t if isinstance(t, str) else '.'.join(t) for t in targets]
-        log.warning(targets)
-        return targets
 
     def sources(self, args, kwargs):
         """
