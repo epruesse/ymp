@@ -113,6 +113,9 @@ class Reference(object):
         self.inputs = set()
         self.group = ["ALL"]
 
+    def match(self, name):
+        return name == self.name
+
     def get_file(self, filename, stage):
         downloaded_path = self.files.get(stage + "/" + filename)
         if downloaded_path:

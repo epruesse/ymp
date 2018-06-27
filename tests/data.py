@@ -23,7 +23,7 @@ target_map = {
         'trim_sickleL10':    '{}.trim_sickleL10/all',
         'trim_sickleQ10L10': '{}.trim_sickleQ10L10/all',
         'time_trimmomaticT32': '{}.trim_trimmomaticT32/all',
-        'filter_bbmap':      '{}.ref_phiX.remove_bbmap/all',
+        'filter_bbmap':      '{}.ref_phiX.index_bbmap.remove_bbmap/all',
         'filter_bmtagger':   '{}.ref_phiX.filter_bmtagger/all',
         'dedup_bbmap':       '{}.dedup_bbmap/all',
         'rm_bmtagger':       '{}.ref_phiX.remove_bmtagger/all',

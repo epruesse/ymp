@@ -261,14 +261,14 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
         message:
             "BBMap filtering - {input[0]}"
         input:
-            fq    = "{:prev:}/{sample}.{:pairnames:}.fq.gz",
-            ref   = "{:reference:}.bbidx"
+            fq    = "{:prev:}/{target}.{:pairnames:}.fq.gz",
+            ref   = "{:prev:}/{:target:}/ref/genome/1/summary.txt"
         output:
-            clean = "{:this:}/{sample}.{:pairnames:}.fq.gz",
-            human = "{:that:}/{sample}.{:pairnames:}.fq.gz",
-            stats = expand("{{:this:}}/{{sample}}.{x}", x=bbstats)
+            clean = "{:this:}/{target}.{:pairnames:}.fq.gz",
+            human = "{:that:}/{target}.{:pairnames:}.fq.gz",
+            stats = expand("{{:this:}}/{{target}}.{x}", x=bbstats)
         log:
-                    "{:this:}/{sample}.log"
+                    "{:this:}/{target}.log"
         params:
             stats    = lambda wc, output: ["{}={}".format(x,y) for x,y in zip(bbstats, output.stats)],
             minid    = 0.95,
@@ -307,13 +307,20 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
 
     rule bbmap_split_se:  # ymp: extends bbmap_split
         input:
-            fq    = ["{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"]
+            fq    = ["{:prev:}/{target}.{:pairnames[0]:}.fq.gz"]
         output:
-            clean = ["{:this:}/{sample}.{:pairnames[0]:}.fq.gz"],
-            human = ["{:that:}/{sample}.{:pairnames[0]:}.fq.gz"]
+            clean = ["{:this:}/{target}.{:pairnames[0]:}.fq.gz"],
+            human = ["{:that:}/{target}.{:pairnames[0]:}.fq.gz"]
         params:
             inout2 = ""
 
+    rule bbmap_split_all:
+        message:
+            "BBMap: split complete"
+        output:
+            touch("{:this:}/all")
+        input:
+            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
 
 
 ###
