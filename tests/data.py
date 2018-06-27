@@ -29,7 +29,7 @@ target_map = {
         'rm_bmtagger':       '{}.ref_phiX.index_bmtagger.remove_bmtagger/all',
         # fails due to bugs in phyloFlash with too few organisms
         #'phyloFlash':     'reports/{}.phyloFlash.pdf',
-        #'fastqc':            '{}.qc_fastqc/all',
+        'fastqc':            '{}.qc_fastqc/all',
         #'multiqc':           '{}.qc_fastqc.qc_multiqc/all',
     ],
     'metagenome': odict[
