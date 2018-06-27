@@ -24,7 +24,7 @@ target_map = {
         'trim_sickleQ10L10': '{}.trim_sickleQ10L10/all',
         'time_trimmomaticT32': '{}.trim_trimmomaticT32/all',
         'filter_bbmap':      '{}.ref_phiX.index_bbmap.remove_bbmap/all',
-        'filter_bmtagger':   '{}.ref_phiX.filter_bmtagger/all',
+        'filter_bmtagger':   '{}.ref_phiX.index_bmtagger.filter_bmtagger/all',
         'dedup_bbmap':       '{}.dedup_bbmap/all',
         'rm_bmtagger':       '{}.ref_phiX.remove_bmtagger/all',
         # fails due to bugs in phyloFlash with too few organisms
