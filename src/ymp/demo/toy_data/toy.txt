@@ -1,0 +1,2 @@
+name	f	r	genes	reference	operons	Subject
+ecoli_1k	ecoli_1K_1.fq.gz	ecoli_1K_2.fq.gz	genes_1K.gff	reference_1K.fa.gz	operons_1K.gff	test
