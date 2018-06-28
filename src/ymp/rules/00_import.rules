@@ -124,7 +124,7 @@ rule split_library:
     message:
         "Splitting library (barcodes: {input[0]}, reads: {input[1]})"
     input:
-        lambda wc: icfg[wc.project].unsplit_path(wc.barcodes, wc.pairname),
+        lambda wc: icfg.projects[wc.project].unsplit_path(wc.barcodes, wc.pairname),
         mapping = "{project}/qiime_mapping.tsv",
         tmpdir  = ancient(icfg.dir.tmp)
     output:
