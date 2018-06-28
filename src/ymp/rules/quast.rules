@@ -10,7 +10,7 @@ with Stage("qc_quast") as S:
         message:
             "MetaQUAST qc'ing {wildcards.dir} combined co-assemblies"
         input:
-                      "{:prev:}/{:targets:}.contigs.fasta.gz"
+                      "{:prev:}/{:targets:}.fasta.gz"
         output:
             report  = "{:this:}/report.tsv",
             outdir  = "{:this:}"
@@ -38,7 +38,7 @@ with Stage("qc_quast") as S:
         message:
             "MetaQUAST qc'ing {wildcards.dir} assembly {wildcards.sample}"
         input:
-            "{:prev:}/{sample}.contigs.fasta.gz"
+            "{:prev:}/{sample}.fasta.gz"
         output:
             report = "{:this:}/{sample}/combined_reference/report.tsv",
             outdir = "{:this:}/{sample}"

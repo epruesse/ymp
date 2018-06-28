@@ -19,16 +19,16 @@ with Stage("assemble_megahit") as S:
         message:
             "(Co-)Assembling {wildcards.target} with megahit"
         input:
-            r1 = "{:prev:}/{:sources:}.{:pairnames[0]:}.fq.gz",
-            r2 = "{:prev:}/{:sources:}.{:pairnames[1]:}.fq.gz",
+            r1 = "{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz",
+            r2 = "{:prev:}/{:target:}.{:pairnames[1]:}.fq.gz",
             tmpdir = ancient(icfg.dir.tmp)
         output:
-            fasta = "{:this:}/{target}.contigs.fasta.gz",
-            fastg = "{:this:}/{target}.contigs.fastg.gz"
+            fasta = "{:this:}/{target}.fasta.gz",
+            fastg = "{:this:}/{target}.fastg.gz"
         log:
             "{:this:}/{target}.log.gz"
         params:
-            workdir = "{:this:}/{target}/",
+            workdir = "{:this:}/{target}",
             preset  = "meta-sensitive",
             r1 = lambda wc, input: ",".join([input.r1]
                                             if isinstance(input.r1, str) else input.r1),
@@ -85,7 +85,7 @@ with Stage("assemble_megahit") as S:
         message:
             "Completed Megahit assemblies"
         input:
-            "{:this:}/{:targets:}.contigs.fasta.gz"
+            "{:this:}/{:targets:}.fasta.gz"
         output:
             "{:this:}/all"
         shell:

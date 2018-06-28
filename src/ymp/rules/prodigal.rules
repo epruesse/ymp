@@ -8,7 +8,7 @@ with Stage("prodigal") as S:
     rule prodigal:
         """Predict genes using prodigal"""
         message: "Gene prediction (Prodigal): {input}"
-        input:         "{:prev:}/{sample}.contigs.fasta.gz"
+        input:         "{:prev:}/{sample}.fasta.gz"
         output:  gff = "{:this:}/{sample}.prodigal.gff.gz",
                  fna = "{:this:}/{sample}.prodigal.fna.gz",
                  faa = "{:this:}/{sample}.prodigal.faa.gz",

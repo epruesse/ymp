@@ -1,16 +1,15 @@
 Env(name="sickle", base="bioconda", packages="sickle-trim")
 
 
-with Stage("trim_sickle", env="sickle") as S:
+with Stage("trim_sickle") as S:
     S.doc("""
     Perform read trimming using Sickle
     """)
-    S.add_param("Q", typ="int", param="qual", default=20)
-    S.add_param("L", typ="int", param="length", default=20)
+    S.add_param("Q", typ="int", name="qual", default=20)
+    S.add_param("L", typ="int", name="length", default=20)
     rule sickle:
         message:
-            "Trimming with Sickle: {wildcards.sample} "
-            "(Q={params.qual} L={params.length})"
+            "Sickle: Trimming {wildcards.sample}"
         input:
             "{:prev:}/{sample}.{:pairnames:}.fq.gz"
         output:
@@ -21,9 +20,11 @@ with Stage("trim_sickle", env="sickle") as S:
         params:
             arg_pe="pe",
             inout2="-r {input[1]} -p {output[1]} -s {output[2]}"
-        threads: 1
+        threads:
+            1
+        conda:
+            "sickle"
         shell:"""
-        which sickle >> tmpfile
         sickle {params.arg_pe} \
             -f {input[0]} \
             -o {output[0]} \
@@ -38,7 +39,18 @@ with Stage("trim_sickle", env="sickle") as S:
 
 
     rule sickle_se:  # ymp: extends sickle
-        input:  ["{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"]
-        output: ["{:this:}/{sample}.{:pairnames[0]:}.fq.gz"]
-        params: arg_pe = "se",
-                inout2 = ""
+        input:
+            ["{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"]
+        output:
+            ["{:this:}/{sample}.{:pairnames[0]:}.fq.gz"]
+        params:
+            arg_pe = "se",
+            inout2 = ""
+
+    rule sicke_all:
+        message:
+            "Sickle: complete"
+        output:
+            touch("{:this:}/all")
+        input:
+            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"

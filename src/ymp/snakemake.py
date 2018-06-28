@@ -10,7 +10,7 @@ from copy import copy, deepcopy
 from inspect import getframeinfo, stack
 from typing import Optional
 
-from snakemake.exceptions import RuleException
+from snakemake.exceptions import RuleException, CreateRuleException
 from snakemake.io import AnnotatedString, apply_wildcards
 from snakemake.io import Namedlist as _Namedlist
 from snakemake.rules import Rule
@@ -384,7 +384,11 @@ def make_rule(name: str=None, lineno: int=None, snakefile: str=None,
         setattr(ruleinfo, arg, kwargs[arg])
     ruleinfo.norun = True
     workflow = get_workflow()
-    return workflow.rule(name, lineno, snakefile)(ruleinfo)
+    try:
+        return workflow.rule(name, lineno, snakefile)(ruleinfo)
+    except CreateRuleException:
+        log.debug("  failed. Rule already exists?")
+        return None
 
 
 class BaseExpander(object):

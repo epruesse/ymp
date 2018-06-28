@@ -17,8 +17,8 @@ with Stage("assemble_metaspades") as S:
         message:
             "Preparing Config YAML for MetaSpades: {output}"
         input:
-            r1 = "{:prev:}/{:sources:}.{:pairnames[0]:}.fq.gz",
-            r2 = "{:prev:}/{:sources:}.{:pairnames[1]:}.fq.gz"
+            r1 = "{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz",
+            r2 = "{:prev:}/{:target:}.{:pairnames[1]:}.fq.gz"
         output:
             yaml = "{:this:}/{target}.yaml"
         run:
@@ -45,8 +45,8 @@ with Stage("assemble_metaspades") as S:
         input:
             conf    = "{:this:}/{target}.yaml"
         output:
-            fasta   = "{:this:}/{target}.contigs.fasta.gz",
-            fastg   = "{:this:}/{target}.contigs.fastg.gz"
+            fasta   = "{:this:}/{target}.fasta.gz",
+            fastg   = "{:this:}/{target}.fastg.gz"
         log:
             console = "{:this:}/{target}.log",
             spades  = "{:this:}/{target}.spades.log.gz"
@@ -87,7 +87,7 @@ with Stage("assemble_metaspades") as S:
         message:
             "Completed Metaspades assemblies"
         input:
-            "{:this:}/{:targets:}.contigs.fasta.gz"
+            "{:this:}/{:targets:}.fasta.gz"
         output:
             "{:this:}/all"
         shell:

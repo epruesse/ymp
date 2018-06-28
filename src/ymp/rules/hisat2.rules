@@ -11,7 +11,7 @@ with Stage("map_hisat2") as S:
         message: "Hisat2: mapping "
         input:
             pairs = "{:prev:}/{source}.{: pairnames :}.fq.gz",
-            index = expand("{{:reference.dir:}}.index/{{target}}.contigs.{ext}",
+            index = expand("{{:reference.dir:}}.index/{{target}}.{ext}",
                            ext=HT2IDX_SUFFIXES)
         output:
             bam   = temp("{:this:}/{target}.{source}.bam"),

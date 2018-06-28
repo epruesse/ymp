@@ -1,4 +1,5 @@
 import logging
+import textwrap
 from fnmatch import fnmatch
 
 import click
@@ -6,6 +7,14 @@ import click
 from ymp.cli.shared_options import group
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
+
+
+def wrap(header, data):
+    wrapper = textwrap.TextWrapper(
+        initial_indent=header + " ",
+        subsequent_indent=" " * len(header) + " "
+    )
+    return "\n"+"\n".join(wrapper.wrap(" ".join(data)))
 
 
 @group()
@@ -28,10 +37,14 @@ def stage():
     "--code", "-c", "code_opt", is_flag=True,
     help="Show definition file name and line number"
 )
-@click.argument(
-    "stage_opt", metavar="STAGE", required=False,
+@click.option(
+    "--types", "-t", "type_opt", is_flag=True,
+    help="Show input/output types"
 )
-def ls(long_opt, short_opt, stage_opt, code_opt):
+@click.argument(
+    "stage_opt", metavar="STAGE", nargs=-1
+)
+def ls(long_opt, short_opt, stage_opt, code_opt, type_opt):
     """
     List available stages
     """
@@ -42,7 +55,8 @@ def ls(long_opt, short_opt, stage_opt, code_opt):
     from ymp.stage import Stage
     all_stages = Stage.get_registry()
     if stage_opt:
-        stages = [all_stages[m] for m in all_stages if fnmatch(m, stage_opt)]
+        stages = [all_stages[m] for m in all_stages
+                  if any(fnmatch(m, pat) for pat in stage_opt)]
     else:
         stages = list(all_stages.values())
     stages = sorted(list(set(stages)), key=lambda s: s.name)
@@ -56,7 +70,7 @@ def ls(long_opt, short_opt, stage_opt, code_opt):
             doc = stage.docstring.strip().split("\n", 1)
             short_doc = doc[0].strip()
             if len(doc) > 1:
-                long_doc = doc[1]
+                long_doc = textwrap.dedent(doc[1])
             else:
                 long_doc = ""
         else:
@@ -64,7 +78,7 @@ def ls(long_opt, short_opt, stage_opt, code_opt):
             long_doc = ""
 
         if long_doc and long_opt:
-            description = "\n{}\n\n".format(long_doc)
+            description = "\n".join("  " + l for l in long_doc.split("\n"))
         else:
             description = ""
 
@@ -74,13 +88,20 @@ def ls(long_opt, short_opt, stage_opt, code_opt):
             summary = ""
 
         if code_opt:
-            code = "\nfrom {}:{}".format(stage.filename, stage.lineno)
+            code = "\n  defined in: {}:{}".format(stage.filename, stage.lineno)
         else:
             code = ""
 
-        print("{name:<{width}}{summary}{code}{description}"
+        if type_opt:
+            dtypes = (wrap("  inputs: ", stage.inputs) +
+                      wrap("  outputs:", stage.outputs))
+        else:
+            dtypes = ""
+
+        print("{name:<{width}}{summary}{description}{code}{dtypes}\n"
               "".format(name=stage.name,
                         width=name_width,
                         summary=summary,
                         code=code,
+                        dtypes=dtypes,
                         description=description))

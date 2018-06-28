@@ -13,10 +13,7 @@ shell.executable(icfg.shell)
 refname = str("({})".format("|".join(icfg.ref)))
 
 wildcard_constraints:
-    _YMP_PRJ = "({})".format("|".join(icfg.datasets)),
-    _YMP_DIR = "(\.[^./]+)*?",
-    _YMP_VRT = "(\.ref_({})|\.by_({})|)*".format(refname, "[^./]+"),
-    _YMP_ASM = "(\.assemble_(megahit|metaspades|trinity)|)",
+    _YMP_DIR = "([^/]+\.|)",
     dir      = "[^/]+?",
     dir1     = "[^/]+",
     dir2     = "[^/]+",
@@ -32,7 +29,7 @@ wildcard_constraints:
     length   = "[1-9][0-9]*",
 
     SRR = "[EDS]RR[0-9]+",
-    project = "({})".format("|".join(icfg.datasets)),
+    project = "({})".format("|".join(icfg.projects)),
     pairname = "({})".format("|".join(icfg.pairnames)),
     sample   = "(ALL|{})".format("|".join(icfg.allruns)),
     reference = refname,

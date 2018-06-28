@@ -2,6 +2,7 @@
 
 from inspect import stack
 from typing import Optional
+import textwrap
 
 from click import ClickException, echo
 
@@ -79,6 +80,16 @@ class YmpConfigError(YmpNoStackException):
         self.stack = stack()
         self.exc = exc
         super().__init__(msg)
+
+
+class YmpStageError(YmpNoStackException):
+    """Indicates an error in the requested stage stack
+    """
+    def __init__(self, msg: str) -> None:
+        super().__init__(textwrap.dedent(msg))
+
+    def show(self) -> None:
+        echo(self.format_message(), err=True)
 
 
 class YmpWorkflowError(YmpNoStackException):

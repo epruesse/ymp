@@ -75,7 +75,7 @@ def test_stage_list(invoker):
     assert res.output == ""
 
     res = invoker.call("stage", "list", "ch?ck", "-s")
-    assert res.output == "check\n"
+    assert res.output.strip() == "check"
 
     res = invoker.call("stage", "list", "ch?ck", "-l")
     assert res.output.startswith("check")
@@ -84,7 +84,7 @@ def test_stage_list(invoker):
     res = invoker.call("stage", "list", "ch?ck", "-c")
     assert res.output.startswith("check")
     assert "test.rules:" in res.output
-    assert res.output.count("\n") == 2
+    assert res.output.count("\n") == 3
 
 
 def test_func_get_envs():

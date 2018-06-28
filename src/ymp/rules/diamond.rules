@@ -37,8 +37,8 @@ with Stage("map_diamond") as S:
         message:
             "Diamond: running blastx on {input.fa}"
         input:
-            fa = "{:prev:}/{source}.contigs.fasta.gz",
-            db = "{:reference.dir:}.diamond/{target}.contigs.dmnd"
+            fa = "{:prev:}/{source}.fasta.gz",
+            db = "{:reference.dir:}.diamond/{target}.dmnd"
         output:
                  "{:this:}/{target}.{source}.daa"
         params:
@@ -59,7 +59,7 @@ with Stage("map_diamond") as S:
     rule diamond_blastx_fastq:  # ymp: extends diamond_blastx_fasta
         input:
             fa = "{:prev:}/{sample}.{pairname}.fq.gz",
-            db = "{:reference.dir:}.diamond/ALL.contigs.dmnd"
+            db = "{:reference.dir:}.diamond/ALL.dmnd"
         output:
                  "{:this:}/{sample}.{pairname}.daa"
 

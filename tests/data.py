@@ -6,10 +6,10 @@ import pytest
 data_types = ['any', 'metagenome', 'amplicon']
 
 dataset_map = {
-    'any': ['toy', 'mpic'],
+    'any': ['toy'], # 'mpic'],
     'metagenome': ['toy'],
     'large': ['ibd'],
-    'amplicon': ['mpic']
+    'amplicon': [] #'mpic']
 }
 
 target_map = {
@@ -23,39 +23,39 @@ target_map = {
         'trim_sickleL10':    '{}.trim_sickleL10/all',
         'trim_sickleQ10L10': '{}.trim_sickleQ10L10/all',
         'time_trimmomaticT32': '{}.trim_trimmomaticT32/all',
-        'filter_bbmap':      '{}.ref_phiX.remove_bbmap/all',
-        'filter_bmtagger':   '{}.ref_phiX.filter_bmtagger/all',
+        'filter_bbmap':      '{}.ref_phiX.index_bbmap.remove_bbmap/all',
+        'filter_bmtagger':   '{}.ref_phiX.index_bmtagger.filter_bmtagger/all',
         'dedup_bbmap':       '{}.dedup_bbmap/all',
-        'rm_bmtagger':       '{}.ref_phiX.remove_bmtagger/all',
+        'rm_bmtagger':       '{}.ref_phiX.index_bmtagger.remove_bmtagger/all',
         # fails due to bugs in phyloFlash with too few organisms
         #'phyloFlash':     'reports/{}.phyloFlash.pdf',
         #'fastqc':            '{}.qc_fastqc/all',
-        'multiqc':           '{}.qc_fastqc.qc_multiqc/all',
+        #'multiqc':           '{}.qc_fastqc.qc_multiqc/all',
     ],
     'metagenome': odict[
         # assembly.rules
-        'assemble_separate_mh': '{}.by_ID.assemble_megahit/all',
-        'assemble_grouped_mh':  '{}.by_Subject.assemble_megahit/all',
-        'assemble_joined_mh':   '{}.assemble_megahit/all',
-        'assemble_separate_sp': '{}.by_ID.assemble_metaspades/all',
-        'assemble_grouped_sp':  '{}.by_Subject.assemble_metaspades/all',
-        'assemble_joined_sp':   '{}.assemble_metaspades/all',
+        'assemble_separate_mh': '{}.assemble_megahit/all',
+        'assemble_grouped_mh':  '{}.group_Subject.assemble_megahit/all',
+        'assemble_joined_mh':   '{}.group_ALL.assemble_megahit/all',
+        'assemble_separate_sp': '{}.assemble_metaspades/all',
+        'assemble_grouped_sp':  '{}.group_Subject.assemble_metaspades/all',
+        'assemble_joined_sp':   '{}.group_ALL.assemble_metaspades/all',
         # race condition in automatic db download in metaquast makes
         # running this on CI impossible at the moment
         #'metaquast_mh':         'reports/{}.assemble_megahit.mq.html',
         #'metaquast_sp':         'reports/{}.sp.mq.html',
         # mapping.rules
-        'map_bbmap_separate':   '{}.by_ID.assemble_megahit.map_bbmap/all',
-        'map_bbmap_grouped':   '{}.by_Subject.assemble_megahit.map_bbmap/all',
-        'map_bbmap_joined':   '{}.assemble_megahit.map_bbmap/all',
-        'map_bowtie2_separate': '{}.by_ID.assemble_megahit.map_bowtie2/all',
-        'map_bowtie2_grouped': '{}.by_Subject.assemble_megahit.map_bowtie2/all',
-        'map_bowtie2_joined': '{}.assemble_megahit.map_bowtie2/all',
+        'map_bbmap_separate':   '{}.assemble_megahit.map_bbmap/all',
+        'map_bbmap_grouped':   '{}.group_Subject.assemble_megahit.map_bbmap/all',
+        'map_bbmap_joined':   '{}.group_ALL.assemble_megahit.map_bbmap/all',
+        'map_bowtie2_separate': '{}.assemble_megahit.index_bowtie2.map_bowtie2/all',
+        'map_bowtie2_grouped': '{}.group_Subject.assemble_megahit.index_bowtie2.map_bowtie2/all',
+        'map_bowtie2_joined': '{}.group_ALL.assemble_megahit.index_bowtie2.map_bowtie2/all',
         # mapping vs reference
         'map_bbmap_reference': '{}.ref_genome.map_bbmap/all',
-        'map_bowtie2_reference': '{}.ref_genome.map_bowtie2/all',
+        'map_bowtie2_reference': '{}.ref_genome.index_bowtie2.map_bowtie2/all',
         # community profile
-        'profile_metaphlan2': '{}.metaphlan2/all',
+        #'profile_metaphlan2': '{}.metaphlan2/all',
         # functional profile
         # broken on CI, probably due to memory or time limits
         # 'profile_humann2': '{}.humann2/all',
