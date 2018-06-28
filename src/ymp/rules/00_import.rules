@@ -63,7 +63,9 @@ rule fastq_dump:
 
 with Stage("") as import_stage:
     import_stage.add_param(typ="choice", name="project", value=icfg.projects.keys(),key="")
-    import_stage.doc("here")
+    import_stage.doc("""
+    >>> ymp make toy
+    """)
 
     localrules: symlink_raw_reads
     rule symlink_raw_reads:

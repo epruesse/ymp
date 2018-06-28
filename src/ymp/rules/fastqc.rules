@@ -8,6 +8,8 @@ Env(name="fastqc", base="bioconda", packages=[
 with Stage("qc_fastqc") as S:
     S.doc("""
     Quality screen reads using FastQC
+
+    >>> ymp make toy.qc_fastqc
     """)
 
     rule qc_fastqc:

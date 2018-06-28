@@ -1,7 +1,12 @@
 Env(name="spades", base="bioconda", packages=["spades", "pigz"])
 
 with Stage("assemble_metaspades") as S:
-    S.doc("""Assemble reads using metaspades""")
+    S.doc("""Assemble reads using metaspades
+
+    >>> ymp make toy.assemble_metaspades
+    >>> ymp make toy.group_ALL.assemble_metaspades
+    >>> ymp make toy.group_Subject.assemble_metaspades
+    """)
 
     localrules: metaspades_input_yaml
     rule metaspades_input_yaml:

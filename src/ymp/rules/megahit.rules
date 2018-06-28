@@ -9,8 +9,9 @@ with Stage("assemble_megahit") as S:
     S.doc("""
     Assemble metagenome using MegaHit.
 
-    .. note:: . Supports ``reads.by_$COLUMN.assemble_megahit/all`` as target for
-       by group co-assembly.
+    >>> ymp make toy.assemble_megahit
+    >>> ymp make toy.group_ALL.assemble_megahit
+    >>> ymp make toy.group_Subject.assemble_megahit
     """)
     rule megahit:
         """

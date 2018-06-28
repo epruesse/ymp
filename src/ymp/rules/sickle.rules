@@ -4,6 +4,9 @@ Env(name="sickle", base="bioconda", packages="sickle-trim")
 with Stage("trim_sickle") as S:
     S.doc("""
     Perform read trimming using Sickle
+
+    >>> ymp make toy.trim_sickle
+    >>> ymp make toy.trim_sickleQ10L10
     """)
     S.add_param("Q", typ="int", name="qual", default=20)
     S.add_param("L", typ="int", name="length", default=20)

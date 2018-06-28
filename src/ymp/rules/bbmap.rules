@@ -19,6 +19,9 @@ bbduk_stats = "bhist qhist qchist aqhist bqhist lhist gchist".split()
 
 
 with Stage("index_bbmap") as S:
+    S.doc("""
+    >>> ymp make toy.index_bbmap
+    """)
     rule bbmap_makedb:
         """
         Precomputes BBMap index
@@ -58,6 +61,8 @@ with Stage("correct_bbmap") as S:
     read pairs and choose the base with the higher quality where the alignment
     contains mismatches and increase the quality score as indicated by the double
     observation where the alignment contains matches.
+
+    >>> ymp make toy.correct_bbmap
     """)
     rule bbmap_error_correction:
         """Error correction with BBMerge overlapping"""
@@ -112,6 +117,10 @@ with Stage("trim_bbmap") as S:
       A: append to enable adapter trimming
       Q20: append to select phred score cutoff (default 20)
       L20: append to select minimum read length (default 20)
+
+    >>> ymp make toy.trim_bbmap
+    >>> ymp make toy.trim_bbmapA
+    >>> ymp make toy.trim_bbmapAQ10L10
     """)
     S.add_param("A", typ="flag", name="adapt", value="ref=$BB_RSRC/adapters.fa ")
     S.add_param("Q", typ="int", name="qual", default=20)
@@ -180,6 +189,8 @@ with Stage("dedup_bbmap") as S:
     Remove duplicate reads
 
     Applies BBMap's "dedupe.sh"
+
+    >>> ymp make toy.dedup_bbmap
     """)
     rule bbmap_dedupe:
         """
@@ -262,9 +273,8 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
     Matching reads are collected in the stage *filter_bbmap* and remaining reads
     are collectec in the stage *remove_bbmap*.
 
-    Example:
-      # remove human reads from samples:
-      ymp make toy.ref_hg19.remove_bbmap/all
+    >>> ymp make toy.ref_phiX.index_bbmap.remove_bbmap
+    >>> ymp make toy.ref_phiX.index_bbmap.filter_bbmap
     """)
     rule bbmap_split:
         message:
@@ -348,6 +358,8 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
 with Stage("primermatch_bbmap", "primerfail_bbmap") as S:
     S.doc("""
     Filters reads by matching reference primer
+
+    >>> ymp make mpic.primermatch_bbmap
     """)
 
     rule bbduk_primer:
@@ -406,6 +418,9 @@ with Stage("primermatch_bbmap", "primerfail_bbmap") as S:
 with Stage("map_bbmap") as S:
     S.doc("""
     Map reads using BBMap
+
+    >>> ymp make toy.assemble_megahit.map_bbmap
+    >>> ymp make toy.ref_genome.map_bbmap
     """)
     rule bbmap_map:
         """Map read from each (co-)assembly read file to the assembly"""
