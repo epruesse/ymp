@@ -53,33 +53,6 @@ with Stage("index_blast"):
         input: expand("{{:this:}}/{{:targets:}}.{ext}", ext=BLASTIDX_SUFFIXES)
         output: touch("{:this:}/all")
 
-rule blast7_to_gtf:
-    """Convert from Blast Format 7 to GFF/GTF format"""
-    message:
-        "BLAST7 -> GFF/GTF: {output}"
-    input:
-        "{path}.blast7"
-    output:
-        "{path}.gtf"
-    run:
-        from ymp import blast, gff
-        with open(input[0], "r") as inf, open(output[0], "w") as outf:
-            writer = gff.writer(outf)
-            for hit in blast.reader(inf):
-                feature = gff.Feature(
-                    seqid=hit.sacc,
-                    source='BLAST',
-                    type='CDS',
-                    start=min(hit.sstart, hit.send),
-                    end=max(hit.sstart, hit.send),
-                    score=hit.evalue,
-                    strand='+' if hit.sframe > 0 else '-',
-                    phase='0',
-                    attributes="ID={}_{}_{};Name={}".format(
-                        hit.sacc, hit.sstart, hit.send,
-                        hit.qacc)
-                )
-                writer.write(feature)
 
 
 with Stage("annotate_tblastn") as S:
@@ -123,6 +96,33 @@ with Stage("annotate_tblastn") as S:
         input:
             "{:this:}/{:targets:}.gtf"
 
+    rule blast7_to_gtf:
+        """Convert from Blast Format 7 to GFF/GTF format"""
+        message:
+            "BLAST7 -> GFF/GTF: {output}"
+        input:
+            "{path}.blast7"
+        output:
+            "{path}.gtf"
+        run:
+            from ymp import blast, gff
+            with open(input[0], "r") as inf, open(output[0], "w") as outf:
+                writer = gff.writer(outf)
+                for hit in blast.reader(inf):
+                    feature = gff.Feature(
+                        seqid=hit.sacc,
+                        source='BLAST',
+                        type='CDS',
+                        start=min(hit.sstart, hit.send),
+                        end=max(hit.sstart, hit.send),
+                        score=hit.evalue,
+                        strand='+' if hit.sframe > 0 else '-',
+                        phase='0',
+                        attributes="ID={}_{}_{};Name={}".format(
+                            hit.sacc, hit.sstart, hit.send,
+                            hit.qacc)
+                    )
+                    writer.write(feature)
 
 rule blastx_query:
     input:
