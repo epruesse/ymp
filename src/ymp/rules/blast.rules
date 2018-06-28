@@ -103,7 +103,7 @@ with Stage("annotate_tblastn") as S:
         input:
             "{:this:}/{target}.blast7"
         output:
-            "{:thia:}/{target}.gtf"
+            "{:this:}/{target}.gtf"
         run:
             from ymp import blast, gff
             with open(input[0], "r") as inf, open(output[0], "w") as outf:
