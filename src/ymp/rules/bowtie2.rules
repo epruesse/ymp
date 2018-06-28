@@ -31,8 +31,8 @@ with Stage("map_bowtie2") as S:
     Map reads using Bowtie2
 
     >>> ymp make toy.ref_genome.index_bowtie2.map_bowtie2
-    >>> ymp make toy.assemble_megahit.index_bowtie.map_bowtie2
-    >>> ymp make toy.group_Subject.assemble_megahit.index_bowtie.map_bowtie2
+    >>> ymp make toy.assemble_megahit.index_bowtie2.map_bowtie2
+    >>> ymp make toy.group_Subject.assemble_megahit.index_bowtie2.map_bowtie2
     """)
     rule bowtie2_map:
         message:

@@ -4,7 +4,7 @@ with Stage("trim_trimmomatic") as S:
     S.doc("""
     Adapter trim reads using trimmomatic
 
-    >>> ymp make toy.trimmomaticT32
+    >>> ymp make toy.trim_trimmomaticT32
     """)
     S.add_param(key="",typ="choice", name="adapter",
                 value=['N', 'T2', 'T3', 'T32'], default="N")
