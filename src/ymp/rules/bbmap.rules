@@ -20,7 +20,7 @@ bbduk_stats = "bhist qhist qchist aqhist bqhist lhist gchist".split()
 
 with Stage("index_bbmap") as S:
     S.doc("""
-    >>> ymp make toy.index_bbmap
+    >>> ymp make toy.ref_genome.index_bbmap
     """)
     rule bbmap_makedb:
         """
@@ -51,6 +51,14 @@ with Stage("index_bbmap") as S:
             -Xmx{params.mem}m \
             >{log} 2>&1
         """
+
+    rule bbmap_makedb_all:
+        message:
+            "BBMap: indexing done"
+        output:
+            touch("{:this:}/all")
+        input:
+            "{:this:}/{:targets:}.bbmap_index"
 
 
 with Stage("correct_bbmap") as S:

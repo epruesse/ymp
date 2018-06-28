@@ -3,6 +3,9 @@ Env(name="bowtie2", base="bioconda", packages=["bowtie2", "samtools"])
 BT2IDX_SUFFIXES = "1.bt2 2.bt2 3.bt2 4.bt2 rev.1.bt2 rev.2.bt2".split()
 
 with Stage("index_bowtie2") as S:
+    S.doc("""
+    >>> ymp make tor.ref_genome.index_bowtie2
+    """)
     rule bowtie2_index:
         message:
             "Bowtie2: Indexing {input}"
@@ -25,6 +28,14 @@ with Stage("index_bowtie2") as S:
           --threads {threads} \
           >& {log}
         """
+
+    rule bowtie2_index_all:
+        message:
+            "Bowtie2: Indexing done"
+        output:
+            touch("{:this:}/all")
+        input:
+            expand("{{:this:}}/{{:targets:}}.{ext}", ext=BT2IDX_SUFFIXES)
 
 with Stage("map_bowtie2") as S:
     S.doc("""
