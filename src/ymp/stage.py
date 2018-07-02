@@ -60,11 +60,9 @@ class StageStack(object):
 
     def __init__(self, path, stage):
         self.name = path
-        self.stage = stage
         # stage stacks this stack's top level stage draws from
         self.prevs = []
         # grouping columns active
-        self.group = None
         self.path = getattr(stage, "dir", path)
 
         cfg = ymp.get_config()
@@ -75,9 +73,13 @@ class StageStack(object):
         self.project = cfg.projects.get(stage_names[0])
 
         top_stage = stage_names.pop()
-        if not stage.match(top_stage):
-            raise YmpStageError(
-                f"Internal error: {top_stage} not matched by {stage}")
+        if stage:
+            if not stage.match(top_stage):
+                raise YmpStageError(
+                    f"Internal error: {top_stage} not matched by {stage}")
+        if not stage:
+            stage = self._find_stage(top_stage)
+        self.stage = stage
 
         self.group = getattr(stage, "group", None)
         if stage_names and stage_names[-1].startswith("group_"):
@@ -88,25 +90,10 @@ class StageStack(object):
         inputs = set(self.stage.inputs)
         while stage_names and inputs:
             path = ".".join(stage_names)
-            stage_name = stage_names.pop()
-            stage_parts = stage_name.partition("_")
-            stage = None
-            if stage_parts[0] == "group":
-                continue
-            elif stage_parts[0] == "ref" and stage_parts[2] in cfg.ref:
-                stage = cfg.ref[stage_parts[2]]
-            else:
-                for st in registry.values():
-                    if st.match(stage_name):
-                        stage = st
-                        break
-
+            stage = self._find_stage(stage_names.pop())
             if not stage:
-                log.error("Unknown stage %s?!", stage_name)
                 continue
-
             stack = self.get(path, stage)
-
             provides = inputs.intersection(stack.outputs)
             if provides:
                 inputs -= provides
@@ -157,6 +144,22 @@ class StageStack(object):
 
             self.group = groups
 
+    def _find_stage(self, name):
+        cfg = ymp.get_config()
+        registry = Stage.get_registry()
+
+        if name.startswith("group_"):
+            return None
+        if name.startswith("ref_"):
+            refname = name[4:]
+            if refname in cfg.ref:
+                return cfg.ref[refname]
+            else:
+                raise YmpStageError("Unknown reference '%s'", cfg.ref[refname])
+        for stage in registry.values():
+            if stage.match(name):
+                return stage
+        raise YmpStageError("Unknown stage '%s'", name)
     @property
     def group_by(self):
         import pandas as pd
