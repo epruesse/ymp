@@ -11,9 +11,23 @@ import click
 import ymp
 from ymp.cli.shared_options import command, nohup_option
 from ymp.common import Cache
-from ymp.exceptions import YmpException
+from ymp.exceptions import YmpException, YmpStageError
+from ymp.stage import StageStack
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
+
+
+DEBUG_LOGFILE_NAME = os.environ.get("YMP_DEBUG_EXPAND")
+if DEBUG_LOGFILE_NAME:
+    DEBUG_LOGFILE = open(DEBUG_LOGFILE_NAME, "a")
+
+
+def debug(msg, *args, **kwargs):
+    if DEBUG_LOGFILE_NAME:
+        DEBUG_LOGFILE.write(msg.format(*args, **kwargs) + '\n')
+
+
+debug("\nstarted")
 
 
 class TargetParam(click.ParamType):
@@ -32,36 +46,42 @@ class TargetParam(click.ParamType):
         Returns:
           list of words incomplete can be completed to
         """
+        result: list = []
 
-        # errlog = open("err.txt", "a")
-        errlog = open("/dev/null", "a")
-        errlog.write("\nincomplete={}\n".format(incomplete))
-        cache = Cache.get_cache("completion")
-        query_stages = incomplete.split(".")
-        errlog.write("stages={}\n".format(query_stages))
-        options: list = []
+        debug("ARG: {}", incomplete)
+        stack, _, incomplete = incomplete.rpartition(".")
+        debug("stack={} incom={}", stack, incomplete)
 
-        if len(query_stages) == 1:  # expand projects
+        if not stack:
             cfg = ymp.get_config()
             options = cfg.projects.keys()
-        else:  # expand stages
-            if 'stages' in cache:
-                stages = cache['stages']
+            result += (o for o in options if o.startswith(incomplete))
+            result += (o + "." for o in options if o.startswith(incomplete))
+        else:
+            from ymp.stage import StageStack
+            stackobj = StageStack.get(stack)
+            debug("stacko = {}", repr(stack))
+            options = stackobj.complete(incomplete)
+            debug("options = {}", options)
+            # reduce items sharing prefix before "_"
+            prefixes = {}
+            for option in options:
+                prefix = option.split("_", 1)[0]
+                group = prefixes.setdefault(prefix, [])
+                group.append(option)
+            if len(prefixes) == 1:
+                extensions = options
             else:
-                from ymp.snakemake import load_workflow
-                from ymp.stage import Stage
-                load_workflow()
-                stages = cache['stages'] = list(Stage.get_registry().keys())
-            options = stages
-        options = [o for o in options if o.startswith(query_stages[-1])]
-        prefix = ".".join(query_stages[:-1])
-        if prefix:
-            prefix += "."
-        errlog.write("prefix={}\n".format(prefix))
-        options = [prefix + o + cont for o in options for cont in ("/", ".")]
-        errlog.write("options={}\n".format(options))
-        errlog.close()
-        return options
+                extensions = []
+                for prefix, group in prefixes.items():
+                    if len(group) > 1:
+                        extensions.append(prefix + "_")
+                    else:
+                        extensions.append(group[0])
+            result += ('.'.join((stack, ext)) for ext in extensions)
+
+        debug("res={}", result)
+        return result
 
 
 def snake_params(func):

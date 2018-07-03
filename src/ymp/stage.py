@@ -162,6 +162,20 @@ class StageStack(object):
             if stage.match(name):
                 return stage
         raise YmpStageError("Unknown stage '{name}'")
+
+    def complete(self, name):
+        cfg = ymp.get_config()
+        result = []
+        groups = ("group_" + name for name in self.project.run_data)
+        result += (opt for opt in groups if opt.startswith(name))
+        refs = ("ref_" + name for name in cfg.ref)
+        result += (opt for opt in refs if opt.startswith(name))
+
+        #registry = Stage.get_registry()
+        #for stage in registry.values():
+        #    if stage.match(
+        return result
+
     @property
     def group_by(self):
         import pandas as pd
