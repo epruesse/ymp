@@ -195,10 +195,11 @@ class ConfigMgr(object):
             InheritanceExpander(),
         )
 
-    def reload(self):
-        log.debug("Reloading ConfigMgr")
+    @classmethod
+    def unload(cls):
+        log.debug("Unloading ConfigMgr")
         ExpandableWorkflow.clear()
-        self.__init__(*self.find_config())
+        cls.__instance = None
 
     @property
     def root(self):

@@ -8,8 +8,8 @@ import ymp
                          indirect=True)
 def test_config(project_dir):
     with project_dir.as_cwd():
+        ymp.get_config().unload()
         cfg = ymp.get_config()
-        cfg.reload()
 
 
 @pytest.mark.parametrize("project, fq_names",
@@ -19,8 +19,8 @@ def test_config(project_dir):
                          indirect=['project'])
 def test_fqfiles(project_dir, fq_names):
     with project_dir.as_cwd():
+        ymp.get_config().unload()
         cfg = ymp.get_config()
-        cfg.reload()
         for ds in cfg.projects.values():
             assert len(ds.fq_names) == fq_names[0]
             assert len(ds.pe_fq_names) == fq_names[1]

@@ -179,6 +179,12 @@ def start_snakemake(kwargs):
                                  for t in kwargs['targets']]
 
     log.debug("Running snakemake.snakemake with args: %s", kwargs)
+
+    # A snakemake workflow was created above to resolve the
+    # stage stack. Unload it so things run correctly from within
+    # snakemake.
+    cfg.unload()
+
     import snakemake
     return snakemake.snakemake(ymp._snakefile, **kwargs)
 

@@ -203,8 +203,8 @@ def project_dir(request, project, saved_tmpdir):
 def target(request, project_dir):
     with project_dir.as_cwd():
         log.info("Switched to directory {}".format(project_dir))
+        ymp.get_config().unload()
         cfg = ymp.get_config()
-        cfg.reload()
         targets = [request.param.format(prj) for prj in cfg.projects]
         with open("target.txt", "w") as out:
             out.write("\n".join(targets))
@@ -237,8 +237,8 @@ class Invoker(object):
         """
         if not self.initialized:
             ymp.config.ConfigMgr.CONF_USER_FNAME = "ymp_user.yml"
+            ymp.get_config().unload()
             cfg = ymp.get_config()
-            cfg.reload()
         cfg.dir.conda_prefix = "conda"
         cfg.dir.conda_archive_prefix = "conda_archive"
         self.toclean += "conda"
