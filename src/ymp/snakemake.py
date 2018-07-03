@@ -315,6 +315,10 @@ class ExpandableWorkflow(Workflow):
     def clear(cls):
         if cls.global_workflow:
             cls.global_workflow = None
+        # make sure there is no workflow in snakemake either
+        # (we try to load that in activate())
+        import snakemake.workflow
+        snakemake.workflow.workflow = None
 
     def add_rule(self, name=None, lineno=None, snakefile=None):
         """Add a rule.
