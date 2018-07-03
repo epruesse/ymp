@@ -26,8 +26,8 @@ log = logging.getLogger(__name__)
 def test_snakemake_failure(project_dir, invoker):
     "These are expected to fail"
     res = invoker.call_raises("make", "test")
-    assert res.exit_code == 1
-    assert "CircularReferenceException" in res.output
+    msg = str(res.exception)
+    assert "Circular reference in" in msg
 
 
 @pytest.mark.parametrize("project", ["snakemake_plain", "snakemake_function"],

@@ -175,8 +175,14 @@ def start_snakemake(kwargs):
             kwargs['targets'] = [os.path.join(cur_path, t)
                                  for t in kwargs['targets']]
         else:
-            kwargs['targets'] = [t if '/' in t else os.path.join(t, 'all')
-                                 for t in kwargs['targets']]
+            targets = []
+            for t in kwargs['targets']:
+                try:
+                    stack = StageStack.get(t)
+                    targets.append(os.path.join(t, 'all'))
+                except YmpStageError:
+                    targets.append(t)
+            kwargs['targets'] = targets
 
     log.debug("Running snakemake.snakemake with args: %s", kwargs)
 
