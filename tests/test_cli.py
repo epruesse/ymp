@@ -152,7 +152,11 @@ def test_env_prepare(invoker, project_dir, mock_conda):
     res = invoker.call("env", "list", "bbmap")
     lines = res.output.splitlines()
     col = lines[0].index("installed")
-    assert lines[1][col:col+len("True")] == "True"
+    assert lines[1][col:col+len("False")] == "False"
+
+    conda_cmd = mock_conda.calls[-1]
+    assert "conda create" in conda_cmd
+    assert "/bbmap-" in conda_cmd
 
 
 def test_env_install(invoker, project_dir, mock_conda):
