@@ -27,7 +27,8 @@ with Stage("assemble_megahit") as S:
             fasta = "{:this:}/{target}.fasta.gz",
             fastg = "{:this:}/{target}.fastg.gz"
         log:
-            "{:this:}/{target}.log.gz"
+            log = "{:this:}/{target}.log.gz",
+            out = "{:this:}/{target}.out.gz",
         params:
             workdir = "{:this:}/{target}",
             preset  = "meta-sensitive",
@@ -58,7 +59,7 @@ with Stage("assemble_megahit") as S:
           --num-cpu-threads {threads} \
           --out-dir {params.workdir} \
           --tmp-dir {input.tmpdir} \
-          $CONTINUE
+          $CONTINUE  2> {log.out}
 
         # abort if not finished
         [ -e {params.workdir}/done ] || exit 1
@@ -68,7 +69,7 @@ with Stage("assemble_megahit") as S:
 
         # output the zipped log
         cat {params.workdir}/{{opts.txt,log}} |\
-        pigz -p {threads} -9 -c > {log}
+        pigz -p {threads} -9 -c > {log.log}
 
         # determine largest K used
         MAXK=`tac {params.workdir}/log | sed -nr 's/^---.*k = ([0-9]{{2,3}}) ---/\\1/p;' | head -n1`
