@@ -71,6 +71,8 @@ class StageStack(object):
 
         # project for this stage stack
         self.project = cfg.projects.get(stage_names[0])
+        if not self.project:
+            raise YmpStageError(f"No project for stage stack {path} found")
 
         top_stage = stage_names.pop()
         if stage:
@@ -155,11 +157,11 @@ class StageStack(object):
             if refname in cfg.ref:
                 return cfg.ref[refname]
             else:
-                raise YmpStageError("Unknown reference '%s'", cfg.ref[refname])
+                raise YmpStageError(f"Unknown reference '{cfg.ref[refname]}'")
         for stage in registry.values():
             if stage.match(name):
                 return stage
-        raise YmpStageError("Unknown stage '%s'", name)
+        raise YmpStageError("Unknown stage '{name}'")
     @property
     def group_by(self):
         import pandas as pd
