@@ -23,5 +23,6 @@ with Stage("sort_bam") as S:
             " --memory-limit={params.mem}MB"
             " --compression-level={params.compress}"
             " --nthreads={threads}"
+            " --out={output[0]}"
             " {input}"
             " >{log} 2>&1"
