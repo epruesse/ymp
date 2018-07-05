@@ -1,20 +1,27 @@
 Env(name="sambamba", base="bioconda", packages="sambamba")
 
-rule sambamba_sort:
-    message: "Sambamba: Sorting BAM file {input}"
-    input:   "{path}.bam"
-    output:  "{path}.sorted.bam",
-             "{path}.sorted.bam.bai"
-    log:     "{path}.sorted.bam.log"
-    benchmark: "benchmarks/sambamba_sort/{path}.txt"
-    params:  mem=icfg.mem("32g"),
-             compress=6
-    threads: 8
-    conda: "sambamba"
-    shell:
-        "sambamba sort"
-        " --memory-limit={params.mem}MB"
-        " --compression-level={params.compress}"
-        " --nthreads={threads}"
-        " {input}"
-        " >{log} 2>&1"
+with Stage("sort_bam") as S:
+    rule sambamba_sort:
+        message:
+            "Sambamba: Sorting BAM file {input}"
+        input:
+            "{:prev:}/{target}.bam"
+        output:
+            "{:this:}/{target}.sorted.bam",
+            "{:this:}/{target}.sorted.bam.bai"
+        log:
+            "{:this:}/{target}.sorted.bam.log"
+        params:
+            mem=icfg.mem("32g"),
+            compress=6
+        threads:
+            8
+        conda:
+            "sambamba"
+        shell:
+            "sambamba sort"
+            " --memory-limit={params.mem}MB"
+            " --compression-level={params.compress}"
+            " --nthreads={threads}"
+            " {input}"
+            " >{log} 2>&1"
