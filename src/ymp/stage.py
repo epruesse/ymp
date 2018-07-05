@@ -386,9 +386,13 @@ class Stage(WorkflowObject):
 
     def match(self, name):
         if not self._regex:
-            self._regex = re.compile(self.name +
-                                     "".join(p.regex for p in self.params))
-        return self._regex.fullmatch(name)
+            if self.altname:
+                sname = "(" + "|".join((self.name, self.altname)) + ")"
+            else:
+                sname = self.name
+            pat = sname + "".join(p.regex for p in self.params)
+            self._regex = re.compile(pat)
+        return self._regex.fullmatch(name) is not None
 
     def prev(self, args, kwargs):
         """Gathers {:prev:} calls from rules"""
