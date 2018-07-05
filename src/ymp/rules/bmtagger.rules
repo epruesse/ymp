@@ -39,7 +39,7 @@ with Stage("index_bmtagger") as S:
 
     rule bmtagger_index:
         message:
-            "BMTagger: srcprism indexing {input}"
+            "BMTagger: srprism indexing {input}"
         input:
             "{:prev:}/{:target:}.fasta.gz"
         output:
@@ -61,12 +61,22 @@ with Stage("index_bmtagger") as S:
         touch {output}
         """
 
+    rule bmtagger_index_all:
+        message:
+            "BMTagger: indexing done"
+        input:
+            "{:this:}/{:targets:}.srprism",
+            "{:this:}/{:targets:}.bitmask"
+        output:
+            touch("{:this:}/all")
+
 
 with Stage("filter_bmtagger", "remove_bmtagger") as S:
     S.doc("""
     Filter(-out) contaminant reads using BMTagger
 
     >>> ymp make toy.ref_phiX.index_bmtagger.remove_bmtagger
+    >>> ymp make toy.ref_phiX.index_bmtagger.remove_bmtagger.assemble_megahit
     >>> ymp make toy.ref_phiX.index_bmtagger.filter_bmtagger
     """)
 
