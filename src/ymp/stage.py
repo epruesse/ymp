@@ -161,7 +161,7 @@ class StageStack(object):
         for stage in registry.values():
             if stage.match(name):
                 return stage
-        raise YmpStageError("Unknown stage '{name}'")
+        raise YmpStageError(f"Unknown stage '{name}'")
 
     def complete(self, name):
         cfg = ymp.get_config()
