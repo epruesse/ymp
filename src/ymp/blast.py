@@ -4,6 +4,8 @@ from collections import namedtuple
 def reader(fileobj, t=7):
     if t == 7:
         return Fmt7Parser(fileobj)
+    elif t == 6:
+        return Fmt6Parser(fileobj)
     else:
         ValueError("other formats not implemented")
 
@@ -94,3 +96,22 @@ class Fmt7Parser(BlastParser):
 
     def isfirsthit(self):
         return self.hit == 1
+
+
+class Fmt6Parser(BlastParser):
+    fields = ("qseqid sseqid pident length mismatch gapopen "
+              "qstart qend sstart send evalue bitscore").split()
+    field_types = [BlastParser.FIELD_TYPE.get(n, None) for n in fields ]
+    Hit = namedtuple("BlastHit", fields)
+    def __init__(self, fileobj):
+        self.fileobj = fileobj
+
+    def get_fields(self):
+        return self.fields
+
+    def __iter__(self):
+        for line in self.fileobj:
+            yield self.Hit(*[t(v) if t else v
+                             for v, t in zip(line.split("\t"),
+                                             self.field_types)])
+
