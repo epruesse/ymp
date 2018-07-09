@@ -26,6 +26,9 @@ def nuc2aa(seq):
 @click.argument('input', type=click.File('r'))
 @click.argument('output', type=click.File('w'))
 def click_fasta_dna2aa(input, output):
+    if input.name.endswith(".gz"):
+        import gzip
+        input = gzip.open(input.name, "rt")
     fasta_dna2aa(input, output)
 
 
@@ -55,7 +58,8 @@ def fasta_dna2aa(input, output):
             seq = ""
         else:
             seq += line.strip()
-    write_aa(header, seq)
+    if header:
+        write_aa(header, seq)
 
 
 if __name__ == "__main__":
