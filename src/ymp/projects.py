@@ -263,7 +263,7 @@ class Project(Stage):
             try:
                 string_cols = string_cols[read_cols]
             except KeyError as e:
-                raise YmpConfigError("{}={} references invalid columns: {}"
+                raise YmpConfigError(self.cfg, "{}={} references invalid columns: {}"
                                      "".format(self.KEY_READCOLS,
                                                read_cols,
                                                e.args))
@@ -291,6 +291,7 @@ class Project(Stage):
                 rows = list(self.runs[broken_rows])
                 cols = list(self.run_data.columns[match[broken_rows].any])
                 raise YmpConfigError(
+                    self.cfg,
                     "Some rows contain more than two {}. "
                     "Use {} to specify the desired rows. "
                     "Rows in question: {} "
@@ -313,7 +314,7 @@ class Project(Stage):
         try:
             source = list(self.source_cfg.loc[run])
         except KeyError:
-            raise YmpConfigError("No run '{}' in source config".format(run))
+            raise YmpConfigError(self.cfg,"No run '{}' in source config".format(run))
 
         if isinstance(pair, str):
             pair = self.cfgmgr.pairnames.index(pair)
@@ -354,6 +355,7 @@ class Project(Stage):
             return make_local_path(self.cfgmgr, fn)
 
         raise YmpConfigError(
+            self.cfg,
             "Configuration Error: no source for sample {} and read {} found."
             "".format(run, pair+1))
 
@@ -367,7 +369,7 @@ class Project(Stage):
         # make sure all rows for this have the same source file
         source_cols = self.source_cfg.loc[rows].apply(set)
         if max(source_cols.apply(len)) > 1:
-            raise YmpConfigError("Mixed barcode and read files:\n"
+            raise YmpConfigError(self.cfg, "Mixed barcode and read files:\n"
                                  + source_cols.to_string())
 
         return [barcode_file, self.FQpath(rows.index[0], pair, nosplit=True)]
