@@ -145,6 +145,7 @@ class StageStack(object):
                 raise YmpStageError("multi-idx grouping not implemented")
 
             self.group = groups
+        log.info("Stage stack %s using column %s", self, self.group)
 
     def _find_stage(self, name):
         cfg = ymp.get_config()
