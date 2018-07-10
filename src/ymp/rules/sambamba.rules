@@ -26,3 +26,11 @@ with Stage("sort_bam") as S:
             " --out={output[0]}"
             " {input}"
             " >{log} 2>&1"
+
+    rule sambamba_sort_all:
+        message:
+            "Sambamba: done sorting"
+        input:
+            "{:this:}/{:targets:}.sorted.bam"
+        output:
+            touch("{:this:}/all")
