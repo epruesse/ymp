@@ -476,4 +476,4 @@ with Stage("map_bbmap") as S:
         output:
             touch("{:this:}/all")
         input:
-            "{:this:}/{:targets:}.sorted.bam"
+            "{:this:}/{:targets:}.bam"
