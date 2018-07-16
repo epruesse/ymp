@@ -76,12 +76,12 @@ with Stage("correct_bbmap") as S:
         """Error correction with BBMerge overlapping"""
         message: "BBMap: applying error correction to {input[0]}"
         input:
-            "{:prev:}/{sample}.{:pairnames:}.fq.gz"
+            "{:prev:}/{:target:}.{:pairnames:}.fq.gz"
         output:
-            "{:this:}/{sample}.{:pairnames:}.fq.gz",
-            adapter = "{:this:}/{sample}.adapter.fq"
+            "{:this:}/{target}.{:pairnames:}.fq.gz",
+            adapter = "{:this:}/{target}.adapter.fq"
         log:
-            "{:this:}/{sample}.log"
+            "{:this:}/{target}.log"
         threads: 16
         params:
             inout  = "in={input[0]} out={output[0]}",
@@ -100,9 +100,9 @@ with Stage("correct_bbmap") as S:
     # FIXME: Is this applicable?
     rule bbmap_error_correction_se:  # ymp: extends bbmap_error_correction
         input:
-            ["{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"],
+            ["{:prev:}/{target}.{:pairnames[0]:}.fq.gz"],
         output:
-            ["{:this:}/{sample}.{:pairnames[0]:}.fq.gz"],
+            ["{:this:}/{target}.{:pairnames[0]:}.fq.gz"],
         params:
             inout2 = ""
 
@@ -370,7 +370,7 @@ with Stage("primermatch_bbmap", "primerfail_bbmap") as S:
     S.doc("""
     Filters reads by matching reference primer
 
-    >>> ymp make mpic.primermatch_bbmap
+    >>> ymp make mpic.ref_primers.primermatch_bbmap
     """)
 
     rule bbduk_primer:
@@ -378,26 +378,27 @@ with Stage("primermatch_bbmap", "primerfail_bbmap") as S:
         Splits reads based on primer matching into "primermatch" and "primerfail".
         """
         message:
-            "BBduk: Filtering {wildcards.sample} for primer set {input.primer}"
+            "BBduk: Filtering {wildcards.target} for primer set {input.primer}"
         input:
-            "{:prev:}/{:target:}.{:pairnames:}.fq.gz",
-            primer = "primers.fasta"
+            fq     = "{:prev:}/{:target:}.{:pairnames:}.fq.gz",
+            primer = "{:prev:}/{:target:}.fasta.gz"
         output:
-            match  = "{:this:}/{target}.{:pairnames:}.fq.gz",
+            match  = "{:this:}/{target}.{:pairnames:}.fq.gz.xx",
             fail   = "{:that:}/{target}.{:pairnames:}.fq.gz",
             stats  = expand("{{:this:}}/{{target}}.{x}", x=bbduk_stats)
-        log:              "{:this:}/{target}.log"
+        log:
+            "{:this:}/{target}.log"
         threads: 8
         params:
             stats   = lambda wc, output: ["{}={}".format(x,y) for x,y in zip(bbstats, output.stats)],
             mem     = icfg.mem("80g"),
             k       = 12,
             rl      = 12,
-            inout2  = "in2={input[1]} outm2={output.match[1]} outu2={output.fail[1]}"
+            inout2  = "in2={input.fq[1]} outm2={output.match[1]} outu2={output.fail[1]}"
         conda: "bbmap"
         shell:
             'bbduk.sh'
-            ' in={input[0]} outm={output.match[0]} outu={output.fail[0]} '
+            ' in={input.fq[0]} outm={output.match[0]} outu={output.fail[0]} '
             ' {params.inout2} '
             ' ref={input.primer}'
             ' k={params.k}'               # match using k-mers
@@ -409,13 +410,16 @@ with Stage("primermatch_bbmap", "primerfail_bbmap") as S:
             ' pigz unpigz'
             ' {params.stats}'
             ' -Xmx{params.mem}m'
-
+            ' >{log} 2>&1'
 
     rule bbduk_primer_se:  # ymp: extends bbduk_primer
-        input:          "{:prev:}/{target}.{:pairnames[0]:}.fq.gz"
-        output: match = ["{:this:}/{target}.{:pairnames[0]:}.fq.gz"],
-                fail  = ["{:that:}/{target}.{:pairnames[0]:}.fq.gz"]
-        params: inout2 = ""
+        input:
+            fq = ["{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz"]
+        output:
+            match = ["{:this:}/{target}.{:pairnames[0]:}.fq.gz"],
+            fail  = ["{:that:}/{target}.{:pairnames[0]:}.fq.gz"]
+        params:
+            inout2 = ""
 
     rule bbduk_primer_all:
         message:
