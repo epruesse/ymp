@@ -1,4 +1,5 @@
 import logging
+import os
 
 import pytest
 
@@ -19,7 +20,16 @@ for stage in stages.values():
             targets.append(target)
 
 
+@pytest.fixture()
+def persistent_demo_dir(tmpdir_factory, invoker_nodir, scope="module"):
+    tmpdir = tmpdir_factory.mktemp("test_stages")
+    with tmpdir.as_cwd():
+        invoker_nodir.call("init", "demo")
+    yield tmpdir
+
+
 @pytest.mark.parametrize("target", targets)
-def test_stage_dryrun(invoker, target):
-    print(target)
+def test_stage_dryrun(invoker_nodir, target, persistent_demo_dir):
+    with persistent_demo_dir.as_cwd():
+        invoker_nodir.call("make", "-n", target)
 
