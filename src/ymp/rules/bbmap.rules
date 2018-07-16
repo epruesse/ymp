@@ -367,7 +367,7 @@ with Stage("primermatch_bbmap", "primerfail_bbmap") as S:
     S.doc("""
     Filters reads by matching reference primer
 
-    >>> ymp make mpic.primermatch_bbmap
+    #>>> ymp make mpic.primermatch_bbmap
     """)
 
     rule bbduk_primer:
