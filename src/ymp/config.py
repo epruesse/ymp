@@ -166,6 +166,14 @@ class ConfigMgr(object):
             cls.__instance = cls(*cls.find_config())
         return cls.__instance
 
+    @classmethod
+    def unload(cls):
+        log.debug("Unloading ConfigMgr")
+        ExpandableWorkflow.clear()
+        cls.__instance = None
+        from ymp.stage import StageStack
+        StageStack.stacks = {}
+
     def __init__(self, root, conffiles):
         log.debug("Inizializing ConfigMgr")
         self._root = root
@@ -194,12 +202,6 @@ class ConfigMgr(object):
             })),
             InheritanceExpander(),
         )
-
-    @classmethod
-    def unload(cls):
-        log.debug("Unloading ConfigMgr")
-        ExpandableWorkflow.clear()
-        cls.__instance = None
 
     @property
     def root(self):
