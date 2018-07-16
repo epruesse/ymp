@@ -152,8 +152,9 @@ class ConfigMgr(object):
         log.debug("Unloading ConfigMgr")
         ExpandableWorkflow.clear()
         cls.__instance = None
-        from ymp.stage import StageStack
+        from ymp.stage import Stage, StageStack
         StageStack.stacks = {}
+        Stage.active = None
 
     def __init__(self, root, conffiles):
         log.debug("Inizializing ConfigMgr")
