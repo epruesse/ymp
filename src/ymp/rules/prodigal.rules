@@ -1,34 +1,41 @@
 Env(name="prodigal", base="bioconda", packages="prodigal")
 
-with Stage("prodigal") as S:
+with Stage("annotate_prodigal") as S:
     S.doc("""
     Call genes using prodigal
-    """)
 
+    >>> ymp make toy.ref_genome.annotate_prodigal
+    """)
+    S.add_param(key="", typ="choice", name="procedure",
+                value=["S","M"], default="M")
+    S.add_param(key="G", typ="int", name="translation_table",
+                default=11)
     rule prodigal:
         """Predict genes using prodigal"""
-        message: "Gene prediction (Prodigal): {input}"
-        input:         "{:prev:}/{sample}.fasta.gz"
-        output:  gff = "{:this:}/{sample}.prodigal.gff.gz",
-                 fna = "{:this:}/{sample}.prodigal.fna.gz",
-                 faa = "{:this:}/{sample}.prodigal.faa.gz",
-        log:           "{:this:}/{sample}.prodigal.log"
+        message:
+            "Gene prediction (Prodigal): {input}"
+        input:
+            "{:prev:}/{:target:}.fasta.gz"
+        output:
+            gtf = "{:this:}/{target}.gtf"
+        log:
+            "{:this:}/{target}.log"
         threads: 1
-        conda:   "prodigal"
+        conda:
+            "prodigal"
         shell: """
         zcat {input} | \
         prodigal -p meta \
-            -f gff -o >(gzip -c9 > {output.gff}) \
-            -d >(gzip -c9 > {output.fna}) \
-            -a >(gzip -c9 > {output.faa}) \
-          >{log} 2>&1
-        gzip -9 {log}
+        -f gff -o {output.gtf} \
+        >{log} 2>&1
         """
+        #-d >(gzip -c9 > {output.fna}) \
+        #-a >(gzip -c9 > {output.faa}) \
 
     rule prodigal_all:
         message:
             "Prodigal: finished ({output})"
         input:
-            "{:this:}/{:targets:}.prodigal.gff.gz"
+            "{:this:}/{:targets:}.gtf"
         output:
             touch("{:this:}/all")
