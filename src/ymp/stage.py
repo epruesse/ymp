@@ -215,23 +215,22 @@ class StageStack(object):
         if self.group == ['ALL']:
             return 'ALL'
         targets = list(self.group_by.indices)
-        #targets = [t if isinstance(t, str) else '.'.join(t) for t in targets]
         return targets
 
     def target(self, args, kwargs):
         """Finds the target in the prev stage matching current target"""
         prev = self.get(self.prev(args, kwargs).name)
-        target = kwargs['wc'].target
+        cur_target = kwargs['wc'].target
         if prev.group == self.group:
-            return target
-        if prev.group == ["ALL"]:
-            return "ALL"
-        if self.group == ["ALL"]:
-            return prev.targets
-
-        df = self.project.run_data
-        vals = set(df[df[self.group[0]] == target][prev.group[0]])
-        return vals
+            target = cur_target
+        elif prev.group == ["ALL"]:
+            target = "ALL"
+        elif self.group == ["ALL"]:
+            target = prev.targets
+        else:
+            df = self.project.run_data
+            target = set(df[df[self.group[0]] == cur_target][prev.group[0]])
+        return target
 
     def sources(self, args, kwargs):
         """
