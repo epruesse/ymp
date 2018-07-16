@@ -71,6 +71,7 @@ with Stage("correct_bbmap") as S:
     observation where the alignment contains matches.
 
     >>> ymp make toy.correct_bbmap
+    >>> ymp make mpic.correct_bbmap
     """)
     rule bbmap_error_correction:
         """Error correction with BBMerge overlapping"""

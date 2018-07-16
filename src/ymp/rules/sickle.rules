@@ -7,6 +7,7 @@ with Stage("trim_sickle") as S:
 
     >>> ymp make toy.trim_sickle
     >>> ymp make toy.trim_sickleQ10L10
+    >>> ymp make mpic.trim_sickleL20
     """)
     S.add_param("Q", typ="int", name="qual", default=20)
     S.add_param("L", typ="int", name="length", default=20)

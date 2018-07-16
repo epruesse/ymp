@@ -9,9 +9,9 @@ with Stage("assemble_megahit") as S:
     S.doc("""
     Assemble metagenome using MegaHit.
 
-    >>> ymp make toy.assemble_megahit
-    >>> ymp make toy.group_ALL.assemble_megahit
-    >>> ymp make toy.group_Subject.assemble_megahit
+    >>> ymp make toy.assemble_megahit.map_bbmap
+    >>> ymp make toy.group_ALL.assemble_megahit.map_bbmap
+    >>> ymp make toy.group_Subject.assemble_megahit.map_bbmap
     """)
     rule megahit:
         """

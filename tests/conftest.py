@@ -187,6 +187,12 @@ def project(request):
 
 
 @pytest.fixture()
+def demo_dir(invoker, saved_cwd):
+    invoker.call("init", "demo")
+    return saved_cwd
+
+
+@pytest.fixture()
 def project_dir(request, project, saved_tmpdir):
     """Populated project directory
 
