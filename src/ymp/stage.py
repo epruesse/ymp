@@ -506,6 +506,12 @@ class StageExpander(ColonExpander):
                     val = val(args, kwargs)
                 if val is not None:
                     return val
+            if hasattr(stack.project, key):
+                val = getattr(stack.project, key)
+                if hasattr(val, "__call__"):
+                    val = val(args, kwargs)
+                if val is not None:
+                    return val
             return super().get_value(key, args, kwargs)
 
 

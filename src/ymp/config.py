@@ -35,27 +35,8 @@ class ConfigExpander(ColonExpander):
             cfg = self.expander.config_mgr
 
             # try to resolve variable as property of the config_mgr
-            res = getattr(cfg, field_name, None)
-            if res:
-                return res
-
-            ds = "no ds"
-            dirname = "no dir"
-            wc = "no wc"
-            if "wc" in kwargs:
-                wc = kwargs["wc"]
-
-                dirname = getattr(wc, "dir", None)
-                if not dirname:
-                    dirname = getattr(wc, "_YMP_PRJ", None)
-                if dirname:
-                    # Called late with "{dir}" in wildcards
-                    # try to resolve as part of dataset
-                    ds = cfg.getDatasetFromDir(dirname)
-                    res = getattr(ds, field_name, None)
-                    if res is not None:
-                        return res
-
+            if hasattr(cfg, field_name):
+                return getattr(cfg, field_name)
             return super().get_value(field_name, args, kwargs)
 
 

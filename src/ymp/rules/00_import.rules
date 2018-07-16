@@ -74,24 +74,32 @@ with Stage("") as import_stage:
             "Creating symlink {output} -> {input}"
         input:
             # extract path from config file:
-            lambda wc: import_stage.stack(wc).project.FQpath(wc.sample, 0),
-            lambda wc: import_stage.stack(wc).project.FQpath(wc.sample, 1)
+            lambda wc: import_stage.stack(wc).project.FQpath(wc.target, 0),
+            lambda wc: import_stage.stack(wc).project.FQpath(wc.target, 1)
         output:
-            "{:this:}/{sample}.{:pairnames:}.fq.gz"
+            "{:this:}/{target}.{:pairnames:}.fq.gz"
         run:
-            for n in range(2):
+            for n in range(len(input)):
                 if not os.path.isabs(input[n]):
                     input[n] = os.path.join("..", input[n])
                 os.symlink(input[n], output[n])
 
+    localrules: symlink_raw_reads_SE
+    rule symlink_raw_reads_SE: # ymp: extends symlink_raw_reads
+        input:
+            # extract path from config file:
+            lambda wc: import_stage.stack(wc).project.FQpath(wc.target, 0)
+        output:
+            ["{:this:}/{target}.{:pairnames[0]:}.fq.gz"]
+
     rule export_qiime_map_file:
         message:
-            "Creating Qiime map file for project {params.proj}"
+            "Creating Qiime map file"
         output:
             "{:this:}/qiime_mapping.tsv"
         run:
             import pandas as pd
-            df = import_stage.stack(wc).project.run_data
+            df = import_stage.stack(wildcards).project.run_data
             cols = df.columns.tolist()
 
             try:
@@ -101,7 +109,7 @@ with Stage("") as import_stage:
             except ValueError:
                 df["Description"] = ""
 
-                df.to_csv(output[0], sep="\t", index=False)
+            df.to_csv(output[0], sep="\t", index=False)
 
                 # TODO: Rename bccol to "BarcodeSequence"
                 #       Fake LinkerPrimerSequence col if not exists
@@ -114,61 +122,58 @@ with Stage("") as import_stage:
         output:
             touch("{:this:}/all")
         input:
-            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
+            "{:this:}/{:fq_names:}.fq.gz"
 
 
-rule split_library:
-    """
-    Splits barcode indexed files into separate fq files
-    """
-    message:
-        "Splitting library (barcodes: {input[0]}, reads: {input[1]})"
-    input:
-        lambda wc: icfg.projects[wc.project].unsplit_path(wc.barcodes, wc.pairname),
-        mapping = "{project}/qiime_mapping.tsv",
-        tmpdir  = ancient(icfg.dir.tmp)
-    output:
-        outdir  = temp("{project}.split_libraries/{barcodes}/{pairname}/")
-    log:
-        "{project}.split_libraries/{barcodes}/{pairname}/split_library_log.txt",
-        "{project}.split_libraries/{barcodes}/{pairname}/split_seq_file_log.txt",
-    conda:
-        "qiime.yml"
-    shell: """
-    split_libraries_fastq.py \
-       -b {input[0]} \
-       -i {input[1]} \
-       -m {input.mapping} \
-       --store_demultiplexed_fastq \
-       --max_bad_run_length=1000000 \
-       --min_per_read_length_fraction=0.000001 \
-       --sequence_max_n=100000 \
-       --phred_quality_threshold=1 \
-       -o {output}
+with Stage("split_library"):
+    rule split_library:
+        """
+        Splits barcode indexed files into separate fq files
+        """
+        message:
+            "Splitting library (barcodes: {input[0]}, reads: {input[1]})"
+        input:
+            lambda wc: icfg.projects[wc.project].unsplit_path(wc.barcodes, wc.pairname),
+            mapping = "{project}/qiime_mapping.tsv",
+            tmpdir  = ancient(icfg.dir.tmp)
+        output:
+            outdir  = temp("{project}.split_libraries/{barcodes}/{pairname}/")
+        log:
+            "{project}.split_libraries/{barcodes}/{pairname}/split_library_log.txt",
+            "{project}.split_libraries/{barcodes}/{pairname}/split_seq_file_log.txt",
+        conda:
+            "qiime.yml"
+        shell: """
+        split_libraries_fastq.py \
+           -b {input[0]} \
+           -i {input[1]} \
+           -m {input.mapping} \
+           --store_demultiplexed_fastq \
+           --max_bad_run_length=1000000 \
+           --min_per_read_length_fraction=0.000001 \
+           --sequence_max_n=100000 \
+           --phred_quality_threshold=1 \
+           -o {output}
 
-    split_sequence_file_on_sample_ids.py \
-       -i {output}/seqs.fastq \
-       --file_type fastq \
-       -o {output} \
-       > {log[1]} 2>&1
-    """
+        split_sequence_file_on_sample_ids.py \
+           -i {output}/seqs.fastq \
+           --file_type fastq \
+           -o {output} \
+           > {log[1]} 2>&1
+        """
 
-rule split_library_compress_sample:
-    message:
-        "Compressing {wildcards.sample}.{wildcards.pairname}.fq.gz"
-    input:
-        "{project}.split_libraries/{barcodes}/{pairname}/"
-    output:
-        "{project}.split_libraries/{barcodes}/{sample}.{pairname}.fq.gz"
-    conda:
-        "pigz.yml"
-    shell: """
-    pigz -6 -c <{input}/{wildcards.sample}.fastq >{output}
-    """
-
-###
-###  Linking into current workspace
-###
+    rule split_library_compress_sample:
+        message:
+            "Compressing {wildcards.sample}.{wildcards.pairname}.fq.gz"
+        input:
+            "{project}.split_libraries/{barcodes}/{pairname}/"
+        output:
+            "{project}.split_libraries/{barcodes}/{sample}.{pairname}.fq.gz"
+        conda:
+            "pigz.yml"
+        shell: """
+        pigz -6 -c <{input}/{wildcards.sample}.fastq >{output}
+        """
     
 
 
