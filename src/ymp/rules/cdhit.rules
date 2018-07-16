@@ -1,87 +1,131 @@
 Env(name="cdhit", base="bioconda", packages="cd-hit")
 
-rule cdhit_faa_single:
-    """Clustering predicted genes using cdhit"""
-    message:
-        "CD-HIT clustering {input} -> {output}"
-    input:
-        "{dir}/{file}.faa"
-    output:
-        fa="{dir}/{file}.NR.faa",
-        clstr="{dir}/{file}.NR.clstr"
-    log:
-        "{dir}/{file}.NR.faa.log"
-    threads:
-        33
-    params:
-        slow=1,
-        print_overlap=1,
-        description_length=0
-    conda:
-        "cdhit"
-    shell: """
-    cd-hit \
-    -T {threads} \
-    -M $[1024 * 4 * {threads}] \
-    -i {input} \
-    -o {output.fa} \
-    -g {params.slow} \
-    -p {params.print_overlap} \
-    -d {params.description_length} \
-    > {log} 2>&1
-    mv {output.fa}.clstr {output.clstr}
-    """
+with Stage("cluster_cdhit"):
+    S.doc("""
+    Clusters protein sequences using CD-HIT
 
-rule cdhit_clstr_to_csv:
-    input:
-        "{dir}/{file}.NR.clstr"
-    output:
-        "{dir}/{file}.NR.clstr.csv"
-    threads:
-        1
-    run:
-        import re, csv
-        clstr_format = re.compile(
-            "(?P<leaf_id>\d+)\s+(?P<qlen>\d+)aa,\s"
-            ">(?P<qacc>.*)\.\.\.\s"
-            "(at\s(?P<qstart>\d+):(?P<qend>\d+):(?P<sstart>\d+):(?P<send>\d+)/"
-            "(?P<pident>\d+\.\d+)%|\*)"
-            , flags = re.VERBOSE|re.ASCII)
-        fieldnames = ["cluster_id", "leaf_id",
-                      "sacc", "qacc", "qlen",
-                      "qstart", "qend", "sstart", "send",
-                      "pident"]
-        with open(input[0], "r") as inf, \
-             open(output[0], "w") as outf:
-            writer = csv.DictWriter(outf, fieldnames=fieldnames)
-            writer.writeheader()
-            rows=[]
-            cluster_id = None
-            sacc = None
-            for line in inf:
-                if line[0] == ">":
-                    if len(rows) > 0:
-                        for row in rows:
-                            row['sacc'] = sacc
-                        writer.writerows(rows)
-                        rows=[]
-                    cluster_id = line.split()[1].strip()
-                else:
-                    d = clstr_format.match(line).groupdict()
-                    d["cluster_id"] = cluster_id
-                    if "qstart" not in d or d["qstart"] is None:
-                        d["qstart"] = 1
-                        d["qend"] = d["qlen"]
-                        d["sstart"] = 1
-                        d["send"] = d["qlen"]
-                        d["pident"] = "100.00"
-                        sacc = d["qacc"]
-                    rows.append(d)
+    >>> ymp make toy.ref_query.cluster_cdhit
+    """)
 
-            if len(rows) > 0:
-                for row in rows:
-                    row['sacc'] = sacc
-                writer.writerows(rows)
+    rule cluster_cdhit_all:
+        message:
+            "CD-HIT: done"
+        output:
+            touch("{:this:}/all")
+        input:
+            "{:this:}/{:targets:}.clstr",
+            "{:this:}/{:targets:}.clstr.csv",
+            "{:this:}/{:targets:}.fastp.gz"
+
+    rule cdhit_prepare_input:
+        """Prepares input data for CD-HIT
+
+        - rewrites '*' to 'X' as stop-codon not understood by CD-HIT
+        - prefixes lost ID to Fasta ID
+        """
+        message:
+            "CDHit: preparing input data - {wildcards.target}"
+        input:
+            "{:prev:}/{:target:}.fastp.gz"
+        output:
+            temp("{:this:}/combined_{target}.fastp")
+        run:
+            import gzip
+            with open(output[0], "w") as outfasta:
+                for infile in input:
+                    id = os.path.basename(infile)[:-len(".fastp.gz")]
+                    with gzip.open(infile, "rt") as infasta:
+                        for line in infasta:
+                            if line.startswith(">"):
+                                outfasta.write("".join((">",id,":",line[1:])))
+                            else:
+                                outfasta.write(line.replace("*","X"))
+
+    rule cdhit_faa_single:
+        """Clustering predicted genes using cdhit"""
+        message:
+            "CD-HIT: clustering - {wildcards.target}"
+        input:
+            "{:this:}/combined_{target}.fastp"
+        output:
+            fa    = "{:this:}/{target}.fastp.gz",
+            clstr = "{:this:}/{target}.clstr"
+        log:
+            "{:this:}/{target}.log"
+        threads:
+            32
+        params:
+            mem=icfg.mem("32G"),
+            slow=1,
+            print_overlap=1,
+            description_length=0
+        conda:
+            "cdhit"
+        shell: """
+        cd-hit \
+        -T {threads} \
+        -M $[1024 * 4 * {threads}] \
+        -i {input} \
+        -o {output.fa} \
+        -g {params.slow} \
+        -p {params.print_overlap} \
+        -d {params.description_length} \
+        > {log} 2>&1
+        mv {output.fa}.clstr {output.clstr}
+        """
+
+    rule cdhit_clstr_to_csv:
+        message:
+            "CD-HIT: converting clustering output to csv - {wildcards.target}"
+        input:
+            "{:this:}/{target}.clstr"
+        output:
+            "{:this:}/{target}.clstr.csv"
+        threads:
+            1
+        run:
+            import re, csv
+            clstr_format = re.compile(
+                "(?P<leaf_id>\d+)\s+(?P<qlen>\d+)aa,\s"
+                ">(?P<qacc>.*)\.\.\.\s"
+                "(at\s(?P<qstart>\d+):(?P<qend>\d+):(?P<sstart>\d+):(?P<send>\d+)/"
+                "(?P<pident>\d+\.\d+)%|\*)"
+                , flags = re.VERBOSE|re.ASCII)
+            fieldnames = ["cluster_id", "leaf_id",
+                          "sacc", "qacc", "qlen",
+                          "qstart", "qend", "sstart", "send",
+                          "pident"]
+            with open(input[0], "r") as inf, \
+                 open(output[0], "w") as outf:
+                writer = csv.DictWriter(outf, fieldnames=fieldnames)
+                writer.writeheader()
+                rows=[]
+                cluster_id = None
+                sacc = None
+                for line in inf:
+                    if line[0] == ">":
+                        if len(rows) > 0:
+                            for row in rows:
+                                row['sacc'] = sacc
+                            writer.writerows(rows)
+                            rows=[]
+                        cluster_id = line.split()[1].strip()
+                    else:
+                        d = clstr_format.match(line).groupdict()
+                        d["cluster_id"] = cluster_id
+                        if "qstart" not in d or d["qstart"] is None:
+                            d["qstart"] = 1
+                            d["qend"] = d["qlen"]
+                            d["sstart"] = 1
+                            d["send"] = d["qlen"]
+                            d["pident"] = "100.00"
+                            sacc = d["qacc"]
+                        rows.append(d)
+
+                if len(rows) > 0:
+                    for row in rows:
+                        row['sacc'] = sacc
+                    writer.writerows(rows)
 
 
 
@@ -117,11 +161,3 @@ rule cdhit_fna_single:
     > {log} 2>&1
     """
 
-### Reports ###
-
-rule cluster_report:
-    message: "Generating Cluster Report"
-    input:   clusters="{dir}/{file}.NR.clstr.csv",
-             hits="{dir}/{file}.csv"
-    output:  "{:dir.reports:}/{dir}.{file}.cluster.html"
-    script:  srcdir("../R/cluster.Rmd")
