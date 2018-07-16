@@ -325,8 +325,8 @@ class Stage(WorkflowObject):
         if Stage.active is not None:
             raise YmpRuleError(
                 self,
-                "Failed to enter stage '{self.name}', "
-                "already in stage {self.active.name}'."
+                f"Failed to enter stage '{self.name}', "
+                f"already in stage {self.active.name}'."
             )
 
         Stage.active = self
