@@ -7,10 +7,18 @@ rule test:
     shell:
         "touch {output}"
 
-rule test2:
-    input:
-        fq = "{dir}/{:sources:}.{:pairnames:}.fq.gz"
-    output:
-        "{dir}/{target}"
-    shell:
-        "echo {input} > {output}"
+with Stage("test"):
+    rule test2:
+        input:
+            fq = "{:this:}/{:target:}.{:pairnames:}.fq.gz"
+        output:
+            "{:this:}/{target}"
+        shell:
+            "echo {input} > {output}"
+
+    rule test2_all:
+        input:
+            "{:this:}/{:targets:}.fq.gz"
+        output:
+            touch("{:this:}/all")
+
