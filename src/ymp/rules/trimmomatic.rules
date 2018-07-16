@@ -68,4 +68,4 @@ with Stage("trim_trimmomatic") as S:
         output:
             touch("{:this:}/all")
         input:
-            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
+            "{:this:}/{:fq_names:}.fq.gz"

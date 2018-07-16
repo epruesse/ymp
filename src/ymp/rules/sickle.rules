@@ -57,4 +57,4 @@ with Stage("trim_sickle") as S:
         output:
             touch("{:this:}/all")
         input:
-            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
+            "{:this:}/{:fq_names:}.fq.gz"
