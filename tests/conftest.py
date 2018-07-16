@@ -280,3 +280,14 @@ def invoker(saved_cwd):
     invoker = Invoker()
     yield invoker
     invoker.clean()
+
+
+@pytest.fixture()
+def invoker_nodir():
+    # Snakemake 4.7 waits 10 seconds during shutdown of cluster submitted
+    # worklows -- unless this is set:
+    os.environ['CIRCLECI'] = "true"
+
+    invoker = Invoker()
+    yield invoker
+    invoker.clean()
