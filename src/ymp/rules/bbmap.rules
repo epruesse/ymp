@@ -112,7 +112,7 @@ with Stage("correct_bbmap") as S:
         output:
             touch("{:this:}/all")
         input:
-            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
+            "{:this:}/{:fq_names:}.fq.gz"
 
 
 with Stage("trim_bbmap") as S:
@@ -129,6 +129,7 @@ with Stage("trim_bbmap") as S:
     >>> ymp make toy.trim_bbmap
     >>> ymp make toy.trim_bbmapA
     >>> ymp make toy.trim_bbmapAQ10L10
+    >>> ymp make mpic.trim_bbmap
     """)
     S.add_param("A", typ="flag", name="adapt", value="ref=$BB_RSRC/adapters.fa ")
     S.add_param("Q", typ="int", name="qual", default=20)
@@ -187,7 +188,7 @@ with Stage("trim_bbmap") as S:
         message:
             "BBMap: finished {output}"
         input:
-            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
+            "{:this:}/{:fq_names:}.fq.gz"
         output:
             touch("{:this:}/all")
 
@@ -199,6 +200,7 @@ with Stage("dedup_bbmap") as S:
     Applies BBMap's "dedupe.sh"
 
     >>> ymp make toy.dedup_bbmap
+    >>> ymp make mpic.dedup_bbmap
     """)
     rule bbmap_dedupe:
         """
@@ -267,7 +269,7 @@ with Stage("dedup_bbmap") as S:
         output:
             touch("{:this:}/all")
         input:
-            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
+            "{:this:}/{:fq_names:}.fq.gz"
 
 
 ruleorder: bbmap_dedupe > bbmap_dedupe_se
@@ -283,6 +285,7 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
 
     >>> ymp make toy.ref_phiX.index_bbmap.remove_bbmap
     >>> ymp make toy.ref_phiX.index_bbmap.filter_bbmap
+    >>> ymp make mpic.ref_phiX.index_bbmap.remove_bbmap
     """)
     rule bbmap_split:
         message:
@@ -348,7 +351,7 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
         output:
             touch("{:this:}/all")
         input:
-            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
+            "{:this:}/{:fq_names:}.fq.gz"
 
     rule bbmap_split_all_remove:
         message:
@@ -356,7 +359,7 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
         output:
             touch("{:that:}/all")
         input:
-            "{:that:}/{:targets:}.{:pairnames:}.fq.gz"
+            "{:that:}/{:fq_names:}.fq.gz"
 
 
 ###
@@ -367,7 +370,7 @@ with Stage("primermatch_bbmap", "primerfail_bbmap") as S:
     S.doc("""
     Filters reads by matching reference primer
 
-    #>>> ymp make mpic.primermatch_bbmap
+    >>> ymp make mpic.primermatch_bbmap
     """)
 
     rule bbduk_primer:
@@ -420,7 +423,7 @@ with Stage("primermatch_bbmap", "primerfail_bbmap") as S:
         output:
             touch("{:this:}/all")
         input:
-            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
+            "{:this:}/{:fq_names:}.fq.gz"
 
 
 with Stage("map_bbmap") as S:
@@ -429,6 +432,7 @@ with Stage("map_bbmap") as S:
 
     >>> ymp make toy.assemble_megahit.map_bbmap
     >>> ymp make toy.ref_genome.map_bbmap
+    >>> ymp make mpic.ref_ssu.map_bbmap
     """)
     rule bbmap_map:
         """Map read from each (co-)assembly read file to the assembly"""
@@ -446,7 +450,8 @@ with Stage("map_bbmap") as S:
         benchmark:
             "benchmarks/bbmap/{:this:}/{target}.txt"
         params:
-            mem = icfg.mem("80g")
+            mem = icfg.mem("80g"),
+            in2 = "in2={input.fq[1]}"
         threads:
             8
         conda:
@@ -459,7 +464,7 @@ with Stage("map_bbmap") as S:
             # " jni"                # use JNI for C alignment algo
             " nodisk "              # don't write index to disk
             " ref={input.fa}"       # reference
-            " in={input.fq[0]} in2={input.fq[1]}"
+            " in={input.fq[0]} {params.in2}"
             " out=stdout"           # write sam to stdout
             " machineout statsfile={output.stats}" # parseable stats
             " ihist={output.ihist}" # insert histogram
@@ -469,6 +474,12 @@ with Stage("map_bbmap") as S:
             " -Xmx{params.mem}m"     # set JVM heap size
             " 2>{log}"              # log error
             " | samtools view -b -o {output.bam} -" # convert to bam
+
+    rule bbmap_map_SE: # ymp: extends bbmap_map
+        input:
+            fq = ["{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz"]
+        params:
+            in2 = ""
 
     rule bbmap_map_all:
         message:
