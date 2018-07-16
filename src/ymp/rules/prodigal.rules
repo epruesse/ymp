@@ -24,7 +24,7 @@ with Stage("annotate_prodigal") as S:
         conda:
             "prodigal"
         shell: """
-        zcat {input} | \
+        gunzip -c {input} | \
         prodigal -p meta \
         -f gff -o {output.gtf} \
         >{log} 2>&1
