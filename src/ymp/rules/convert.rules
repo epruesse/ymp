@@ -90,7 +90,7 @@ rule mkdir:
     >>> input: tmpdir = ancient(icfg.dir.tmp)
     """
     message: "Creating directory '{output}'"
-    output: "{{x,({})}}".format("|".join(list(icfg.dir)))
+    output: directory("{{x,({})}}".format("|".join(list(icfg.dir))))
     shell: "mkdir -p {output}"
 
 

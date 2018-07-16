@@ -863,7 +863,7 @@ class InheritanceExpander(BaseExpander):
         self.ruleinfos[rule.name] = ruleinfo  # stash original ruleinfos
 
         if hasattr(ruleinfo, 'parent'):
-            return ruleinfo.parent.name, self.ruleinfos[ruleinfo.parent.name]
+            return ruleinfo.parent.rule.name, self.ruleinfos[ruleinfo.parent.rule.name]
 
         line = self.get_code_line(rule)
 

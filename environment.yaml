@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - python =3.6.*
-  - snakemake =4.8* # >4.8 has broken wildcard constraints
+  - snakemake >5.2
   # disabled, breaks R in utils, but unused. FIXME
   #  - rpy2 =2.8.5  # pinned to keep conda from taking for ever
   - click

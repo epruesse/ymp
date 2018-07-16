@@ -138,7 +138,7 @@ with Stage("split_library"):
             mapping = "{project}/qiime_mapping.tsv",
             tmpdir  = ancient(icfg.dir.tmp)
         output:
-            outdir  = temp("{project}.split_libraries/{barcodes}/{pairname}/")
+            outdir  = temp(directory("{project}.split_libraries/{barcodes}/{pairname}/"))
         log:
             "{project}.split_libraries/{barcodes}/{pairname}/split_library_log.txt",
             "{project}.split_libraries/{barcodes}/{pairname}/split_seq_file_log.txt",
