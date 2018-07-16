@@ -200,6 +200,7 @@ class FileDownloader(object):
                 if len(patsub) != 2:
                     raise ValueError("Malformed regular expression '{}'"
                                      "".format(pat))
+                patsub[1] = patsub[1].replace("\/", "/")
             else:
                 patsub = ["", ""]
             self._alturls.append(patsub)
@@ -309,6 +310,7 @@ class FileDownloader(object):
                 if not resp.status == 200:
                     self.log("Download failed: %s (error code %i)",
                              name, resp.status)
+                    self.log("  URL: '%s'", url.strip())
                     return False
                 size = int(resp.headers.get('content-length', 0))
 

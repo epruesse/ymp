@@ -45,6 +45,7 @@ conda:
   # Alternate URL patterns
   alturls:
     - /bioconda/bioconda-legacy/ # try bioconda-legacy
+    - /conda-forge/conda-forge\/label\/broken/
 # Default references
 references:
   # Human Genomes
