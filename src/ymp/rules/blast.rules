@@ -48,6 +48,7 @@ with Stage("index_blast"):
         -title {params.title} \
         &> {log} 2>&1
         """
+        # FIXME: check for "-" in fasta header - blast does not like those
 
     rule blast_makedb_all:
         input: expand("{{:this:}}/{{:targets:}}.{ext}", ext=BLASTIDX_SUFFIXES)
