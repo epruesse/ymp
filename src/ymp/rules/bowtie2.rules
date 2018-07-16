@@ -4,7 +4,7 @@ BT2IDX_SUFFIXES = "1.bt2 2.bt2 3.bt2 4.bt2 rev.1.bt2 rev.2.bt2".split()
 
 with Stage("index_bowtie2") as S:
     S.doc("""
-    >>> ymp make tor.ref_genome.index_bowtie2
+    >>> ymp make toy.ref_genome.index_bowtie2
     """)
     rule bowtie2_index:
         message:
