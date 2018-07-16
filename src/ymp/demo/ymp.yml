@@ -7,8 +7,8 @@ projects:
       - paste:
           - 'mpic_data/map.tsv'
           - table:
-             - forward_reads: 'forward_reads.fastq.gz'
-             - barcodes: 'barcodes.fastq.gz'
+             - forward_reads: 'mpic_data/forward_reads.fastq.gz'
+             - barcodes: 'mpic_data/barcodes.fastq.gz'
 
 references:
   ssu:
