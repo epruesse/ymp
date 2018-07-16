@@ -78,7 +78,7 @@ with Stage("filter_bmtagger", "remove_bmtagger") as S:
     >>> ymp make toy.ref_phiX.index_bmtagger.remove_bmtagger
     >>> ymp make toy.ref_phiX.index_bmtagger.remove_bmtagger.assemble_megahit
     >>> ymp make toy.ref_phiX.index_bmtagger.filter_bmtagger
-    >>> ymp make mpic.ref_phix.index_bmtagger.remove_bmtagger
+    >>> ymp make mpic.ref_phiX.index_bmtagger.remove_bmtagger
     """)
 
     ruleorder: gunzip > bmtagger_find
