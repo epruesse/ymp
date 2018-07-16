@@ -15,6 +15,9 @@ references:
     - url: 'toy_data/ssu.fasta.gz'
   genome:
     - url: 'toy_data/reference_1K.fa.gz'
+  query:
+    - url: 'toy_data/query.faa'
+      type: fastp
   primers:
     - url: 'mpic_data/primers.fasta'
 
