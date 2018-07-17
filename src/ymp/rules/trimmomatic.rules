@@ -66,6 +66,6 @@ with Stage("trim_trimmomatic") as S:
         message:
             "Trimmomatic: complete"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
         input:
             "{:this:}/{:fq_names:}.fq.gz"

@@ -38,4 +38,4 @@ with Stage("annotate_prodigal") as S:
         input:
             "{:this:}/{:targets:}.gtf"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")

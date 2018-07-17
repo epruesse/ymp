@@ -55,6 +55,6 @@ with Stage("trim_sickle") as S:
         message:
             "Sickle: complete"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
         input:
             "{:this:}/{:fq_names:}.fq.gz"

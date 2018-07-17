@@ -11,7 +11,7 @@ with Stage("cluster_cdhit"):
         message:
             "CD-HIT: done"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
         input:
             "{:this:}/{:targets:}.clstr",
             "{:this:}/{:targets:}.clstr.csv",

@@ -97,4 +97,4 @@ with Stage("metaphlan2") as S:
         input:
             "{:this:}/merged_abundance_table.txt"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")

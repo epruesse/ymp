@@ -14,7 +14,7 @@ rule phyloFlash_makedb:
     """PhyloFlash: Building reference database"""
     message: "PhyloFlash running makedb.pl"
     output:  dbhome = "{:ref.phyloFlash.dir:}",
-             stamp  = "{:ref.phyloFlash.dir:}/all",
+             stamp  = "{:ref.phyloFlash.dir:}/all_targets.stamp",
     log:     "{:ref.phyloFlash.dir:}/build.log"
     input:   ssu="{:ref.silva:}.fasta.gz",
              univec="{:ref.UniVec:}.fasta.gz"

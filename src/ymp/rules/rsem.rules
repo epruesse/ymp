@@ -79,7 +79,7 @@ with Stage("quant_rsem") as S:
         input:
             "{:this:}/all_{:targets:}"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
 
     # TODO: SE mode
 

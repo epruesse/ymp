@@ -150,5 +150,5 @@ with Stage("humann2") as S:
                    mode=("community", "levelwise"), \
                    unit=("cpm", "relab"))
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
 

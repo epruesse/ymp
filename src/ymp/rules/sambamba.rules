@@ -33,4 +33,4 @@ with Stage("sort_bam") as S:
         input:
             "{:this:}/{:targets:}.sorted.bam"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")

@@ -89,6 +89,6 @@ with Stage("assemble_megahit") as S:
         input:
             "{:this:}/{:targets:}.fasta.gz"
         output:
-            "{:this:}/all"
+            "{:this:}/all_targets.stamp"
         shell:
             "touch {output}"

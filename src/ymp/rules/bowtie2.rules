@@ -33,7 +33,7 @@ with Stage("index_bowtie2") as S:
         message:
             "Bowtie2: Indexing done"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
         input:
             expand("{{:this:}}/{{:targets:}}.{ext}", ext=BT2IDX_SUFFIXES)
 
@@ -91,7 +91,7 @@ with Stage("map_bowtie2") as S:
         message:
             "Bowtie2: Completed"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
         input:
             "{:this:}/{:targets:}.bam"
 

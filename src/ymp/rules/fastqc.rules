@@ -45,4 +45,4 @@ with Stage("qc_fastqc") as S:
         input:
             "{:this:}/{:targets:}.{:pairnames:}_fastqc.zip"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")

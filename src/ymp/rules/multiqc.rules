@@ -16,7 +16,7 @@ with Stage("qc_multiqc") as S:
             flist   = "{:this:}/file_list.txt",
             report  = "{:this:}/multiqc_report.html",
             report2 = "{:dir.reports:}/{:this:}.html",
-            a = touch("{:this:}/all")
+            a = touch("{:this:}/all_targets.stamp")
         log:
                      "{:this:}/multiqc.log"
         params:

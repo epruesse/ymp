@@ -68,7 +68,7 @@ with Stage("index_bmtagger") as S:
             "{:this:}/{:targets:}.srprism",
             "{:this:}/{:targets:}.bitmask"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
 
 
 with Stage("filter_bmtagger", "remove_bmtagger") as S:
@@ -176,7 +176,7 @@ with Stage("filter_bmtagger", "remove_bmtagger") as S:
         message:
             "BMTagge: done"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
         input:
             "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
 
@@ -184,6 +184,6 @@ with Stage("filter_bmtagger", "remove_bmtagger") as S:
         message:
             "BMTagge: done"
         output:
-            touch("{:that:}/all")
+            touch("{:that:}/all_targets.stamp")
         input:
             "{:that:}/{:targets:}.{:pairnames:}.fq.gz"

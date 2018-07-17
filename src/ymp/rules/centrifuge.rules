@@ -45,4 +45,4 @@ with Stage("profile_centrifuge") as S:
         params:
             basedir = "{:this:}"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")

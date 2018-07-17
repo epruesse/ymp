@@ -199,8 +199,9 @@ def start_snakemake(kwargs):
             for t in kwargs['targets']:
                 try:
                     stack = StageStack.get(t)
-                    targets.append(os.path.join(t, 'all'))
-                except YmpStageError:
+                    targets.append(os.path.join(t, 'all_targets.stamp'))
+                except YmpStageError as e:
+                    #log.exception("asd")
                     targets.append(t)
             kwargs['targets'] = targets
 

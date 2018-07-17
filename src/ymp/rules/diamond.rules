@@ -33,7 +33,7 @@ with Stage("index_diamond"):
         input:
             "{:this:}/{:targets:}.dmnd"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
 
 
 with Stage("annotate_diamond") as S:
@@ -140,7 +140,7 @@ with Stage("map_diamond") as S:
         input:
             "{:this:}/{:targets:}.{:pairnames:}.daa"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
              
 with Stage("count_diamond"):
     rule diamond_count_all:
@@ -149,7 +149,7 @@ with Stage("count_diamond"):
         input:
             "{:this:}/{:targets:}.counts.tsv"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
 
     rule diamond_count:
         message:

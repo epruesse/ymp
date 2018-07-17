@@ -45,6 +45,6 @@ with Stage("map_hisat2") as S:
     rule hisat2_all:
         message: "Hisat2: Mapped all in {output}"
         input:        "{:this:}/stamp.all_{:targets:}"
-        output: touch("{:this:}/all")
+        output: touch("{:this:}/all_targets.stamp")
 
 

@@ -52,7 +52,7 @@ with Stage("index_blast"):
 
     rule blast_makedb_all:
         input: expand("{{:this:}}/{{:targets:}}.{ext}", ext=BLASTIDX_SUFFIXES)
-        output: touch("{:this:}/all")
+        output: touch("{:this:}/all_targets.stamp")
 
 
 
@@ -93,7 +93,7 @@ with Stage("annotate_tblastn") as S:
 
     rule tblastn_all:
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
         input:
             "{:this:}/{:targets:}.gtf"
 

@@ -121,7 +121,7 @@ with Stage("") as import_stage:
         message:
             "Created project data directory"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
         input:
             "{:this:}/{:fq_names:}.fq.gz"
 

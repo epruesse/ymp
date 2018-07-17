@@ -115,5 +115,5 @@ with Stage("count_stringtie"):
         input:
             touch("{:this:}/all_{:targets:}")
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
 

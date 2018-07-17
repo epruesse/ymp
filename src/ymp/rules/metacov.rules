@@ -23,7 +23,7 @@ rule cov_all:
     input:
         "{dir}.contigcov/all_{:targets:}"
     output:
-        touch("{dir}.contigcov/all")
+        touch("{dir}.contigcov/all_targets.stamp")
 
 
 rule metacov_scan:

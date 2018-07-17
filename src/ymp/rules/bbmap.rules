@@ -53,7 +53,7 @@ with Stage("index_bbmap") as S:
         message:
             "BBMap: indexing done"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
         input:
             directory("{:this:}/{:targets:}")
 
@@ -108,7 +108,7 @@ with Stage("correct_bbmap") as S:
         message:
             "BBMap: error correction complete"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
         input:
             "{:this:}/{:fq_names:}.fq.gz"
 
@@ -188,7 +188,7 @@ with Stage("trim_bbmap") as S:
         input:
             "{:this:}/{:fq_names:}.fq.gz"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
 
 
 with Stage("dedup_bbmap") as S:
@@ -265,7 +265,7 @@ with Stage("dedup_bbmap") as S:
         message:
             "BBMap: dedupe done"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
         input:
             "{:this:}/{:fq_names:}.fq.gz"
 
@@ -346,7 +346,7 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
         message:
             "BBMap: split complete"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
         input:
             "{:this:}/{:fq_names:}.fq.gz"
 
@@ -354,7 +354,7 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
         message:
             "BBMap: split complete"
         output:
-            touch("{:that:}/all")
+            touch("{:that:}/all_targets.stamp")
         input:
             "{:that:}/{:fq_names:}.fq.gz"
 
@@ -422,7 +422,7 @@ with Stage("primermatch_bbmap", "primerfail_bbmap") as S:
         message:
             "BBMap: primer filter done"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
         input:
             "{:this:}/{:fq_names:}.fq.gz"
 
@@ -486,6 +486,6 @@ with Stage("map_bbmap") as S:
         message:
             "BBMap: mapping done"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
         input:
             "{:this:}/{:targets:}.bam"
