@@ -7,11 +7,12 @@ import logging
 import re
 import sys
 from copy import copy, deepcopy
-from inspect import getframeinfo, stack
+from inspect import getframeinfo, signature, stack, Parameter
 from typing import Optional
 
 from snakemake.exceptions import RuleException, CreateRuleException
-from snakemake.io import AnnotatedString, apply_wildcards
+from snakemake.io import AnnotatedString, apply_wildcards, \
+    strip_wildcard_constraints, get_wildcard_names
 from snakemake.io import Namedlist as _Namedlist
 from snakemake.rules import Rule
 from snakemake.workflow import RuleInfo, Workflow
@@ -170,12 +171,12 @@ ruleinfo_fields = {
     },
     'threads': {
         'format': 'int',
-        'funcparams': ('input', 'attempt', 'threads')
+        'funcparams': ('wildcards', 'input', 'attempt', 'threads')
         # stored as resources._cores
     },
     'resources': {
         'format': 'argstuple',  # len(t[0]) must be == 0, t[1] must be ints
-        'funcparams': ('input', 'attempt', 'threads'),
+        'funcparams': ('wildcards', 'input', 'attempt', 'threads'),
     },
     'params': {
         'format': 'argstuple',
@@ -544,8 +545,6 @@ class BaseExpander(object):
         return late_expand
 
     def _make_list_wrapper(self, value):
-        from inspect import signature
-
         def wrapper(*args, **kwargs):
             res = []
             for subitem in value:
@@ -751,35 +750,43 @@ class RecursiveExpander(BaseExpander):
 
         # expand variables
         for node in nodes:
-            name = deps.nodes[node]['name']
-            idx = deps.nodes[node]['idx']
-            value = args[name][idx]
-            if isinstance(value, str):
-                try:
-                    value2 = partial_format(value, **args)
-                except FormattingError as e:
-                    raise RuleException(
-                        "Unable to resolve wildcard '{{{}}}' in parameter {}"
-                        "in rule {}".format(e.attr, node, rule.name))
-                except IndexError as e:
-                    raise RuleException(
-                        "Unable to format '{}' using '{}'".format(value, args))
-                names = [name.split(".")[0].split("[")[0]
-                         for name in get_names(value2)]
+            var_name = deps.nodes[node]['name']
+            var_idx = deps.nodes[node]['idx']
+            value = args[var_name][var_idx]
+            if not isinstance(value, str):
+                continue
 
-                def late_input(value):
-                    def wrapper(wc, input):
-                        return partial_format(value, input=input)
+            # format what we can
+            valnew = partial_format(value, **args)
+
+            # check if any remaining wilcards refer to rule fields
+            names = get_wildcard_names(valnew)
+            field_names = ruleinfo_fields[var_name].get('funcparams', [])
+            parm_names = [name for name in field_names if name in names]
+
+            if parm_names:
+                # Snakemake won't expand wildcards in output of functions,
+                # so we need to format everything here
+                def late_recursion(val, fparms):
+                    def wrapper(wildcards, **kwargs):
+                        # no partial here, fail if anything left
+                        return strip_wildcard_constraints(val).format(
+                            **kwargs, **wildcards)
+                    # adjust the signature so that snakemake will pass us
+                    # everything we need
+                    parms = (Parameter(pname, Parameter.POSITIONAL_OR_KEYWORD)
+                             for pname in fparms)
+                    newsig = signature(wrapper).replace(parameters=parms)
+                    wrapper.__signature__ = newsig
                     return wrapper
 
-                if 'input' in names:
-                    args[name][idx] = late_input(value2)
-                else:
-                    args[name][idx] = value2
+                valnew = late_recursion(valnew, parm_names)
 
-                if ymp.print_rule == 1:
-                    log.debug("{}::{}: {} => {}".format(rule.name,
-                                                        node, value, value2))
+            args[var_name][var_idx] = valnew
+
+            if ymp.print_rule == 1:
+                log.debug("{}::{}: {} => {}".format(rule.name,
+                                                    node, value, valnew))
 
         # update ruleinfo
         for name in fields:
