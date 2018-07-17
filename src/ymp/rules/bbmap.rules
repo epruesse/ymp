@@ -31,20 +31,17 @@ with Stage("index_bbmap") as S:
         input:
             "{:prev:}/{target}.fasta.gz"
         output:
-            "{:this:}/{target}/ref/genome/1/summary.txt",
-            touch("{:this:}/{target}.bbmap_index")
+            directory("{:this:}/{target}")
         log:
             "{:this:}/{target}.log"
         params:
-            path="{:this:}/{target}/",
             mem=icfg.mem("80g")
         threads: 8
         conda:
             "bbmap"
         shell: """
-        mkdir {params.path} || true
         bbmap.sh \
-            path={params.path} \
+            path={output} \
             ref={input} \
             threads={threads} \
             pigz unpigz \
@@ -58,7 +55,7 @@ with Stage("index_bbmap") as S:
         output:
             touch("{:this:}/all")
         input:
-            "{:this:}/{:targets:}.bbmap_index"
+            directory("{:this:}/{:targets:}")
 
 
 with Stage("correct_bbmap") as S:
@@ -293,7 +290,7 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
             "BBMap filtering - {input[0]}"
         input:
             fq    = "{:prev:}/{target}.{:pairnames:}.fq.gz",
-            ref   = "{:prev:}/{:target:}.bbmap_index"
+            ref   = directory("{:prev:}/{:target:}")
         output:
             clean = "{:this:}/{target}.{:pairnames:}.fq.gz",
             human = "{:that:}/{target}.{:pairnames:}.fq.gz",
@@ -302,7 +299,6 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
                     "{:this:}/{target}.log"
         params:
             stats    = lambda wc, output: ["{}={}".format(x,y) for x,y in zip(bbstats, output.stats)],
-            ref = lambda wc, input: input.ref[:-(len(".bbmap_index"))],
             minid    = 0.95,
             maxindel = 3,
             bwr      = 0.16,
@@ -325,7 +321,7 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
             " bw={params.bw} "
             " {params.flags} "
             " minhits={params.minhits} "
-            " path={params.ref} "
+            " path={input.ref} "
             " qtrim={params.qtrim} "
             " trimq={params.trimq} "
             " -Xmx{params.mem}m "
