@@ -147,7 +147,7 @@ def test_env_prepare(invoker, demo_dir, mock_conda):
     invoker.initialized = False
     res = invoker.call("env", "prepare",
                        "--conda-prefix=.",
-                       "toy.trim_bbmap/all")
+                       "toy.trim_bbmap/all_targets.stamp")
 
     res = invoker.call("env", "list", "bbmap")
     lines = res.output.splitlines()
