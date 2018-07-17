@@ -138,34 +138,32 @@ class Env(WorkflowObject, snakemake.conda.Env):
         self._env_dir = op.abspath(prefix)
 
     def create(self, dryrun=False):
-        """Ensure the conda environment has been created""
+        """Ensure the conda environment has been created
 
         Inherits from snakemake.conda.Env.create
 
-        Behavior of super class
-        ~~~~~~~~~~~~~~~~~~~~~~~
+        Behavior of super class::
 
-        The environment is installed in a folder in ``conda_prefix``
-        named according to a hash of the ``environment.yaml`` defining
-        the environment and the value of ``conda-prefix``
-        (``Env.hash``). The latter is included as installed
-        environments cannot be moved.
+            The environment is installed in a folder in ``conda_prefix``
+            named according to a hash of the ``environment.yaml`` defining
+            the environment and the value of ``conda-prefix``
+            (``Env.hash``). The latter is included as installed
+            environments cannot be moved.
 
-        - If this folder (``Env.path``) exists, nothing is done.
+            - If this folder (``Env.path``) exists, nothing is done.
 
-        - If a folder named according to the hash of just the contents
-        of ``environment.yaml`` exists, the environment is created by
-        unpacking the tar balls in that folder.
+            - If a folder named according to the hash of just the contents
+              of ``environment.yaml`` exists, the environment is created by
+              unpacking the tar balls in that folder.
 
-        Handling pre-computed environment specs
-        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        Handling pre-computed environment specs::
 
-        In addition to freezing environments by maintaining a copy of
-        the package binaries, we allow maintaining a copy of the
-        package binary URLs, from which the archive folder is populated
-        on demand.
+            In addition to freezing environments by maintaining a copy of
+            the package binaries, we allow maintaining a copy of the
+            package binary URLs, from which the archive folder is populated
+            on demand.
 
-        If a file ``{Env.name}.txt`` exists in ``conda.spec
+        If a file ``{Env.name}.txt`` exists in ``conda.spec``
         FIXME
         """
         # Skip if environment already exists
