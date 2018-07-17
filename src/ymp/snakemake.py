@@ -12,7 +12,7 @@ from typing import Optional
 
 from snakemake.exceptions import RuleException, CreateRuleException
 from snakemake.io import AnnotatedString, apply_wildcards, \
-    strip_wildcard_constraints, get_wildcard_names
+    strip_wildcard_constraints
 from snakemake.io import Namedlist as _Namedlist
 from snakemake.rules import Rule
 from snakemake.workflow import RuleInfo, Workflow
@@ -760,7 +760,8 @@ class RecursiveExpander(BaseExpander):
             valnew = partial_format(value, **args)
 
             # check if any remaining wilcards refer to rule fields
-            names = get_wildcard_names(valnew)
+            names = [re.split(r'\.|\[', name, maxsplit=1)[0]
+                     for name in get_names(valnew)]
             field_names = ruleinfo_fields[var_name].get('funcparams', [])
             parm_names = [name for name in field_names if name in names]
 
