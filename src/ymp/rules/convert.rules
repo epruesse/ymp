@@ -56,7 +56,7 @@ rule gunzip:
     """
     Generic temporary gunzip
 
-    Use `ruleorder: gunzip > myrule` to prefer gunzipping
+    Use ``ruleorder: gunzip > myrule`` to prefer gunzipping
     over re-running a rule. E.g.
 
     >>> ruleorder: gunzip > myrule

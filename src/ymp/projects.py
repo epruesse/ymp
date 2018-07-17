@@ -309,8 +309,7 @@ class Project(Stage):
         return source_cfg
 
     def FQpath(self, run, pair, nosplit=False):
-        """Get path for FQ file for `run` and `pair`
-        """
+        """Get path for FQ file for ``run`` and ``pair``"""
         try:
             source = list(self.source_cfg.loc[run])
         except KeyError:

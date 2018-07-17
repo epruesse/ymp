@@ -16,7 +16,7 @@ with Stage("assemble_metaspades") as S:
         use the dataset config option.
 
         Preparing in a separate rule so that the main metaspades rule can use
-        the `shell:` rule and not `run:`, which would preclude it from
+        the ``shell:`` rule and not ``run:``, which would preclude it from
         using conda environments.
         """
         message:

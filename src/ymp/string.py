@@ -23,9 +23,10 @@ class GetNameFormatter(Formatter):
 class OverrideJoinFormatter(Formatter):
     """Formatter with overridable join method
 
-    The default formatter joins all arguments with `"".join(args)`. This
-    class overrides _vformat with identical code, changing only that line
-    to one that can be overridden by a derived class.
+    The default formatter joins all arguments with
+    ``"".join(args)``. This class overrides :meth:`_vformat` with
+    identical code, changing only that line to one that can be
+    overridden by a derived class.
     """
 
     def _vformat(self,
@@ -89,7 +90,7 @@ class OverrideJoinFormatter(Formatter):
         """
         Joins the expanded pieces of the template string to form the output.
 
-        This function is equivalent to `''.join(args)`. By overriding it,
+        This function is equivalent to ``''.join(args)``. By overriding it,
         alternative methods can be implemented, e.g. to create a list of
         strings, each corresponding to a the cross product of the expanded
         variables.

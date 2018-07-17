@@ -310,13 +310,28 @@ class Stage(WorkflowObject):
     def env(self, name: str) -> None:
         """Add package specifications to Stage environment
 
+        Note:
+          This sets the environment for all rules within the stage,
+          which leads to errors with Snakemake rule types
+          not supporting conda environments
+
         Args:
           name: Environment name or filename
 
-        Example:
-          Env("bowtie2", packages="blast =2.7*")
-          with Stage("test") as S:
-            S.env("bowtie2")
+        >>> Env("blast", packages="blast =2.7*")
+        >>> with Stage("test") as S:
+        >>>    S.env("blast")
+        >>>    rule testing:
+        >>>       ...
+
+        >>> with Stage("test", env="blast") as S:
+        >>>    rule testing:
+        >>>       ...
+
+        >>> with Stage("test") as S:
+        >>>    rule testing:
+        >>>       conda: "blast"
+        >>>       ...
         """
         self.conda_env = name
 
@@ -364,7 +379,7 @@ class Stage(WorkflowObject):
           typ:  The type of the parameter (int, flag)
           param: Name of parameter in params
           value: value ``{param.xyz}`` should be set to if param given
-          default: default value for `{{param.xyz}}`` if no param given
+          default: default value for ``{{param.xyz}}`` if no param given
         """
         if typ == 'flag':
             self.params.append(ParamFlag(self, key, name, value, default))

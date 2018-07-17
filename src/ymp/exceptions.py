@@ -1,8 +1,8 @@
 """Exceptions raised by YMP"""
 
+import textwrap
 from inspect import stack
 from typing import Optional
-import textwrap
 
 from click import ClickException, echo
 
@@ -25,15 +25,17 @@ class YmpNoStackException(YmpException, ClickException):
 
     Note that click will call the ``show`` method on this object to
     print the exception. The default implementation from click will
-    just prefix the ``msg`` with ``Error: ``.
+    just prefix the ``msg`` with ``Error:``.
 
     FIXME: This does not work if the exception is raised from within
         the snakemake workflow as snakemake.snakemake catches and
         reformats exceptions.
     """
 
+
 class YmpUsageError(YmpNoStackException):
     pass
+
 
 class YmpSystemError(YmpNoStackException):
     """Indicates problem running YMP with available system software"""

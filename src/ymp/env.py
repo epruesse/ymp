@@ -142,8 +142,7 @@ class Env(WorkflowObject, snakemake.conda.Env):
 
         Inherits from snakemake.conda.Env.create
 
-        Behavior of super class::
-
+        Behavior of super class
             The environment is installed in a folder in ``conda_prefix``
             named according to a hash of the ``environment.yaml`` defining
             the environment and the value of ``conda-prefix``
@@ -156,8 +155,7 @@ class Env(WorkflowObject, snakemake.conda.Env):
               of ``environment.yaml`` exists, the environment is created by
               unpacking the tar balls in that folder.
 
-        Handling pre-computed environment specs::
-
+        Handling pre-computed environment specs
             In addition to freezing environments by maintaining a copy of
             the package binaries, we allow maintaining a copy of the
             package binary URLs, from which the archive folder is populated
@@ -362,9 +360,9 @@ snakemake.conda.Env = Env
 class CondaPathExpander(BaseExpander):
     """Applies search path for conda environment specifications
 
-    File names supplied via `rule: conda: "some.yml"` are replaced with
+    File names supplied via ``rule: conda: "some.yml"`` are replaced with
     absolute paths if they are found in any searched directory.
-    Each `search_paths` entry is appended to the directory
+    Each ``search_paths`` entry is appended to the directory
     containing the top level Snakefile and the directory checked for
     the filename. Thereafter, the stack of including Snakefiles is traversed
     backwards. If no file is found, the original name is returned.

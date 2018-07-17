@@ -20,14 +20,27 @@ _snakefile = os.path.join(_rule_dir, "Snakefile")
 _defaults_file = os.path.join(_etc_dir, "defaults.yml")
 _env_dir = os.path.join(_rsc_dir, "conda_envs")
 
+import sys
+if 'sphinx' in sys.modules:
+    import ymp.config  # required for type hints below
 
-# Set to 1 to print the next rule during parsing (debug)
+#: Set to 1 to show the YMP expansion process as it is applied to the next
+#: Snakemake rule definition.
+#:
+#: >>> ymp.print_rule = 1
+#: >>> rule broken:
+#: >>>   ...
+#:
+#: >>> ymp make broken -vvv
 print_rule = 0
 
 
-def get_config():
-    """
-    Return instance of current YMP Config Manager
+def get_config() -> 'config.ConfigMgr':
+    """Access the current YMP configuration object.
+
+    This object might change once during normal execution: it is
+    deleted before passing control to Snakemake. During unit test
+    execution the object is deleted between all tests.
     """
     from ymp.config import ConfigMgr
     return ConfigMgr.instance()

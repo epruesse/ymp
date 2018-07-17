@@ -99,14 +99,14 @@ class ConfigMgr(object):
         """Locates ymp config files and ymp root
 
         The root ymp work dir is determined as the first (parent)
-        directory containing a file named `ConfigMgr.CONF_FNAME`
+        directory containing a file named ``ConfigMgr.CONF_FNAME``
         (default ``ymp.yml``).
 
         The stack of config files comprises 1. the default config
-        ``ConfigMgr.CONF_DEFAULT_FNAME` (``etc/defaults.yml`` in the
+        ``ConfigMgr.CONF_DEFAULT_FNAME`` (``etc/defaults.yml`` in the
         ymp package directory), 2. the user config
-        `ConfigMgr.CONF_USER_FNAME` (``~/.ymp/ymp.yml``) and 3. the
-        `yml.yml` in the ymp root.
+        ``ConfigMgr.CONF_USER_FNAME`` (``~/.ymp/ymp.yml``) and 3. the
+        ``yml.yml`` in the ymp root.
 
         Returns:
           root: Root working directory
@@ -305,7 +305,7 @@ class ConfigMgr(object):
         return res
 
     def getRuns(self, datasets=None):
-        """Returns list of names of Runs of `dataset`, or names of all
+        """Returns list of names of Runs of ``dataset``, or names of all
         configured Runs"""
         if not datasets:
             datasets = self.projects

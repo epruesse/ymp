@@ -118,7 +118,7 @@ class YmpObjectDescription(ObjectDescription):
 
     def add_source_link(self, signode: addnodes.desc) -> None:
         """
-        Add link to source code to `signode`
+        Add link to source code to *signode*
         """
         filename, lineno = self.options['source'].split(':')
         if not hasattr(self.env, '_snakefiles'):
@@ -137,7 +137,7 @@ class YmpObjectDescription(ObjectDescription):
     def add_target_and_index(self, name: str, sig: str,
                              signode: addnodes.desc) -> None:
         """
-        Add cross-reference IDs and entries to `self.indexnode`
+        Add cross-reference IDs and entries to ``self.indexnode``
         """
         targetname = "-".join((self.objtype, name))
         if targetname not in self.state.document.ids:
@@ -174,14 +174,14 @@ class YmpObjectDescription(ObjectDescription):
 
 class SnakemakeRule(YmpObjectDescription):
     """
-    Directive `sm:rule::` describing a Snakemake rule
+    Directive ``sm:rule::`` describing a Snakemake rule
     """
     typename = "rule"
 
 
 class YmpStage(YmpObjectDescription):
     """
-    Directive `sm:stage::` describing an YMP stage
+    Directive ``sm:stage::`` describing an YMP stage
     """
     typename = "stage"
 
@@ -396,7 +396,7 @@ class DomainTocTreeCollector(EnvironmentCollector):
                   env: BuildEnvironment, docname: str) -> None:
         """Clear data from environment
 
-        If we have cached data in environment for document `docname`,
+        If we have cached data in environment for document ``docname``,
         we should clear it here.
 
         """
@@ -407,17 +407,17 @@ class DomainTocTreeCollector(EnvironmentCollector):
         """Merge with results from parallel processes
 
         Called if Sphinx is processing documents in parallel. We
-        should merge this from `other` into `env` for all `docnames`.
+        should merge this from ``other`` into ``env`` for all ``docnames``.
         """
 
     # override
     def process_doc(self, app: Sphinx, doctree: nodes.Node) -> None:
-        """Process `doctree`
+        """Process ``doctree``
 
-        This is called by `read-doctree`, so after the doctree has been
+        This is called by ``read-doctree``, so after the doctree has been
         loaded. The signal is processed in registered first order,
         so we are called after built-in extensions, such as the
-        `sphinx.environment.collectors.toctree` extension building
+        :mod:`sphinx.environment.collectors.toctree` extension building
         the TOC.
         """
 
@@ -440,7 +440,7 @@ class DomainTocTreeCollector(EnvironmentCollector):
 
     def select_toc_location(self, app: Sphinx,
                             node: nodes.Node) -> nodes.Node:
-        """Select location in TOC where `node` should be referenced
+        """Select location in TOC where ``node`` should be referenced
         """
         while node is not None:
             tocnode = self.locate_in_toc(app, node)

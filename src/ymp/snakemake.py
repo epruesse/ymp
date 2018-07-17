@@ -98,17 +98,17 @@ class InheritanceException(RuleException):
 
 
 class NamedList(_Namedlist):
-    """Extended version of Snakemake's io.namedlist
+    """Extended version of Snakemake's :class:`~snakemake.io.Namedlist`
 
     - Fixes array assignment operator:
-      Writing a field via `[]` operator updates the value accessed
-      via `.` operator.
-    - Adds `fromtuple` to constructor:
-      Builds from Snakemake's typial `(args, kwargs)` tuples as
+      Writing a field via ``[]`` operator updates the value accessed
+      via ``.`` operator.
+    - Adds ``fromtuple`` to constructor:
+      Builds from Snakemake's typial ``(args, kwargs)`` tuples as
       present in ruleinfo structures.
-    - Adds update_tuple method:
-      Updates values in `(args,kwargs)` tuples as present in ruleinfo
-      structures.
+    - Adds `update_tuple` method:
+      Updates values in ``(args,kwargs)`` tuples as present in
+      :class:`ruleinfo` structures.
     """
     def __init__(self, fromtuple=None, **kwargs):
         super().__init__(**kwargs)
@@ -135,7 +135,7 @@ class NamedList(_Namedlist):
                 self.set_name(name, i, j)
 
     def update_tuple(self, totuple):
-        """Update values in `(args, kwargs)` tuple.
+        """Update values in ``(args, kwargs)`` tuple.
         The tuple must be the same as used in the constructor and
         must not have been modified.
         """
@@ -458,7 +458,7 @@ class BaseExpander(object):
         encountered in the tree and wrap encountered functions to be called
         once the wildcards object is available.
 
-        Set `ymp.print_rule = 1` before a `rule:` statement in snakefiles
+        Set ``ymp.print_rule = 1`` before a ``rule:`` statement in snakefiles
         to enable debug logging of recursion.
 
         Arguments:
@@ -468,8 +468,8 @@ class BaseExpander(object):
             :class:snakemake.workflow.RuleInfo object into which is recursively
             decendet. May ultimately be `None`, `str`, `function`, `int`,
             `float`, `dict`, `list` or `tuple`.
-          expand_args: Parameters passed on late expansion (when the `dag`
-            tries to instantiate the `rule` into a `job`.
+          expand_args: Parameters passed on late expansion (when the ``dag``
+            tries to instantiate the `rule` into a ``job``.
           rec: Recursion level
         """
         rec = rec + 1
@@ -593,7 +593,7 @@ class SnakemakeExpander(BaseExpander):
     """Expand wildcards in strings returned from functions.
 
     Snakemake does not do this by default, leaving wildcard expansion to
-    the functions provided themselves. Since we never want `{input}` to be
+    the functions provided themselves. Since we never want ``{input}`` to be
     in a string returned as a file, we expand those always.
     """
     def expands_field(self, field):
@@ -653,7 +653,7 @@ class FormatExpander(BaseExpander):
 
 class ColonExpander(FormatExpander):
     """
-    Expander using `{:xyz:}` formatted variables.
+    Expander using ``{:xyz:}`` formatted variables.
     """
     regex = re.compile(
         r"""
@@ -673,16 +673,16 @@ class ColonExpander(FormatExpander):
 
 
 class RecursiveExpander(BaseExpander):
-    """Recursively expands `{xyz}` wildcards in Snakemake rules."""
+    """Recursively expands ``{xyz}`` wildcards in Snakemake rules."""
     def expands_field(self, field):
         """
-        Returns true for all fields but `shell:`, `message:` and
-        `wildcard_constraints`.
+        Returns true for all fields but ``shell:``, ``message:`` and
+        ``wildcard_constraints``.
 
         We don't want to mess with the regular expressions in the fields
-        in `wildcard_constraints:`, and there is little use in expanding
-        `message` or `shell` as these already have all wildcards applied
-        just before job execution (by `format_wildcards()`).
+        in ``wildcard_constraints:``, and there is little use in expanding
+        ``message:`` or ``shell:`` as these already have all wildcards applied
+        just before job execution (by :meth:`format_wildcards`).
         """
         return field not in (
             'shellcmd',
@@ -691,7 +691,7 @@ class RecursiveExpander(BaseExpander):
         )
 
     def expand(self, rule, ruleinfo):
-        """Recursively expand wildcards within RuleInfo object"""
+        """Recursively expand wildcards within :class:`RuleInfo` object"""
         fields = list(filter(None.__ne__,
                              filter(self.expands_field, ruleinfo_fields)))
         # normalize field values and create namedlist dictionary
@@ -941,7 +941,7 @@ class DefaultExpander(InheritanceExpander):
         Creates DefaultExpander
 
         Each parameter passed is considered a RuleInfo default value. Where
-        applicable, Snakemake's argtuples `([],{})` must be passed.
+        applicable, Snakemake's argtuples ``([],{})`` must be passed.
         """
         super().__init__()
         self.defaults = RuleInfo(None)
