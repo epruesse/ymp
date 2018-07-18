@@ -112,6 +112,6 @@ with Stage("references") as S:
     ruleorder: unpack_archive > gunzip
 
     for ref in icfg.ref:
-        for unpack_rule in icfg.ref[ref].make_unpack_rules(rules.unpack_archive):
+        for unpack_rule in icfg.ref[ref].make_unpack_rules(workflow._rules['unpack_archive']):
             unpack_rule
 
