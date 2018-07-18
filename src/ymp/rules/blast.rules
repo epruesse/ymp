@@ -5,9 +5,6 @@ BLASTFMT += " sstrand sframe score"
 
 BLASTIDX_SUFFIXES = "nin nhr nsi nsd nsq nog".split()
 
-def get_basename(wc, input):
-    return input.index[0][:-4]
-    return input.index[0]
 
 
 blast_assembly_results = "{dir}.blast/{: targets :}.{query}.blast7"
@@ -74,7 +71,7 @@ with Stage("annotate_tblastn") as S:
         log:
             "{:this:}/{target}.blast7.log"
         params:
-            db_name = get_basename,
+            db_name = lambda wc, input: input.index[0][:-4],
             blastfmt = BLASTFMT
         threads:
             8
