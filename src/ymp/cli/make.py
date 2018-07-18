@@ -83,6 +83,8 @@ class TargetParam(click.ParamType):
                     else:
                         extensions.append(group[0])
             result += ('.'.join((stack, ext)) for ext in extensions)
+            result += ('.'.join((stack, ext))+"." for ext in extensions
+                       if not ext[-1] == "_")
 
         debug("res={}", result)
         return result
