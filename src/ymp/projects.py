@@ -10,49 +10,69 @@ from ymp.util import is_fq, make_local_path
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-def load_data(cfg):
-    """Recursively loads csv/tsv type data as defined by yaml structure
+class PandasTableBuilder(object):
+    def __init__(self):
+        import pandas
+        from pandas.core.reshape.merge import MergeError
+        self.pd = pandas
+        self.MergeError = MergeError
 
-    Format:
-     - string items are files
-     - lists of files are concatenated top to bottom
-     - dicts must have one "command" value:
+    def load_data(self, cfg):
+        """Recursively loads csv/tsv type data as defined by yaml structure
 
-       - 'join' contains a two-item list
-         the two items are joined 'naturally' on shared headers
-       - 'table' contains a list of one-item dicts
-         dicts have form ``key:value[,value...]``
-         a in-place table is created from the keys
-         list-of-dict is necessary as dicts are unordered
-       - 'paste' contains a list of tables pasted left to right
-         tables pasted must be of equal length or length 1
-     - if a value is a valid path relative to the csv/tsv/xls file's
-       location, it is expanded to a path relative to CWD
+        Format:
+         - string items are files
+         - lists of files are concatenated top to bottom
+         - dicts must have one "command" value:
 
-    Example:
-     .. code-block:: yaml
+           - 'join' contains a two-item list
+             the two items are joined 'naturally' on shared headers
+           - 'table' contains a list of one-item dicts
+             dicts have form ``key:value[,value...]``
+             a in-place table is created from the keys
+             list-of-dict is necessary as dicts are unordered
+           - 'paste' contains a list of tables pasted left to right
+             tables pasted must be of equal length or length 1
+         - if a value is a valid path relative to the csv/tsv/xls file's
+           location, it is expanded to a path relative to CWD
 
-      - top.csv
-      - join:
-        - bottom_left.csv
-        - bottom_right.csv
-      - table:
-        - sample: s1,s2,s3
-        - fq1: s1.1.fq, s2.1.fq, s3.1.fq
-        - fq2: s1.2.fq, s2.2.fq, s3.2.fq
+        Example:
+         .. code-block:: yaml
 
-    """
-    import pandas as pd
-    from pandas.core.reshape.merge import MergeError
+          - top.csv
+          - join:
+            - excel.xslx%left.csv
+            - right.tsv
+          - table:
+            - sample: s1,s2,s3
+            - fq1: s1.1.fq, s2.1.fq, s3.1.fq
+            - fq2: s1.2.fq, s2.2.fq, s3.2.fq
 
-    if isinstance(cfg, str):
+        """
+
+        if isinstance(cfg, str):
+            return self._load_file(cfg)
+        if isinstance(cfg, Sequence):
+            return self._rowbind(cfg)
+        if isinstance(cfg, Mapping):
+            if 'join' in cfg:
+                return self._join(cfg['join'])
+            if 'paste' in cfg:
+                return self._paste(cfg['paste'])
+            if 'table' in cfg:
+                return self._table(cfg['table'])
+        raise YmpConfigError(cfg, "Unrecognized statement in data config")
+
+    def _load_file(self, cfg):
         try:
-            data = pd.read_csv(cfg, sep=None, engine='python', dtype='str')
+            data = self.pd.read_csv(
+                cfg, sep=None, engine='python', dtype='str'
+            )
         except FileNotFoundError:
-            parts = cfg.split('%')
+            parts = cfg.split('%', maxsplit=1)
             try:
-                data = pd.read_excel(parts[0],
-                                     parts[1] if len(parts) > 1 else 0)
+                data = self.pd.read_excel(
+                    parts[0], parts[1] if len(parts) > 1 else 0)
             except ImportError:
                 raise YmpConfigError(
                     cfg,
@@ -60,57 +80,58 @@ def load_data(cfg):
                     " If this is an Excel file, you might need"
                     " to install 'xlrd'."
                 )
+        # prefix fq files with name of config file's directory
         rdir = os.path.dirname(cfg)
         data = data.applymap(
             lambda s: os.path.join(rdir, s)
             if is_fq(s) and os.path.exists(os.path.join(rdir, s))
-            else s)
+            else s
+        )
         return data
 
-    if isinstance(cfg, Sequence):
-        return pd.concat(list(map(load_data, cfg)), ignore_index=True)
-    if isinstance(cfg, Mapping):
-        # JOIN
-        if 'join' in cfg:
-            tables = list(map(load_data, cfg['join']))
-            try:
-                return pd.merge(*tables)
-            except MergeError as e:
+    def _rowbind(self, cfg):
+        tables = list(map(self.load_data, cfg))
+        return self.pd.concat(tables, ignore_index=True)
+
+    def _join(self, cfg):
+        tables = list(map(self.load_data, cfg))
+        try:
+            return self.pd.merge(*tables)
+        except self.MergeError as e:
+            raise YmpConfigError(
+                cfg,
+                "Failed to `join` configured data.\n"
+                "Joined table indices:\n{}\n\n"
+                "".format("\n".join(", ".join(table.columns.tolist())
+                                    for table in tables)),
+                exc=e)
+
+    def _paste(self, cfg):
+        tables = list(map(self.load_data, cfg))
+        manyrow = [table for table in tables if len(table) > 1]
+        if manyrow:
+            nrows = len(manyrow[0])
+            if any(len(table) != nrows for table in manyrow[1:]):
                 raise YmpConfigError(
                     cfg,
-                    "Failed to `join` configured data.\n"
-                    "Joined table indices:\n{}\n\n"
-                    "".format("\n".join(", ".join(table.columns.tolist())
-                                        for table in tables)),
-                    exc=e)
-        # PASTE
-        if 'paste' in cfg:
-            tables = list(map(load_data, cfg['paste']))
-            manyrow = [table for table in tables if len(table) > 1]
-            if manyrow:
-                nrows = len(manyrow[0])
-                if any(len(table) != nrows for table in manyrow[1:]):
-                    raise YmpConfigError(
-                        cfg,
-                        "Failed to `paste` configured data. "
-                        "Row counts differ and are not 1."
-                        "Row counts: {}\n"
-                        "".format(", ".join(str(len(table))
-                                            for table in manyrow)))
-                tables = [
-                    table if len(table) > 1
-                    else pd.concat([table]*nrows, ignore_index=True)
-                    for table in tables
-                ]
-            return pd.concat(tables, axis=1)
-        # TABLE
-        if 'table' in cfg:
-            return pd.DataFrame.from_dict({
-                key: value.split(',')
-                for row in cfg['table']
-                for key, value in row.items()
-            })
-    raise YmpConfigError(cfg, "Unrecognized statement in data config")
+                    "Failed to `paste` configured data. "
+                    "Row counts differ and are not 1."
+                    "Row counts: {}\n"
+                    "".format(", ".join(str(len(table))
+                                        for table in manyrow)))
+            tables = [
+                table if len(table) > 1
+                else self.pd.concat([table]*nrows, ignore_index=True)
+                for table in tables
+            ]
+        return self.pd.concat(tables, axis=1)
+
+    def _table(self, cfg):
+        return self.pd.DataFrame.from_dict({
+            key: value.split(',')
+            for row in cfg
+            for key, value in row.items()
+        })
 
 
 class Project(Stage):
@@ -161,7 +182,8 @@ class Project(Stage):
         Lazy loading property, first call may take a while.
         """
         if self._runs is None:
-            self._runs = load_data(self.cfg[self.KEY_DATA])
+            tb = PandasTableBuilder()
+            self._runs = tb.load_data(self.cfg[self.KEY_DATA])
             self.choose_id_column()
 
         return self._runs
