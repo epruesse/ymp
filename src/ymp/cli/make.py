@@ -19,12 +19,16 @@ log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 DEBUG_LOGFILE_NAME = os.environ.get("YMP_DEBUG_EXPAND")
 if DEBUG_LOGFILE_NAME:
+    import time
+    start_time = time.time()
     DEBUG_LOGFILE = open(DEBUG_LOGFILE_NAME, "a")
 
 
 def debug(msg, *args, **kwargs):
     if DEBUG_LOGFILE_NAME:
-        DEBUG_LOGFILE.write(msg.format(*args, **kwargs) + '\n')
+        tim = (time.time() - start_time)
+        msg = "{:4.4f}: " + msg
+        DEBUG_LOGFILE.write(msg.format(tim, *args, **kwargs) + '\n')
 
 
 debug("\nstarted")
