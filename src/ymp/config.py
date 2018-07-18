@@ -260,13 +260,6 @@ class ConfigMgr(object):
         return self._config.limits
 
     @property
-    def allruns(self):
-        """
-        Names of all configured runs
-        """
-        return self.getRuns()
-
-    @property
     def proj(self):
         """
         Project base directory
@@ -304,18 +297,6 @@ class ConfigMgr(object):
         res = expander.expand(None, item, kwargs)
         return res
 
-    def getRuns(self, datasets=None):
-        """Returns list of names of Runs of ``dataset``, or names of all
-        configured Runs"""
-        if not datasets:
-            datasets = self.projects
-        if isinstance(datasets, str):
-            datasets = [datasets]
-        return [
-            run
-            for dataset in datasets
-            for run in self._projects[dataset].runs
-        ]
 
     def mem(self, base="0", per_thread=None, unit="m"):
         """Clamp memory to configuration limits

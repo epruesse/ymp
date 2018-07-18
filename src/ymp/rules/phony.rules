@@ -10,11 +10,6 @@ rule listprojects:
     run:
         pp.pprint("|".join(icfg.datasets))
 
-rule listruns:
-    """List all configured "run"s"""
-    message: "Configured Run objects:"
-    run:
-        pp.pprint(icfg.allruns)
 
 rule listrundata:
     """List complete dataset config matrix"""
