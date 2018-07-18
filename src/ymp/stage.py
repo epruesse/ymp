@@ -122,7 +122,6 @@ class StageStack(object):
 
         if self.group is None:
             df = self.project.run_data
-            import pandas as pd
 
             groups = list(dict.fromkeys(group
                                         for p in reversed(self.prevs)
@@ -164,16 +163,18 @@ class StageStack(object):
                 return stage
         raise YmpStageError(f"Unknown stage '{name}'")
 
-    def complete(self, name):
+    def complete(self, incomplete):
         cfg = ymp.get_config()
         result = []
         groups = ("group_" + name for name in self.project.run_data)
-        result += (opt for opt in groups if opt.startswith(name))
+        result += (opt for opt in groups if opt.startswith(incomplete))
         refs = ("ref_" + name for name in cfg.ref)
-        result += (opt for opt in refs if opt.startswith(name))
+        result += (opt for opt in refs if opt.startswith(incomplete))
 
-        #registry = Stage.get_registry()
-        #for stage in registry.values():
+        registry = Stage.get_registry()
+        for stage in registry.values():
+            result += [name for name in (stage.name, stage.altname or "")
+                       if name.startswith(incomplete)]
         #    if stage.match(
         return result
 
