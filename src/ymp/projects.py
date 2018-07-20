@@ -134,6 +134,48 @@ class PandasTableBuilder(object):
         })
 
 
+class PandasProjectData(object):
+    def __init__(self, cfg):
+        import pandas
+        self.pd = pandas
+        table_builder = PandasTableBuilder()
+        self.df = table_builder.load_data(cfg)
+
+    def columns(self):
+        return list(self.df.columns)
+
+    def identifying_columns(self):
+        column_frequencies = self.df.apply(self.pd.Series.nunique)
+        log.debug("Column frequencies: {}".format(column_frequencies))
+        nrows = self.df.shape[0]
+        log.debug("Row count: {}".format(nrows))
+        columns = self.df.columns[column_frequencies == nrows]
+        return list(columns)
+
+    def to_dict(self):
+        return self.df.to_dict()
+
+    def duplicate_rows(self, column):
+        duplicated = self.df.duplicated(subset=[column], keep=False)
+        values = self.df[duplicated][column]
+        return list(values)
+
+    def string_columns(self):
+        cols = self.df.select_dtypes(include=['object'])
+        # turn NaN into '' so they don't bother us later
+        cols.fillna('', inplace=True)
+        return list(cols)
+
+    def rows(self, cols):
+        yield from self.df[cols].itertuples()
+
+    def get(self, idcol, row, col):
+        return self.df[self.df[idcol] == row][col].values[0]
+
+    def column(self, col):
+        return list(self.df[col])
+
+
 class Project(Stage):
     """Contains configuration for a source dataset to be processed"""
     KEY_DATA = 'data'
@@ -161,9 +203,10 @@ class Project(Stage):
         self.cfgmgr = cfgmgr
         self.cfg = cfg
         self.fieldnames = None
-        self._runs = None
+        self._data = None
         self._source_cfg = None
         self._idcol = None
+        self.bccol = cfg.get(self.KEY_BCCOL)
         self.outputs = set(("/{sample}.R1.fq.gz", "/{sample}.R2.fq.gz",
                             "/{:samples:}.R1.fq.gz", "/{:samples:}.R2.fq.gz"))
         self.inputs = set()
@@ -177,16 +220,18 @@ class Project(Stage):
 
     @property
     def run_data(self):
+        return self.data
+
+    @property
+    def data(self):
         """Pandas dataframe of runs
 
         Lazy loading property, first call may take a while.
         """
-        if self._runs is None:
-            tb = PandasTableBuilder()
-            self._runs = tb.load_data(self.cfg[self.KEY_DATA])
-            self.choose_id_column()
+        if self._data is None:
+            self._data = PandasProjectData(self.cfg[self.KEY_DATA])
 
-        return self._runs
+        return self._data
 
     @property
     def runs(self):
@@ -194,66 +239,12 @@ class Project(Stage):
 
         Lazy loading property, first call may take a while.
         """
-        return self.run_data.index
-
-    def choose_id_column(self):
-        """Configures column to use as index on runs
-
-        If explicitly configured via KEY_IDCOL, verifies that the column
-        exists and that it is unique. Otherwise chooses the leftmost
-        unique column in the data.
-        """
-        import pandas as pd
-
-        column_frequencies = self._runs.apply(pd.Series.nunique)
-        log.debug("Column frequencies: {}".format(column_frequencies))
-        nrows = self._runs.shape[0]
-        log.debug("Row count: {}".format(nrows))
-        unique_columns = self._runs.columns[column_frequencies == nrows]
-
-        if unique_columns.empty:
-            raise YmpConfigError(
-                self.cfg,
-                "Project data has no column containing unique values for "
-                "each row. At least one is needed to identify samples!"
-            )
-
-        if self.KEY_IDCOL in self.cfg:
-            idcol = self.cfg[self.KEY_IDCOL]
-            if idcol not in self._runs.columns:
-                raise YmpConfigError(
-                    self.cfg, key=self.KEY_IDCOL,
-                    msg="Configured column not found in data. "
-                    "Possible spelling error? "
-                    "Available columns: " +
-                    ", ".join(str(c) for c in self._runs.columns))
-
-            if idcol not in unique_columns:
-                duplicated = self._runs.duplicated(subset=[idcol], keep=False)
-                dup_rows = self._runs[duplicated].sort_values(by=idcol)
-                raise YmpConfigError(
-                    self.cfg, key=self.KEY_IDCOL,
-                    msg="Configured id_col column '{}' is not unique.\n"
-                    "Duplicated rows:\n {}\n"
-                    "Unique columns: {}"
-                    "".format(
-                        idcol, dup_rows, list(unique_columns)
-                    )
-                )
-        else:
-            self.cfg[self.KEY_IDCOL] = unique_columns[0]
-            log.info("Autoselected column %s=%s",
-                     self.KEY_IDCOL, self.cfg[self.KEY_IDCOL])
-
-        self._idcol = self.cfg[self.KEY_IDCOL]
-
-        self._runs.set_index(self.cfg[self.KEY_IDCOL],
-                             drop=False, inplace=True)
+        return self.data.column(self.idcol)
 
     @property
     def idcol(self):
         if self._idcol is None:
-            self.choose_id_column()
+            self._idcol = self.choose_id_column()
         return self._idcol
 
     @property
@@ -262,101 +253,130 @@ class Project(Stage):
             self._source_cfg = self.choose_fq_columns()
         return self._source_cfg
 
+    def choose_id_column(self):
+        """Configures column to use as index on runs
+
+        If explicitly configured via KEY_IDCOL, verifies that the column
+        exists and that it is unique. Otherwise chooses the leftmost
+        unique column in the data.
+        """
+        all_columns = self.data.columns()
+        unique_columns = self.data.identifying_columns()
+
+        if not unique_columns:
+            raise YmpConfigError(
+                self.cfg,
+                "Project data has no column containing unique values for "
+                "each row. At least one is needed to identify samples!"
+            )
+
+        if self.KEY_IDCOL in self.cfg:
+            idcol = self.cfg[self.KEY_IDCOL]
+            if idcol not in all_columns:
+                raise YmpConfigError(self.cfg, key=self.KEY_IDCOL, msg=(
+                    "Configured column not found in data. "
+                    "Possible spelling error? Available columns: "
+                    ", ".join(all_columns)
+                    ))
+
+            if idcol not in unique_columns:
+                raise YmpConfigError(self.cfg, key=self.KEY_IDCOL, msg=(
+                    "Configured id_col column '{}' is not unique.\n"
+                    "Duplicated rows:\n {}\n"
+                    "Unique columns: {}".format(
+                        idcol, self.data.duplicate_rows(idcol), unique_columns
+                    )
+                ))
+        else:
+            idcol = unique_columns[0]
+            log.info("Autoselected column %s=%s", self.KEY_IDCOL, idcol)
+
+        return idcol
+
     def choose_fq_columns(self):
         """
         Configures the columns referencing the fastq sources
         """
-        import pandas as pd
-
         # get only columns containing string data
-        string_cols = self.run_data.select_dtypes(include=['object'])
-        # turn NaN into '' so they don't bother us later
-        string_cols.fillna('', inplace=True)
+        string_cols = self.data.string_columns()
 
         # if barcode column specified, omit that
-        if self.KEY_BCCOL in self.cfg:
-            string_cols.drop([self.cfg[self.KEY_BCCOL]], axis=1, inplace=True)
+        if self.bccol:
+            string_cols.remove(self.bccol)
 
         # if read columns specified, constrain to those
-        if self.KEY_READCOLS in self.cfg:
-            read_cols = self.cfg[self.KEY_READCOLS]
+        read_cols = self.cfg.get(self.KEY_READCOLS)
+        if read_cols:
             if isinstance(read_cols, str):
                 read_cols = [read_cols]
-            try:
-                string_cols = string_cols[read_cols]
-            except KeyError as e:
-                raise YmpConfigError(self.cfg, "{}={} references invalid columns: {}"
-                                     "".format(self.KEY_READCOLS,
-                                               read_cols,
-                                               e.args))
+            typo_cols = set(read_cols) - set(string_cols)
+            if typo_cols:
+                log.warning("%s=%s references invalid columns: %s",
+                            self.KEY_READCOLS, read_cols, typo_cols)
+                read_cols = [col for col in read_cols if col not in typo_cols]
+        else:
+            read_cols = string_cols
 
-        # select type to use for each row
-        source_cfg = pd.DataFrame(index=self.runs,
-                                  columns=['type', 'r1', 'r2'])
+        if not read_cols:
+            raise YmpConfigError(self.cfg, key=self.KEY_READCOLS, msg=(
+                "No columns containing read files found"
+            ))
 
-        # prepare array indicating which columns to use for each
-        # row, and what type the row source data is
-        for pat, nmax, msg, func in (
-                (self.RE_FILE, 2, "fastq files", "file"),
-                (self.RE_FILE, 1, "fastq files", "file"),
-                (self.RE_REMOTE, 2, "remote URLs", "remote"),
-                (self.RE_REMOTE, 1, "remote URLs", "remote"),
-                (self.RE_SRR, 1, "SRR numbers", "srr")):
-            # collect rows not yet assigned values
-            no_type_yet = string_cols[source_cfg['type'].isnull()]
-            # match the regex to each value
-            match = no_type_yet.apply(lambda x: x.str.contains(pat))
-            # check if we have more values than allowed for that
-            # data source type
-            broken_rows = match.sum(axis=1) > nmax
-            if any(broken_rows):
-                rows = list(self.runs[broken_rows])
-                cols = list(self.run_data.columns[match[broken_rows].any])
-                raise YmpConfigError(
-                    self.cfg,
-                    "Some rows contain more than two {}. "
-                    "Use {} to specify the desired rows. "
-                    "Rows in question: {} "
-                    "Columns in question: {} "
-                    "".format(msg, self.KEY_READCOLS, rows, cols))
-            # collect rows with matched data
-            good_rows = match.sum(axis=1).eq(nmax)
-            # prepare output matrix
-            out = match[good_rows]
-            out = out.apply(lambda x: (func,) + tuple(match.columns[x]),
-                            axis=1)
-            outm = out.apply(pd.Series, index=source_cfg.columns[0:nmax+1])
-            source_cfg.update(outm, overwrite=False)
+        err = False
+        source_config = {}
+        for row in self.data.rows([self.idcol] + read_cols):
+            cols = []
+            for i, val in enumerate(row[2:]):
+                if self.RE_FILE.match(val):
+                    cols.append(("file", read_cols[i]))
+                elif self.RE_REMOTE.match(val):
+                    cols.append(("remote", read_cols[i]))
+                elif self.RE_SRR.match(val):
+                    cols.append(("srr", read_cols[i]))
+            types = set(col[0] for col in cols)
+            if not types:
+                log.error("No data sources found in row %s.",
+                          row[1])
+                err = True
+            elif len(types) > 1 or len(cols) > 2 or \
+                 (cols[0] == 'srr' and len(cols) > 1):
+                log.error("Ambiguous data sources found in row %s. "
+                          "You may need to constrain the columns allowed "
+                          "to contain read data using '%'.",
+                          row[1], self.KEY_READCOLS)
+                err = True
+            elif len(cols) == 2:
+                source_config[row[1]] = (cols[0][0], cols[0][1], cols[1][1])
+            elif len(cols) == 1:
+                source_config[row[1]] = (cols[0][0], cols[0][1], None)
+            else:
+                raise RuntimeError("this should not have happened")
+        if err:
+            raise YmpConfigError(self.cfg, msg=(
+                "Failed to identify source data in project data config. "
+                "See above log messages for details."
+            ))
 
-        return source_cfg
+        return source_config
 
     def FQpath(self, run, pair, nosplit=False):
         """Get path for FQ file for ``run`` and ``pair``"""
-        try:
-            source = list(self.source_cfg.loc[run])
-        except KeyError:
-            raise YmpConfigError(self.cfg,"No run '{}' in source config".format(run))
+        source = self.source_cfg.get(run)
+        if not source:
+            raise YmpConfigError(self.cfg,
+                                 "No run '{}' in source config".format(run))
 
         if isinstance(pair, str):
             pair = self.cfgmgr.pairnames.index(pair)
 
-        if self.KEY_BCCOL in self.cfg and not nosplit:
-            bccol = self.cfg[self.KEY_BCCOL]
-            barcode_file = self.run_data.loc[run][bccol]
-            if len(barcode_file) > 0:
-                barcode_id = barcode_file.replace("_", "__").replace("/", "_%")
-                return (
-                    "{project}.split_libraries/{barcodes}/{run}.{pair}.fq.gz"
-                    "".format(
-                        project=self.project,
-                        barcodes=barcode_id,
-                        run=run,
-                        pair=self.cfgmgr.pairnames[pair])
-                )
+        if self.bccol and not nosplit:
+            barcode_file = self.data.get(self.idcol, run, self.bccol)
+            if barcode_file:
+                return self.encode_barcode_path(barcode_file, run, pair)
 
         kind = source[0]
         if kind == 'srr':
-            srr = self.run_data.loc[run][source[1]]
+            srr = self.data.get(self.idcol, run, source[1])
             f = os.path.join(self.cfgmgr.dir.scratch,
                              "SRR",
                              "{}_{}.fastq.gz".format(srr, pair+1))
@@ -368,7 +388,7 @@ class Project(Stage):
                 "Configuration Error: no source for sample {} and read {} "
                 "found.".format(run, pair+1))
 
-        fn = self.run_data.loc[run][fq_col]
+        fn = self.data.get(self.idcol, run, fq_col)
         if kind == 'file':
             return fn
 
@@ -380,20 +400,25 @@ class Project(Stage):
             "Configuration Error: no source for sample {} and read {} found."
             "".format(run, pair+1))
 
+    def encode_barcode_path(self, barcode_file, run, pair):
+        if barcode_file:
+            barcode_id = barcode_file.replace("_", "__").replace("/", "_%")
+            return (
+                "{project}.split_libraries/{barcodes}/{run}.{pair}.fq.gz"
+                "".format(
+                    project=self.project,
+                    barcodes=barcode_id,
+                    run=run,
+                    pair=self.cfgmgr.pairnames[pair])
+            )
+
     def unsplit_path(self, barcode_id, pairname):
         barcode_file = barcode_id.replace("_%", "/").replace("__", "_")
         pair = self.cfgmgr.pairnames.index(pairname)
 
-        bccol_name = self.cfg[self.KEY_BCCOL]
-        rows = self.run_data[bccol_name] == barcode_file
+        run = self.data.get(self.bccol, barcode_file, self.idcol)
 
-        # make sure all rows for this have the same source file
-        source_cols = self.source_cfg.loc[rows].apply(set)
-        if max(source_cols.apply(len)) > 1:
-            raise YmpConfigError(self.cfg, "Mixed barcode and read files:\n"
-                                 + source_cols.to_string())
-
-        return [barcode_file, self.FQpath(rows.index[0], pair, nosplit=True)]
+        return [barcode_file, self.FQpath(run, pair, nosplit=True)]
 
     def get_fq_names(self,
                      only_fwd=False, only_rev=False,
@@ -414,8 +439,8 @@ class Project(Stage):
         check_rev = only_pe or only_se
 
         def have_file(run, pair):
-            return (isinstance(self.source_cfg.loc[run][pair+1], str)
-                    or self.source_cfg.loc[run][0] == 'srr')
+            return (isinstance(self.source_cfg[run][pair+1], str)
+                    or self.source_cfg[run][0] == 'srr')
 
         return [
             "{}.{}".format(run, self.cfgmgr.pairnames[pair])

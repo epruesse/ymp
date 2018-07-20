@@ -99,18 +99,23 @@ with Stage("") as import_stage:
         output:
             "{:this:}/qiime_mapping.tsv"
         run:
-            import pandas as pd
-            df = import_stage.stack(wildcards).project.run_data
-            cols = df.columns.tolist()
-
-            try:
+            import csv
+            data = import_stage.stack(wildcards).project.run_data
+            cols = data.columns()
+            if "Description" in cols:
                 desc_idx = cols.index("Description")
                 cols = cols[:desc_idx] + cols[desc_idx+1:] + [cols[desc_idx]]
-                df = df[cols]
-            except ValueError:
-                df["Description"] = ""
+                fake_description = False
+            else:
+                fake_description = True
 
-            df.to_csv(output[0], sep="\t", index=False)
+            with open(output[0]) as out:
+                writer = csv.writer(out, sep="\t")
+                writer.writerow(cols + (["Description"] if fake_description else []))
+                for row in data.rows(cols):
+                    if fake_description:
+                        row = row + ['']
+                    writer.writerow(row)
 
                 # TODO: Rename bccol to "BarcodeSequence"
                 #       Fake LinkerPrimerSequence col if not exists
