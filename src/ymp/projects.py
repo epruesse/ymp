@@ -3,7 +3,7 @@ import os
 import re
 from collections import Mapping, Sequence
 
-from ymp.exceptions import YmpConfigError
+from ymp.exceptions import YmpConfigError, YmpStageError
 from ymp.stage import Stage
 from ymp.util import is_fq, make_local_path
 
@@ -241,6 +241,36 @@ class Project(Stage):
             self._data = PandasProjectData(self.cfg[self.KEY_DATA])
 
         return self._data
+
+    @property
+    def variables(self):
+        return self.data.columns()
+
+    def minimize_variables(self, groups):
+        if not groups:
+            groups = [self.idcol]
+        if len(groups) > 1:
+            groups = [g for g in groups if g != 'ALL']
+        if len(groups) > 1:
+            groups = self.data.groupby_dedup(groups)
+        if len(groups) > 1:
+            raise YmpStageError("multi-idx grouping not implemented")
+        return groups
+
+    def get_ids(self, groups, match_groups=None, match_value=None):
+        if groups == ['ALL']:
+            return 'ALL'
+        if groups == match_groups:
+            return match_value
+        if match_groups and match_groups != ['ALL']:
+            return self.data.get(match_groups[0], match_value, groups[0])
+        else:
+            return self.data.column(groups[0])
+
+    def iter_samples(self, variables=None):
+        if not variables:
+            variables = self.variables
+        return self.data.rows(variables)
 
     @property
     def runs(self):

@@ -100,8 +100,8 @@ with Stage("") as import_stage:
             "{:this:}/qiime_mapping.tsv"
         run:
             import csv
-            data = import_stage.stack(wildcards).project.data
-            cols = data.columns()
+            project = import_stage.stack(wildcards).project
+            cols = project.variables
             if "Description" in cols:
                 desc_idx = cols.index("Description")
                 cols = cols[:desc_idx] + cols[desc_idx+1:] + [cols[desc_idx]]
@@ -112,7 +112,7 @@ with Stage("") as import_stage:
             with open(output[0]) as out:
                 writer = csv.writer(out, sep="\t")
                 writer.writerow(cols + (["Description"] if fake_description else []))
-                for row in data.rows(cols):
+                for row in project.iter_samples(cols):
                     if fake_description:
                         row = row + ['']
                     writer.writerow(row)

@@ -124,15 +124,7 @@ class StageStack(object):
             groups = list(dict.fromkeys(group
                                         for p in reversed(self.prevs)
                                         for group in p.group))
-            if not groups:
-                groups = [self.project.idcol]
-            if len(groups) > 1:
-                groups = [g for g in groups if g != 'ALL']
-            if len(groups) > 1:
-                groups = self.project.data.groupby_dedup(groups)
-            if len(groups) > 1:
-                raise YmpStageError("multi-idx grouping not implemented")
-            self.group = groups
+            self.group = self.project.minimize_variables(groups)
 
         log.info("Stage stack %s using column %s", self, self.group)
 
@@ -156,7 +148,7 @@ class StageStack(object):
     def complete(self, incomplete):
         cfg = ymp.get_config()
         result = []
-        groups = ("group_" + name for name in self.project.data.columns())
+        groups = ("group_" + name for name in self.project.variables)
         result += (opt for opt in groups if opt.startswith(incomplete))
         refs = ("ref_" + name for name in cfg.ref)
         result += (opt for opt in refs if opt.startswith(incomplete))
@@ -167,7 +159,6 @@ class StageStack(object):
                        if name.startswith(incomplete)]
         #    if stage.match(
         return result
-
 
     @property
     def outputs(self):
@@ -193,23 +184,13 @@ class StageStack(object):
         """
         Returns the current targets
         """
-        if self.group == ['ALL']:
-            return 'ALL'
-        return self.project.data.column(self.group[0])
+        return self.project.get_ids(self.group)
 
     def target(self, args, kwargs):
         """Finds the target in the prev stage matching current target"""
         prev = self.get(self.prev(args, kwargs).name)
         cur_target = kwargs['wc'].target
-        if prev.group == self.group:
-            target = cur_target
-        elif prev.group == ["ALL"]:
-            target = "ALL"
-        elif self.group == ["ALL"]:
-            target = prev.targets
-        else:
-            target = self.project.data.get(self.group[0], cur_target, prev.group[0])
-        return target
+        return self.project.get_ids(prev.group, self.group, cur_target)
 
 
 class Stage(WorkflowObject):
