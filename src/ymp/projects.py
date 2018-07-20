@@ -359,7 +359,7 @@ class Project(Stage):
 
         return source_config
 
-    def FQpath(self, run, pair, nosplit=False):
+    def source_path(self, run, pair, nosplit=False):
         """Get path for FQ file for ``run`` and ``pair``"""
         source = self.source_cfg.get(run)
         if not source:
@@ -418,7 +418,7 @@ class Project(Stage):
 
         run = self.data.get(self.bccol, barcode_file, self.idcol)
 
-        return [barcode_file, self.FQpath(run, pair, nosplit=True)]
+        return [barcode_file, self.source_path(run, pair, nosplit=True)]
 
     def get_fq_names(self,
                      only_fwd=False, only_rev=False,

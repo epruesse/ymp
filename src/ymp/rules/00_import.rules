@@ -75,8 +75,8 @@ with Stage("") as import_stage:
             "Creating symlink {output} -> {input}"
         input:
             # extract path from config file:
-            lambda wc: import_stage.stack(wc).project.FQpath(wc.target, 0),
-            lambda wc: import_stage.stack(wc).project.FQpath(wc.target, 1)
+            lambda wc: import_stage.stack(wc).project.source_path(wc.target, 0),
+            lambda wc: import_stage.stack(wc).project.source_path(wc.target, 1)
         output:
             "{:this:}/{target}.{:pairnames:}.fq.gz"
         run:
@@ -89,7 +89,7 @@ with Stage("") as import_stage:
     rule symlink_raw_reads_SE: # ymp: extends symlink_raw_reads
         input:
             # extract path from config file:
-            lambda wc: import_stage.stack(wc).project.FQpath(wc.target, 0)
+            lambda wc: import_stage.stack(wc).project.source_path(wc.target, 0)
         output:
             ["{:this:}/{target}.{:pairnames[0]:}.fq.gz"]
 
