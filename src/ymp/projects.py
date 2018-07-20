@@ -175,6 +175,19 @@ class PandasProjectData(object):
     def column(self, col):
         return list(self.df[col])
 
+    def groupby_dedup(self, cols):
+        redundant = set()
+        df = self.df
+        for g in cols:
+            if g in redundant:
+                continue
+            # get columns constant for current g
+            rcols = set(df.columns[df.groupby(g).agg('nunique').eq(1).all()])
+            rcols.remove(g)
+            # mark redundant columns
+            redundant |= rcols
+        return [g for g in cols if g not in redundant]
+
 
 class Project(Stage):
     """Contains configuration for a source dataset to be processed"""
@@ -217,10 +230,6 @@ class Project(Stage):
 
     def __repr__(self):
         return "{}(project={})".format(self.__class__.__name__, self.project)
-
-    @property
-    def run_data(self):
-        return self.data
 
     @property
     def data(self):

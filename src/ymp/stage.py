@@ -121,8 +121,6 @@ class StageStack(object):
             )
 
         if self.group is None:
-            df = self.project.run_data
-
             groups = list(dict.fromkeys(group
                                         for p in reversed(self.prevs)
                                         for group in p.group))
@@ -131,19 +129,11 @@ class StageStack(object):
             if len(groups) > 1:
                 groups = [g for g in groups if g != 'ALL']
             if len(groups) > 1:
-                redundant = set()
-                for g in groups:
-                    if g in redundant:
-                        continue
-                    cols = set(df.columns[df.groupby(g).agg('nunique').eq(1).all()])
-                    cols.remove(g)
-                    redundant |= cols
-                groups = [g for g in groups if g not in redundant]
-
+                groups = self.project.data.groupby_dedup(groups)
             if len(groups) > 1:
                 raise YmpStageError("multi-idx grouping not implemented")
-
             self.group = groups
+
         log.info("Stage stack %s using column %s", self, self.group)
 
     def _find_stage(self, name):
@@ -166,11 +156,11 @@ class StageStack(object):
     def complete(self, incomplete):
         cfg = ymp.get_config()
         result = []
-        groups = ("group_" + name for name in self.project.run_data)
+        groups = ("group_" + name for name in self.project.data.columns())
         result += (opt for opt in groups if opt.startswith(incomplete))
         refs = ("ref_" + name for name in cfg.ref)
         result += (opt for opt in refs if opt.startswith(incomplete))
-
+        return result
         registry = Stage.get_registry()
         for stage in registry.values():
             result += [name for name in (stage.name, stage.altname or "")
@@ -178,16 +168,6 @@ class StageStack(object):
         #    if stage.match(
         return result
 
-    @property
-    def group_by(self):
-        import pandas as pd
-        df = self.project.run_data
-        m = {'ALL': pd.Series(df.index)}
-        groups = [m.get(g, g) for g in self.group]
-        try:
-            return df.groupby(groups)
-        except KeyError:
-            raise YmpStageError(f"Unknown column in groupby: {self.group}")
 
     @property
     def outputs(self):
@@ -215,8 +195,7 @@ class StageStack(object):
         """
         if self.group == ['ALL']:
             return 'ALL'
-        targets = list(self.group_by.indices)
-        return targets
+        return self.project.data.column(self.group[0])
 
     def target(self, args, kwargs):
         """Finds the target in the prev stage matching current target"""
@@ -229,30 +208,8 @@ class StageStack(object):
         elif self.group == ["ALL"]:
             target = prev.targets
         else:
-            df = self.project.run_data
-            target = set(df[df[self.group[0]] == cur_target][prev.group[0]])
+            target = self.project.data.get(self.group[0], cur_target, prev.group[0])
         return target
-
-    def sources(self, args, kwargs):
-        """
-        Returns the runs associated with the current target
-        """
-        wc = kwargs.get('wc')
-        target = wc.get("target")
-        if not target:
-            raise YmpException(
-                "Using '{:sources:}' requires '{target}' wildcard")
-
-        try:
-            sources = self.group_by.groups[target]
-        except KeyError:
-            raise YmpStageError(
-                f"In stage {self.stage:} at {self.name}: "
-                f"Target '{target}' not available. "
-                f"Active grouping: {self.group}. "
-                f"Possible choices are '{self.group_by.groups.keys()}'"
-            )
-        return sources
 
 
 class Stage(WorkflowObject):

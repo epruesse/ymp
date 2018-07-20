@@ -10,14 +10,6 @@ rule listprojects:
     run:
         pp.pprint("|".join(icfg.datasets))
 
-
-rule listrundata:
-    """List complete dataset config matrix"""
-    message: "Configured Run Data:"
-    run:
-        for ds in icfg.datasets:
-            pp.pprint(icfg[ds].run_data)
-
 rule listfqnames:
     """List all FQ file names"""
     message: "FQ file names"
