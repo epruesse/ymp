@@ -37,7 +37,7 @@ rule download_file_http:
     params:
         url="{protocol}://{server}/{path}"
     run:
-        from ymp.common import FileDownloader
+        from ymp.download import FileDownloader
         FileDownloader(loglevel=0).get(params.url, output[0])
 ruleorder: download_file_http > gunzip
 ruleorder: download_file_http > fq2fa

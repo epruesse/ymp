@@ -258,7 +258,7 @@ class Env(WorkflowObject, snakemake.conda.Env):
         return urls, files, md5s
 
     def _download_files(self, urls, md5s):
-        from ymp.common import FileDownloader
+        from ymp.download import FileDownloader
         if not op.exists(self.archive_file):
             os.makedirs(self.archive_file)
         cfg = ymp.get_config()
