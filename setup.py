@@ -69,7 +69,7 @@ setup(
         'ruamel.yaml>0.15',
         'drmaa',
         'pandas>=0.20',
-        'sqlite',
+        'sqlite3',
         'networkx>=2',
         'coloredlogs',
         'xdg',
