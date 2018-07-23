@@ -12,6 +12,7 @@ dependencies:
   - python-drmaa
   - pandas >=0.20  # need dtype support in python csv engine
   - xlrd         # excel support
+  - sqlite3
   - coloredlogs
   - setuptools_scm >=1.17 # versioning
   - xdg # user paths

@@ -152,7 +152,7 @@ class PandasProjectData(object):
         columns = self.df.columns[column_frequencies == nrows]
         return list(columns)
 
-    def to_dict(self):
+    def dump(self):
         return self.df.to_dict()
 
     def duplicate_rows(self, column):
@@ -176,17 +176,111 @@ class PandasProjectData(object):
         return list(self.df[col])
 
     def groupby_dedup(self, cols):
-        redundant = set()
+        skip = set()
+        result = []
         df = self.df
         for g in cols:
-            if g in redundant:
+            if g in skip:
                 continue
+            result.append(g)
             # get columns constant for current g
-            rcols = set(df.columns[df.groupby(g).agg('nunique').eq(1).all()])
-            rcols.remove(g)
+            rcols = set(df.columns[df.groupby(result).agg('nunique').eq(1).all()])
             # mark redundant columns
-            redundant |= rcols
-        return [g for g in cols if g not in redundant]
+            skip |= rcols
+        return result
+
+
+class SQLiteProjectData(object):
+    def __init__(self, cfg, name="data"):
+        import sqlite3
+        self.conn = sqlite3.connect(":memory:")
+        self.name = name
+        table_builder = PandasTableBuilder()
+        table_builder.load_data(cfg).to_sql(name, self.conn, index=False)
+
+    def query(self, *args):
+        return self.conn.execute(*args)
+
+    def __getstate__(self):
+        return (self.name, self.dump())
+
+    def __setstate__(self, state):
+        import sqlite3
+        self.conn = sqlite3.connect(":memory:")
+        self.name = state[0]
+        self.conn.executescript(state[1])
+
+    @property
+    def nrows(self):
+        return self.query(
+            'SELECT COUNT(*) from "{}"'.format(self.name)
+        ).fetchone()[0]
+
+    def columns(self):
+        return [t[1] for t in self.query(
+            'PRAGMA table_info("{}")'.format(self.name)
+        )]
+
+    def identifying_columns(self):
+        nrows = self.nrows
+        return [t for t in self.columns() if self.query(
+            'SELECT COUNT(DISTINCT "{}") FROM "{}"'.format(t, self.name)
+        ).fetchone()[0] == nrows]
+
+    def dump(self):
+        return "\n".join(self.conn.iterdump())
+
+    def duplicate_rows(self, column):
+        return [t[0] for t in self.query("""
+        SELECT "{c}" FROM "{n}" WHERE "{c}" in (
+                 SELECT "{c}" FROM "{n}" GROUP BY "{c}" having COUNT("{c}") > 1
+        )
+        """.format(c=column, n=self.name)
+        )]
+
+    def string_columns(self):
+        return [t[1] for t in self.query(
+            'PRAGMA table_info("{}")'.format(self.name)
+        ) if t[2] == 'TEXT']
+
+    def rows(self, col):
+        return self.query(
+            'SELECT {c} from "{n}"'.format(
+                n=self.name,
+                c="0," + ",".join('"{}"'.format(c) for c in col)
+            )
+        )
+
+    def get(self, idcol, row, col):
+        return self.query(
+            'SELECT "{c}" from "{n}" where "{i}"=?'.format(
+                n=self.name, c=col, i=idcol), [row]).fetchone()[0]
+
+    def column(self, col):
+        if isinstance(col, str):
+            col = [col]
+        col = ",".join('"{}"'.format(c) for c in col)
+        return [t[0] for t in self.query(
+            'SELECT {c} from "{n}"'.format(n=self.name, c=col)
+        )]
+
+    def groupby_dedup(self, cols):
+        skip = set()
+        result = []
+        for g in cols:
+            if g in skip:
+                continue
+            result.append(g)
+            q = 'SELECT {c} FROM "{n}" GROUP BY {g}'.format(
+                n=self.name,
+                g=",".join('"{}"'.format(g) for g in result),
+                c=",".join(('COUNT(DISTINCT "{}")'.format(c) for c in cols))
+            )
+            counts = self.query(q).fetchall()
+            unique = [all(x == 1 for x in n) for n in zip(*counts)]
+            rcols = set(c for c, u in zip(cols, unique) if u)
+            skip |= rcols
+        return result
 
 
 class Project(Stage):
@@ -238,7 +332,7 @@ class Project(Stage):
         Lazy loading property, first call may take a while.
         """
         if self._data is None:
-            self._data = PandasProjectData(self.cfg[self.KEY_DATA])
+            self._data = SQLiteProjectData(self.cfg[self.KEY_DATA])
 
         return self._data
 
