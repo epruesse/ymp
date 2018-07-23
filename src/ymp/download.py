@@ -1,6 +1,8 @@
 import asyncio
+import atexit
 import hashlib
 import logging
+import os
 import re
 import threading
 from typing import List, Optional, Union
@@ -9,6 +11,8 @@ from urllib.parse import urlsplit
 import aiohttp
 
 from tqdm import tqdm
+
+from ymp.common import ensure_list
 
 LOG = logging.getLogger(__name__)
 
