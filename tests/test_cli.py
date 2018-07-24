@@ -297,3 +297,43 @@ def test_env_run(invoker, demo_dir, mock_conda, capfd):
     assert res.exit_code == 0
     cap = capfd.readouterr()
     assert "Not a conda environment" in cap.err
+
+
+@pytest.mark.parametrize(
+    "words,result",
+    [
+        ["ymp make", [
+            "toy", "toy.", "mpic", "mpic."
+        ]],
+        ["ymp make t", [
+            "toy", "toy."
+        ]],
+        ["ymp make toy.", [
+            "toy.assemble_", "toy.trim_"
+        ]],
+        ["ymp make toy.assemble_", [
+            "toy.assemble_megahit",
+            "toy.assemble_megahit."
+         ]],
+        ["ymp make toy.assemble_megahit.", [
+            "toy.assemble_megahit.trim_",
+            "toy.assemble_megahit.map_"
+        ]],
+        ["ymp make toy.assemble_megahit.map_", [
+            "toy.assemble_megahit.map_bbmap",
+            "toy.assemble_megahit.map_bowtie2"
+        ]],
+        ["ymp make toy.map_bowtie2.", [
+        ]],
+    ]
+)
+def test_tab_expand(invoker, demo_dir, capfd, envvar, words, result):
+    import subprocess as sp
+    envvar('YMP_DEBUG_EXPAND', 'stderr')
+    envvar('_YMP_COMPLETE', 'complete-bash')
+    envvar('COMP_CWORD', '2')
+    envvar('COMP_WORDS', words)
+    sp.run(["python", "-m", "ymp"])
+    cap = capfd.readouterr()
+    for val in result:
+        assert val in cap.out

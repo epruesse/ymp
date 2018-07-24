@@ -297,3 +297,23 @@ def invoker_nodir():
     invoker = Invoker()
     yield invoker
     invoker.clean()
+
+
+@pytest.fixture(name="envvar")
+def envvar_():
+    to_restore = {}
+
+    def envvar(var, value):
+        if var in os.environ:
+            to_restore[var] = os.environ[var]
+        else:
+            to_restore[var] = None
+        os.environ[var] = value
+
+    yield envvar
+
+    for var, value in to_restore.items():
+        if value is not None:
+            os.environ[var] = value
+        else:
+            del os.environ[var]
