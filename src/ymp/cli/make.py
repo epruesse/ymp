@@ -21,7 +21,10 @@ DEBUG_LOGFILE_NAME = os.environ.get("YMP_DEBUG_EXPAND")
 if DEBUG_LOGFILE_NAME:
     import time
     start_time = time.time()
-    DEBUG_LOGFILE = open(DEBUG_LOGFILE_NAME, "a")
+    if DEBUG_LOGFILE_NAME == "stderr":
+        DEBUG_LOGFILE = sys.stderr
+    else:
+        DEBUG_LOGFILE = open(DEBUG_LOGFILE_NAME, "a")
 
 
 def debug(msg, *args, **kwargs):
@@ -31,7 +34,7 @@ def debug(msg, *args, **kwargs):
         DEBUG_LOGFILE.write(msg.format(tim, *args, **kwargs) + '\n')
 
 
-debug("\nstarted")
+debug("started")
 
 
 class TargetParam(click.ParamType):
@@ -52,20 +55,23 @@ class TargetParam(click.ParamType):
         """
         result: list = []
 
-        debug("ARG: {}", incomplete)
-        stack, _, incomplete = incomplete.rpartition(".")
-        debug("stack={} incom={}", stack, incomplete)
+        stack, _, tocomplete = incomplete.rpartition(".")
+        debug("complete(stack={},incomplete={})", stack, tocomplete)
 
         if not stack:
             cfg = ymp.get_config()
             options = cfg.projects.keys()
-            result += (o for o in options if o.startswith(incomplete))
-            result += (o + "." for o in options if o.startswith(incomplete))
+            result += (o for o in options if o.startswith(tocomplete))
+            result += (o + "." for o in options if o.startswith(tocomplete))
         else:
             from ymp.stage import StageStack
-            stackobj = StageStack.get(stack)
+            try:
+                stackobj = StageStack.get(stack)
+            except YmpStageError as e:
+                debug(e.format_message())
+                return []
             debug("stacko = {}", repr(stack))
-            options = stackobj.complete(incomplete)
+            options = stackobj.complete(tocomplete)
             debug("options = {}", options)
             # reduce items sharing prefix before "_"
             prefixes = {}
