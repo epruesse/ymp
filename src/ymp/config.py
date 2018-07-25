@@ -158,9 +158,9 @@ class ConfigMgr(object):
 
     def __init__(self, root, conffiles):
         log.debug("Inizializing ConfigMgr")
-        self._root = root
-        self._conffiles = conffiles
-        self._config = ymp.yaml.load(self._conffiles)
+        self.root = root
+        self.conffiles = conffiles
+        self._config = ymp.yaml.load(conffiles)
 
         # lazy filled by accessors
         self._snakefiles = None
@@ -184,16 +184,6 @@ class ConfigMgr(object):
             })),
             InheritanceExpander(),
         )
-
-    @property
-    def root(self):
-        """Workflow root directory"""
-        return self._root
-
-    @property
-    def conffiles(self):
-        """List of active configuration files"""
-        return self._conffiles
 
     @property
     def projects(self):
