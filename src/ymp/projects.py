@@ -16,6 +16,7 @@ class PandasTableBuilder(object):
         from pandas.core.reshape.merge import MergeError
         self.pd = pandas
         self.MergeError = MergeError
+        self.files = []
 
     def load_data(self, cfg):
         """Recursively loads csv/tsv type data as defined by yaml structure
@@ -87,6 +88,7 @@ class PandasTableBuilder(object):
             if is_fq(s) and os.path.exists(os.path.join(rdir, s))
             else s
         )
+        self.files.append(cfg)
         return data
 
     def _rowbind(self, cfg):
