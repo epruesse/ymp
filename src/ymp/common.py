@@ -76,6 +76,9 @@ class AttrDict(dict):
             else:
                 return val
 
+    def __setattr__(self, attr, value):
+        raise NotImplementedError()
+
 
 class MkdirDict(AttrDict):
     "Creates directories as they are requested"
