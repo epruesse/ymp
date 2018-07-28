@@ -75,11 +75,11 @@ class Reference(object):
     def __init__(self, reference, cfg):
         self.name = "ref_" + reference
         import ymp
-        self.cfgmgr = ymp.get_config()
+        cfgmgr = ymp.get_config()
         self.cfg = cfg
         self.files = {}
         self.archives = []
-        self.dir = os.path.join(self.cfgmgr.dir.references,
+        self.dir = os.path.join(cfgmgr.dir.references,
                                 reference)
 
         for rsc in cfg:
@@ -87,7 +87,7 @@ class Reference(object):
                 rsc = {'url': rsc}
             type_name = rsc.get('type', 'fasta').lower()
             stage = rsc.get("stage", "") + "/"
-            downloaded_path = make_local_path(self.cfgmgr, rsc['url'])
+            downloaded_path = make_local_path(cfgmgr, rsc['url'])
             if type_name == 'fasta':
                 self.files[stage + 'ALL.fasta.gz'] = downloaded_path
             elif type_name == 'fastp':

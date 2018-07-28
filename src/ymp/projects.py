@@ -3,6 +3,7 @@ import os
 import re
 from collections import Mapping, Sequence
 
+import ymp
 from ymp.exceptions import YmpConfigError, YmpStageError
 from ymp.stage import Stage
 from ymp.util import is_fq, make_local_path
@@ -309,9 +310,8 @@ class Project(Stage):
         self.project = project
         self.name = project
         self.altname = None
-        import ymp
-        self.cfgmgr = ymp.get_config()
         self.cfg = cfg
+        self.pairnames = ymp.get_config().pairnames
         self.fieldnames = None
         self._data = None
         self._source_cfg = None
@@ -498,12 +498,13 @@ class Project(Stage):
     def source_path(self, run, pair, nosplit=False):
         """Get path for FQ file for ``run`` and ``pair``"""
         source = self.source_cfg.get(run)
+        cfg = ymp.get_config()
         if not source:
             raise YmpConfigError(self.cfg,
                                  "No run '{}' in source config".format(run))
 
         if isinstance(pair, str):
-            pair = self.cfgmgr.pairnames.index(pair)
+            pair = self.pairnames.index(pair)
 
         if self.bccol and not nosplit:
             barcode_file = self.data.get(self.idcol, run, self.bccol)
@@ -513,7 +514,7 @@ class Project(Stage):
         kind = source[0]
         if kind == 'srr':
             srr = self.data.get(self.idcol, run, source[1])
-            f = os.path.join(self.cfgmgr.dir.scratch,
+            f = os.path.join(cfg.dir.scratch,
                              "SRR",
                              "{}_{}.fastq.gz".format(srr, pair+1))
             return f
@@ -529,7 +530,7 @@ class Project(Stage):
             return fn
 
         if kind == 'remote':
-            return make_local_path(self.cfgmgr, fn)
+            return make_local_path(cfg, fn)
 
         raise YmpConfigError(
             self.cfg,
@@ -545,12 +546,12 @@ class Project(Stage):
                     project=self.project,
                     barcodes=barcode_id,
                     run=run,
-                    pair=self.cfgmgr.pairnames[pair])
+                    pair=self.pairnames[pair])
             )
 
     def unsplit_path(self, barcode_id, pairname):
         barcode_file = barcode_id.replace("_%", "/").replace("__", "_")
-        pair = self.cfgmgr.pairnames.index(pairname)
+        pair = self.pairnames.index(pairname)
 
         run = self.data.get(self.bccol, barcode_file, self.idcol)
 
@@ -579,7 +580,7 @@ class Project(Stage):
                     or self.source_cfg[run][0] == 'srr')
 
         return [
-            "{}.{}".format(run, self.cfgmgr.pairnames[pair])
+            "{}.{}".format(run, self.pairnames[pair])
             for run in self.runs
             for pair in pairs
             if have_file(run, pair)
