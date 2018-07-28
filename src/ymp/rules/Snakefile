@@ -1,11 +1,11 @@
 import os
-import ymp
-icfg = ymp.get_config()
-from ymp.stage import Stage
-from ymp.env import Env
 
-stage = Stage.get_registry()
-env = Env.get_registry()
+import ymp
+from ymp.env import Env
+from ymp.stage import Stage
+
+icfg = ymp.get_config()
+icfg.activate()
 
 # make sure rules are executed in bash (not sh, dash or worse)
 shell.executable(icfg.shell)
@@ -45,6 +45,7 @@ wildcard_constraints:
     target = "[^/.]+",
     source = "[^/.]+"
 
+with Stage.new_registry() as stage, Env.new_registry() as env:
+    for snakefile in icfg.snakefiles:
+        include: snakefile
 
-for snakefile in icfg.snakefiles:
-    include: snakefile

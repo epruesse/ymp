@@ -299,7 +299,6 @@ class ExpandableWorkflow(Workflow):
 
         self._ruleinfos = {}
         self._last_rule_name = None
-        self.ymp_object_registry = {}
 
     @classmethod
     def register_expanders(cls, *expanders):
@@ -1003,14 +1002,17 @@ class WorkflowObject(object):
             objs[name] = self
 
     @classmethod
-    def get_registry(cls):
+    def new_registry(cls):
+        return cls.get_registry(clean=True)
+
+    @classmethod
+    def get_registry(cls, clean=False):
         """
         Return all objects of this class registered with current workflow
         """
-        workflow = get_workflow()
-        if not hasattr(workflow, "ymp_object_registry"):
-            workflow.ymp_object_registry = AttrDict()
-        registry = workflow.ymp_object_registry
-        if cls.__name__ not in registry:
-            registry[cls.__name__] = AttrDict()
-        return registry[cls.__name__]
+        import ymp
+        cfg = ymp.get_config()
+        return cfg.cache.get_cache(
+            cls.__name__,
+            loadfunc=ExpandableWorkflow.ensure_global_workflow,
+            clean=clean)

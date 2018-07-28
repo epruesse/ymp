@@ -72,9 +72,10 @@ class Reference(object):
     """
     ONEFILE = "ALL.contigs"
 
-    def __init__(self, cfgmgr, reference, cfg):
+    def __init__(self, reference, cfg):
         self.name = "ref_" + reference
-        self.cfgmgr = cfgmgr
+        import ymp
+        self.cfgmgr = ymp.get_config()
         self.cfg = cfg
         self.files = {}
         self.archives = []
@@ -130,11 +131,3 @@ class Reference(object):
 
     def __str__(self):
         return os.path.join(self.dir, "ALL")
-
-
-def load_references(cfgmgr, cfg: Optional[dict]) -> Dict[str, Reference]:
-    if not cfg:
-        return {}
-    references = {name: Reference(cfgmgr, name, data)
-                  for name, data in cfg.items()}
-    return references

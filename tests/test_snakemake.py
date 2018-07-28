@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 def test_snakemake_failure(project_dir, invoker):
     "These are expected to fail"
     res = invoker.call_raises("make", "test")
-    msg = str(res.exception)
+    msg = str(res.output)
     assert "Circular reference in" in msg
 
 

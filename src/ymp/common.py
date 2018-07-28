@@ -1,13 +1,9 @@
 """
 Collection of shared utility classes and methods
 """
-import atexit
 import logging
 import os
-import shelve
 from collections import Iterable, Mapping, OrderedDict
-
-import xdg
 
 log = logging.getLogger(__name__)
 
@@ -77,7 +73,10 @@ class AttrDict(dict):
                 return val
 
     def __setattr__(self, attr, value):
-        raise NotImplementedError()
+        if attr.startswith("_"):
+            super().__setattr__(attr, value)
+        else:
+            raise NotImplementedError()
 
 
 class MkdirDict(AttrDict):
@@ -142,25 +141,120 @@ def ensure_list(obj):
     return list(obj)
 
 
-class Cache(shelve.DbfilenameShelf):
-    _caches = {}
+class Cache(object):
+    def __init__(self, root):
+        import sqlite3
+        os.makedirs(os.path.join(root, ".ymp"), exist_ok=True)
+        self.conn = sqlite3.connect(os.path.join(root, ".ymp", "ymp.db"))
+        try:
+            self.conn.executescript("""
+            CREATE TABLE caches (
+              name TEXT,
+              files TEXT,
+              data
+            );
+            CREATE TABLE stamps (
+              file TEXT,
+              time NUM
+            );
+            """)
+        except sqlite3.OperationalError:
+            pass
+        self.caches = {}
 
-    @classmethod
-    def get_cache(cls, name="ymp"):
-        if name not in cls._caches:
-            return cls(name)
+    def close(self):
+        log.error("closing")
+        pass
+
+    def managed(self, files, func, *args, **kwargs):
+        return CacheDict(func(*args, **kwargs))
+
+    def get_cache(self, name, clean=False, *args, **kwargs):
+        if name not in self.caches:
+            self.caches[name] = CacheDict(self, name, *args, **kwargs)
+        return self.caches[name]
+
+
+class CacheDict(AttrDict):
+    def __init__(self, cache, name, *args, loadfunc=None,
+                 itemloadfunc=None, itemdata=None, **kwargs):
+        self._cache = cache
+        self._name = name
+        self._loadfunc = loadfunc
+        self._itemloadfunc = itemloadfunc
+        self._itemdata = itemdata
+        self._args = args
+        self._kwargs = kwargs
+        self._loading = False
+
+    def _loaditem(self, key):
+        if self._itemdata is not None:
+            if key in self._itemdata:
+                item = self._itemloadfunc(key, self._itemdata[key])
+                super().__setitem__(key, item)
+        elif self._itemloadfunc:
+            item = self._itemloadfunc(key)
+            super().__setitem__(key, item)
         else:
-            return cls._caches[name]
+            self._loadall()
 
-    def __init__(self, name):
-        self._cache_basename = os.path.join(
-            xdg.XDG_CACHE_HOME,
-            'ymp',
-            '{}_cache'.format(name)
-        )
-        os.makedirs(os.path.dirname(self._cache_basename), exist_ok=True)
-        atexit.register(Cache.close, self)
-        super().__init__(self._cache_basename)
-        self._caches[name] = self
+    def _loadall(self):
+        if self._itemloadfunc:
+            for key in self._itemdata:
+                self._loaditem(key)
+        elif self._loadfunc and not self._loading:
+            self._loadfunc(*self._args, **self._kwargs)
+            self._loadfunc = None
 
+    def __enter__(self):
+        self._loading = True
+        return self
 
+    def __exit__(self, a, b, c):
+        self._loading = False
+
+    def __contains__(self, key):
+        if self._itemdata:
+            return key in self._itemdata
+        self._loadall()
+        return super().__contains__(key)
+
+    def __len__(self):
+        if self._itemdata:
+            return len(self._itemdata)
+        self._loadall()
+        return super().__len__()
+
+    def __getitem__(self, key):
+        self._loaditem(key)
+        return super().__getitem__(key)
+
+    def __setitem__(self, key, val):
+        super().__setitem__(key, val)
+
+    def __delitem__(self, key):
+        raise NotImplementedError()
+        super().__delitem__(key)
+
+    def __iter__(self):
+        if self._itemdata:
+            return self._itemdata.__iter__()
+        self._loadall()
+        return super().__iter__()
+
+    def get(self, key, default=None):
+        self._loaditem(key)
+        return super().get(key, default)
+
+    def items(self):
+        self._loadall()
+        return super().items()
+
+    def keys(self):
+        if self._itemdata:
+            return self._itemdata.keys()
+        return super().keys()
+
+    def values(self):
+        self._loadall()
+        return super().values()

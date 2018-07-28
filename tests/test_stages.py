@@ -8,7 +8,7 @@ log = logging.getLogger(__name__)
 
 
 def get_targets():
-    stages = Stage.get_registry()
+    stages = Stage.load_registry()
 
     ympmakedoc = ">>> ymp make "
     stage_testcount = {stage: 0 for stage in stages}

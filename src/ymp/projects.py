@@ -300,7 +300,7 @@ class Project(Stage):
     RE_SRR = re.compile(r"^SRR[0-9]+$")
     RE_FILE = re.compile(r"^(?!http://).*(?:fq|fastq)(?:|\.gz)$")
 
-    def __init__(self, cfgmgr, project, cfg):
+    def __init__(self, project, cfg):
         # Fixme: put line in config here
         self.filename = "fn"
         self.lineno = 0
@@ -309,7 +309,8 @@ class Project(Stage):
         self.project = project
         self.name = project
         self.altname = None
-        self.cfgmgr = cfgmgr
+        import ymp
+        self.cfgmgr = ymp.get_config()
         self.cfg = cfg
         self.fieldnames = None
         self._data = None
@@ -614,11 +615,3 @@ class Project(Stage):
     def fwd_fq_names(self):
         "Names of forward FastQ files (se and pe)"
         return self.get_fq_names(only_fwd=True)
-
-
-def load_projects(cfgmgr, cfg):
-    if not cfg:
-        return {}
-    projects = {name: Project(cfgmgr, name, data)
-                for name, data in cfg.items()}
-    return projects

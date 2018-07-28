@@ -17,9 +17,11 @@ import re
 from typing import TYPE_CHECKING
 
 import ymp
+
 from ymp.exceptions import YmpException, YmpRuleError, YmpStageError
 from ymp.snakemake import ColonExpander, ExpandLateException, WorkflowObject
 from ymp.string import PartialFormatter
+
 
 if TYPE_CHECKING:
     from typing import List
@@ -37,8 +39,6 @@ def norm_wildcards(pattern):
 
 
 class StageStack(object):
-    stacks = {}
-
     @classmethod
     def get(cls, path, stage=None):
         """
@@ -48,9 +48,11 @@ class StageStack(object):
           path: Stage path
           stage: Stage object at head of stack
         """
-        if path not in cls.stacks:
-            cls.stacks[path] = StageStack(path, stage)
-        return cls.stacks[path]
+        cfg = ymp.get_config()
+        cache = cfg.cache.get_cache(cls.__name__)
+        if path not in cache:
+            cache[path] = StageStack(path, stage)
+        return cache[path]
 
     def __str__(self):
         return self.path
@@ -133,7 +135,7 @@ class StageStack(object):
         registry = Stage.get_registry()
 
         if name.startswith("group_"):
-            return None
+            return None  ## fails FIXME
         if name.startswith("ref_"):
             refname = name[4:]
             if refname in cfg.ref:
@@ -146,14 +148,13 @@ class StageStack(object):
         raise YmpStageError(f"Unknown stage '{name}'")
 
     def complete(self, incomplete):
+        registry = Stage.get_registry()
         cfg = ymp.get_config()
         result = []
         groups = ("group_" + name for name in self.project.variables)
         result += (opt for opt in groups if opt.startswith(incomplete))
         refs = ("ref_" + name for name in cfg.ref)
         result += (opt for opt in refs if opt.startswith(incomplete))
-        return result
-        registry = Stage.get_registry()
         for stage in registry.values():
             result += [name for name in (stage.name, stage.altname or "")
                        if name.startswith(incomplete)]

@@ -3,11 +3,11 @@ import logging
 import os
 
 import ymp.yaml
-from ymp.common import AttrDict, MkdirDict, parse_number
+from ymp.common import AttrDict, Cache, MkdirDict, parse_number
 from ymp.env import CondaPathExpander
 from ymp.exceptions import YmpSystemError, YmpUsageError
-from ymp.projects import load_projects
-from ymp.references import load_references
+from ymp.projects import Project
+from ymp.references import Reference
 from ymp.snakemake import \
     BaseExpander, \
     ColonExpander, \
@@ -148,9 +148,14 @@ class ConfigMgr(object):
         return cls.__instance
 
     @classmethod
+    def activate(cls):
+        ExpandableWorkflow.activate()
+
+    @classmethod
     def unload(cls):
         log.debug("Unloading ConfigMgr")
         ExpandableWorkflow.clear()
+        cls.__instance.cache.close()
         cls.__instance = None
         from ymp.stage import Stage, StageStack
         StageStack.stacks = {}
@@ -161,15 +166,18 @@ class ConfigMgr(object):
         self.root = root
         self.conffiles = conffiles
         self._config = ymp.yaml.load(conffiles)
+        self.cache = cache = Cache(root)
 
         # lazy filled by accessors
         self._snakefiles = None
 
         prj_cfg = self._config.get(self.KEY_PROJECTS) or {}
-        self._projects = load_projects(self, prj_cfg)
+        self.projects = cache.get_cache("projects", itemloadfunc=Project,
+                                        itemdata=prj_cfg)
 
         ref_cfg = self._config.get(self.KEY_REFERENCES) or {}
-        self._references = load_references(self, ref_cfg)
+        self.references = cache.get_cache("references", itemloadfunc=Reference,
+                                          itemdata=ref_cfg)
 
         self._workflow = ExpandableWorkflow.register_expanders(
             SnakemakeExpander(),
@@ -186,18 +194,11 @@ class ConfigMgr(object):
         )
 
     @property
-    def projects(self):
-        """
-        Configured projects
-        """
-        return AttrDict(self._projects)
-
-    @property
     def ref(self):
         """
         Configure references
         """
-        return AttrDict(self._references)
+        return self.references
 
     @property
     def pairnames(self):
@@ -241,7 +242,6 @@ class ConfigMgr(object):
         """
         return self._config.cluster
 
-
     @property
     def limits(self):
         """
@@ -280,13 +280,12 @@ class ConfigMgr(object):
         except KeyError:
             raise YmpUsageError(
                 "No dataset '{}' found in configuration. "
-                     "Are you in the right directory?".format(ds))
+                "Are you in the right directory?".format(ds))
 
     def expand(self, item, **kwargs):
         expander = ConfigExpander(self)
         res = expander.expand(None, item, kwargs)
         return res
-
 
     def mem(self, base="0", per_thread=None, unit="m"):
         """Clamp memory to configuration limits
