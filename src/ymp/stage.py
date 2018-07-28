@@ -168,11 +168,9 @@ class StageStack(object):
         """
         Directory of previous stage
         """
-        prefix, _, suffix = kwargs.get('item').partition("{:prev:}")
+        _, _, suffix = kwargs.get('item').partition("{:prev:}")
         if not kwargs or "wc" not in kwargs:
             raise ExpandLateException()
-        item = kwargs['item']
-        _, _, item = item.partition("{:prev:}")
         suffix = norm_wildcards(suffix)
 
         for stack in self.prevs:

@@ -3,6 +3,7 @@ import os
 import sys
 
 import click
+
 import tqdm
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -74,7 +75,7 @@ def nohup(ctx, param, val):
 
     def watcher():
         while True:
-            r, w, x = select(pipes.keys(), [], [], 60)
+            r, _, x = select(pipes.keys(), [], [], 60)
             for pipe in pipes:
                 if pipe in r:
                     data = os.read(pipe, 4096)

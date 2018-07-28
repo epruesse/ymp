@@ -8,7 +8,6 @@ import os
 import os.path as op
 import shutil
 import subprocess
-from glob import glob
 from typing import Optional, Union
 
 from ruamel.yaml import YAML

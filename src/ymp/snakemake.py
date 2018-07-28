@@ -7,10 +7,10 @@ import logging
 import re
 import sys
 from copy import copy, deepcopy
-from inspect import getframeinfo, signature, stack, Parameter
+from inspect import Parameter, signature, stack
 from typing import Optional
 
-from snakemake.exceptions import RuleException, CreateRuleException
+from snakemake.exceptions import CreateRuleException, RuleException
 from snakemake.io import AnnotatedString, apply_wildcards, \
     strip_wildcard_constraints
 from snakemake.io import Namedlist as _Namedlist
@@ -18,9 +18,9 @@ from snakemake.rules import Rule
 from snakemake.workflow import RuleInfo, Workflow
 
 import ymp
-from ymp.common import AttrDict, flatten, ensure_list, is_container
-from ymp.string import FormattingError, ProductFormatter, make_formatter
+from ymp.common import ensure_list, flatten, is_container
 from ymp.exceptions import YmpRuleError
+from ymp.string import ProductFormatter, make_formatter
 
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
