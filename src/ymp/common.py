@@ -146,29 +146,57 @@ class Cache(object):
         import sqlite3
         os.makedirs(os.path.join(root, ".ymp"), exist_ok=True)
         self.conn = sqlite3.connect(os.path.join(root, ".ymp", "ymp.db"))
-        try:
-            self.conn.executescript("""
-            CREATE TABLE caches (
-              name TEXT,
-              files TEXT,
-              data
-            );
-            CREATE TABLE stamps (
-              file TEXT,
-              time NUM
-            );
-            """)
-        except sqlite3.OperationalError:
-            pass
+        # TODO:
+        # - maintain a cache version
+        # - check file stamps
+        # - use XDG cache directory if we are outside a working directory
+
+        self.conn.executescript("""
+        CREATE TABLE IF NOT EXISTS caches (
+            name TEXT,
+            key TEXT,
+            data,
+            PRIMARY KEY (name, key)
+        );
+        CREATE TABLE IF NOT EXISTS stamps (
+            file TEXT PRIMARY KEY,
+            time NUM
+        );
+        """)
+        self.conn.commit()
         self.caches = {}
 
     def close(self):
+        for cache in self.caches.values():
+            cache.close()
         self.conn.close()
 
     def get_cache(self, name, clean=False, *args, **kwargs):
         if name not in self.caches:
             self.caches[name] = CacheDict(self, name, *args, **kwargs)
         return self.caches[name]
+
+    def store(self, cache, key, data):
+        self.conn.execute("""
+          REPLACE INTO caches
+          VALUES (?, ?, ?)
+        """, [cache, key, data]
+        )
+
+    def load(self, cache, key):
+        row = self.conn.execute("""
+        SELECT data FROM caches WHERE name=? AND key=?
+        """, [cache, key]).fetchone()
+        if row:
+            return row[0]
+        else:
+            return None
+
+    def load_all(self, cache):
+        rows = self.conn.execute("""
+        SELECT key, data FROM caches WHERE name=?
+        """, [cache])
+        return rows
 
 
 class CacheDict(AttrDict):
@@ -183,24 +211,45 @@ class CacheDict(AttrDict):
         self._kwargs = kwargs
         self._loading = False
 
+    def close(self):
+        pass
+
     def _loaditem(self, key):
-        if self._itemdata is not None:
+        import pickle
+        cached = self._cache.load(self._name, key)
+        if cached:
+            super().__setitem__(key, pickle.loads(cached))
+        elif self._itemdata is not None:
             if key in self._itemdata:
                 item = self._itemloadfunc(key, self._itemdata[key])
+                self._cache.store(self._name, key, pickle.dumps(item))
+                self._cache.conn.commit()
                 super().__setitem__(key, item)
         elif self._itemloadfunc:
             item = self._itemloadfunc(key)
+            self._cache.store(self._name, key, pickle.dumps(item))
+            self._cache.conn.commit()
             super().__setitem__(key, item)
         else:
             self._loadall()
 
     def _loadall(self):
+        import pickle
+        loaded = set()
+        cached = self._cache.load_all(self._name)
+        for row in cached:
+            loaded.add(row[0])
+            super().__setitem__(row[0], pickle.loads(row[1]))
         if self._itemloadfunc:
             for key in self._itemdata:
-                self._loaditem(key)
-        elif self._loadfunc and not self._loading:
+                if key not in loaded:
+                    self._loaditem(key)
+        elif self._loadfunc and not self._loading and not loaded:
             self._loadfunc(*self._args, **self._kwargs)
             self._loadfunc = None
+            for key, item in super().items():
+                self._cache.store(self._name, key, pickle.dumps(item))
+            self._cache.conn.commit()
 
     def __enter__(self):
         self._loading = True
@@ -230,7 +279,6 @@ class CacheDict(AttrDict):
 
     def __delitem__(self, key):
         raise NotImplementedError()
-        super().__delitem__(key)
 
     def __iter__(self):
         if self._itemdata:

@@ -90,6 +90,7 @@ def test_stage_list(invoker):
 def test_func_get_envs():
     "Test env cli helper function get_envs"
     from ymp.cli.env import get_envs
+    cfg.unload()
 
     envs = get_envs()
     log.debug("envs found: %s", envs)

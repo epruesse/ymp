@@ -158,7 +158,6 @@ class StageStack(object):
         for stage in registry.values():
             result += [name for name in (stage.name, stage.altname or "")
                        if name.startswith(incomplete)]
-        #    if stage.match(
         return result
 
     @property
@@ -300,7 +299,8 @@ class Stage(WorkflowObject):
 
     def _add_rule(self, rule):
         rule.ymp_stage = self
-        self.rules.append(rule)
+        # FIXME: disabled because it breaks pickling of Stage
+        # self.rules.append(rule)
 
     def add_param(self, key, typ, name, value=None, default=None):
         """Add parameter to stage
