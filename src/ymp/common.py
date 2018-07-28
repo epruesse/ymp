@@ -163,11 +163,7 @@ class Cache(object):
         self.caches = {}
 
     def close(self):
-        log.error("closing")
-        pass
-
-    def managed(self, files, func, *args, **kwargs):
-        return CacheDict(func(*args, **kwargs))
+        self.conn.close()
 
     def get_cache(self, name, clean=False, *args, **kwargs):
         if name not in self.caches:

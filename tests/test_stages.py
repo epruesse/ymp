@@ -8,7 +8,7 @@ log = logging.getLogger(__name__)
 
 
 def get_targets():
-    stages = Stage.load_registry()
+    stages = Stage.get_registry()
 
     ympmakedoc = ">>> ymp make "
     stage_testcount = {stage: 0 for stage in stages}
@@ -36,4 +36,3 @@ def test_stage_dryrun(invoker, targetx):
 def test_stage_run(invoker, targetx):
     invoker.call("init", "demo")
     invoker.call("make", targetx)
-
