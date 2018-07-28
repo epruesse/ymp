@@ -132,11 +132,6 @@ def snake_params(func):
         help="Force rebuilding of target"
     )
     @click.option(
-        "--conda-prefix", default=os.path.expanduser("~/.ymp/conda"),
-        metavar="PATH",
-        help="Override path to conda environments"
-    )
-    @click.option(
         "--timestamp", "-T", is_flag=True, default=False,
         help="Add timestamp to logs")
     @click.option(
