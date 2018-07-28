@@ -60,6 +60,13 @@ class Env(WorkflowObject, snakemake.conda.Env):
             if dentry.is_dir()
         ]
 
+    def __new__(cls, *args, **kwargs):
+        if args and "name" not in kwargs:
+            for env in cls.get_registry().values():
+                if env.file == args[0]:
+                    return env
+        return super().__new__(cls)
+
     def __init__(self, env_file: Optional[str] = None,
                  dag: Optional[object] = None,
                  singularity_img=None,
@@ -80,6 +87,8 @@ class Env(WorkflowObject, snakemake.conda.Env):
             the newly created environment. Sets are defined in conda.defaults
             in ``yml.yml``
         """
+        if 'name' in self.__dict__:
+            return
         cfg = ymp.get_config()
 
         pseudo_dag = AttrDict({
