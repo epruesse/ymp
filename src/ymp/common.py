@@ -145,7 +145,7 @@ class Cache(object):
     def __init__(self, root):
         import sqlite3
         os.makedirs(os.path.join(root, ".ymp"), exist_ok=True)
-        self.conn = sqlite3.connect(os.path.join(root, ".ymp", "ymp.db"))
+        self.conn = sqlite3.connect(os.path.join(root, ".ymp", "ymp.db"), check_same_thread = False)
         # TODO:
         # - maintain a cache version
         # - check file stamps
