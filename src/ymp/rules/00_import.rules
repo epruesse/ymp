@@ -109,13 +109,13 @@ with Stage("") as import_stage:
             else:
                 fake_description = True
 
-            with open(output[0]) as out:
-                writer = csv.writer(out, sep="\t")
+            with open(output[0], "w") as out:
+                writer = csv.writer(out, delimiter="\t")
                 writer.writerow(cols + (["Description"] if fake_description else []))
                 for row in project.iter_samples(cols):
                     if fake_description:
                         row = row + ['']
-                    writer.writerow(row)
+                    writer.writerow(row[1:])
 
                 # TODO: Rename bccol to "BarcodeSequence"
                 #       Fake LinkerPrimerSequence col if not exists
