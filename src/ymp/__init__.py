@@ -1,4 +1,9 @@
 import os
+import sys
+
+if 'sphinx' in sys.modules:
+    import ymp.config  # required for type hints below
+
 
 try:
     from ymp._version import version as __version__
@@ -11,6 +16,10 @@ except ModuleNotFoundError:
         __version__ = get_version(root="..", relative_to=__file__)
 
 
+__numeric_version__ = sum(
+    (100 ** n) * int(m)
+    for n, m in enumerate(__version__.split(".")[2::-1]))
+
 # Importing pkg_resources takes rather long (~200ms), for CLI snappiness,
 # we manually gather the paths for our distributed files.
 _rsc_dir = __path__[0]
@@ -20,9 +29,6 @@ _snakefile = os.path.join(_rule_dir, "Snakefile")
 _defaults_file = os.path.join(_etc_dir, "defaults.yml")
 _env_dir = os.path.join(_rsc_dir, "conda_envs")
 
-import sys
-if 'sphinx' in sys.modules:
-    import ymp.config  # required for type hints below
 
 #: Set to 1 to show the YMP expansion process as it is applied to the next
 #: Snakemake rule definition.
