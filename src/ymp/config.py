@@ -266,15 +266,6 @@ class ConfigMgr(object):
             ]
         return self._snakefiles
 
-    def getDatasetFromDir(self, dirname):
-        try:
-            ds = dirname.split(".", 1)[0]
-            return self._projects[ds]
-        except KeyError:
-            raise YmpUsageError(
-                "No dataset '{}' found in configuration. "
-                "Are you in the right directory?".format(ds))
-
     def expand(self, item, **kwargs):
         expander = ConfigExpander(self)
         res = expander.expand(None, item, kwargs)
