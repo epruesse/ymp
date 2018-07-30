@@ -302,10 +302,15 @@ class ConfigMgr(object):
 
     @property
     def shell(self):
+        """The shell used by YMP
+
+        Change by adding e.g. ``shell: /path/to/shell`` to ``ymp.yml``.
+        """
         return self._config.shell
 
     @property
     def platform(self):
+        """Name of current platform (macos or linux)"""
         if not (hasattr(self, '_platform') and self._platform):
             import platform
             system = platform.system()
