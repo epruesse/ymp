@@ -5,8 +5,9 @@ import logging
 import os
 from collections import Iterable
 
-log = logging.getLogger(__name__)
+import ymp
 
+log = logging.getLogger(__name__)
 
 
 class AttrDict(dict):
@@ -99,11 +100,21 @@ class Cache(object):
     def __init__(self, root):
         import sqlite3
         os.makedirs(os.path.join(root, ".ymp"), exist_ok=True)
-        self.conn = sqlite3.connect(os.path.join(root, ".ymp", "ymp.db"), check_same_thread = False)
+        self.conn = sqlite3.connect(os.path.join(root, ".ymp", "ymp.db"),
+                                    check_same_thread=False)
+
         # TODO:
-        # - maintain a cache version
         # - check file stamps
         # - use XDG cache directory if we are outside a working directory
+
+        # Drop tables if the database has the wrong version number
+        version = self.conn.execute("PRAGMA user_version").fetchone()[0]
+        if version != ymp.__numeric_version__:
+            self.conn.executescript("""
+            DROP TABLE IF EXISTS caches;
+            DROP TABLE IF EXISTS stamps;
+            PRAGMA user_version={}
+            """.format(ymp.__numeric_version__))
 
         self.conn.executescript("""
         CREATE TABLE IF NOT EXISTS caches (
