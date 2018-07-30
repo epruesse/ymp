@@ -250,13 +250,6 @@ class ConfigMgr(object):
         return self._config.limits
 
     @property
-    def proj(self):
-        """
-        Project base directory
-        """
-        return "{_YMP_PRJ}"
-
-    @property
     def snakefiles(self):
         """
         Snakefiles used under this config in parsing order
