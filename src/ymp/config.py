@@ -2,6 +2,8 @@ import glob
 import logging
 import os
 
+from xdg import XDG_CACHE_HOME
+
 import ymp.yaml
 from ymp.common import AttrDict, Cache, MkdirDict, parse_number
 from ymp.env import CondaPathExpander
@@ -165,8 +167,14 @@ class ConfigMgr(object):
         log.debug("Inizializing ConfigMgr")
         self.root = root
         self.conffiles = conffiles
+
+        if os.path.dirname(conffiles[-1]) == root:
+            self.cachedir = os.path.join(self.root, ".ymp")
+        else:
+            self.cachedir = os.path.join(XDG_CACHE_HOME, "ymp")
+
         self._config = ymp.yaml.load(conffiles)
-        self.cache = cache = Cache(root)
+        self.cache = cache = Cache(self.cachedir)
 
         # lazy filled by accessors
         self._snakefiles = None
