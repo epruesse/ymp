@@ -181,13 +181,19 @@ class ConfigMgr(object):
         # lazy filled by accessors
         self._snakefiles = None
 
-        prj_cfg = self._config.get(self.KEY_PROJECTS) or {}
-        self.projects = cache.get_cache("projects", itemloadfunc=Project,
-                                        itemdata=prj_cfg)
+        self.projects = cache.get_cache(
+            "projects",
+            itemloadfunc=Project,
+            itemdata=self._config.get(self.KEY_PROJECTS) or {},
+            dependfiles=conffiles
+        )
 
-        ref_cfg = self._config.get(self.KEY_REFERENCES) or {}
-        self.references = cache.get_cache("references", itemloadfunc=Reference,
-                                          itemdata=ref_cfg)
+        self.references = cache.get_cache(
+            "references",
+            itemloadfunc=Reference,
+            itemdata=self._config.get(self.KEY_REFERENCES) or {},
+            dependfiles=conffiles
+        )
 
         self._workflow = ExpandableWorkflow.register_expanders(
             SnakemakeExpander(),
