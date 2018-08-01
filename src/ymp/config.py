@@ -1,3 +1,4 @@
+import atexit
 import glob
 import logging
 import os
@@ -7,7 +8,7 @@ from xdg import XDG_CACHE_HOME
 import ymp.yaml
 from ymp.common import AttrDict, Cache, MkdirDict, parse_number
 from ymp.env import CondaPathExpander
-from ymp.exceptions import YmpSystemError, YmpUsageError
+from ymp.exceptions import YmpSystemError
 from ymp.projects import Project
 from ymp.references import Reference
 from ymp.snakemake import \
@@ -157,7 +158,8 @@ class ConfigMgr(object):
     def unload(cls):
         log.debug("Unloading ConfigMgr")
         ExpandableWorkflow.clear()
-        cls.__instance.cache.close()
+        if cls.__instance:
+            cls.__instance.cache.close()
         cls.__instance = None
         from ymp.stage import Stage, StageStack
         StageStack.stacks = {}
@@ -320,3 +322,6 @@ class ConfigMgr(object):
             else:
                 raise YmpSystemError(f"YMP does not support system '{system}'")
         return self._platform
+
+
+atexit.register(ConfigMgr.unload)
