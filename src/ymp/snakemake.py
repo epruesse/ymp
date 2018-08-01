@@ -1001,6 +1001,10 @@ class WorkflowObject(object):
         for name in names:
             objs[name] = self
 
+    @property
+    def defined_in(self):
+        return self.filename
+
     @classmethod
     def new_registry(cls):
         return cls.get_registry(clean=True)

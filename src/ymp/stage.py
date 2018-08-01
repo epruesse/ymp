@@ -168,6 +168,10 @@ class StageStack(object):
     def outputs(self):
         return self.stage.outputs
 
+    @property
+    def defined_in(self):
+        return None
+
     def prev(self, args=None, kwargs=None):
         """
         Directory of previous stage

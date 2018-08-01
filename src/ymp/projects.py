@@ -329,6 +329,10 @@ class Project(Stage):
         return "{}(project={})".format(self.__class__.__name__, self.project)
 
     @property
+    def defined_in(self):
+        return self.cfg.get_files()
+
+    @property
     def data(self):
         """Pandas dataframe of runs
 

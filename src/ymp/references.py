@@ -114,6 +114,10 @@ class Reference(object):
         self.inputs = set()
         self.group = ["ALL"]
 
+    @property
+    def defined_in(self):
+        return self.cfg.get_files()
+
     def match(self, name):
         return name == self.name
 
