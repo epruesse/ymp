@@ -71,6 +71,9 @@ class MultiProxy(object):
     def make_seq_proxy(self, key, items):
         return MultiSeqProxy(items, parent=self, key=key)
 
+    def get_files(self):
+        return [fn for fn, layer in self._maps]
+
     def to_yaml(self, show_source=False):
         buf = io.StringIO()
         if show_source:
