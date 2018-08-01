@@ -99,8 +99,8 @@ def ensure_list(obj):
 class Cache(object):
     def __init__(self, root):
         import sqlite3
-        os.makedirs(os.path.join(root, ".ymp"), exist_ok=True)
-        self.conn = sqlite3.connect(os.path.join(root, ".ymp", "ymp.db"),
+        os.makedirs(os.path.join(root), exist_ok=True)
+        self.conn = sqlite3.connect(os.path.join(root, "ymp.db"),
                                     check_same_thread=False)
 
         # TODO:
