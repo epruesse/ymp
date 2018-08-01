@@ -115,6 +115,16 @@ class Cache(object):
             DROP TABLE IF EXISTS stamps;
             PRAGMA user_version={}
             """.format(ymp.__numeric_version__))
+        else:
+            curs = self.conn.execute("SELECT file, time from stamps")
+            update = any(os.path.getmtime(row[0]) > row[1] for row in curs)
+            del curs
+            if update:
+                log.error("dropping cache")
+                self.conn.executescript("""
+                DROP TABLE caches;
+                DROP TABLE stamps;
+                """)
 
         self.conn.executescript("""
         CREATE TABLE IF NOT EXISTS caches (
