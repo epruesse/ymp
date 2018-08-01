@@ -145,27 +145,31 @@ class Cache(object):
             self.caches[name] = CacheDict(self, name, *args, **kwargs)
         return self.caches[name]
 
-    def store(self, cache, key, data):
+    def store(self, cache, key, obj):
+        import pickle
         self.conn.execute("""
           REPLACE INTO caches
           VALUES (?, ?, ?)
-        """, [cache, key, data]
+        """, [cache, key, pickle.dumps(obj)]
         )
 
     def load(self, cache, key):
+        import pickle
         row = self.conn.execute("""
         SELECT data FROM caches WHERE name=? AND key=?
         """, [cache, key]).fetchone()
         if row:
-            return row[0]
+            return pickle.loads(row[0])
         else:
             return None
 
     def load_all(self, cache):
+        import pickle
         rows = self.conn.execute("""
         SELECT key, data FROM caches WHERE name=?
         """, [cache])
-        return rows
+        return ((row[0], pickle.loads(row[1]))
+                for row in rows)
 
 
 class CacheDict(AttrDict):
@@ -182,33 +186,30 @@ class CacheDict(AttrDict):
         self._complete = False
 
     def _loaditem(self, key):
-        import pickle
         cached = self._cache.load(self._name, key)
         if cached:
-            super().__setitem__(key, pickle.loads(cached))
+            super().__setitem__(key, cached)
         elif self._itemdata is not None:
             if key in self._itemdata:
                 item = self._itemloadfunc(key, self._itemdata[key])
-                self._cache.store(self._name, key, pickle.dumps(item))
+                self._cache.store(self._name, key, item)
                 self._cache.conn.commit()
                 super().__setitem__(key, item)
         elif self._itemloadfunc:
             item = self._itemloadfunc(key)
-            self._cache.store(self._name, key, pickle.dumps(item))
+            self._cache.store(self._name, key, item)
             self._cache.conn.commit()
             super().__setitem__(key, item)
         else:
             self._loadall()
 
     def _loadall(self):
-        import pickle
         if self._complete:
             return
         loaded = set()
-        cached = self._cache.load_all(self._name)
-        for row in cached:
-            loaded.add(row[0])
-            super().__setitem__(row[0], pickle.loads(row[1]))
+        for key, obj in self._cache.load_all(self._name):
+            loaded.add(key)
+            super().__setitem__(key, obj)
         if self._itemloadfunc:
             for key in self._itemdata:
                 if key not in loaded:
@@ -217,7 +218,7 @@ class CacheDict(AttrDict):
             self._loadfunc(*self._args, **self._kwargs)
             self._loadfunc = None
             for key, item in super().items():
-                self._cache.store(self._name, key, pickle.dumps(item))
+                self._cache.store(self._name, key, item)
             self._cache.conn.commit()
         self._complete = True
 
