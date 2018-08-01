@@ -17,7 +17,6 @@ import re
 from typing import TYPE_CHECKING
 
 import ymp
-
 from ymp.exceptions import YmpException, YmpRuleError, YmpStageError
 from ymp.snakemake import ColonExpander, ExpandLateException, WorkflowObject
 from ymp.string import PartialFormatter

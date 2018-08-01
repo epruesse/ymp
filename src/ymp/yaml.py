@@ -2,13 +2,13 @@ import io
 import logging
 import os
 from collections.abc import (
-    Mapping, Sequence, MappingView, ItemsView, KeysView, ValuesView
+    ItemsView, KeysView, Mapping, MappingView, Sequence, ValuesView
 )
 
-from ruamel.yaml import YAML, RoundTripRepresenter
+import ruamel.yaml
+from ruamel.yaml import RoundTripRepresenter, YAML
 from ruamel.yaml.comments import CommentedMap
 
-import ruamel.yaml
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 

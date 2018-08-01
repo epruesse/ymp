@@ -980,7 +980,7 @@ class WorkflowObject(object):
 
     def register(self):
         """Add self to registry"""
-        objs = self.get_registry()
+        cache = self.get_registry()
 
         names = []
         for attr in 'name', 'altname':
@@ -988,10 +988,11 @@ class WorkflowObject(object):
                 names += ensure_list(getattr(self, attr))
 
         for name in names:
-            if name in objs and self != objs[name] and \
-               (self.filename != objs[name].filename
-                or self.lineno != objs[name].lineno):
-                other = objs[name]
+            if (name in cache
+                and self != cache[name]
+                and (self.filename != cache[name].filename
+                     or self.lineno != cache[name].lineno)):
+                other = cache[name]
                 raise YmpRuleError(
                     self,
                     f"Failed to create {self.__class__.__name__} '{names[0]}':"
@@ -999,7 +1000,7 @@ class WorkflowObject(object):
                 )
 
         for name in names:
-            objs[name] = self
+            cache[name] = self
 
     @property
     def defined_in(self):

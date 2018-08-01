@@ -103,10 +103,6 @@ class Cache(object):
         self.conn = sqlite3.connect(os.path.join(root, "ymp.db"),
                                     check_same_thread=False)
 
-        # TODO:
-        # - check file stamps
-        # - use XDG cache directory if we are outside a working directory
-
         # Drop tables if the database has the wrong version number
         version = self.conn.execute("PRAGMA user_version").fetchone()[0]
         if version != ymp.__numeric_version__:
@@ -142,8 +138,6 @@ class Cache(object):
         self.caches = {}
 
     def close(self):
-        for cache in self.caches.values():
-            cache.close()
         self.conn.close()
 
     def get_cache(self, name, clean=False, *args, **kwargs):
@@ -185,9 +179,6 @@ class CacheDict(AttrDict):
         self._args = args
         self._kwargs = kwargs
         self._loading = False
-
-    def close(self):
-        pass
 
     def _loaditem(self, key):
         import pickle
