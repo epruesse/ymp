@@ -131,10 +131,9 @@ class Cache(object):
         );
         CREATE TABLE IF NOT EXISTS stamps (
             file TEXT PRIMARY KEY,
-            time NUM
+            time INT
         );
         """)
-        self.conn.commit()
         self.caches = {}
         self.files = {}
 
