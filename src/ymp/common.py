@@ -179,6 +179,7 @@ class CacheDict(AttrDict):
         self._args = args
         self._kwargs = kwargs
         self._loading = False
+        self._complete = False
 
     def _loaditem(self, key):
         import pickle
@@ -201,6 +202,8 @@ class CacheDict(AttrDict):
 
     def _loadall(self):
         import pickle
+        if self._complete:
+            return
         loaded = set()
         cached = self._cache.load_all(self._name)
         for row in cached:
@@ -216,6 +219,7 @@ class CacheDict(AttrDict):
             for key, item in super().items():
                 self._cache.store(self._name, key, pickle.dumps(item))
             self._cache.conn.commit()
+        self._complete = True
 
     def __enter__(self):
         self._loading = True
@@ -237,7 +241,8 @@ class CacheDict(AttrDict):
         return super().__len__()
 
     def __getitem__(self, key):
-        self._loaditem(key)
+        if not super().__contains__(key):
+            self._loaditem(key)
         return super().__getitem__(key)
 
     def __setitem__(self, key, val):
@@ -257,7 +262,8 @@ class CacheDict(AttrDict):
         return super().__str__()
 
     def get(self, key, default=None):
-        self._loaditem(key)
+        if not super().__contains__(key):
+            self._loaditem(key)
         return super().get(key, default)
 
     def items(self):
