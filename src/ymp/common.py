@@ -136,6 +136,7 @@ class Cache(object):
         """)
         self.conn.commit()
         self.caches = {}
+        self.files = {}
 
     def close(self):
         self.conn.close()
@@ -147,6 +148,15 @@ class Cache(object):
 
     def store(self, cache, key, obj):
         import pickle
+
+        files = ensure_list(getattr(obj, "defined_in", None))
+        stamps = [(fn, os.path.getmtime(fn))
+                  for fn in files
+                  if fn not in self.files]
+        self.conn.executemany(
+            "REPLACE INTO stamps VALUES (?,?)",
+            stamps)
+        self.files.update(dict(stamps))
         self.conn.execute("""
           REPLACE INTO caches
           VALUES (?, ?, ?)
