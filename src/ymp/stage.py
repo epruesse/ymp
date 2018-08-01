@@ -49,9 +49,7 @@ class StageStack(object):
           stage: Stage object at head of stack
         """
         cfg = ymp.get_config()
-        cache = cfg.cache.get_cache(cls.__name__)
-        if path not in cache:
-            cache[path] = StageStack(path, stage)
+        cache = cfg.cache.get_cache(cls.__name__, itemloadfunc=StageStack)
         return cache[path]
 
     def __str__(self):
@@ -60,7 +58,7 @@ class StageStack(object):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.name}, {self.stage})"
 
-    def __init__(self, path, stage):
+    def __init__(self, path, stage=None):
         self.name = path
         # stage stacks this stack's top level stage draws from
         self.prevs = []
