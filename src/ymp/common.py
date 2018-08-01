@@ -261,6 +261,10 @@ class CacheDict(AttrDict):
         self._loadall()
         return super().__iter__()
 
+    def __str__(self):
+        self._loadall()
+        return super().__str__()
+
     def get(self, key, default=None):
         self._loaditem(key)
         return super().get(key, default)
