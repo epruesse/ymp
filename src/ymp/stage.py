@@ -154,8 +154,8 @@ class StageStack(object):
         refs = ("ref_" + name for name in cfg.ref)
         result += (opt for opt in refs if opt.startswith(incomplete))
         for stage in registry.values():
-            for name in (stage.name, stage.altname or ""):
-                if name.startswith(incomplete):
+            for name in (stage.name, stage.altname):
+                if name and name.startswith(incomplete):
                     try:
                         self.get(".".join((self.path, name)))
                         result.append(name)
