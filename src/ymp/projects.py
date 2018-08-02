@@ -12,45 +12,50 @@ log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 class PandasTableBuilder(object):
+    """Builds the data table describing each sample in a project
+
+    This class implements loading and combining tabular data files
+    as specified by the YAML configuration.
+
+    Format:
+     - string items are files
+     - lists of files are concatenated top to bottom
+     - dicts must have one "command" value:
+
+       - 'join' contains a two-item list
+         the two items are joined 'naturally' on shared headers
+       - 'table' contains a list of one-item dicts
+         dicts have form ``key:value[,value...]``
+         a in-place table is created from the keys
+         list-of-dict is necessary as dicts are unordered
+       - 'paste' contains a list of tables pasted left to right
+         tables pasted must be of equal length or length 1
+     - if a value is a valid path relative to the csv/tsv/xls file's
+       location, it is expanded to a path relative to CWD
+
+    Example:
+     .. code-block:: yaml
+
+      - top.csv
+      - join:
+        - excel.xslx%left.csv
+        - right.tsv
+      - table:
+        - sample: s1,s2,s3
+        - fq1: s1.1.fq, s2.1.fq, s3.1.fq
+        - fq2: s1.2.fq, s2.2.fq, s3.2.fq
+
+    """
+    """Constructs the project data table from the yaml definition
+    """
     def __init__(self):
         import pandas
         from pandas.core.reshape.merge import MergeError
         self.pd = pandas
         self.MergeError = MergeError
-        self.files = []
+        self.files: List[str] = []
 
     def load_data(self, cfg):
-        """Recursively loads csv/tsv type data as defined by yaml structure
-
-        Format:
-         - string items are files
-         - lists of files are concatenated top to bottom
-         - dicts must have one "command" value:
-
-           - 'join' contains a two-item list
-             the two items are joined 'naturally' on shared headers
-           - 'table' contains a list of one-item dicts
-             dicts have form ``key:value[,value...]``
-             a in-place table is created from the keys
-             list-of-dict is necessary as dicts are unordered
-           - 'paste' contains a list of tables pasted left to right
-             tables pasted must be of equal length or length 1
-         - if a value is a valid path relative to the csv/tsv/xls file's
-           location, it is expanded to a path relative to CWD
-
-        Example:
-         .. code-block:: yaml
-
-          - top.csv
-          - join:
-            - excel.xslx%left.csv
-            - right.tsv
-          - table:
-            - sample: s1,s2,s3
-            - fq1: s1.1.fq, s2.1.fq, s3.1.fq
-            - fq2: s1.2.fq, s2.2.fq, s3.2.fq
-
-        """
 
         if isinstance(cfg, str):
             return self._load_file(cfg)
