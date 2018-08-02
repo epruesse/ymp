@@ -112,8 +112,11 @@ class Cache(object):
             PRAGMA user_version={}
             """.format(ymp.__numeric_version__))
         else:
-            curs = self.conn.execute("SELECT file, time from stamps")
-            update = any(os.path.getmtime(row[0]) > row[1] for row in curs)
+            try:
+                curs = self.conn.execute("SELECT file, time from stamps")
+                update = any(os.path.getmtime(row[0]) > row[1] for row in curs)
+            except FileNotFoundError:
+                update = True
             del curs
             if update:
                 log.error("dropping cache")
@@ -149,18 +152,21 @@ class Cache(object):
         import pickle
 
         files = ensure_list(getattr(obj, "defined_in", None))
-        stamps = [(fn, os.path.getmtime(fn))
-                  for fn in files
-                  if fn not in self.files]
-        self.conn.executemany(
-            "REPLACE INTO stamps VALUES (?,?)",
-            stamps)
-        self.files.update(dict(stamps))
-        self.conn.execute("""
-          REPLACE INTO caches
-          VALUES (?, ?, ?)
-        """, [cache, key, pickle.dumps(obj)]
-        )
+        try:
+            stamps = [(fn, os.path.getmtime(fn))
+                      for fn in files
+                      if fn not in self.files]
+            self.conn.executemany(
+                "REPLACE INTO stamps VALUES (?,?)",
+                stamps)
+            self.files.update(dict(stamps))
+            self.conn.execute("""
+              REPLACE INTO caches
+              VALUES (?, ?, ?)
+            """, [cache, key, pickle.dumps(obj)]
+            )
+        except FileNotFoundError:
+            pass
 
     def load(self, cache, key):
         import pickle
