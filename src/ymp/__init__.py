@@ -1,8 +1,6 @@
 import os
 import sys
 
-if 'sphinx' in sys.modules:
-    import ymp.config  # required for type hints below
 
 
 try:
@@ -28,6 +26,12 @@ _etc_dir = os.path.join(_rsc_dir, "etc")
 _snakefile = os.path.join(_rule_dir, "Snakefile")
 _defaults_file = os.path.join(_etc_dir, "defaults.yml")
 _env_dir = os.path.join(_rsc_dir, "conda_envs")
+
+# import ymp.config for type hints below
+# (this import will eventually access the path variables above, so moving
+# it further up breaks docs build)
+if 'sphinx' in sys.modules:
+    import ymp.config
 
 
 #: Set to 1 to show the YMP expansion process as it is applied to the next
