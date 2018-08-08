@@ -242,13 +242,11 @@ class Invoker(object):
 
         """
         if not self.initialized:
+            # change path to USER ymp config (default ~/.ymp/ymp.yml)
+            # so that settings there do not interfere with tests
             ymp.config.ConfigMgr.CONF_USER_FNAME = "ymp_user.yml"
+            # force reload
             ymp.get_config().unload()
-            cfg = ymp.get_config()
-        cfg.dir.conda_prefix = "conda"
-        cfg.dir.conda_archive_prefix = "conda_archive"
-        self.toclean += "conda"
-        self.toclean += "conda_archive"
 
         if not os.path.exists("cmd.sh"):
             with open("cmd.sh", "w") as f:
