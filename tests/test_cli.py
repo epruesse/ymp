@@ -281,10 +281,10 @@ def test_env_activate(invoker, demo_dir, mock_conda, mock_downloader):
     assert str(demo_dir) in res.output
 
 
+def test_env_run(invoker, demo_dir, mock_conda, mock_downloader, capfd):
     with open("ymp.yml", "a") as f:
         f.write("directories:\n conda_prefix: '.'")
 
-def test_env_run(invoker, demo_dir, mock_conda, mock_downloader, capfd):
     with pytest.raises(click.UsageError) as exc:
         res = invoker.call("env", "run", "bbmapx", "bbmap.sh")
     assert exc.value.message == "Environment bbmapx unknown"
