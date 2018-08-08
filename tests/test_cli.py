@@ -150,9 +150,9 @@ def test_env_prepare(invoker, demo_dir, mock_conda, mock_downloader):
     res = invoker.call("env", "prepare", "toy.trim_bbmap")
 
     res = invoker.call("env", "list", "bbmap")
-    lines = res.output.splitlines()
-    col = lines[0].index("installed")
-    assert lines[1][col:col+len("True")] == "True"
+    lines2 = res.output.splitlines()
+    col = lines2[0].index("installed")
+    assert lines2[1][col:col+len("True")] == "True", "\n".join(lines + lines2)
 
     conda_cmd = mock_conda.calls[-1]
     assert "conda create" in conda_cmd
