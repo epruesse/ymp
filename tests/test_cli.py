@@ -2,6 +2,7 @@ import logging
 import os
 
 import click
+
 import pytest
 
 import ymp
@@ -137,7 +138,7 @@ def test_env_list(invoker):
         f"output should be sorted by hash:\n{hashes[1:]}"
 
 
-def test_env_prepare(invoker, demo_dir, mock_conda):
+def test_env_prepare(invoker, demo_dir, mock_conda, mock_downloader):
     """Test passing through to snakemake prepare"""
     with open("ymp.yml", "a") as f:
         f.write("directories:\n conda_prefix: '.'")
@@ -158,7 +159,7 @@ def test_env_prepare(invoker, demo_dir, mock_conda):
     assert "/bbmap-" in conda_cmd
 
 
-def test_env_install(invoker, demo_dir, mock_conda):
+def test_env_install(invoker, demo_dir, mock_conda, mock_downloader):
     """Test installing environments"""
     with open("ymp.yml", "a") as f:
         f.write("directories:\n conda_prefix: '.'")
@@ -191,7 +192,7 @@ def test_env_install(invoker, demo_dir, mock_conda):
     assert "--prefix "+str(demo_dir) in mock_conda.calls[2]
 
 
-def test_env_update(invoker, demo_dir, mock_conda):
+def test_env_update(invoker, demo_dir, mock_conda, mock_downloader):
     """Test updating environments"""
     with open("ymp.yml", "a") as f:
         f.write("directories:\n conda_prefix: '.'")
@@ -203,7 +204,7 @@ def test_env_update(invoker, demo_dir, mock_conda):
     assert "conda env update" in mock_conda.calls[1]
 
 
-def test_env_export(invoker, demo_dir, mock_conda):
+def test_env_export(invoker, demo_dir, mock_conda, mock_downloader):
     """Test exporting environments"""
     # install envs locally
     with open("ymp.yml", "a") as f:
@@ -272,7 +273,7 @@ def test_env_clean(invoker, demo_dir, mock_conda):
         f.write("directories:\n conda_prefix: '.'")
 
 
-def test_env_activate(invoker, demo_dir, mock_conda):
+def test_env_activate(invoker, demo_dir, mock_conda, mock_downloader):
     """Test activating an environment"""
     with open("ymp.yml", "a") as f:
         f.write("directories:\n conda_prefix: '.'")
@@ -280,10 +281,10 @@ def test_env_activate(invoker, demo_dir, mock_conda):
     assert str(demo_dir) in res.output
 
 
-def test_env_run(invoker, demo_dir, mock_conda, capfd):
     with open("ymp.yml", "a") as f:
         f.write("directories:\n conda_prefix: '.'")
 
+def test_env_run(invoker, demo_dir, mock_conda, mock_downloader, capfd):
     with pytest.raises(click.UsageError) as exc:
         res = invoker.call("env", "run", "bbmapx", "bbmap.sh")
     assert exc.value.message == "Environment bbmapx unknown"

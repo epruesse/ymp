@@ -317,3 +317,21 @@ def envvar_():
             os.environ[var] = value
         else:
             del os.environ[var]
+
+
+class MockFileDownloader(object):
+    def __init__(self, block_size=None, timeout=None, parallel=None,
+                 loglevel=None, alturls=None):
+        pass
+
+    def get(self, urls, dest, md5s=None):
+        return True
+
+
+@pytest.fixture()
+def mock_downloader():
+    import ymp.download
+    orig = ymp.download.FileDownloader
+    ymp.download.FileDownloader = MockFileDownloader
+    yield MockFileDownloader
+    ymp.download.FileDownloader = orig
