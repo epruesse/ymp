@@ -136,8 +136,12 @@ def prepare(**kwargs):
     "--conda-env-spec", "-e",
     help="Override conda env specs settings"
 )
+@click.option(
+    "--dry-run", "-n", is_flag=True,
+    help="Only show what would be done"
+)
 @click.argument("ENVNAMES", nargs=-1)
-def install(conda_prefix, conda_env_spec, envnames):
+def install(conda_prefix, conda_env_spec, dry_run, envnames):
     "Install conda software environments"
     if conda_env_spec is not None:
         cfg = ymp.get_config()
@@ -148,7 +152,7 @@ def install(conda_prefix, conda_env_spec, envnames):
     for env in envs.values():
         if conda_prefix:
             env.set_prefix(conda_prefix)
-        env.create()
+        env.create(dry_run)
 
 
 @env.command()
