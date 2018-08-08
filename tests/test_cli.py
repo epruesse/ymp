@@ -321,7 +321,6 @@ def test_env_run(invoker, demo_dir, mock_conda, mock_downloader, capfd):
         ]],
         ["ymp make toy.assemble_megahit.map_", [
             "toy.assemble_megahit.map_bbmap",
-            "toy.assemble_megahit.map_bowtie2"
         ]],
         ["ymp make toy.map_bowtie2.", [
         ]],
