@@ -61,8 +61,6 @@ class StageStack(object):
         self.name = path
         # stage stacks this stack's top level stage draws from
         self.prevs = []
-        # grouping columns active
-        self.path = getattr(stage, "dir", path)
 
         cfg = ymp.get_config()
         registry = Stage.get_registry()
@@ -81,6 +79,8 @@ class StageStack(object):
         if not stage:
             stage = self._find_stage(top_stage)
         self.stage = stage
+
+        self.path = getattr(stage, "dir", path)
 
         self.group = getattr(stage, "group", None)
         if stage_names and stage_names[-1].startswith("group_"):
