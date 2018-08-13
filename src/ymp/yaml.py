@@ -317,7 +317,7 @@ def load(files):
     for fn in reversed(files):
         with open(fn, "r") as f:
             yaml = rt_yaml.load(f)
-            if not isinstance(yaml, dict):
+            if not isinstance(yaml, Mapping):
                 raise LayeredConfError(
                     f"Malformed config file '{fn}'."
                 )
