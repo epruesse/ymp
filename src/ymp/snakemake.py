@@ -970,13 +970,16 @@ class WorkflowObject(object):
         # Fill filename and lineno
         # We assume the creating call is the first up the stack
         # that is not a constructor call (i.e. not __init__)
-        caller = next(fi for fi in stack() if fi.function != "__init__")
-        if not hasattr(self, 'filename'):
-            #: str: Name of file in which object was defined
-            self.filename = caller.filename
-        if not hasattr(self, 'lineno'):
-            #: int: Line number of object definition
-            self.lineno = caller.lineno
+        try:
+            caller = next(fi for fi in stack() if fi.function != "__init__")
+            if not hasattr(self, 'filename'):
+                #: str: Name of file in which object was defined
+                self.filename = caller.filename
+            if not hasattr(self, 'lineno'):
+                #: int: Line number of object definition
+                self.lineno = caller.lineno
+        except IndexError:
+            log.error("Failed to find source code defining %s", self)
 
     def register(self):
         """Add self to registry"""
