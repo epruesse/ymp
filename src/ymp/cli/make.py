@@ -132,9 +132,6 @@ def snake_params(func):
         help="Force rebuilding of target"
     )
     @click.option(
-        "--timestamp", "-T", is_flag=True, default=False,
-        help="Add timestamp to logs")
-    @click.option(
         "--notemp", is_flag=True, default=False,
         help="Do not remove temporary files"
     )
