@@ -2,6 +2,7 @@ import logging
 import os
 from hashlib import sha1
 from typing import Dict, Optional
+from collections.abc import Mapping, Sequence
 
 from ymp.snakemake import make_rule
 from ymp.util import make_local_path
@@ -30,10 +31,10 @@ class Archive(object):
         self.prefix = os.path.join(self.dirname, "_unpacked_" + self.hash)
 
     def get_files(self):
-        if isinstance(self.files, list):
+        if isinstance(self.files, Sequence):
             return {self.stage + fn: os.path.join(self.prefix, fn)
                     for fn in self.files}
-        elif isinstance(self.files, dict):
+        elif isinstance(self.files, Mapping):
             return {self.stage + fn_ymp: os.path.join(self.prefix, fn_arch)
                     for fn_ymp, fn_arch in self.files.items()}
         else:
