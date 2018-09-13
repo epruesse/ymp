@@ -35,8 +35,8 @@ conda:
       dependencies: []
     bioconda:
       channels:
-        - bioconda
         - conda-forge
+        - bioconda
       dependencies: []
     conda-forge:
       channels:
