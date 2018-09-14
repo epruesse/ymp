@@ -114,7 +114,7 @@ with Stage("") as import_stage:
                 writer.writerow(cols + (["Description"] if fake_description else []))
                 for row in project.iter_samples(cols):
                     if fake_description:
-                        row = row + ['']
+                        row = list(row) + ['']
                     writer.writerow(row[1:])
 
                 # TODO: Rename bccol to "BarcodeSequence"
