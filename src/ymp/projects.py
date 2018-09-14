@@ -260,9 +260,9 @@ class SQLiteProjectData(object):
         )
 
     def get(self, idcol, row, col):
-        return self.query(
-            'SELECT "{c}" from "{n}" where "{i}"=?'.format(
-                n=self.name, c=col, i=idcol), [row]).fetchone()[0]
+        query = f'SELECT "{col}" from "{self.name}" where "{idcol}"=?'
+        res = [row[0] for row in self.query(query, [row]).fetchall()]
+        return res
 
     def column(self, col):
         if isinstance(col, str):
