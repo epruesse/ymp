@@ -140,7 +140,7 @@ class FileDownloader(object):
                                                 destfile, md5):
                         return True
                     break
-                except Timeouterror as e:
+                except TimeoutError as e:
                     exc = e
         return False
 
