@@ -40,7 +40,7 @@ class MkdirDict(AttrDict):
         dirname = super().__getattr__(attr)
         if not os.path.exists(dirname):
             log.info("Creating directory %s", dirname)
-            os.makedirs(dirname)
+            os.makedirs(dirname, exist_ok=True)
         return dirname
 
 
