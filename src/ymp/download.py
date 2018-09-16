@@ -29,12 +29,14 @@ class FileDownloader(object):
       loglevel:   Log level for messages send to logging
                   (Errors are send with loglevel+10)
       alturls:    List of regexps modifying URLs
+      retry:      Number of times to retry download
     """
     def __init__(self, block_size: int=4096, timeout: int=300, parallel: int=4,
-                 loglevel: int=logging.WARNING, alturls=None):
+                 loglevel: int=logging.WARNING, alturls=None, retry: int=3):
         self._block_size = block_size
         self._timeout = timeout
         self._parallel = parallel
+        self._retry = retry
 
         self._alturls = []
         alturls = ["///"] + (alturls or [])
@@ -127,9 +129,19 @@ class FileDownloader(object):
             self._check_md5(basename, destfile, md5)
 
         tryurls = [re.sub(pat, rep, url) for pat, rep in self._alturls]
-        for url in tryurls:
-            if await self._download_one(session, basename, url, destfile, md5):
-                return True
+        for url in tryurls:  # try alturls
+            exc = None
+            for num_try in range(self._retry):  # retry after timeout
+                if exc:
+                    self.log("Downloading %s failed with %s. Retrying %i/%i",
+                             basename, exc, num_try, self._retry-1)
+                try:
+                    if await self._download_one(session, basename, url,
+                                                destfile, md5):
+                        return True
+                    break
+                except Timeouterror as e:
+                    exc = e
         return False
 
     def _check_md5(self, name, fname, md5):
