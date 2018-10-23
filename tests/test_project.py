@@ -42,6 +42,6 @@ def test_project_data(project_data):
                      ['apple', 'orange', 'grape', 'banana', 'cherry', 'melon']
             ):
         assert row[1] == test
-    assert obj.get('fruit', 'apple', 'skin_color') == 'green'
+    assert obj.get('fruit', 'apple', 'skin_color') == ['green']
     assert obj.column('fruit') == ['apple', 'orange', 'grape', 'banana', 'cherry', 'melon']
     assert obj.groupby_dedup(cols[1:]) == cols[1:3]

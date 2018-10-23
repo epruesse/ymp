@@ -340,7 +340,8 @@ class Env(WorkflowObject, snakemake.conda.Env):
             yaml.default_flow_style = False
             env = yaml.load(res.stdout)
             env['name'] = self.name
-            del env['prefix']
+            if 'prefix' in env:
+                del env['prefix']
             yaml.dump(env, stream)
         elif typ == 'txt':
             res = subprocess.run([

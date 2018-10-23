@@ -303,10 +303,10 @@ def test_env_run(invoker, demo_dir, mock_conda, mock_downloader, capfd):
     "words,result",
     [
         ["ymp make", [
-            "toy", "toy.", "mpic", "mpic."
+            "toy", "toy.", "mpic", "mpic.", 0
         ]],
         ["ymp make t", [
-            "toy", "toy."
+            "toy", "toy.", 0
         ]],
         ["ymp make toy.", [
             "toy.assemble_", "toy.trim_"
@@ -323,10 +323,16 @@ def test_env_run(invoker, demo_dir, mock_conda, mock_downloader, capfd):
             "toy.assemble_megahit.map_bbmap",
         ]],
         ["ymp make toy.map_bowtie2.", [
+            0
+        ]],
+        ["ymp make toy.group_", [
+            "toy.group_name", "toy.group_Subject",
+            "toy.group_name.", "toy.group_Subject.",
+            10
         ]],
     ]
 )
-def test_tab_expand(invoker, demo_dir, capfd, envvar, words, result):
+def test_completion(invoker, demo_dir, capfd, envvar, words, result):
     import subprocess as sp
     envvar('YMP_DEBUG_EXPAND', 'stderr')
     envvar('_YMP_COMPLETE', 'complete-bash')
@@ -334,5 +340,10 @@ def test_tab_expand(invoker, demo_dir, capfd, envvar, words, result):
     envvar('COMP_WORDS', words)
     sp.run(["python", "-m", "ymp"])
     cap = capfd.readouterr()
+    expanded = set(cap.out.split())
+
     for val in result:
-        assert val in cap.out
+        if isinstance(val, str):
+            expanded.remove(val)
+        else:
+            assert len(expanded) == val

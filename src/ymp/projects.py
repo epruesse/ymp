@@ -4,6 +4,7 @@ import re
 from collections import Mapping, Sequence
 
 import ymp
+from ymp.common import ensure_list
 from ymp.exceptions import YmpConfigError, YmpStageError
 from ymp.stage import Stage
 from ymp.util import is_fq, make_local_path
@@ -178,7 +179,7 @@ class PandasProjectData(object):
         yield from self.df[cols].itertuples()
 
     def get(self, idcol, row, col):
-        return self.df[self.df[idcol] == row][col].values[0]
+        return ensure_list(self.df[self.df[idcol] == row][col].values[0])
 
     def column(self, col):
         return list(self.df[col])
@@ -516,13 +517,13 @@ class Project(Stage):
             pair = self.pairnames.index(pair)
 
         if self.bccol and not nosplit:
-            barcode_file = self.data.get(self.idcol, run, self.bccol)
+            barcode_file = self.data.get(self.idcol, run, self.bccol)[0]
             if barcode_file:
                 return self.encode_barcode_path(barcode_file, run, pair)
 
         kind = source[0]
         if kind == 'srr':
-            srr = self.data.get(self.idcol, run, source[1])
+            srr = self.data.get(self.idcol, run, source[1])[0]
             f = os.path.join(cfg.dir.scratch,
                              "SRR",
                              "{}_{}.fastq.gz".format(srr, pair+1))
@@ -534,7 +535,7 @@ class Project(Stage):
                 "Configuration Error: no source for sample {} and read {} "
                 "found.".format(run, pair+1))
 
-        fn = self.data.get(self.idcol, run, fq_col)
+        fn = self.data.get(self.idcol, run, fq_col)[0]
         if kind == 'file':
             return fn
 
@@ -562,9 +563,9 @@ class Project(Stage):
         barcode_file = barcode_id.replace("_%", "/").replace("__", "_")
         pair = self.pairnames.index(pairname)
 
-        run = self.data.get(self.bccol, barcode_file, self.idcol)
-
-        return [barcode_file, self.source_path(run, pair, nosplit=True)]
+        run = self.data.get(self.bccol, barcode_file, self.idcol)[0]
+        source = self.source_path(run, pair, nosplit=True)
+        return [barcode_file, source]
 
     def get_fq_names(self,
                      only_fwd=False, only_rev=False,

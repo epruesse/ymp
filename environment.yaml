@@ -4,6 +4,7 @@ channels:
 dependencies:
   - python >=3.6
   - snakemake-minimal =5.2.2
+  - conda
   # disabled, breaks R in utils, but unused. FIXME
   #  - rpy2 =2.8.5  # pinned to keep conda from taking for ever
   - click
