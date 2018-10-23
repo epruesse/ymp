@@ -77,7 +77,7 @@ setup(
     ],
     extras_require={
         'docs': [
-            'sphinx==1.7.0',
+            'sphinx',
             'cloud_sptheme',
             'sphinxcontrib-fulltoc',
             'sphinx-click',
