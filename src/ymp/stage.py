@@ -38,6 +38,9 @@ def norm_wildcards(pattern):
 
 
 class StageStack(object):
+    """The "head" of a processing chain - a stack of stages
+    """
+
     @classmethod
     def get(cls, path, stage=None):
         """
@@ -59,7 +62,7 @@ class StageStack(object):
 
     def __init__(self, path, stage=None):
         self.name = path
-        # stage stacks this stack's top level stage draws from
+        # immediate predecessors (sources) for the Stage of this Stack
         self.prevs = []
 
         cfg = ymp.get_config()
