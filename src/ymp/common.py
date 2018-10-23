@@ -105,13 +105,7 @@ class Cache(object):
 
         # Drop tables if the database has the wrong version number
         version = self.conn.execute("PRAGMA user_version").fetchone()[0]
-        if version != ymp.__numeric_version__:
-            self.conn.executescript("""
-            DROP TABLE IF EXISTS caches;
-            DROP TABLE IF EXISTS stamps;
-            PRAGMA user_version={}
-            """.format(ymp.__numeric_version__))
-        else:
+        if version == ymp.__numeric_version__:
             try:
                 curs = self.conn.execute("SELECT file, time from stamps")
                 update = any(os.path.getmtime(row[0]) > row[1] for row in curs)
@@ -124,19 +118,29 @@ class Cache(object):
                 DROP TABLE caches;
                 DROP TABLE stamps;
                 """)
+        else:
+            update = True
 
-        self.conn.executescript("""
-        CREATE TABLE IF NOT EXISTS caches (
-            name TEXT,
-            key TEXT,
-            data,
-            PRIMARY KEY (name, key)
-        );
-        CREATE TABLE IF NOT EXISTS stamps (
-            file TEXT PRIMARY KEY,
-            time INT
-        );
-        """)
+        if update:
+            self.conn.executescript("""
+            BEGIN EXCLUSIVE;
+            DROP TABLE IF EXISTS caches;
+            CREATE TABLE caches (
+                name TEXT,
+                key TEXT,
+                data,
+                PRIMARY KEY (name, key)
+            );
+            DROP TABLE IF EXISTS stamps;
+            CREATE TABLE stamps (
+                file TEXT PRIMARY KEY,
+                time INT
+            );
+
+            PRAGMA user_version={};
+            COMMIT;
+            """.format(ymp.__numeric_version__))
+
         self.caches = {}
         self.files = {}
 
@@ -167,6 +171,12 @@ class Cache(object):
             )
         except FileNotFoundError:
             pass
+
+    def commit(self):
+        try:
+            self.conn.commit()
+        except sqlite3.OperationalError as e:
+            log.warning("Cache write failed: %s", e.what())
 
     def load(self, cache, key):
         import pickle
@@ -208,12 +218,12 @@ class CacheDict(AttrDict):
             if key in self._itemdata:
                 item = self._itemloadfunc(key, self._itemdata[key])
                 self._cache.store(self._name, key, item)
-                self._cache.conn.commit()
+                self._cache.commit()
                 super().__setitem__(key, item)
         elif self._itemloadfunc:
             item = self._itemloadfunc(key)
             self._cache.store(self._name, key, item)
-            self._cache.conn.commit()
+            self._cache.commit()
             super().__setitem__(key, item)
         else:
             self._loadall()
@@ -234,7 +244,7 @@ class CacheDict(AttrDict):
             self._loadfunc = None
             for key, item in super().items():
                 self._cache.store(self._name, key, item)
-            self._cache.conn.commit()
+            self._cache.commit()
         self._complete = True
 
     def __enter__(self):
