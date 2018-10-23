@@ -304,7 +304,7 @@ class Project(Stage):
     # LibrarySelection_s PCR | RANDOM
 
     RE_REMOTE = re.compile(r"^(?:https?|ftp|sftp)://(?:.*)")
-    RE_SRR = re.compile(r"^SRR[0-9]+$")
+    RE_SRR = re.compile(r"^[SED]RR[0-9]+$")
     RE_FILE = re.compile(r"^(?!http://).*(?:fq|fastq)(?:|\.gz)$")
 
     def __init__(self, project, cfg):
