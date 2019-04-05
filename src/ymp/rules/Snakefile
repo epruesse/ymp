@@ -13,37 +13,37 @@ shell.executable(icfg.shell)
 refname = str("({})".format("|".join(icfg.ref)))
 
 wildcard_constraints:
-    _YMP_DIR = "([^/]+\.|)",
-    dir      = "[^/]+?",
-    dir1     = "[^/]+",
-    dir2     = "[^/]+",
-    file     = "[^/]+",
+    _YMP_DIR = r"([^/]+\.|)",
+    dir      = r"[^/]+?",
+    dir1     = r"[^/]+",
+    dir2     = r"[^/]+",
+    file     = r"[^/]+",
 
-    nodots   = "[^/.]+",
-    query    = "[^/.]+",
-    gene     = "[^/.]+",
+    nodots   = r"[^/.]+",
+    query    = r"[^/.]+",
+    gene     = r"[^/.]+",
 
-    fracid   = "[0-9][0-9]",
-    coverage = "[0-9]+",
-    evalue   = "[0-9]+",
-    length   = "[1-9][0-9]*",
+    fracid   = r"[0-9][0-9]",
+    coverage = r"[0-9]+",
+    evalue   = r"[0-9]+",
+    length   = r"[1-9][0-9]*",
 
-    SRR = "[EDS]RR[0-9]+",
+    SRR = r"[EDS]RR[0-9]+",
     reference = refname,
     refname = refname,
-    assembler = "(mh|mhc|sp|trinity|ref_{})".format(refname),
-    mapper = "(map_bbmap|map_bowtie2)",
-    genefind = "(blast)",
+    assembler = r"(mh|mhc|sp|trinity|ref_{})".format(refname),
+    mapper = r"(map_bbmap|map_bowtie2)",
+    genefind = r"(blast)",
 
-    fasta = "(fasta|fna|fa)",
-    fastp = "(fastp|faa)",
-    fagz  = "(fasta|fna|fa)(|.gz)",
-    fqgz  = "(fq)(|.gz)",
+    fasta = r"(fasta|fna|fa)",
+    fastp = r"(fastp|faa)",
+    fagz  = r"(fasta|fna|fa)(|.gz)",
+    fqgz  = r"(fq)(|.gz)",
 
-    by = "(\.by_[^./]*|)",
-    REF = "(\.ref_[^./]*|)",
-    target = "[^/.]+",
-    source = "[^/.]+"
+    by = r"(\.by_[^./]*|)",
+    REF = r"(\.ref_[^./]*|)",
+    target = r"[^/.]+",
+    source = r"[^/.]+"
 
 with Stage.new_registry() as stage, Env.new_registry() as env:
     for snakefile in icfg.snakefiles:

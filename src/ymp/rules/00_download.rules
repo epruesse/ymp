@@ -64,7 +64,7 @@ with Stage("references") as S:
         output:
             "{:dir.references:}/{refname}{stage}/{path}"
         wildcard_constraints:
-            stage = "(\.[^/]+|)"
+            stage = r"(\.[^/]+|)"
         run:
             if isinstance(input.files, str):
                 infile = input.files

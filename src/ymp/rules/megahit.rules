@@ -41,7 +41,7 @@ with Stage("assemble_megahit") as S:
             32
         conda:
             "megahit"
-        shell: """
+        shell: r"""
         # iff there is an existing opts.txt with an existing megahit temp dir,
         # then we can continue an existing run
         MHTMP=$(sed -n '/MEGAHIT_TEMP_DIR:/ s/.*:\s*//p' "{params.workdir}/opts.txt" 2>/dev/null||true)

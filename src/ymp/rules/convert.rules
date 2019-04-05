@@ -65,7 +65,7 @@ rule gunzip:
     """
     message: "Uncompressing {input}"
     wildcard_constraints:
-        path = ".*(?<!\.gz)"
+        path = r".*(?<!\.gz)"
     input: "{path}.gz"
     output: temp("{path}_disabled")
     params:

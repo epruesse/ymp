@@ -86,10 +86,10 @@ with Stage("cluster_cdhit"):
         run:
             import re, csv
             clstr_format = re.compile(
-                "(?P<leaf_id>\d+)\s+(?P<qlen>\d+)aa,\s"
-                ">(?P<qacc>.*)\.\.\.\s"
-                "(at\s(?P<qstart>\d+):(?P<qend>\d+):(?P<sstart>\d+):(?P<send>\d+)/"
-                "(?P<pident>\d+\.\d+)%|\*)"
+                r"(?P<leaf_id>\d+)\s+(?P<qlen>\d+)aa,\s"
+                r">(?P<qacc>.*)\.\.\.\s"
+                r"(at\s(?P<qstart>\d+):(?P<qend>\d+):(?P<sstart>\d+):(?P<send>\d+)/"
+                r"(?P<pident>\d+\.\d+)%|\*)"
                 , flags = re.VERBOSE|re.ASCII)
             fieldnames = ["cluster_id", "leaf_id",
                           "sacc", "qacc", "qlen",
