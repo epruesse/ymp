@@ -3,14 +3,14 @@ channels:
   - conda-forge
 dependencies:
   - python >=3.6
-  - snakemake-minimal =5.2.2
+  - snakemake-minimal >=5.2.2
   - conda
   # disabled, breaks R in utils, but unused. FIXME
   #  - rpy2 =2.8.5  # pinned to keep conda from taking for ever
   - click
   - click-completion
   - ruamel.yaml >0.15 # new api
-  - python-drmaa
+  - drmaa
   - pandas >=0.20  # need dtype support in python csv engine
   - xlrd         # excel support
   - coloredlogs
