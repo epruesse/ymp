@@ -156,10 +156,10 @@ def start_snakemake(kwargs):
     """
     cfg = ymp.get_config()
     if not cfg.projects:
-        log.warn("No projects configured. Are you in the right folder?")
-        log.warn("  Config files loaded:")
+        log.warning("No projects configured. Are you in the right folder?")
+        log.warning("  Config files loaded:")
         for fname in cfg.conffiles:
-            log.warn("    - %s", fname)
+            log.warning("    - %s", fname)
 
     root_path = cfg.root
     cur_path = os.path.abspath(os.getcwd())

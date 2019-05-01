@@ -47,7 +47,7 @@ class FileDownloader(object):
                 if len(patsub) != 2:
                     raise ValueError("Malformed regular expression '{}'"
                                      "".format(pat))
-                patsub[1] = patsub[1].replace("\/", "/")
+                patsub[1] = patsub[1].replace(r"\/", "/")
             else:
                 patsub = ["", ""]
             self._alturls.append(patsub)
