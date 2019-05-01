@@ -137,6 +137,7 @@ def mock_cmd(request, bin_dir):
 
 @pytest.fixture
 def mock_conda(bin_dir):
+    base_dir = os.path.dirname(bin_dir)
     yield MockCmd(bin_dir, "conda", "\n".join([
         'cmd=""',
         'while [ -n "$1" ]; do',
@@ -144,6 +145,7 @@ def mock_conda(bin_dir):
         '  --version)   echo conda 4.2; exit 0;;',
         '  --prefix|-p) shift; p="$1";;',
         '  --file|-f)   shift; f="$1";;'
+        '  --json)      shift; j=Y;;'
         '  *)           cmd="$cmd $1";;',
         '  esac',
         '  shift',
@@ -153,6 +155,9 @@ def mock_conda(bin_dir):
         'fi',
         'if [ x"$cmd" = x" env export" -a -n "$p" ]; then',
         '  echo "dependencies: [one, two]"',
+        'fi',
+        'if [ x"$cmd" = x" info" ]; then',
+        '  echo \'{{"conda_prefix": "{}"}}\''.format(base_dir),
         'fi',
     ]))
 
