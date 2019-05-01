@@ -155,6 +155,12 @@ def start_snakemake(kwargs):
     Fixes paths of kwargs['targets'] to be relative to YMP root.
     """
     cfg = ymp.get_config()
+    if not cfg.projects:
+        log.warn("No projects configured. Are you in the right folder?")
+        log.warn("  Config files loaded:")
+        for fname in cfg.conffiles:
+            log.warn("    - %s", fname)
+
     root_path = cfg.root
     cur_path = os.path.abspath(os.getcwd())
     if not cur_path.startswith(root_path):
