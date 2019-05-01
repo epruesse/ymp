@@ -85,7 +85,8 @@ class FileDownloader(object):
 
     @staticmethod
     def make_bar_format(desc_width: int=20, count_width: int=0,
-                        rate: bool=False, eta: bool=False) -> str:
+                        rate: bool=False, eta: bool=False,
+                        have_total: bool=True) -> str:
         """Construct bar_format for tqdm
 
         Args:
@@ -93,8 +94,13 @@ class FileDownloader(object):
           count_width: min space for counts
           rate: show rate to right of progress bar
           eta: show eta to right of progress bar
+          have_total: whether a total exists (required to add percentage)
         """
-        left = '{{desc:<{dw}}} {{percentage:3.0f}}%'.format(dw=desc_width)
+        if have_total:
+            left = '{{desc:<{dw}}} {{percentage:3.0f}}%'.format(dw=desc_width)
+        else:
+            # percentage not supplied by TQDM if there is no total
+            left = '{{desc:<{dw}}}'.format(dw=desc_width)
         right = ' {{n_fmt:>{cw}}} / {{total_fmt:<{cw}}}'.format(cw=count_width)
         if rate:
             right += ' {{rate_fmt:>{cw}}}'.format(cw=count_width+2)
@@ -253,7 +259,7 @@ class FileDownloader(object):
                     disable=not self._progress, leave=False,
                     bar_format=self.make_bar_format(20, 7, eta=True)
                 ) as t, tqdm(
-                    total=0,
+                    total=1,  # must be >0
                     unit="B", desc="Total bytes:",
                     unit_scale=True, unit_divisor=1024,
                     disable=not self._progress, leave=False, miniters=1,
