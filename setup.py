@@ -63,7 +63,7 @@ setup(
         'xlrd',
     ],
     install_requires=[
-        'snakemake>=4.8',
+        'snakemake>=5.4.4',
         'Click',
         'Click-completion',
         'ruamel.yaml>0.15',

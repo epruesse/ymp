@@ -320,7 +320,7 @@ class ExpandableWorkflow(Workflow):
         import snakemake.workflow
         snakemake.workflow.workflow = None
 
-    def add_rule(self, name=None, lineno=None, snakefile=None):
+    def add_rule(self, name=None, lineno=None, snakefile=None, checkpoint=False):
         """Add a rule.
 
         Arguments:
