@@ -132,7 +132,8 @@ class FileDownloader(object):
             destfile = dest
 
         if os.path.exists(destfile) and md5 and not isinstance(md5, bool):
-            self._check_md5(basename, destfile, md5)
+            if self._check_md5(basename, destfile, md5):
+                return True
 
         tryurls = [re.sub(pat, rep, url) for pat, rep in self._alturls]
         for url in tryurls:  # try alturls
