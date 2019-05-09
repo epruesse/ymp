@@ -272,8 +272,8 @@ class Env(WorkflowObject, snakemake.conda.Env):
         cfg = ymp.get_config()
         fd = FileDownloader(alturls=cfg.conda.alturls)
         if not fd.get(urls, self.archive_file, md5s):
-            # remove partially download archive folder
-            shutil.rmtree(self.archive_file, ignore_errors=True)
+            # remove partially download archive folder?
+            # shutil.rmtree(self.archive_file, ignore_errors=True)
             raise YmpWorkflowError(
                 f"Unable to create environment {self.name}, "
                 f"because downloads failed. See log for details.")
