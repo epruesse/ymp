@@ -12,7 +12,7 @@ dependencies:
   - pandas >=0.20  # need dtype support in python csv engine
   - xlrd         # excel support
   - coloredlogs
-  - setuptools_scm >=1.17 # versioning
+  - setuptools_scm >=3.2 # versioning
   - xdg # user paths
   - tqdm >=4.21 # progress bar
   - aiohttp # async http
