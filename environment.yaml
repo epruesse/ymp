@@ -1,19 +1,17 @@
 channels:
-  - bioconda
   - conda-forge
 dependencies:
-  - python =3.6.*
-  - snakemake >=4.8
-  # disabled, breaks R in utils, but unused. FIXME
-  #  - rpy2 =2.8.5  # pinned to keep conda from taking for ever
+  - python >=3.6
+  - bioconda::snakemake-minimal >=5.4.4
+  - conda !=4.6.11
   - click
   - click-completion
   - ruamel.yaml >0.15 # new api
-  - python-drmaa
+  - drmaa
   - pandas >=0.20  # need dtype support in python csv engine
   - xlrd         # excel support
   - coloredlogs
-  - setuptools_scm >=1.17 # versioning
+  - setuptools_scm >=3.2 # versioning
   - xdg # user paths
   - tqdm >=4.21 # progress bar
   - aiohttp # async http
@@ -23,11 +21,17 @@ dependencies:
   - pytest
   - pytest-runner  # run from setup.py
   - pytest-xdist   # parallel testing
-  - pytest-timeout # dump on test timeout
+  - pytest-timeout >=1.3 # dump on test timeout
   - yappi          # profiler
   - pytest-cov
   - codecov
   #### avoid mkl ~ 700MB ###
   - nomkl
-  #### for reathedocs ####
+  #### for docs ####
   - urllib3 =1.22
+  - cloud_sptheme
+  - sphinx
+  - sphinxcontrib-fulltoc
+  - sphinx-click
+  - sphinx-autodoc-typehints
+  - ftputil

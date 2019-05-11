@@ -1,58 +1,71 @@
 Env(name="trimmomatic", base="bioconda", packages="trimmomatic")
 
-rule trimmomatic_adapter:
-    """Trimming with Trimmomatic"""
-    message:
-        "Trimmomatic {wildcards.dir}/{wildcards.sample}"
-    input:
-        "{dir}/{sample}.{:pairnames:}.fq.gz"
-    wildcard_constraints:
-        adapter="(N|T(2|3|32))"
-    output:
-        "{dir}.trimmomatic{adapter}/{sample}.{:pairnames[0]:}.fq.gz",
-        "{dir}.trimmomatic{adapter}/{sample}.unpaired.{:pairnames[0]:}.fq.gz",
-        "{dir}.trimmomatic{adapter}/{sample}.{:pairnames[1]:}.fq.gz",
-        "{dir}.trimmomatic{adapter}/{sample}.unpaired.{:pairnames[1]:}.fq.gz"
-    log:
-        "{dir}.trimmomatic{adapter}/{sample}.log"
-    params:
-        seed_mismatches = 2,
-        palindrome_clip_thresh = 30,
-        simple_clip_thresh = 10,
-        min_adapter_len = 8,
-        keep_both_reads = "true",
-        arg_pe="PE"
-    conda:
-        "trimmomatic"
-    threads:
-        1
-    shell:"""
-    case {wildcards.adapter} in
-      N)   ADAPTER=NexteraPE-PE.fa ;;
-      T2)  ADAPTER=TruSeq2-PE.fa ;;
-      T3)  ADAPTER=TruSeq3-PE.fa ;;
-      T32) ADAPTER=TruSeq3-PE-2.fa ;;
-    esac
+with Stage("trim_trimmomatic") as S:
+    S.doc("""
+    Adapter trim reads using trimmomatic
 
-    ADAPTER_DIR="$(dirname $(which trimmomatic))/../share/trimmomatic/adapters"
+    >>> ymp make toy.trim_trimmomaticT32
+    >>> ymp make mpic.trim_trimmomatic
+    """)
+    S.add_param(key="",typ="choice", name="adapter",
+                value=['N', 'T2', 'T3', 'T32'], default="N")
+    rule trimmomatic_adapter:
+        """Trimming with Trimmomatic"""
+        message:
+            "Trimmomatic: trimming {input}"
+        input:
+            "{:prev:}/{sample}.{:pairnames:}.fq.gz"
+        output:
+            "{:this:}/{sample}.{:pairnames[0]:}.fq.gz",
+            "{:this:}/{sample}.unpaired.{:pairnames[0]:}.fq.gz",
+            "{:this:}/{sample}.{:pairnames[1]:}.fq.gz",
+            "{:this:}/{sample}.unpaired.{:pairnames[1]:}.fq.gz"
+        log:
+            "{:this:}/{sample}.log"
+        params:
+            seed_mismatches = 2,
+            palindrome_clip_thresh = 30,
+            simple_clip_thresh = 10,
+            min_adapter_len = 8,
+            keep_both_reads = "true",
+            arg_pe="PE"
+        conda:
+            "trimmomatic"
+        threads:
+            1
+        shell:"""
+        case {params.adapter} in
+          N)   ADAPTER=NexteraPE-PE.fa ;;
+          T2)  ADAPTER=TruSeq2-PE.fa ;;
+          T3)  ADAPTER=TruSeq3-PE.fa ;;
+          T32) ADAPTER=TruSeq3-PE-2.fa ;;
+        esac
 
-    CLIPARG="ILLUMINACLIP:$ADAPTER_DIR/$ADAPTER"
-    CLIPARG="$CLIPARG:{params.seed_mismatches}"
-    CLIPARG="$CLIPARG:{params.palindrome_clip_thresh}"
-    CLIPARG="$CLIPARG:{params.simple_clip_thresh}"
-    CLIPARG="$CLIPARG:{params.min_adapter_len}"
-    CLIPARG="$CLIPARG:{params.keep_both_reads}"
+        ADAPTER_DIR="$(dirname $(which trimmomatic))/../share/trimmomatic/adapters"
 
-    bash -x `which trimmomatic` {params.arg_pe} \
-        -threads {threads} \
-        -phred33 \
-        {input} {output} \
-        $CLIPARG >>{log} 2>&1
-    """
+        CLIPARG="ILLUMINACLIP:$ADAPTER_DIR/$ADAPTER"
+        CLIPARG="$CLIPARG:{params.seed_mismatches}"
+        CLIPARG="$CLIPARG:{params.palindrome_clip_thresh}"
+        CLIPARG="$CLIPARG:{params.simple_clip_thresh}"
+        CLIPARG="$CLIPARG:{params.min_adapter_len}"
+        CLIPARG="$CLIPARG:{params.keep_both_reads}"
 
+        trimmomatic {params.arg_pe} \
+            -threads {threads} \
+            -phred33 \
+            {input} {output} \
+            $CLIPARG >{log} 2>&1
+        """
 
-rule trimmomatic_adapter_se:  # ymp: extends trimmomatic_adapter
-    input:  "{dir}/{sample}.{:pairnames[0]:}.fq.gz"
-    output: "{dir}.trimmomatic{adapter}/{sample}.{:pairnames[0]:}.fq.gz"
-    params: arg_pe  = "SE",
-            outargs = "{output}"
+    rule trimmomatic_adapter_se:  # ymp: extends trimmomatic_adapter
+        input:  "{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"
+        output: "{:this:}/{sample}.{:pairnames[0]:}.fq.gz"
+        params: arg_pe  = "SE"
+
+    rule trimmomatic_adapter_all:
+        message:
+            "Trimmomatic: complete"
+        output:
+            touch("{:this:}/all_targets.stamp")
+        input:
+            "{:this:}/{:fq_names:}.fq.gz"

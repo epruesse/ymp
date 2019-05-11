@@ -2,8 +2,11 @@ import logging
 import os
 
 import click
+
 import pytest
 
+import ymp
+cfg = ymp.get_config()
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -16,32 +19,32 @@ def test_submit_no_profile(invoker):
 
 def test_submit_profile_cfg(invoker, saved_tmpdir):
     "Test profile set from config"
-    with open("ymp.yml", "w") as cfg:
-        cfg.write("cluster:\n  profile: dummy")
-    invoker.call("submit", invoker.icfg.dir.reports)
-    assert os.path.isdir(invoker.icfg.dir.reports)
+    with open("ymp.yml", "w") as ymp_yml:
+        ymp_yml.write("cluster:\n  profile: dummy")
+    invoker.call("submit", cfg.dir.reports)
+    assert os.path.isdir(cfg.dir.reports)
 
 
-def test_submit_profiles(invoker):
-    "try all profiles, but override the cmd to echo"
-    for profile_name, profile in invoker.icfg.cluster.profiles.items():
-        if not profile.get('command'):
-            continue
-        # patch the submit command relative to CWD:
-        profile.command = os.sep.join([".", profile.command])
-        cmd = profile.command.split()[0]
-        with open(cmd, "w") as f:
-            f.write('#!/bin/sh\necho "$@">tmpfile\nexec "$@"\n')
-            os.chmod(cmd, 0o755)
-        if os.path.isdir(invoker.icfg.dir.reports):
-            os.rmdir(invoker.icfg.dir.reports)
-        invoker.initialized = False
-        invoker.call("submit",
-                     "-p",
-                     "--profile", profile_name,
-                     "--command", profile.command,
-                     invoker.icfg.dir.reports)
-        assert os.path.isdir(invoker.icfg.dir.reports)
+# - don't test profiles that have no command set on them (default profile)
+# - sort profiles so we can test in parallel reliably
+profiles = sorted((name, profile)
+                  for name, profile in cfg.cluster.profiles.items()
+                  if profile.get('command'))
+
+
+@pytest.mark.parametrize(
+    "mock_cmd,prof_name,prof_cmd",
+    [((profile.command.split()[0], '#!/bin/bash\nexec "$@"\n'),
+      name, profile.command)
+     for name, profile in profiles],
+    ids=[name for name, profile in profiles],
+    indirect=['mock_cmd'])
+def test_submit_profiles(invoker, mock_cmd, prof_name, prof_cmd):
+    invoker.call("submit",
+                 "--profile", prof_name,
+                 "--command", prof_cmd,
+                 cfg.dir.reports)
+    assert os.path.isdir(cfg.dir.reports)
 
 
 def test_show(invoker, saved_tmpdir):
@@ -73,7 +76,7 @@ def test_stage_list(invoker):
     assert res.output == ""
 
     res = invoker.call("stage", "list", "ch?ck", "-s")
-    assert res.output == "check\n"
+    assert res.output.strip() == "check"
 
     res = invoker.call("stage", "list", "ch?ck", "-l")
     assert res.output.startswith("check")
@@ -82,12 +85,13 @@ def test_stage_list(invoker):
     res = invoker.call("stage", "list", "ch?ck", "-c")
     assert res.output.startswith("check")
     assert "test.rules:" in res.output
-    assert res.output.count("\n") == 2
+    assert res.output.count("\n") == 3
 
 
 def test_func_get_envs():
     "Test env cli helper function get_envs"
     from ymp.cli.env import get_envs
+    cfg.unload()
 
     envs = get_envs()
     log.debug("envs found: %s", envs)
@@ -134,7 +138,7 @@ def test_env_list(invoker):
         f"output should be sorted by hash:\n{hashes[1:]}"
 
 
-def test_env_prepare(invoker, project_dir, mock_conda):
+def test_env_prepare(invoker, demo_dir, mock_conda, mock_downloader):
     """Test passing through to snakemake prepare"""
     with open("ymp.yml", "a") as f:
         f.write("directories:\n conda_prefix: '.'")
@@ -143,17 +147,19 @@ def test_env_prepare(invoker, project_dir, mock_conda):
     col = lines[0].index("installed")
     assert lines[1][col:col+len("False")] == "False"
     invoker.initialized = False
-    res = invoker.call("env", "prepare",
-                       "--conda-prefix=.",
-                       "toy.trim_bbmap/all")
+    res = invoker.call("env", "prepare", "toy.trim_bbmap")
 
     res = invoker.call("env", "list", "bbmap")
-    lines = res.output.splitlines()
-    col = lines[0].index("installed")
-    assert lines[1][col:col+len("True")] == "True"
+    lines2 = res.output.splitlines()
+    col = lines2[0].index("installed")
+    assert lines2[1][col:col+len("True")] == "True", "\n".join(lines + lines2)
+
+    conda_cmd = mock_conda.calls[-1]
+    assert "conda create" in conda_cmd
+    assert "/bbmap-" in conda_cmd
 
 
-def test_env_install(invoker, project_dir, mock_conda):
+def test_env_install(invoker, demo_dir, mock_conda, mock_downloader):
     """Test installing environments"""
     with open("ymp.yml", "a") as f:
         f.write("directories:\n conda_prefix: '.'")
@@ -162,7 +168,7 @@ def test_env_install(invoker, project_dir, mock_conda):
     res = invoker.call("env", "install", "bbmap")
     assert "Creating 1 environments" in res.output
     assert "'bbmap'" in res.output
-    assert "--prefix "+str(project_dir) in mock_conda.calls[0]
+    assert "--prefix "+str(demo_dir) in mock_conda.calls[0]
     assert len(mock_conda.calls) == 1
 
     # no double install
@@ -176,17 +182,17 @@ def test_env_install(invoker, project_dir, mock_conda):
     res = invoker.call("env", "install", "bb?ap", "bbma*")
     assert "Creating 1 environments" in res.output
     assert "'bbmap'" in res.output
-    assert "--prefix "+str(project_dir) in mock_conda.calls[1]
+    assert "--prefix "+str(demo_dir) in mock_conda.calls[1]
     assert len(mock_conda.calls) == 2
 
     # dynamic env
     res = invoker.call("env", "install", "sickle")
     assert "Creating 1 environments" in res.output
     assert "'sickle'" in res.output
-    assert "--prefix "+str(project_dir) in mock_conda.calls[2]
+    assert "--prefix "+str(demo_dir) in mock_conda.calls[2]
 
 
-def test_env_update(invoker, project_dir, mock_conda):
+def test_env_update(invoker, demo_dir, mock_conda, mock_downloader):
     """Test updating environments"""
     with open("ymp.yml", "a") as f:
         f.write("directories:\n conda_prefix: '.'")
@@ -198,7 +204,7 @@ def test_env_update(invoker, project_dir, mock_conda):
     assert "conda env update" in mock_conda.calls[1]
 
 
-def test_env_export(invoker, project_dir, mock_conda):
+def test_env_export(invoker, demo_dir, mock_conda, mock_downloader):
     """Test exporting environments"""
     # install envs locally
     with open("ymp.yml", "a") as f:
@@ -261,15 +267,83 @@ def test_env_export(invoker, project_dir, mock_conda):
     assert sorted(names) == ["bbmap", "sambamba"]
 
 
-def test_env_clean(invoker, project_dir, mock_conda):
+def test_env_clean(invoker, demo_dir, mock_conda):
     """Test cleaning environments"""
     with open("ymp.yml", "a") as f:
         f.write("directories:\n conda_prefix: '.'")
 
 
-def test_env_activate(invoker, project_dir, mock_conda):
+def test_env_activate(invoker, demo_dir, mock_conda, mock_downloader):
     """Test activating an environment"""
     with open("ymp.yml", "a") as f:
         f.write("directories:\n conda_prefix: '.'")
     res = invoker.call("env", "activate", "bbmap")
-    assert str(project_dir) in res.output
+    assert str(demo_dir) in res.output
+
+
+def test_env_run(invoker, demo_dir, mock_conda, mock_downloader, capfd):
+    with open("ymp.yml", "a") as f:
+        f.write("directories:\n conda_prefix: '.'")
+
+    with pytest.raises(click.UsageError) as exc:
+        res = invoker.call("env", "run", "bbmapx", "bbmap.sh")
+    assert exc.value.message == "Environment bbmapx unknown"
+
+    with pytest.raises(click.UsageError) as exc:
+        res = invoker.call("env", "run", "*", "bbmap.sh")
+    assert exc.value.message.startswith("Multiple environments match")
+
+    res = invoker.call("env", "run", "bbmap", "true")
+    assert res.exit_code == 0
+    cap = capfd.readouterr()
+    assert "Not a conda environment" in cap.err
+
+
+@pytest.mark.parametrize(
+    "words,result",
+    [
+        ["ymp make", [
+            "toy", "toy.", "mpic", "mpic.", 0
+        ]],
+        ["ymp make t", [
+            "toy", "toy.", 0
+        ]],
+        ["ymp make toy.", [
+            "toy.assemble_", "toy.trim_"
+        ]],
+        ["ymp make toy.assemble_", [
+            "toy.assemble_megahit",
+            "toy.assemble_megahit."
+         ]],
+        ["ymp make toy.assemble_megahit.", [
+            "toy.assemble_megahit.trim_",
+            "toy.assemble_megahit.map_"
+        ]],
+        ["ymp make toy.assemble_megahit.map_", [
+            "toy.assemble_megahit.map_bbmap",
+        ]],
+        ["ymp make toy.map_bowtie2.", [
+            0
+        ]],
+        ["ymp make toy.group_", [
+            "toy.group_name", "toy.group_Subject",
+            "toy.group_name.", "toy.group_Subject.",
+            10
+        ]],
+    ]
+)
+def test_completion(invoker, demo_dir, capfd, envvar, words, result):
+    import subprocess as sp
+    envvar('YMP_DEBUG_EXPAND', 'stderr')
+    envvar('_YMP_COMPLETE', 'complete-bash')
+    envvar('COMP_CWORD', '2')
+    envvar('COMP_WORDS', words)
+    sp.run(["python", "-m", "ymp"])
+    cap = capfd.readouterr()
+    expanded = set(cap.out.split())
+
+    for val in result:
+        if isinstance(val, str):
+            expanded.remove(val)
+        else:
+            assert len(expanded) == val

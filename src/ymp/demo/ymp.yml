@@ -1,0 +1,36 @@
+projects:
+  toy:
+    data: 'toy_data/toy.txt'
+  mpic:
+    barcode_col: 'barcodes'
+    data:
+      - paste:
+          - 'mpic_data/map.tsv'
+          - table:
+             - forward_reads: 'mpic_data/forward_reads.fastq.gz'
+             - barcodes: 'mpic_data/barcodes.fastq.gz'
+
+references:
+  ssu:
+    - url: 'toy_data/ssu.fasta.gz'
+  genome:
+    - url: 'toy_data/reference_1K.fa.gz'
+  query:
+    - url: 'toy_data/query.faa'
+      type: fastp
+  primers:
+    - url: 'mpic_data/primers.fasta'
+
+overrides:
+  rules:
+    bmtagger_bitmask:
+      params:
+        wordsize: 12
+    humann2:
+      params:
+        chocophlan: 'DEMO'
+        uniref: 'DEMO_diamond'
+
+limits:
+  max_mem: '3G'
+

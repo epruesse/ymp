@@ -1,71 +1,13 @@
 """
 Collection of shared utility classes and methods
 """
-import asyncio
-import atexit
 import logging
-import hashlib
 import os
-import shelve
-from collections import Iterable, Mapping, OrderedDict
-from typing import List, Optional
-from urllib.parse import urlsplit
+from collections import Iterable
 
-import aiohttp
+import ymp
 
-from tqdm import tqdm
-
-import xdg
-
-LOG = logging.getLogger(__name__)
-
-
-class OrderedDictMaker(object):
-    """
-    odict creates OrderedDict objects in a dict-literal like syntax
-
-    Usage:
-    my_ordered_dict = odict[
-    'key': 'value'
-    ]
-
-    Implementation:
-    odict uses the python slice syntax which is similar to dict literals.
-    The [] operator is implemented by overriding __getitem__. Slices
-    passed to the operator as `object[start1:stop1:step1, start2:...]`,
-    are passed to the implementation as a list of objects with start, stop
-    and step members. odict simply creates an OrderedDictionary by iterating
-    over that list.
-    """
-
-    def __getitem__(self, keys):
-        if isinstance(keys, slice):
-            return OrderedDict([(keys.start, keys.stop)])
-        return OrderedDict([(slice.start, slice.stop) for slice in keys])
-
-
-odict = OrderedDictMaker()  # pylint: disable=invalid-name
-
-
-def update_dict(dst, src):
-    """Recursively update dictionary `dst` with `src`
-
-    - Treats a `list` as atomic, replacing it with new list.
-    - Dictionaries are overwritten by item
-    - None is replaced by empty dict if necessary
-    """
-    if src is None:
-        return dst
-    for key, val in src.items():
-        if isinstance(val, Mapping):
-            dst_sub = dst.get(key, {})
-            if (dst_sub) is None:
-                dst_sub = {}
-            tmp = update_dict(dst_sub, val)
-            dst[key] = tmp
-        else:
-            dst[key] = src[key]
-    return dst
+log = logging.getLogger(__name__)
 
 
 class AttrDict(dict):
@@ -85,14 +27,20 @@ class AttrDict(dict):
             else:
                 return val
 
+    def __setattr__(self, attr, value):
+        if attr.startswith("_"):
+            super().__setattr__(attr, value)
+        else:
+            raise NotImplementedError()
+
 
 class MkdirDict(AttrDict):
     "Creates directories as they are requested"
     def __getattr__(self, attr):
         dirname = super().__getattr__(attr)
         if not os.path.exists(dirname):
-            LOG.info("Creating directory %s", dirname)
-            os.makedirs(dirname)
+            log.info("Creating directory %s", dirname)
+            os.makedirs(dirname, exist_ok=True)
         return dirname
 
 
@@ -140,7 +88,7 @@ def is_container(obj):
 
 
 def ensure_list(obj):
-    """Wrap ``obj`` in a `list()` as needed"""
+    """Wrap ``obj`` in a `list` as needed"""
     if obj is None:
         return []
     if isinstance(obj, str) or not isinstance(obj, Iterable):
@@ -148,196 +96,211 @@ def ensure_list(obj):
     return list(obj)
 
 
-class Cache(shelve.DbfilenameShelf):
-    _caches = {}
+class Cache(object):
+    def __init__(self, root):
+        import sqlite3
+        os.makedirs(os.path.join(root), exist_ok=True)
+        self.conn = sqlite3.connect(os.path.join(root, "ymp.db"),
+                                    check_same_thread=False)
 
-    @classmethod
-    def get_cache(cls, name="ymp"):
-        if name not in cls._caches:
-            return cls(name)
-        else:
-            return cls._caches[name]
-
-    def __init__(self, name):
-        self._cache_basename = os.path.join(
-            xdg.XDG_CACHE_HOME,
-            'ymp',
-            '{}_cache'.format(name)
-        )
-        os.makedirs(os.path.dirname(self._cache_basename), exist_ok=True)
-        atexit.register(Cache.close, self)
-        super().__init__(self._cache_basename)
-        self._caches[name] = self
-
-
-class FileDownloader(object):
-    """Manages download of a set of URLs
-
-    Downloads happen concurrently using asyncronous network IO.
-    """
-    def __init__(self, block_size=4096, timeout=60, parallel=4,
-                 loglevel=logging.WARNING):
-        self._block_size = block_size
-        self._timeout = timeout
-        self._parallel = parallel
-        self._sem = asyncio.Semaphore(parallel)
-        self._progress = LOG.getEffectiveLevel() <= loglevel
-        self._loglevel = loglevel
-        self._sum_bar = None
-
-    def log(self, msg, *args, modlvl=0, **kwargs):
-        LOG.log(self._loglevel + modlvl, msg, *args, **kwargs)
-
-    @staticmethod
-    def make_bar_format(desc_width=20, count_width=0, rate=False, eta=False):
-        """Construct bar_format for tqdm
-
-        Args:
-          desc_width: minimum space allocated for description
-          count_width: min space for counts
-          rate: show rate to right of progress bar
-          eta: show eta to right of progress bar
-        """
-        left = '{{desc:<{dw}}} {{percentage:3.0f}}%'.format(dw=desc_width)
-        right = ' {{n_fmt:>{cw}}} / {{total_fmt:<{cw}}}'.format(cw=count_width)
-        if rate:
-            right += ' {{rate_fmt:>{cw}}}'.format(cw=count_width+2)
-        if eta:
-            right += ' ETA {remaining}'
-        return left + '|{bar}|' + right
-
-    async def _get_file(self, session, url, dest, md5=None):
-        parts = urlsplit(url)
-        if os.path.isdir(dest):
-            name = os.path.basename(parts.path)
-            dest = os.path.join(dest, name)
-        else:
-            name = os.path.basename(dest)
-        part = dest+".part"
-
-        if md5:
-            md5_new = hashlib.md5()
-
-        exists = False
-        if os.path.exists(dest):
-            exists = True
-            if md5 and not isinstance(md5, bool):
-                with open(dest, 'rb') as f:
-                    while True:
-                        block = f.read(8192)
-                        if not block:
-                            break
-                        md5_new.update(block)
-                if md5_new.hexdigest() == md5.strip():
-                    self.log("Download skipped: %s "
-                             "(file exists, md5 verified)",
-                             name)
-                    return True
-
-        try:
-            async with self._sem, \
-                       session.get(url, timeout=self._timeout) as resp:
-                if not resp.status == 200:
-                    self.log("Download failed: %s (error code %i)")
-                    return False
-                size = int(resp.headers.get('content-length', 0))
-
-                if exists:
-                    existing_size = os.path.getsize(dest)
-                    if existing_size == size:
-                        if md5:
-                            self.log("Overwriting: %s (md5 failed)", name)
-                        else:
-                            self.log("Download skipped: %s (file exists)",
-                                     name)
-                            return True
-                    else:
-                        self.log("Overwriting: %s (size mismatch %i!=%i)",
-                                 name, size, existing_size)
-
-                try:
-                    self._sum_bar.total += size
-                except AttributeError:
-                    pass
-                with open(part, mode="wb") as out, \
-                     tqdm(total=size,
-                          unit='B', unit_scale=True, unit_divisor=1024,
-                          desc=name, leave=False,
-                          miniters=1, disable=not self._progress,
-                          bar_format=self.make_bar_format(40, 7, rate=True)) as t:
-                    while True:
-                        block = await resp.content.read(self._block_size)
-                        if not block:
-                            break
-                        out.write(block)
-                        if md5:
-                            md5_new.update(block)
-                        t.update(len(block))
-                        self._sum_bar.update(len(block))
-            os.rename(part, dest)
-            if md5:
-                md5_hash = md5_new.hexdigest()
-                if isinstance(md5, bool):
-                    self.log("Download complete: %s (md5=%s)", name,
-                             md5_hash.strip())
-                elif md5.strip() == md5_hash:
-                    self.log("Download complete: %s (md5 verified)", name)
-                else:
-                    self.log("Download failed: %s (md5 failed)", name,
-                             modlvl=10)
-                    return False
-            return True
-        except asyncio.CancelledError:
-            if os.path.exists(part):
-                os.unlink(part)
-            raise
-
-    async def _get_all(self, urls, dest, md5s=None):
-        self.log("Downloading %i files.", len(urls))
-        if not md5s:
-            md5s = [None]*len(urls)
-        async with aiohttp.ClientSession() as session:
-            coros = [asyncio.ensure_future(self._get_file(session, url, dest, md5))
-                     for url, md5 in zip(urls, md5s)]
-            with tqdm(asyncio.as_completed(coros), total=len(coros),
-                      unit="Files", desc="Total files:",
-                      disable=not self._progress, leave=False,
-                      bar_format=self.make_bar_format(20, 7, eta=True)) as t, \
-                 tqdm(total=0,
-                      unit="B", desc="Total bytes:",
-                      unit_scale=True, unit_divisor=1024,
-                      disable=not self._progress, leave=False, miniters=1,
-                      bar_format=self.make_bar_format(20, 7, rate=True)) as t2:
-                self._sum_bar = t2
-                result = [await coro for coro in t]
-        self.log("Finished downloads.")
-        return result
-
-    def get(self, urls: List[str], dest: str,
-            md5s: Optional[List[str]]=None) -> None:
-        """Download a list of URLs
-
-        Args:
-          urls: List of URLs
-          dest: Destination folder
-          md5s: List of MD5 sums to check
-        """
-
-        if not os.path.exists(dest):
-            os.mkdir(dest)
-
-        loop = asyncio.get_event_loop()
-
-        try:
-            task = asyncio.ensure_future(self._get_all(urls, dest, md5s))
-            loop.run_until_complete(task)
-        except KeyboardInterrupt:
-            end = asyncio.gather(*asyncio.Task.all_tasks())
-            end.cancel()
+        # Drop tables if the database has the wrong version number
+        version = self.conn.execute("PRAGMA user_version").fetchone()[0]
+        if version == ymp.__numeric_version__ and version > 0:
             try:
-                loop.run_until_complete(end)
-            except asyncio.CancelledError:
-                pass
-            raise
+                curs = self.conn.execute("SELECT file, time from stamps")
+                update = any(os.path.getmtime(row[0]) > row[1] for row in curs)
+            except FileNotFoundError:
+                update = True
+            del curs
+            if update:
+                log.error("dropping cache")
+                self.conn.executescript("""
+                DROP TABLE caches;
+                DROP TABLE stamps;
+                """)
+        else:
+            update = True
 
-        return all(task.result())
+        if update:
+            self.conn.executescript("""
+            BEGIN EXCLUSIVE;
+            DROP TABLE IF EXISTS caches;
+            CREATE TABLE caches (
+                name TEXT,
+                key TEXT,
+                data,
+                PRIMARY KEY (name, key)
+            );
+            DROP TABLE IF EXISTS stamps;
+            CREATE TABLE stamps (
+                file TEXT PRIMARY KEY,
+                time INT
+            );
+
+            PRAGMA user_version={};
+            COMMIT;
+            """.format(ymp.__numeric_version__))
+
+        self.caches = {}
+        self.files = {}
+
+    def close(self):
+        self.conn.close()
+
+    def get_cache(self, name, clean=False, *args, **kwargs):
+        if name not in self.caches:
+            self.caches[name] = CacheDict(self, name, *args, **kwargs)
+        return self.caches[name]
+
+    def store(self, cache, key, obj):
+        import pickle
+
+        files = ensure_list(getattr(obj, "defined_in", None))
+        try:
+            stamps = [(fn, os.path.getmtime(fn))
+                      for fn in files
+                      if fn not in self.files]
+            self.conn.executemany(
+                "REPLACE INTO stamps VALUES (?,?)",
+                stamps)
+            self.files.update(dict(stamps))
+            self.conn.execute("""
+              REPLACE INTO caches
+              VALUES (?, ?, ?)
+            """, [cache, key, pickle.dumps(obj)]
+            )
+        except FileNotFoundError:
+            pass
+
+    def commit(self):
+        try:
+            self.conn.commit()
+        except sqlite3.OperationalError as e:
+            log.warning("Cache write failed: %s", e.what())
+
+    def load(self, cache, key):
+        import pickle
+        row = self.conn.execute("""
+        SELECT data FROM caches WHERE name=? AND key=?
+        """, [cache, key]).fetchone()
+        if row:
+            return pickle.loads(row[0])
+        else:
+            return None
+
+    def load_all(self, cache):
+        import pickle
+        rows = self.conn.execute("""
+        SELECT key, data FROM caches WHERE name=?
+        """, [cache])
+        return ((row[0], pickle.loads(row[1]))
+                for row in rows)
+
+
+class CacheDict(AttrDict):
+    def __init__(self, cache, name, *args, loadfunc=None,
+                 itemloadfunc=None, itemdata=None, **kwargs):
+        self._cache = cache
+        self._name = name
+        self._loadfunc = loadfunc
+        self._itemloadfunc = itemloadfunc
+        self._itemdata = itemdata
+        self._args = args
+        self._kwargs = kwargs
+        self._loading = False
+        self._complete = False
+
+    def _loaditem(self, key):
+        cached = self._cache.load(self._name, key)
+        if cached:
+            super().__setitem__(key, cached)
+        elif self._itemdata is not None:
+            if key in self._itemdata:
+                item = self._itemloadfunc(key, self._itemdata[key])
+                self._cache.store(self._name, key, item)
+                self._cache.commit()
+                super().__setitem__(key, item)
+        elif self._itemloadfunc:
+            item = self._itemloadfunc(key)
+            self._cache.store(self._name, key, item)
+            self._cache.commit()
+            super().__setitem__(key, item)
+        else:
+            self._loadall()
+
+    def _loadall(self):
+        if self._complete:
+            return
+        loaded = set()
+        for key, obj in self._cache.load_all(self._name):
+            loaded.add(key)
+            super().__setitem__(key, obj)
+        if self._itemloadfunc:
+            for key in self._itemdata:
+                if key not in loaded:
+                    self._loaditem(key)
+        elif self._loadfunc and not self._loading and not loaded:
+            self._loadfunc(*self._args, **self._kwargs)
+            self._loadfunc = None
+            for key, item in super().items():
+                self._cache.store(self._name, key, item)
+            self._cache.commit()
+        self._complete = True
+
+    def __enter__(self):
+        self._loading = True
+        return self
+
+    def __exit__(self, a, b, c):
+        self._loading = False
+
+    def __contains__(self, key):
+        if self._itemdata:
+            return key in self._itemdata
+        self._loadall()
+        return super().__contains__(key)
+
+    def __len__(self):
+        if self._itemdata:
+            return len(self._itemdata)
+        self._loadall()
+        return super().__len__()
+
+    def __getitem__(self, key):
+        if not super().__contains__(key):
+            self._loaditem(key)
+        return super().__getitem__(key)
+
+    def __setitem__(self, key, val):
+        super().__setitem__(key, val)
+
+    def __delitem__(self, key):
+        raise NotImplementedError()
+
+    def __iter__(self):
+        if self._itemdata:
+            return self._itemdata.__iter__()
+        self._loadall()
+        return super().__iter__()
+
+    def __str__(self):
+        self._loadall()
+        return super().__str__()
+
+    def get(self, key, default=None):
+        if not super().__contains__(key):
+            self._loaditem(key)
+        return super().get(key, default)
+
+    def items(self):
+        self._loadall()
+        return super().items()
+
+    def keys(self):
+        if self._itemdata:
+            return self._itemdata.keys()
+        return super().keys()
+
+    def values(self):
+        self._loadall()
+        return super().values()

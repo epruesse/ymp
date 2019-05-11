@@ -27,7 +27,7 @@ with Stage("check") as S:
                         "FastA {} does not start with '>'"
                         " but '{}'".format(input, header[0]))
                 data = ref.readline()
-                if not re.fullmatch("[\sACGTN]+", data, re.IGNORECASE):
+                if not re.fullmatch(r"[\sACGTN]+", data, re.IGNORECASE):
                     raise Exception(
                         "FastA {} contains characters other than ACGTN "
                         " and whitespace".format(input))
@@ -48,7 +48,7 @@ with Stage("check") as S:
                         "FastP {} does not start with '>'"
                         " but '{}'".format(input, header[0]))
                 data = ref.readline()
-                if not re.fullmatch("[\s*ACDEFGHIKLMNPQRSTVWY]+", data, re.IGNORECASE):
+                if not re.fullmatch(r"[\s*ACDEFGHIKLMNPQRSTVWY]+", data, re.IGNORECASE):
                     raise Exception(
                         "FastP {} contains characters other than ACGTN "
                         " and whitespace".format(input))

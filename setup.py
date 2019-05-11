@@ -22,8 +22,8 @@ setup(
     name="ymp",
     use_scm_version={'write_to': 'src/ymp/_version.py'},
     description="Flexible multi-omic pipeline system",
-    long_description=read_file("README.md"),
-    long_description_content_type=get_content_type("README.md"),
+    long_description=read_file("README.rst"),
+    long_description_content_type=get_content_type("README.rst"),
     url="https://github.com/epruesse/ymp",
     author="Elmar Pruesse",
     author_email="elmar.pruesse@ucdenver.edu",
@@ -50,7 +50,7 @@ setup(
     package_dir={'': 'src'},
     zip_safe=False,
     setup_requires=[
-        'setuptools_scm>=1.17',
+        'setuptools_scm>=3.2',
         'pytest-runner',
     ],
     tests_require=[
@@ -63,7 +63,7 @@ setup(
         'xlrd',
     ],
     install_requires=[
-        'snakemake>=4.8',
+        'snakemake>=5.4.4',
         'Click',
         'Click-completion',
         'ruamel.yaml>0.15',
@@ -77,7 +77,7 @@ setup(
     ],
     extras_require={
         'docs': [
-            'sphinx==1.7.0',
+            'sphinx',
             'cloud_sptheme',
             'sphinxcontrib-fulltoc',
             'sphinx-click',

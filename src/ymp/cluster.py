@@ -47,8 +47,8 @@ class Slurm(ClusterMS):
         """Print status of job @param jobid to stdout (as needed by snakemake)
 
         Anectotal benchmarking shows 200ms per invocation, half used
-        by Python startup and half by calling sacct. Using `scontrol
-        show job` instead of `sacct -pbs` is faster by 80ms, but
+        by Python startup and half by calling sacct. Using ``scontrol
+        show job`` instead of ``sacct -pbs`` is faster by 80ms, but
         finished jobs are purged after unknown time window.
         """
 

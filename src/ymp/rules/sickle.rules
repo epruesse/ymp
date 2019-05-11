@@ -1,35 +1,34 @@
-Env(name="sickle",
-    base="bioconda",
-    packages="sickle-trim")
+Env(name="sickle", base="bioconda", packages="sickle-trim")
 
 
-with Stage("trim_sickle", env="sickle") as S:
+with Stage("trim_sickle") as S:
     S.doc("""
     Perform read trimming using Sickle
-    """)
 
+    >>> ymp make toy.trim_sickle
+    >>> ymp make toy.trim_sickleQ10L10
+    >>> ymp make mpic.trim_sickleL20
+    """)
+    S.add_param("Q", typ="int", name="qual", default=20)
+    S.add_param("L", typ="int", name="length", default=20)
     rule sickle:
         message:
-            "Trimming with Sickle: {wildcards.sample} "
-            "(Q={params.qual} L={params.length})"
+            "Sickle: Trimming {wildcards.sample}"
         input:
             "{:prev:}/{sample}.{:pairnames:}.fq.gz"
         output:
-            "{:this:}{Q}{L}/{sample}.{:pairnames:}.fq.gz",
-            "{:this:}{Q}{L}/{sample}.unpaired.fq.gz",
+            "{:this:}/{sample}.{:pairnames:}.fq.gz",
+            "{:this:}/{sample}.unpaired.fq.gz",
         log:
-            "{:this:}{Q}{L}/{sample}.log"
-        wildcard_constraints:
-            Q = "(Q\d+|)",
-            L = "(L\d+|)",
+            "{:this:}/{sample}.log"
         params:
-            length=lambda wc: wc.L[1:] if wc.L else 20,
-            qual=lambda wc: wc.Q[1:] if wc.Q else 20,
             arg_pe="pe",
             inout2="-r {input[1]} -p {output[1]} -s {output[2]}"
-        threads: 1
+        threads:
+            1
+        conda:
+            "sickle"
         shell:"""
-        which sickle >> tmpfile
         sickle {params.arg_pe} \
             -f {input[0]} \
             -o {output[0]} \
@@ -44,7 +43,18 @@ with Stage("trim_sickle", env="sickle") as S:
 
 
     rule sickle_se:  # ymp: extends sickle
-        input:  ["{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"]
-        output: ["{:this:}{Q}{L}/{sample}.{:pairnames[0]:}.fq.gz"]
-        params: arg_pe = "se",
-                inout2 = ""
+        input:
+            ["{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"]
+        output:
+            ["{:this:}/{sample}.{:pairnames[0]:}.fq.gz"]
+        params:
+            arg_pe = "se",
+            inout2 = ""
+
+    rule sicke_all:
+        message:
+            "Sickle: complete"
+        output:
+            touch("{:this:}/all_targets.stamp")
+        input:
+            "{:this:}/{:fq_names:}.fq.gz"

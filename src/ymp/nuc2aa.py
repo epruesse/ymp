@@ -26,17 +26,20 @@ def nuc2aa(seq):
 @click.argument('input', type=click.File('r'))
 @click.argument('output', type=click.File('w'))
 def click_fasta_dna2aa(input, output):
+    if input.name.endswith(".gz"):
+        import gzip
+        input = gzip.open(input.name, "rt")
     fasta_dna2aa(input, output)
 
 
-def fasta_dna2aa(input, output):
+def fasta_dna2aa(inf, outf):
     def write_aa(header, seq):
-        # output.write(header.encode('ascii'))
-        output.write(header)
+        # outf.write(header.encode('ascii'))
+        outf.write(header)
         aa = nuc2aa(seq)
         if "start_type=GTG" in header:
             aa = 'M'+aa[1:]
-        output.write(('\n'.join([
+        outf.write(('\n'.join([
             aa[s:s+60]
             for s in range(0, len(aa)+59, 60)
             ]).strip()+'\n')
@@ -46,7 +49,7 @@ def fasta_dna2aa(input, output):
     header = None
     seq = ""
 
-    for line in input:
+    for line in inf:
         # line = line.decode('ascii')
         if line[0] == '>':
             if header:
@@ -55,7 +58,8 @@ def fasta_dna2aa(input, output):
             seq = ""
         else:
             seq += line.strip()
-    write_aa(header, seq)
+    if header:
+        write_aa(header, seq)
 
 
 if __name__ == "__main__":

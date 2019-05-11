@@ -35,6 +35,27 @@ def get_envs(patterns=None):
     return envs
 
 
+def get_env(envname):
+    """Get single environment matching glob pattern
+
+    Args:
+      envname: environment glob pattern
+    """
+    envs = get_envs(envname)
+    if not envs:
+        raise click.UsageError("Environment {} unknown".format(envname))
+
+    if len(envs) > 1:
+        raise click.UsageError("Multiple environments match '{}': {}"
+                               "".format(envname, envs.keys()))
+
+    env = next(iter(envs.values()))
+    if not os.path.exists(env.path):
+        log.warning("Environment not yet installed")
+        env.create()
+    return env
+
+
 @group()
 def env():
     """Manipulate conda software environments
@@ -111,15 +132,27 @@ def prepare(**kwargs):
     "--conda-prefix", "-p",
     help="Override location for conda environments"
 )
+@click.option(
+    "--conda-env-spec", "-e",
+    help="Override conda env specs settings"
+)
+@click.option(
+    "--dry-run", "-n", is_flag=True,
+    help="Only show what would be done"
+)
 @click.argument("ENVNAMES", nargs=-1)
-def install(conda_prefix, envnames):
+def install(conda_prefix, conda_env_spec, dry_run, envnames):
     "Install conda software environments"
+    if conda_env_spec is not None:
+        cfg = ymp.get_config()
+        cfg.conda.env_specs = conda_env_spec
+
     envs = get_envs(envnames)
     log.warning(f"Creating {len(envs)} environments.")
     for env in envs.values():
         if conda_prefix:
             env.set_prefix(conda_prefix)
-        env.create()
+        env.create(dry_run)
 
 
 @env.command()
@@ -288,21 +321,7 @@ def activate(envname):
     Usage:
     $(ymp activate env [ENVNAME])
     """
-    envs = get_envs(envname)
-    if not envs:
-        log.critical("Environment '%s' unknown", envname)
-        exit(1)
-
-    if len(envs) > 1:
-        log.critical("Multiple environments match '%s': %s",
-                     envname, envs.keys())
-        exit(1)
-
-    env = next(iter(envs.values()))
-    if not os.path.exists(env.path):
-        log.warning("Environment not yet installed")
-        env.create()
-
+    env = get_env(envname)
     print("source activate {}".format(env.path))
 
 
@@ -319,14 +338,5 @@ def run(envname, command):
     (Use the "--" if your command line contains option type parameters
      beginning with - or --)
     """
-
-    if envname not in ymp.env.by_name:
-        log.critical("Environment '%s' unknown", envname)
-        sys.exit(1)
-
-    env = ymp.env.by_name[envname]
-    if not os.path.exists(env.path):
-        log.warning("Environment not yet installed")
-        env.create()
-
-    sys.exit(ymp.env.by_name[envname].run(command))
+    env = get_env(envname)
+    sys.exit(env.run(command))

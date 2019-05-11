@@ -1,40 +1,7 @@
-from ymp.config import icfg 
 import shutil, pprint
 
 width, height = shutil.get_terminal_size((80, 20))
 pp = pprint.PrettyPrinter(indent=1, compact=True, width=width or 80)
-
-
-rule listprojects:
-    """List all configured projects"""
-    message: "Configured Projects:"
-    run:
-        pp.pprint("|".join(icfg.datasets))
-
-rule listruns:
-    """List all configured "run"s"""
-    message: "Configured Run objects:"
-    run:
-        pp.pprint(icfg.allruns)
-
-rule listrundata:
-    """List complete dataset config matrix"""
-    message: "Configured Run Data:"
-    run:
-        for ds in icfg.datasets:
-            pp.pprint(icfg[ds].run_data)
-
-rule listfqnames:
-    """List all FQ file names"""
-    message: "FQ file names"
-    run:
-        for ds in icfg.datasets:
-            pp.pprint(icfg[ds].fq_names)
-
-rule listrules:
-    message: "Rules Found"
-    run:
-        pp.pprint(list(rule.name for rule in workflow.rules))
 
 rule env_wait:
     message: "Running environment test. Output will be in logdir."

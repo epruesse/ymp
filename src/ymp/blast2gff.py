@@ -6,14 +6,13 @@ from ymp import gff
 
 
 @click.command()
-@click.argument('input', 'inf', type=click.File('r'))
-@click.argument('output', 'out', type=click.File('w'))
+@click.argument('inf', metavar="input", type=click.File('r'))
+@click.argument('out', metavar="output", type=click.File('w'))
 def blast2gff(inf, out):
     blastfile = blast.reader(inf)
     gfffile = gff.writer(out)
 
     for hit in blastfile:
-        print(type(hit))
         assert (hit.send > hit.sstart) == (hit.sframe > 0)
 
         feature = gff.Feature(

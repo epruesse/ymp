@@ -1,9 +1,14 @@
 import logging
 import os
+import shlex
+import shutil
 
 import py
 
 import pytest
+
+import ymp
+import ymp.config
 
 log = logging.getLogger(__name__)
 
@@ -59,6 +64,11 @@ def saved_tmpdir(request, tmpdir):
         name_parts = request.node.name.replace("]", "").split("[")
         cwd_save_dir = request.config.getoption("--cwd-save-dir")
         destdir = py.path.local(cwd_save_dir).join(*name_parts)
+        # delete conda / conda_archive before saving tmpdir
+        for path in ("conda", "conda_archive"):
+            delpath = tmpdir.join(path)
+            if delpath.check(exists=1):
+                delpath.remove(rec=True)
         if destdir.check(exists=1):
             destdir.remove(rec=True)
         destdir.dirpath().ensure_dir()
@@ -119,7 +129,15 @@ class MockCmd(object):
 
 
 @pytest.fixture
+def mock_cmd(request, bin_dir):
+    cmd, script = request.param
+    print("###", cmd, script)
+    yield MockCmd(bin_dir, cmd, script)
+
+
+@pytest.fixture
 def mock_conda(bin_dir):
+    base_dir = os.path.dirname(bin_dir)
     yield MockCmd(bin_dir, "conda", "\n".join([
         'cmd=""',
         'while [ -n "$1" ]; do',
@@ -127,6 +145,7 @@ def mock_conda(bin_dir):
         '  --version)   echo conda 4.2; exit 0;;',
         '  --prefix|-p) shift; p="$1";;',
         '  --file|-f)   shift; f="$1";;'
+        '  --json)      shift; j=Y;;'
         '  *)           cmd="$cmd $1";;',
         '  esac',
         '  shift',
@@ -136,6 +155,9 @@ def mock_conda(bin_dir):
         'fi',
         'if [ x"$cmd" = x" env export" -a -n "$p" ]; then',
         '  echo "dependencies: [one, two]"',
+        'fi',
+        'if [ x"$cmd" = x" info" ]; then',
+        '  echo \'{{"conda_prefix": "{}"}}\''.format(base_dir),
         'fi',
     ]))
 
@@ -170,6 +192,12 @@ def project(request):
 
 
 @pytest.fixture()
+def demo_dir(invoker, saved_cwd):
+    invoker.call("init", "demo")
+    return saved_cwd
+
+
+@pytest.fixture()
 def project_dir(request, project, saved_tmpdir):
     """Populated project directory
 
@@ -186,9 +214,9 @@ def project_dir(request, project, saved_tmpdir):
 def target(request, project_dir):
     with project_dir.as_cwd():
         log.info("Switched to directory {}".format(project_dir))
-        import ymp.config as c
-        c.icfg.init(force=True)
-        targets = [request.param.format(ds) for ds in c.icfg]
+        ymp.get_config().unload()
+        cfg = ymp.get_config()
+        targets = [request.param.format(prj) for prj in cfg.projects]
         with open("target.txt", "w") as out:
             out.write("\n".join(targets))
         yield from targets
@@ -209,11 +237,7 @@ class Invoker(object):
         from ymp.cli import main
         self.main = main
         self.initialized = False
-
-    @property
-    def icfg(self):
-        from ymp.config import icfg
-        return icfg
+        self.toclean = []
 
     def call(self, *args, standalone_mode=False, **kwargs):
         """Call into YMP CLI
@@ -223,15 +247,19 @@ class Invoker(object):
 
         """
         if not self.initialized:
-            self.icfg.init(force=True)
-            self.initialized = True
+            # change path to USER ymp config (default ~/.ymp/ymp.yml)
+            # so that settings there do not interfere with tests
+            ymp.config.ConfigMgr.CONF_USER_FNAME = "ymp_user.yml"
+            # force reload
+            ymp.get_config().unload()
 
         if not os.path.exists("cmd.sh"):
             with open("cmd.sh", "w") as f:
                 f.write("#!/bin/bash -x\n")
 
+        argstr = " ".join(shlex.quote(arg) for arg in args)
         with open("cmd.sh", "w") as f:
-            f.write(f"PATH={os.environ['PATH']} ymp {' '.join(args)}\n")
+            f.write(f"PATH={os.environ['PATH']} ymp {argstr} \"$@\"\n")
 
         result = self.runner.invoke(self.main, args, **kwargs,
                                     standalone_mode=standalone_mode)
@@ -247,6 +275,10 @@ class Invoker(object):
     def call_raises(self, *args, **kwargs):
         return self.call(*args, standalone_mode=True, **kwargs)
 
+    def clean(self):
+        for toclean in self.toclean:
+            shutil.rmtree(toclean, ignore_errors=True)
+
 
 @pytest.fixture()
 def invoker(saved_cwd):
@@ -254,4 +286,55 @@ def invoker(saved_cwd):
     # worklows -- unless this is set:
     os.environ['CIRCLECI'] = "true"
 
-    return Invoker()
+    invoker = Invoker()
+    yield invoker
+    invoker.clean()
+
+
+@pytest.fixture()
+def invoker_nodir():
+    # Snakemake 4.7 waits 10 seconds during shutdown of cluster submitted
+    # worklows -- unless this is set:
+    os.environ['CIRCLECI'] = "true"
+
+    invoker = Invoker()
+    yield invoker
+    invoker.clean()
+
+
+@pytest.fixture(name="envvar")
+def envvar_():
+    to_restore = {}
+
+    def envvar(var, value):
+        if var in os.environ:
+            to_restore[var] = os.environ[var]
+        else:
+            to_restore[var] = None
+        os.environ[var] = value
+
+    yield envvar
+
+    for var, value in to_restore.items():
+        if value is not None:
+            os.environ[var] = value
+        else:
+            del os.environ[var]
+
+
+class MockFileDownloader(object):
+    def __init__(self, block_size=None, timeout=None, parallel=None,
+                 loglevel=None, alturls=None):
+        pass
+
+    def get(self, urls, dest, md5s=None):
+        return True
+
+
+@pytest.fixture()
+def mock_downloader():
+    import ymp.download
+    orig = ymp.download.FileDownloader
+    ymp.download.FileDownloader = MockFileDownloader
+    yield MockFileDownloader
+    ymp.download.FileDownloader = orig

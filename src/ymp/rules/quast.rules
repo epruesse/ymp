@@ -1,93 +1,101 @@
 Env(name="quast", base="bioconda", packages="quast >=4.5")
 
-rule metaquast_all_at_once:
-    message:
-        "MetaQUAST qc'ing {wildcards.dir} combined co-assemblies"
-    input:
-        "{dir}/{:targets:}.contigs.fasta.gz"
-    output:
-        report="{dir}.mqc/report.tsv",
-        dir="{dir}.mqc/"
-    log:
-        "{dir}.mqc/metaquast.log"
-    params:
-        targets = "{:targets:}",
-        min_contig_len = 500
-    conda:
-        "quast"
-    threads:
-        16
-    shell:"""
-    TARGETS="{params.targets}"
-    metaquast \
-          -o {output.dir} \
-          -t {threads} \
-          -l ${{TARGETS// /,}} \
-          --min-contig {params.min_contig_len} \
-          {input}
-    """
+with Stage("qc_quast") as S:
+    S.doc("""
+    Estimate assemly quality using Quast
+    """)
 
+    rule metaquast_all_at_once:
+        """Run quast on all assemblies in the previous stage at once."""
+        message:
+            "MetaQUAST qc'ing {wildcards.dir} combined co-assemblies"
+        input:
+                      "{:prev:}/{:targets:}.fasta.gz"
+        output:
+            report  = "{:this:}/report.tsv",
+            outdir  = "{:this:}"
+        log:
+                      "{:this:}/metaquast.log"
+        params:
+            targets = "{:targets:}",
+            min_contig_len = 500
+        conda:
+            "quast"
+        threads:
+            16
+        shell: """
+        TARGETS="{params.targets}"
+        metaquast \
+              -o {output.outdir} \
+              -t {threads} \
+              -l ${{TARGETS// /,}} \
+              --min-contig {params.min_contig_len} \
+              {input}
+        """
 
-rule metaquast_part:
-    message:
-        "MetaQUAST qc'ing {wildcards.dir} assembly {wildcards.sample}"
-    input:
-        "{dir}/{sample}.contigs.fasta.gz"
-    output:
-        report="{dir}.mq/{sample}/combined_reference/report.tsv",
-        dir="{dir}.mq/{sample}"
-    log:
-        "{dir}.mq/{sample}/metaquast.log"
-    params:
-        min_contig_len = 500
-    conda:
-        "quast"
-    threads:
-        8
-    shell:"""
-    metaquast \
-          -o {output.dir} \
-          -t {threads} \
-          -l {wildcards.sample} \
-          --min-contig {params.min_contig_len} \
-          {input} \
-          >{log} 2>&1
-    # workaround for metaquast reverting to quast if no SSUs matching
-    # SILVA were found in assembly:
-    if [ ! -e "{output.report}" ]; then
-      if [ -e "{output.dir}/report.tsv" ]; then
-        cp "{output.dir}/report.tsv" "{output.report}"
-      fi
-    fi
-    """
+    rule metaquast_by_sample:
+        """Run quast on each assembly"""
+        message:
+            "MetaQUAST qc'ing {wildcards.dir} assembly {wildcards.sample}"
+        input:
+            "{:prev:}/{sample}.fasta.gz"
+        output:
+            report = "{:this:}/{sample}/combined_reference/report.tsv",
+            outdir = "{:this:}/{sample}"
+        log:
+                     "{:this:}/{sample}/metaquast.log"
+        params:
+            min_contig_len = 500
+        conda:
+            "quast"
+        threads:
+            8
+        shell: """
+        metaquast \
+              -o {output.dir} \
+              -t {threads} \
+              -l {wildcards.sample} \
+              --min-contig {params.min_contig_len} \
+              {input} \
+              >{log} 2>&1
+        # workaround for metaquast reverting to quast if no SSUs matching
+        # SILVA were found in assembly:
+        if [ ! -e "{output.report}" ]; then
+          if [ -e "{output.dir}/report.tsv" ]; then
+            cp "{output.dir}/report.tsv" "{output.report}"
+          fi
+        fi
+        """
 
+    rule metaquast_multiq_summary:
+        """Aggregate Quast per assembly reports"""
+        message: "MultiQC aggregating QUAST reports"
+        input:
+            "{:this:}/{:targets:}/combined_reference/report.tsv"
+        output:
+            "reports/{:this:}.html"
+        log:
+            "{:this:}/multiqc.log"
+        params:
+            outdir = "{:this:}"
+        conda:
+            "multiqc"
+        threads:
+            1
+        shell: """
+        echo {input} | tr ' ' '\n' > {params.dir}/files.txt
 
-rule quast_report:
-    message: "MultiQC aggregating QUAST reports"
-    input:
-        "{dir}.mq/{:targets:}/combined_reference/report.tsv"
-    output:
-        "reports/{dir}.mq.html"
-    log:
-        "{dir}.mq/multiqc.log"
-    params:
-        dir = "{dir}.mq"
-    conda:
-        "multiqc"
-    threads:
-        1
-    shell: """
-    echo {input} | tr ' ' '\n' > {params.dir}/files.txt
-    sed 's|/combined_reference/report.tsv||; s|.*/||' \
-        {params.dir}/files.txt > {params.dir}/names.txt
-    multiqc \
-      --module quast \
-      --force \
-      --title {wildcards.dir} \
-      --no-data-dir \
-      --file-list {params.dir}/files.txt \
-      --sample-names {params.dir}/names.txt \
-      --filename {output} \
-      --verbose > {log} 2>&1
-    """
+        sed 's|/combined_reference/report.tsv||; s|.*/||' \
+            {params.dir}/files.txt > {params.dir}/names.txt
+
+        multiqc \
+          --module quast \
+          --force \
+          --title {wildcards.dir} \
+          --no-data-dir \
+          --file-list {params.dir}/files.txt \
+          --sample-names {params.dir}/names.txt \
+          --filename {output} \
+          --verbose > {log} 2>&1
+        """
 

@@ -74,7 +74,7 @@ class reader(object):
 class writer(object):
     def __init__(self, fileobj):
         self.fileobj = fileobj
-        self.fileobj.write("##gff-version 3")
+        self.fileobj.write("##gff-version 3\n")
 
     def write(self, feature):
         self.fileobj.write("\t".join(map(str, feature))+"\n")

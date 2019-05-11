@@ -8,7 +8,6 @@ import os
 import os.path as op
 import shutil
 import subprocess
-from glob import glob
 from typing import Optional, Union
 
 from ruamel.yaml import YAML
@@ -53,12 +52,19 @@ class Env(WorkflowObject, snakemake.conda.Env):
 
     @staticmethod
     def get_installed_env_hashes():
-        from ymp.config import icfg
+        cfg = ymp.get_config()
         return [
             dentry.name
-            for dentry in os.scandir(icfg.absdir.conda_prefix)
+            for dentry in os.scandir(cfg.absdir.conda_prefix)
             if dentry.is_dir()
         ]
+
+    def __new__(cls, *args, **kwargs):
+        if args and "name" not in kwargs:
+            for env in cls.get_registry().values():
+                if env.file == args[0]:
+                    return env
+        return super().__new__(cls)
 
     def __init__(self, env_file: Optional[str] = None,
                  dag: Optional[object] = None,
@@ -80,11 +86,23 @@ class Env(WorkflowObject, snakemake.conda.Env):
             the newly created environment. Sets are defined in conda.defaults
             in ``yml.yml``
         """
-        from ymp.config import icfg
+        if 'name' in self.__dict__:
+            return
+        cfg = ymp.get_config()
+
+        pseudo_dag = AttrDict({
+            'workflow': {
+                'persistence': {
+                    'conda_env_path': cfg.ensuredir.conda_prefix,
+                    'conda_env_archive_path': cfg.ensuredir.conda_archive_prefix
+                }
+            }
+        })
 
         # must have either name or env_file:
         if (name and env_file) or not (name or env_file):
             raise YmpRuleError(
+                self,
                 "Env must have exactly one of `name` and `file`")
 
         if name:
@@ -99,13 +117,13 @@ class Env(WorkflowObject, snakemake.conda.Env):
         else:
             self.dynamic = True
 
-            env_file = op.join(icfg.absdir.dynamic_envs, f"{name}.yml")
+            env_file = op.join(cfg.ensuredir.dynamic_envs, f"{name}.yml")
             defaults = {
                 'name': self.name,
                 'dependencies': list(ensure_list(packages) +
-                                     icfg.conda.defaults[base].dependencies),
+                                     cfg.conda.defaults[base].dependencies),
                 'channels': list(ensure_list(channels) +
-                                 icfg.conda.defaults[base].channels)
+                                 cfg.conda.defaults[base].channels)
             }
             yaml = YAML(typ='rt')
             yaml.default_flow_style = False
@@ -121,131 +139,166 @@ class Env(WorkflowObject, snakemake.conda.Env):
                 with open(env_file, "w") as out:
                     out.write(contents)
 
-        pseudo_dag = AttrDict({
-            'workflow': {
-                'persistence': {
-                    'conda_env_path': icfg.absdir.conda_prefix,
-                    'conda_env_archive_path': icfg.absdir.conda_archive_prefix
-                }
-            }
-        })
-
         super().__init__(env_file, pseudo_dag, singularity_img)
+        self.register()
 
     def set_prefix(self, prefix):
-        self._env_dir = os.path.abspath(prefix)
+        self._env_dir = op.abspath(prefix)
 
     def create(self, dryrun=False):
-        """Ensure the conda environment has been created""
+        """Ensure the conda environment has been created
 
         Inherits from snakemake.conda.Env.create
 
         Behavior of super class
-        ~~~~~~~~~~~~~~~~~~~~~~~
+            The environment is installed in a folder in ``conda_prefix``
+            named according to a hash of the ``environment.yaml`` defining
+            the environment and the value of ``conda-prefix``
+            (``Env.hash``). The latter is included as installed
+            environments cannot be moved.
 
-        The environment is installed in a folder in ``conda_prefix``
-        named according to a hash of the ``environment.yaml`` defining
-        the environment and the value of ``conda-prefix``
-        (``Env.hash``). The latter is included as installed
-        environments cannot be moved.
+            - If this folder (``Env.path``) exists, nothing is done.
 
-        - If this folder (``Env.path``) exists, nothing is done.
-
-        - If a folder named according to the hash of just the contents
-        of ``environment.yaml`` exists, the environment is created by
-        unpacking the tar balls in that folder.
+            - If a folder named according to the hash of just the contents
+              of ``environment.yaml`` exists, the environment is created by
+              unpacking the tar balls in that folder.
 
         Handling pre-computed environment specs
-        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            In addition to freezing environments by maintaining a copy of
+            the package binaries, we allow maintaining a copy of the
+            package binary URLs, from which the archive folder is populated
+            on demand.
 
-        In addition to freezing environments by maintaining a copy of
-        the package binaries, we allow maintaining a copy of the
-        package binary URLs, from which the archive folder is populated
-        on demand.
-
-        If a file ``{Env.name}.txt`` exists in ``conda.spec
-
+        If a file ``{Env.name}.txt`` exists in ``conda.spec``
+        FIXME
         """
-        from ymp.config import icfg
-
         # Skip if environment already exists
-        if os.path.exists(self.path):
+        if op.exists(self.path):
             log.info("Environment '%s' already exists", self.name)
             return self.path
+
         log.warning("Creating environment '%s'", self.name)
         log.debug("Target dir is '%s'", self.path)
 
-        # Try to get urls, md5s and files from env spec
-        if icfg.conda.env_specs:
-            spec_file = os.path.join(
-                ymp._env_dir,
-                icfg.conda.env_specs,
-                icfg.platform,
-                self.name + ".txt"
-            )
-            if os.path.exists(spec_file):
-                with open(spec_file) as sf:
-                    urls = [line for line in sf
-                            if line and line[0] != "@" and line[0] != "#"]
+        # check if we have archive
+        files = self._get_env_from_archive()
 
-                md5s = [url.split("#")[1] for url in urls]
-                files = [url.split("#")[0].split("/")[-1] for url in urls]
-
-        if os.path.exists(self.archive_file):
-            found_files = glob(os.path.join(self.archive_file, "*.tar.bz2"))
+        # no archive? try spec
+        if not files:
+            urls, files, md5s = self._get_env_from_spec()
             if files:
-                # Sort files according to spec file as far as possible
-                files = ([fn for fn in files if fn in found_files]
-                         + [fn for fn in found_files if fn not in files])
-            else:
-                files = found_files
-            install_files = [os.path.join(self.archive_file, fn)
-                             for fn in files]
-        elif urls:
-            from ymp.common import FileDownloader
-            if dryrun:
-                log.info("Would download %i files", len(urls))
-            else:
-                dest = self.archive_file
-                res = FileDownloader().get(urls, dest, md5s)
-                if not res:
-                    # remove partially download archive folder
-                    shutil.rmtree(self.archive_file, ignore_errors=True)
-                    raise YmpWorkflowError(
-                        f"Unable to create environment {self.name}, "
-                        f"because downloads failed. See log for details.")
-            install_files = [os.path.join(dest, fn) for fn in files]
+                if dryrun:
+                    log.info("Would download %i files", len(urls))
+                else:
+                    self._download_files(urls, md5s)
+                    packages = op.join(self.archive_file, "packages.txt")
+                    with open(packages, "w") as f:
+                        f.write("\n".join(files) + "\n")
 
-        # Install from packages if we have packages
-        # We re-implement this here although superclass does it, because
-        # 1. superclass will passes `--copy` to conda, forcing it to bypass
-        #    hard linking option, wasting time and space
-        # 2. superclass will not order files correctly
-        # This is also done by Snakemake's Env, reproduced here
-        # only because Snakemake passed "--copy" to conda, forcing it
-        # to copy rather than hard link files.
-        if install_files:
-            log.info("Installing environment '%s' from package files",
-                     self.name)
-            if not dryrun:
-                log.info("Calling conda...")
-                sp = subprocess.run(["conda", "create", "--prefix",
-                                     self.path] + install_files)
-                if sp.returncode != 0:
-                    # make sure we don't leave partially installed env around
-                    shutil.rmtree(self.path, ignore_errors=True)
-                    raise YmpWorkflowError(
-                        f"Unable to create environment {self.name}, "
-                        f"because conda create failed"
-                    )
-                log.info("Conda complete")
-        else:
+        # still nothing?
+        if not files:
             log.warning("Neither spec file nor package archive found for '%s',"
-                        " falling pack to native resolver", self.name)
+                        " falling back to native resolver", self.name)
+        else:
+            if dryrun:
+                log.info("Would install %i packages", len(files))
+            else:
+                self._install_env(files)
 
         res = super().create(dryrun)
         log.info("Created env %s", self.name)
         return res
+
+    def _get_env_from_archive(self):
+        """Parses Snakemake environment archive spec
+
+        Returns:
+          files: List of package archive files
+        """
+        packages_txt = op.join(self.archive_file, "packages.txt")
+        if not op.exists(packages_txt):
+            return []
+        with open(packages_txt) as f:
+            packages = [package.strip() for package in f]
+        missing_packages = [package for package in packages
+                            if not op.exists(op.join(self.archive_file,
+                                                     package))]
+        if missing_packages:
+            log.warning(
+                "Ignoring incomplete package archive for environment %s",
+                self.name)
+            log.debug(
+                "Missing packages: %s", missing_packages)
+            return []
+        return packages
+
+    def _get_env_from_spec(self):
+        """Parses conda spec file
+
+        Conda spec files contain a list of URLs pointing to the packages
+        comprising the environment. Each URL may have an md5 sum appended
+        as "anchor" using "#". Comments are placed at the top in lines
+        beginnig with "#" and a single line "@EXPLICIT" indicates the type
+        of the file.
+
+        Returns:
+          urls: list of URLs
+          files: list of file names
+          md5s: list of md5 sums
+        """
+        cfg = ymp.get_config()
+        if not cfg.conda.env_specs:
+            return [], [], []
+
+        spec_file = op.join(ymp._env_dir, cfg.conda.env_specs,
+                            cfg.platform, self.name + ".txt")
+        if not op.exists(spec_file):
+            return [], [], []
+
+        log.debug("Using env spec '%s'", spec_file)
+
+        with open(spec_file) as sf:
+            urls = [line for line in sf
+                    if line and line[0] != "@" and line[0] != "#"]
+        md5s = [url.split("#")[1] for url in urls]
+        files = [url.split("#")[0].split("/")[-1] for url in urls]
+
+        return urls, files, md5s
+
+    def _download_files(self, urls, md5s):
+        from ymp.download import FileDownloader
+        if not op.exists(self.archive_file):
+            os.makedirs(self.archive_file)
+        cfg = ymp.get_config()
+        fd = FileDownloader(alturls=cfg.conda.alturls)
+        if not fd.get(urls, self.archive_file, md5s):
+            # remove partially download archive folder?
+            # shutil.rmtree(self.archive_file, ignore_errors=True)
+            raise YmpWorkflowError(
+                f"Unable to create environment {self.name}, "
+                f"because downloads failed. See log for details.")
+
+    def _install_env(self, files):
+        # Re-implemented part of Snakemake because we don't want "--copy"
+        # forcing the installed environments to be file copies rather
+        # than hardlinks where possible.
+        log.info("Installing environment '%s' from %i package files",
+                 self.name, len(files))
+        log.debug("Path: %s", self.archive_file)
+        log.debug("Files: %s", files)
+        log.info("Calling conda...")
+        install_files = [op.join(self.archive_file, fn) for fn in files]
+
+        sp = subprocess.run(["conda", "create", "--prefix",
+                             self.path] + install_files)
+        if sp.returncode != 0:
+            # try make sure we don't leave partially installed env around
+            shutil.rmtree(self.path, ignore_errors=True)
+            raise YmpWorkflowError(
+                f"Unable to create environment {self.name}, "
+                f"because conda create failed"
+            )
+        log.info("Conda complete")
 
     @property
     def installed(self):
@@ -268,10 +321,11 @@ class Env(WorkflowObject, snakemake.conda.Env):
 
         Returns exit code of command run.
         """
-        return subprocess.run(
-            "$SHELL -c '. activate {}; {}'"
-            "".format(self.path, " ".join(command)),
-            shell=True).returncode
+        cfg = ymp.get_config()
+        command = "source activate {}; {}".format(self.path, " ".join(command))
+        log.debug("Running: %s", command)
+        return subprocess.run(command,
+                              shell=True, executable=cfg.shell).returncode
 
     def export(self, stream, typ='yml'):
         """Freeze environment"""
@@ -286,7 +340,8 @@ class Env(WorkflowObject, snakemake.conda.Env):
             yaml.default_flow_style = False
             env = yaml.load(res.stdout)
             env['name'] = self.name
-            del env['prefix']
+            if 'prefix' in env:
+                del env['prefix']
             yaml.dump(env, stream)
         elif typ == 'txt':
             res = subprocess.run([
@@ -314,21 +369,15 @@ snakemake.conda.Env = Env
 class CondaPathExpander(BaseExpander):
     """Applies search path for conda environment specifications
 
-    File names supplied via `rule: conda: "some.yml"` are replaced with
+    File names supplied via ``rule: conda: "some.yml"`` are replaced with
     absolute paths if they are found in any searched directory.
-    Each `search_paths` entry is appended to the directory
+    Each ``search_paths`` entry is appended to the directory
     containing the top level Snakefile and the directory checked for
     the filename. Thereafter, the stack of including Snakefiles is traversed
     backwards. If no file is found, the original name is returned.
     """
     def __init__(self, config, *args, **kwargs):
-        try:
-            from snakemake.workflow import workflow
-            self._workflow = workflow
-            super().__init__(*args, **kwargs)
-        except ImportError:
-            log.debug("CondaPathExpander not registered -- needs workflow")
-
+        super().__init__(*args, **kwargs)
         self._search_paths = config.conda.env_path
         self._envs = None
 
@@ -343,7 +392,7 @@ class CondaPathExpander(BaseExpander):
         if conda_env in self._envs:
             return self._envs[conda_env].file
 
-        for snakefile in reversed(self._workflow.included_stack):
+        for snakefile in reversed(self.workflow.included_stack):
             basepath = op.dirname(snakefile)
             for _, relpath in sorted(self._search_paths.items()):
                 searchpath = op.join(basepath, relpath)

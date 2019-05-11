@@ -1,18 +1,5 @@
 "Generic file conversion rules"
 
-from ymp import blast, gff
-
-# FIXME: this doesn't work due to gff/blast hit conversion missing
-rule blast7_to_gff:
-    input:
-        "{path}.blast7"
-    output:
-        "{path}.gff"
-    run:
-        with open(input[0], "r") as inf, open(output[0], "w") as outf:
-            gfff = gff.writer(outf)
-            for hit in blast.reader(inf):
-                gfff.write(gff.Feature(hit))
 
 
 # FIXME: how can I make these localrules?
@@ -69,7 +56,7 @@ rule gunzip:
     """
     Generic temporary gunzip
 
-    Use `ruleorder: gunzip > myrule` to prefer gunzipping
+    Use ``ruleorder: gunzip > myrule`` to prefer gunzipping
     over re-running a rule. E.g.
 
     >>> ruleorder: gunzip > myrule
@@ -78,7 +65,7 @@ rule gunzip:
     """
     message: "Uncompressing {input}"
     wildcard_constraints:
-        path = ".*(?<!\.gz)"
+        path = r".*(?<!\.gz)"
     input: "{path}.gz"
     output: temp("{path}_disabled")
     params:
@@ -103,7 +90,7 @@ rule mkdir:
     >>> input: tmpdir = ancient(icfg.dir.tmp)
     """
     message: "Creating directory '{output}'"
-    output: "{{x,({})}}".format("|".join(list(icfg.dir)))
+    output: directory("{{x,({})}}".format("|".join(list(icfg.dir))))
     shell: "mkdir -p {output}"
 
 

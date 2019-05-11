@@ -9,7 +9,6 @@ with Stage("metaphlan2") as S:
     S.doc("""
     Assess metagenome community composition using Metaphlan 2
     """)
-    metaphlan_bam = "{:this:}/{sample}.bam"
     metaphlan_db = "{:ref.metaphlan2.dir:}/db_v20/mpa_v20_m200"
     BT2IDX_SUFFIXES = "1.bt2 2.bt2 3.bt2 4.bt2 rev.1.bt2 rev.2.bt2".split()
     rule metaphlan2_map:
@@ -19,12 +18,12 @@ with Stage("metaphlan2") as S:
         message:
             "Metaphlan2: Mapping reads with Bowtie2"
         input:
-            fq = "{:prev:}/{sample}.{:pairnames:}.fq.gz",
+            fq = "{:prev:}/{:target:}.{:pairnames:}.fq.gz",
             index = [".".join((metaphlan_db, ext)) for ext in BT2IDX_SUFFIXES]
         output:
-            metaphlan_bam
+            "{:this:}/{sample}.bam"
         log:
-            metaphlan_bam + ".log"
+            "{:this:}/{sample}.bam.log"
         conda:
             "bowtie2"
         threads:
@@ -52,7 +51,7 @@ with Stage("metaphlan2") as S:
         message:
             "Metaphlan2: Computing community profile"
         input:
-            bam = metaphlan_bam,
+            bam = "{:this:}/{sample}.bam",
             pkl = metaphlan_db + ".pkl"
         output:
             "{:this:}/{sample}_profile.txt"
@@ -98,4 +97,4 @@ with Stage("metaphlan2") as S:
         input:
             "{:this:}/merged_abundance_table.txt"
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")

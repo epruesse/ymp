@@ -13,6 +13,7 @@ CONDA_BASEURL=https://repo.continuum.io/miniconda
 
 # expand '~' in MINICONDA path (alternatives to eval are too long)
 eval MINICONDA=$MINICONDA
+export MINICONDA
 
 # Setup PATH
 if test -n "$BASH_ENV"; then
@@ -44,8 +45,8 @@ else
     # Configure
     conda config --system --set always_yes yes --set changeps1 no
     conda config --system --add channels defaults
-    conda config --system --add channels conda-forge
     conda config --system --add channels bioconda
+    conda config --system --add channels conda-forge
 fi
 
 # remove test_env if it still exists

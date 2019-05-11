@@ -11,9 +11,30 @@ import click
 import ymp
 from ymp.cli.shared_options import command, nohup_option
 from ymp.common import Cache
-from ymp.exceptions import YmpException
+from ymp.exceptions import YmpException, YmpStageError
+from ymp.stage import StageStack
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
+
+
+DEBUG_LOGFILE_NAME = os.environ.get("YMP_DEBUG_EXPAND")
+if DEBUG_LOGFILE_NAME:
+    import time
+    start_time = time.time()
+    if DEBUG_LOGFILE_NAME == "stderr":
+        DEBUG_LOGFILE = sys.stderr
+    else:
+        DEBUG_LOGFILE = open(DEBUG_LOGFILE_NAME, "a")
+
+
+def debug(msg, *args, **kwargs):
+    if DEBUG_LOGFILE_NAME:
+        tim = (time.time() - start_time)
+        msg = "{:4.4f}: " + msg
+        DEBUG_LOGFILE.write(msg.format(tim, *args, **kwargs) + '\n')
+
+
+debug("started")
 
 
 class TargetParam(click.ParamType):
@@ -32,36 +53,47 @@ class TargetParam(click.ParamType):
         Returns:
           list of words incomplete can be completed to
         """
+        result: list = []
 
-        # errlog = open("err.txt", "a")
-        errlog = open("/dev/null", "a")
-        errlog.write("\nincomplete={}\n".format(incomplete))
-        cache = Cache.get_cache("completion")
-        query_stages = incomplete.split(".")
-        errlog.write("stages={}\n".format(query_stages))
-        options: list = []
+        stack, _, tocomplete = incomplete.rpartition(".")
+        debug("complete(stack={},incomplete={})", stack, tocomplete)
 
-        if len(query_stages) == 1:  # expand projects
-            from ymp.config import icfg
-            options = icfg.datasets
-        else:  # expand stages
-            if 'stages' in cache:
-                stages = cache['stages']
+        if not stack:
+            cfg = ymp.get_config()
+            options = cfg.projects.keys()
+            result += (o for o in options if o.startswith(tocomplete))
+            result += (o + "." for o in options if o.startswith(tocomplete))
+        else:
+            from ymp.stage import StageStack
+            try:
+                stackobj = StageStack.get(stack)
+            except YmpStageError as e:
+                debug(e.format_message())
+                return []
+            debug("stacko = {}", repr(stack))
+            options = stackobj.complete(tocomplete)
+            debug("options = {}", options)
+            # reduce items sharing prefix before "_"
+            prefixes = {}
+            for option in options:
+                prefix = option.split("_", 1)[0]
+                group = prefixes.setdefault(prefix, [])
+                group.append(option)
+            if len(prefixes) == 1:
+                extensions = options
             else:
-                from ymp.snakemake import load_workflow
-                from ymp.stage import Stage
-                load_workflow()
-                stages = cache['stages'] = list(Stage.get_registry().keys())
-            options = stages
-        options = [o for o in options if o.startswith(query_stages[-1])]
-        prefix = ".".join(query_stages[:-1])
-        if prefix:
-            prefix += "."
-        errlog.write("prefix={}\n".format(prefix))
-        options = [prefix + o + cont for o in options for cont in ("/", ".")]
-        errlog.write("options={}\n".format(options))
-        errlog.close()
-        return options
+                extensions = []
+                for prefix, group in prefixes.items():
+                    if len(group) > 1:
+                        extensions.append(prefix + "_")
+                    else:
+                        extensions.append(group[0])
+            result += ('.'.join((stack, ext)) for ext in extensions)
+            result += ('.'.join((stack, ext))+"." for ext in extensions
+                       if not ext[-1] == "_")
+
+        debug("res={}", result)
+        return result
 
 
 def snake_params(func):
@@ -100,14 +132,6 @@ def snake_params(func):
         help="Force rebuilding of target"
     )
     @click.option(
-        "--conda-prefix", default=os.path.expanduser("~/.ymp/conda"),
-        metavar="PATH",
-        help="Override path to conda environments"
-    )
-    @click.option(
-        "--timestamp", "-T", is_flag=True, default=False,
-        help="Add timestamp to logs")
-    @click.option(
         "--notemp", is_flag=True, default=False,
         help="Do not remove temporary files"
     )
@@ -130,14 +154,18 @@ def start_snakemake(kwargs):
 
     Fixes paths of kwargs['targets'] to be relative to YMP root.
     """
-    from ymp.config import icfg
-    root_path = icfg.root
+    cfg = ymp.get_config()
+    if not cfg.projects:
+        log.warning("No projects configured. Are you in the right folder?")
+        log.warning("  Config files loaded:")
+        for fname in cfg.conffiles:
+            log.warning("    - %s", fname)
+
+    root_path = cfg.root
     cur_path = os.path.abspath(os.getcwd())
     if not cur_path.startswith(root_path):
         raise YmpException("internal error - CWD moved out of YMP root?!")
     cur_path = cur_path[len(root_path):]
-
-    kwargs['workdir'] = root_path
 
     # translate renamed arguments to snakemake synopsis
     arg_map = {
@@ -156,6 +184,7 @@ def start_snakemake(kwargs):
     kwargs = {arg_map.get(key, key): value
               for key, value in kwargs.items()
               if arg_map.get(key, key) is not None}
+    kwargs['workdir'] = root_path
 
     # our debug flag sets a new excepthoook handler, to we use this
     # to decide whether snakemake should run in debug mode
@@ -172,10 +201,27 @@ def start_snakemake(kwargs):
         kwargs['verbose'] = True
     kwargs['use_conda'] = True
     if 'targets' in kwargs:
-        kwargs['targets'] = [os.path.join(cur_path, t)
-                             for t in kwargs['targets']]
+        if cur_path:
+            kwargs['targets'] = [os.path.join(cur_path, t)
+                                 for t in kwargs['targets']]
+        else:
+            targets = []
+            for t in kwargs['targets']:
+                try:
+                    stack = StageStack.get(t)
+                    targets.append(os.path.join(t, 'all_targets.stamp'))
+                except YmpStageError as e:
+                    #log.exception("asd")
+                    targets.append(t)
+            kwargs['targets'] = targets
 
     log.debug("Running snakemake.snakemake with args: %s", kwargs)
+
+    # A snakemake workflow was created above to resolve the
+    # stage stack. Unload it so things run correctly from within
+    # snakemake.
+    cfg.unload()
+
     import snakemake
     return snakemake.snakemake(ymp._snakefile, **kwargs)
 
@@ -282,17 +328,17 @@ def submit(profile, **kwargs):
     includes base profiles for the "torque" and "slurm" cluster engines.
 
     """
-    from ymp.config import icfg
+    cfg = ymp.get_config()
 
     # The cluster config uses profiles, which are assembled by layering
     # the default profile, the selected profile and additional command
     # line parameters. The selected profile is either specified via
     # "
-    config = icfg.cluster.profiles.default
-    profile_name = profile or icfg.cluster.profile
+    config = cfg.cluster.profiles.default
+    profile_name = profile or cfg.cluster.profile
     if profile_name:
         config.add_layer(profile_name,
-                         icfg.cluster.profiles[profile_name])
+                         cfg.cluster.profiles[profile_name])
     cli_params = {key: value
                   for key, value in kwargs.items()
                   if value is not None}
@@ -321,7 +367,7 @@ def submit(profile, **kwargs):
         exist or is not executable. Please check your cluster configuration.
         """)
 
-    config[param] = icfg.expand(" ".join(cmd))
+    config.add_layer("<computed>", {param: cfg.expand(" ".join(cmd))})
 
     rval = start_snakemake(config)
     if not rval:

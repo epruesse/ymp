@@ -8,7 +8,7 @@ with stage.references:
     localrules: human_db_download
     rule human_db_download:
         """
-        Download `HUMAnN2 <humann2>` reference databases
+        Download :ref:`HUMAnN2 <bioconda:humann2>` reference databases
         """
         output:
             "{:dir.references:}/humann2/{database}.{build}"
@@ -150,5 +150,5 @@ with Stage("humann2") as S:
                    mode=("community", "levelwise"), \
                    unit=("cpm", "relab"))
         output:
-            touch("{:this:}/all")
+            touch("{:this:}/all_targets.stamp")
 

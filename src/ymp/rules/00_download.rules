@@ -1,5 +1,5 @@
-localrules: download_file
-rule download_file:
+localrules: download_file_ftp
+rule download_file_ftp:
     """
     Downloads remote file using *wget*
     """
@@ -10,7 +10,7 @@ rule download_file:
     log:
         "{:dir.downloads:}/{protocol}/{server}/{path}.log"
     wildcard_constraints:
-        protocol="(http|https|ftp|ftps)",
+        protocol="(ftp|ftps)",
         server="[^/]+"
     params:
         url="{protocol}://{server}/{path}"
@@ -18,8 +18,30 @@ rule download_file:
     shell: """
     wget  "{params.url}" -O "{output[0]}" > {log} 2>&1
     """
-ruleorder: download_file > gunzip
-ruleorder: download_file > fq2fa
+ruleorder: download_file_ftp > gunzip
+ruleorder: download_file_ftp > fq2fa
+
+rule download_file_http:
+    """
+    Downloads remote file using internal downloader
+    """
+    message:
+        "Downloading {params.url}"
+    output:
+        "{:dir.downloads:}/{protocol}/{server}/{path}"
+    log:
+        "{:dir.downloads:}/{protocol}/{server}/{path}.log"
+    wildcard_constraints:
+        protocol="(http|https)",
+        server="[^/]+"
+    params:
+        url="{protocol}://{server}/{path}"
+    run:
+        from ymp.download import FileDownloader
+        FileDownloader(loglevel=0).get(params.url, output[0])
+ruleorder: download_file_http > gunzip
+ruleorder: download_file_http > fq2fa
+
 
 with Stage("references") as S:
     S.doc("""
@@ -33,13 +55,16 @@ with Stage("references") as S:
 
         - Creates symlinks to downloaded references
         - Compresses references provided uncompressed upstream
+        - Connects files requested by stages with downloaded files and unpacked archives
         """
         message:
-            "Preparing {input}"
+            "Preparing {output}"
         input:
-            files = lambda wc: icfg.ref[wc.refname].get_file(wc.path)
+            files = lambda wc: icfg.ref[wc.refname].get_file(wc.path, wc.stage)
         output:
-            "{:dir.references:}/{refname}/{path}"
+            "{:dir.references:}/{refname}{stage}/{path}"
+        wildcard_constraints:
+            stage = r"(\.[^/]+|)"
         run:
             if isinstance(input.files, str):
                 infile = input.files
@@ -62,6 +87,9 @@ with Stage("references") as S:
             if (wildcards.path.endswith(".gz")
                 and not infile.endswith(".gz")):
                     shell("gzip -c '{infile}' > '{output}'")
+            elif (not wildcards.path.endswith(".gz")
+                  and infile.endswith(".gz")):
+                    shell("gunzip -c '{infile}' > '{output}'")
             else:
                 outdir = os.path.dirname(output[0])
                 input_relpath = os.path.relpath(infile, outdir)
@@ -84,6 +112,6 @@ with Stage("references") as S:
     ruleorder: unpack_archive > gunzip
 
     for ref in icfg.ref:
-        for unpack_rule in icfg.ref[ref].make_unpack_rules(rules.unpack_archive):
+        for unpack_rule in icfg.ref[ref].make_unpack_rules(workflow._rules['unpack_archive']):
             unpack_rule
 

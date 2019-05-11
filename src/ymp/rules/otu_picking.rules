@@ -6,17 +6,16 @@ rule pick_open_otus:
         "Pick open reference {params.similarity}% OTUs on forward reads"
     input:
         seqs = "{dir}/{:fwd_fq_names:}.fq.gz",
-        gg   = "{:dir.references:}/greengenes/"
-    wildcard_constraints:
-        similarity = "([0-9][0-9])?"
+        gg = "{:dir.references:}/greengenes/rep_set/{similarity}_otus.fasta"
     output:
         otu_table = "{dir}.o{similarity}/otu_table.biom",
         tree = "{dir}.o{similarity}/rep_set.tre",
-        rep_set = "{dir}.o{similarity}/rep_set.fa.gz"
+        rep_set = "{dir}.o{similarity}/rep_set.fa"
+    wildcard_constraints:
+        similarity = "(94|97|99)",
     conda:
         "qiime.yml"
     params:
-        ref_fasta = lambda wc, input: path.join(input.gg, "rep_set/{similarity}_otus.fasta".format(**wc)),
         seqs = lambda wc, input: ','.join(input.seqs),
         seq_ids = lambda wc, input: ','.join(['.'.join(i.split('/')[-1].split('.')[:-3]) for i in input.seqs]),
         similarity = lambda wc: wc.similarity if wc.similarity else 97
@@ -26,8 +25,8 @@ rule pick_open_otus:
         8
     shadow: "shallow"
     shell: """
-    if [ ! -e "{params.ref_fasta}" ]; then
-      echo Failed to find GreenGenes reference file {params.ref_fasta}.
+    if [ ! -e "{input.gg}" ]; then
+      echo Failed to find GreenGenes reference file {input.gg}.
       exit 1
     fi
     split_libraries_fastq.py \
@@ -40,12 +39,12 @@ rule pick_open_otus:
     pick_open_reference_otus.py \
     -i slout/seqs.fna \
     -o qiime_otus \
-    -r {params.ref_fasta} \
+    -r {input.gg} \
     -a -O {threads} \
     -p qiime_params.txt
     mv qiime_otus/otu_table_mc2_w_tax_no_pynast_failures.biom {output.otu_table}
     mv qiime_otus/rep_set.tre {output.tree}
-    cat qiime_otus/rep_set.fna | gzip > {output.rep_set}
+    mv qiime_otus/rep_set.fna {output.rep_set}
     cat slout/split_library_log.txt qiime_otus/log_*.txt > {log}
     """
 
@@ -102,7 +101,7 @@ rule rarefy_table:
     output:
         biom = "{dir}/{otu_table}.d{rar_level}.biom"
     wildcard_constraints:
-        rar_level = "\d+"
+        rar_level = r"\d+"
     conda:
         srcdir("qiime.yml")
     params:

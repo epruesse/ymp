@@ -7,19 +7,20 @@ import logging
 import re
 import sys
 from copy import copy, deepcopy
-from inspect import getframeinfo, stack
+from inspect import Parameter, signature, stack
 from typing import Optional
 
-from snakemake.exceptions import RuleException
-from snakemake.io import AnnotatedString, apply_wildcards
+from snakemake.exceptions import CreateRuleException, RuleException
+from snakemake.io import AnnotatedString, apply_wildcards, \
+    strip_wildcard_constraints
 from snakemake.io import Namedlist as _Namedlist
 from snakemake.rules import Rule
 from snakemake.workflow import RuleInfo, Workflow
 
 import ymp
-from ymp.common import AttrDict, flatten, ensure_list, is_container
-from ymp.string import FormattingError, ProductFormatter, make_formatter
+from ymp.common import ensure_list, flatten, is_container
 from ymp.exceptions import YmpRuleError
+from ymp.string import ProductFormatter, make_formatter
 
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -56,20 +57,18 @@ def print_ruleinfo(rule: Rule, ruleinfo: RuleInfo, func=log.debug):
     func(ruleinfo.func.__code__)
 
 
-def load_workflow(snakefile=ymp._snakefile):
-    workflow = ExpandableWorkflow(snakefile=snakefile)
-    workflow.include(snakefile)
-    return workflow
+def load_workflow(snakefile):
+    "Load new workflow"
+    return ExpandableWorkflow.load_workflow(snakefile)
 
 
 def get_workflow():
-    workflow = ExpandableWorkflow.global_workflow
-    if workflow is None:
-        ExpandableWorkflow.activate()
-        workflow = ExpandableWorkflow.global_workflow
-        if workflow is None:
-            workflow = load_workflow()
-    return workflow
+    "Get active workflow, loading one if necessary"
+    return ExpandableWorkflow.ensure_global_workflow()
+
+
+class ExpandLateException(Exception):
+    pass
 
 
 class CircularReferenceException(RuleException):
@@ -99,17 +98,17 @@ class InheritanceException(RuleException):
 
 
 class NamedList(_Namedlist):
-    """Extended version of Snakemake's io.namedlist
+    """Extended version of Snakemake's :class:`~snakemake.io.Namedlist`
 
     - Fixes array assignment operator:
-      Writing a field via `[]` operator updates the value accessed
-      via `.` operator.
-    - Adds `fromtuple` to constructor:
-      Builds from Snakemake's typial `(args, kwargs)` tuples as
+      Writing a field via ``[]`` operator updates the value accessed
+      via ``.`` operator.
+    - Adds ``fromtuple`` to constructor:
+      Builds from Snakemake's typial ``(args, kwargs)`` tuples as
       present in ruleinfo structures.
-    - Adds update_tuple method:
-      Updates values in `(args,kwargs)` tuples as present in ruleinfo
-      structures.
+    - Adds `update_tuple` method:
+      Updates values in ``(args,kwargs)`` tuples as present in
+      :class:`ruleinfo` structures.
     """
     def __init__(self, fromtuple=None, **kwargs):
         super().__init__(**kwargs)
@@ -136,7 +135,7 @@ class NamedList(_Namedlist):
                 self.set_name(name, i, j)
 
     def update_tuple(self, totuple):
-        """Update values in `(args, kwargs)` tuple.
+        """Update values in ``(args, kwargs)`` tuple.
         The tuple must be the same as used in the constructor and
         must not have been modified.
         """
@@ -172,12 +171,12 @@ ruleinfo_fields = {
     },
     'threads': {
         'format': 'int',
-        'funcparams': ('input', 'attempt', 'threads')
+        'funcparams': ('wildcards', 'input', 'attempt', 'threads')
         # stored as resources._cores
     },
     'resources': {
         'format': 'argstuple',  # len(t[0]) must be == 0, t[1] must be ints
-        'funcparams': ('input', 'attempt', 'threads'),
+        'funcparams': ('wildcards', 'input', 'attempt', 'threads'),
     },
     'params': {
         'format': 'argstuple',
@@ -241,9 +240,10 @@ ruleinfo_fields = {
 class ExpandableWorkflow(Workflow):
     """Adds hook for additional rule expansion methods to Snakemake"""
     global_workflow = None
+    __expanders = []
 
-    @staticmethod
-    def activate():
+    @classmethod
+    def activate(cls):
         """Installs the ExpandableWorkflow
 
         Replaces the Workflow object in the snakemake.workflow module
@@ -252,52 +252,75 @@ class ExpandableWorkflow(Workflow):
         """
         try:
             from snakemake.workflow import workflow
-
-            if workflow.__class__ != ExpandableWorkflow:
-                workflow.__class__ = ExpandableWorkflow
-                ExpandableWorkflow.global_workflow = workflow
-                ExpandableWorkflow.global_workflow.__init__()
-
         except ImportError:
-            log.debug("ExpandableWorkflow not installed: "
-                      "Failed to import workflow object.")
+            workflow = None
+
+        if workflow and workflow.__class__ != ExpandableWorkflow:
+            # Monkey patch the existing, initialized workflow class
+            workflow.__class__ = ExpandableWorkflow
+            # ExpandableWorkflow.__init__ understands it may be
+            # called on already initialized superclass, so this works:
+            workflow.__init__()
+            cls.global_workflow = workflow
+
+    @classmethod
+    def load_workflow(cls, snakefile=ymp._snakefile):
+        workflow = cls(snakefile=snakefile)
+        cls.global_workflow = workflow
+        workflow.include(snakefile)
+        return workflow
+
+    @classmethod
+    def ensure_global_workflow(cls):
+        if cls.global_workflow is None:
+            log.debug("Trying to activate %s...", cls.__name__)
+            cls.activate()
+        if cls.global_workflow is None:
+            log.debug("Failed; loading default workflow")
+            cls.load_workflow()
+        return cls.global_workflow
 
     def __init__(self, *args, **kwargs):
         """Constructor for ExpandableWorkflow overlay attributes
 
-        This is called on an already initialized Workflow object.
+        This may be called on an already initialized Workflow object.
         """
+        # Only call super().__init__ if that hasn't happened yet
+        # (as indicated by no instance attributes written to __dict__)
         if not self.__dict__:
             # only call constructor if this object hasn't been initialized yet
             super().__init__(*args, **kwargs)
-            ExpandableWorkflow.global_workflow = self
-        if not hasattr(self, '_expanders'):
-            self._expanders = [SnakemakeExpander()]
-            self._ruleinfos = {}
-            self._last_rule_name = None
-            self.ymp_object_registry = {}
 
-    @staticmethod
-    def register_expanders(*expanders):
+        # There can only be one
+        ExpandableWorkflow.global_workflow = self
+
+        for expander in self.__expanders:
+            expander.link_workflow(self)
+
+        self._ruleinfos = {}
+        self._last_rule_name = None
+
+    @classmethod
+    def register_expanders(cls, *expanders):
         """
         Register an object the expand() function of which will be called
         on each RuleInfo object before it is passed on to snakemake.
         """
-        ExpandableWorkflow.activate()
-        if ExpandableWorkflow.global_workflow:
-            workflow = ExpandableWorkflow.global_workflow
-            workflow._expanders.extend(expanders)
-            for expander in expanders:
-                expander.workflow = workflow
-            return workflow
-        return None
+        cls.__expanders = expanders
+        if cls.global_workflow:
+            for expander in cls.__expanders:
+                expander.link_workflow(cls.global_workflow)
 
-    @staticmethod
-    def clear():
-        if ExpandableWorkflow.global_workflow:
-            ExpandableWorkflow.global_workflow = None
+    @classmethod
+    def clear(cls):
+        if cls.global_workflow:
+            cls.global_workflow = None
+        # make sure there is no workflow in snakemake either
+        # (we try to load that in activate())
+        import snakemake.workflow
+        snakemake.workflow.workflow = None
 
-    def add_rule(self, name=None, lineno=None, snakefile=None):
+    def add_rule(self, name=None, lineno=None, snakefile=None, checkpoint=False):
         """Add a rule.
 
         Arguments:
@@ -335,7 +358,7 @@ class ExpandableWorkflow(Workflow):
                 print_ruleinfo(rule, ruleinfo, log.error)
                 rule._ymp_print_rule = True
 
-            for expander in reversed(self._expanders):
+            for expander in reversed(self.__expanders):
                 expander.expand(rule, ruleinfo)
                 if ymp.print_rule == 1:
                     log.error("### expanded with " + type(expander).__name__)
@@ -365,7 +388,11 @@ def make_rule(name: str=None, lineno: int=None, snakefile: str=None,
         setattr(ruleinfo, arg, kwargs[arg])
     ruleinfo.norun = True
     workflow = get_workflow()
-    return workflow.rule(name, lineno, snakefile)(ruleinfo)
+    try:
+        return workflow.rule(name, lineno, snakefile)(ruleinfo)
+    except CreateRuleException:
+        log.debug("  failed. Rule already exists?")
+        return None
 
 
 class BaseExpander(object):
@@ -376,6 +403,18 @@ class BaseExpander(object):
     work on the entire RuleInfo object or the :meth:format and
     :meth:expands_field methods if they intend to modify specific fields.
     """
+    def __init__(self):
+        self.workflow = None
+
+    def link_workflow(self, workflow):
+        """Called when the Expander is associated with a workflow
+
+        May be called multiple times if a new workflow object is created.
+        """
+        log.debug("Linking %s with %s",
+                  self.__class__.__name__, workflow.__class__.__name__)
+        self.workflow = workflow
+
     def format(self, item, *args, **kwargs):
         """Format *item* using *\*args* and *\*\*kwargs*"""
         return item
@@ -418,7 +457,7 @@ class BaseExpander(object):
         encountered in the tree and wrap encountered functions to be called
         once the wildcards object is available.
 
-        Set `ymp.print_rule = 1` before a `rule:` statement in snakefiles
+        Set ``ymp.print_rule = 1`` before a ``rule:`` statement in snakefiles
         to enable debug logging of recursion.
 
         Arguments:
@@ -428,8 +467,8 @@ class BaseExpander(object):
             :class:snakemake.workflow.RuleInfo object into which is recursively
             decendet. May ultimately be `None`, `str`, `function`, `int`,
             `float`, `dict`, `list` or `tuple`.
-          expand_args: Parameters passed on late expansion (when the `dag`
-            tries to instantiate the `rule` into a `job`.
+          expand_args: Parameters passed on late expansion (when the ``dag``
+            tries to instantiate the `rule` into a ``job``.
           rec: Recursion level
         """
         rec = rec + 1
@@ -443,91 +482,19 @@ class BaseExpander(object):
         if item is None:
             item = None
         elif isinstance(item, RuleInfo):
-            self.current_rule = rule
-            for field in filter(self.expands_field, ruleinfo_fields):
-                attr = getattr(item, field)
-                setattr(item, field, self.expand(rule, attr,
-                                                 expand_args=expand_args,
-                                                 rec=rec))
-            self.current_rule = None
+            item = self.expand_ruleinfo(rule, item, expand_args, rec)
         elif isinstance(item, str):
-            try:
-                expand_args['rule'] = rule
-                item = self.format_annotated(item, expand_args)
-            except KeyError:
-                if cb:
-                    # we already are being called: fail
-                    raise
-                # try expanding once we have wildcards
-                _item = item
-
-                def item(wc):
-                    return self.expand(rule, _item,
-                                       expand_args={'wc': wc, 'rule': rule},
-                                       cb=True)
+            item = self.expand_str(rule, item, expand_args, rec, cb)
         elif hasattr(item, '__call__'):
-            # continue expansion of function later by wrapping it
-            _item = item
-
-            @functools.wraps(item)
-            def late_expand(*args, **kwargs):
-                if debug:
-                    log.debug("{}{} late {} {} "
-                              "".format(" "*rec*4, type(self).__name__,
-                                        args, kwargs))
-                res = self.expand(rule, _item(*args, **kwargs),
-                                  expand_args={'wc': args[0]},
-                                  rec=rec,
-                                  cb=True)
-                if debug:
-                    log.debug("{}=> {}"
-                              "".format(" "*rec*4, res))
-                return res
-            item = late_expand
+            item = self.expand_func(rule, item, expand_args, rec, debug)
         elif isinstance(item, int) or isinstance(item, float):
             pass
         elif isinstance(item, dict):
-            for key, value in item.items():
-                _item = self.expand(rule, value, expand_args=expand_args,
-                                    rec=rec)
-
-                # Snakemake can't have functions in lists in dictionaries.
-                # Let's fix that, even if we have to jump a lot of hoops here.
-                if isinstance(item[key], list) and \
-                   any(callable(x) for x in _item):
-                    from inspect import signature
-
-                    def wrapper(*args, **kwargs):
-                        for i, subitem in enumerate(_item):
-                            if callable(subitem):
-                                subparms = signature(subitem).parameters
-                                extra_args = {
-                                    k: v
-                                    for k, v in kwargs.items()
-                                    if k in subparms
-                                }
-                                _item[i] = subitem(*args, **extra_args)
-                        return _item
-                    # Gather the arguments
-                    parms = tuple(set(flatten([
-                        list(signature(x).parameters.values())
-                        for x in _item
-                        if callable(x)
-                    ])))
-                    # Rewrite signature
-                    wrapper.__signature__ = \
-                        signature(wrapper).replace(parameters=parms)
-                    item[key] = wrapper
-                else:
-                    item[key] = _item
+            item = self.expand_dict(rule, item, expand_args, rec)
         elif isinstance(item, list):
-            for i, subitem in enumerate(item):
-                item[i] = self.expand(rule, subitem,
-                                      expand_args=expand_args, rec=rec)
+            item = self.expand_list(rule, item, expand_args, rec)
         elif isinstance(item, tuple):
-            item = tuple(self.expand(rule, subitem,
-                                     expand_args=expand_args, rec=rec)
-                         for subitem in item)
+            item = self.expand_tuple(rule, item, expand_args, rec)
         else:
             raise ValueError("unable to expand item '{}' with args '{}'"
                              "".format(repr(item),
@@ -539,12 +506,93 @@ class BaseExpander(object):
 
         return item
 
+    def expand_ruleinfo(self, rule, item, expand_args, rec):
+        self.current_rule = rule
+        for field in filter(self.expands_field, ruleinfo_fields):
+            attr = getattr(item, field)
+            value = self.expand(rule, attr, expand_args=expand_args, rec=rec)
+            setattr(item, field, value)
+        self.current_rule = None
+        return item
+
+    def expand_str(self, rule, item, expand_args, rec, cb):
+        expand_args['rule'] = rule
+        try:
+            return self.format_annotated(item, expand_args)
+        except (KeyError, TypeError, ExpandLateException):
+            # avoid recursion:
+            if cb:
+                raise
+
+            def item_wrapped(wc):
+                return self.expand(rule, item,
+                                   expand_args={'wc': wc, 'rule': rule},
+                                   cb=True)
+            return item_wrapped
+
+    def expand_func(self, rule, item, expand_args, rec, debug):
+        @functools.wraps(item)
+        def late_expand(*args, **kwargs):
+            if debug:
+                log.debug("{}{} late {} {} ".format(
+                    " "*rec*4, type(self).__name__, args, kwargs))
+            res = self.expand(rule, item(*args, **kwargs),
+                              expand_args={'wc': args[0]}, rec=rec, cb=True)
+            if debug:
+                log.debug("{}=> {}".format(" "*rec*4, res))
+            return res
+        return late_expand
+
+    def _make_list_wrapper(self, value):
+        def wrapper(*args, **kwargs):
+            res = []
+            for subitem in value:
+                if callable(subitem):
+                    subparms = signature(subitem).parameters
+                    extra_args = {
+                        k: v
+                        for k, v in kwargs.items()
+                        if k in subparms
+                    }
+                    res.append(subitem(*args, **extra_args))
+                else:
+                    res.append(subitem)
+            return res
+        # Gather the arguments
+        parms = tuple(set(flatten([
+            list(signature(x).parameters.values())
+            for x in value if callable(x)
+        ])))
+        # Rewrite signature
+        wrapper.__signature__ = signature(wrapper).replace(parameters=parms)
+        return wrapper
+
+    def expand_dict(self, rule, item, expand_args, rec):
+        for key, value in item.items():
+            value = self.expand(rule, value, expand_args=expand_args, rec=rec)
+
+            # Snakemake can't have functions in lists in dictionaries.
+            # Let's fix that, even if we have to jump a lot of hoops here.
+            if isinstance(value, list) and any(callable(x) for x in value):
+                item[key] = self._make_list_wrapper(value)
+            else:
+                item[key] = value
+        return item
+
+    def expand_list(self, rule, item, expand_args, rec):
+        return [self.expand(rule, subitem, expand_args=expand_args, rec=rec)
+                for subitem in item]
+
+    def expand_tuple(self, rule, item, expand_args, rec):
+        return tuple(self.expand(rule, subitem, expand_args=expand_args, rec=rec)
+                     for subitem in item)
+
 
 class SnakemakeExpander(BaseExpander):
     """Expand wildcards in strings returned from functions.
 
     Snakemake does not do this by default, leaving wildcard expansion to
-    the functions provided themselves. Since we never want `{input}` to be
+    the functions provided themselves. Since we never want ``{input}`` to be
     in a string returned as a file, we expand those always.
     """
     def expands_field(self, field):
@@ -604,7 +652,7 @@ class FormatExpander(BaseExpander):
 
 class ColonExpander(FormatExpander):
     """
-    Expander using `{:xyz:}` formatted variables.
+    Expander using ``{:xyz:}`` formatted variables.
     """
     regex = re.compile(
         r"""
@@ -624,16 +672,16 @@ class ColonExpander(FormatExpander):
 
 
 class RecursiveExpander(BaseExpander):
-    """Recursively expands `{xyz}` wildcards in Snakemake rules."""
+    """Recursively expands ``{xyz}`` wildcards in Snakemake rules."""
     def expands_field(self, field):
         """
-        Returns true for all fields but `shell:`, `message:` and
-        `wildcard_constraints`.
+        Returns true for all fields but ``shell:``, ``message:`` and
+        ``wildcard_constraints``.
 
         We don't want to mess with the regular expressions in the fields
-        in `wildcard_constraints:`, and there is little use in expanding
-        `message` or `shell` as these already have all wildcards applied
-        just before job execution (by `format_wildcards()`).
+        in ``wildcard_constraints:``, and there is little use in expanding
+        ``message:`` or ``shell:`` as these already have all wildcards applied
+        just before job execution (by :meth:`format_wildcards`).
         """
         return field not in (
             'shellcmd',
@@ -642,7 +690,7 @@ class RecursiveExpander(BaseExpander):
         )
 
     def expand(self, rule, ruleinfo):
-        """Recursively expand wildcards within RuleInfo object"""
+        """Recursively expand wildcards within :class:`RuleInfo` object"""
         fields = list(filter(None.__ne__,
                              filter(self.expands_field, ruleinfo_fields)))
         # normalize field values and create namedlist dictionary
@@ -701,23 +749,44 @@ class RecursiveExpander(BaseExpander):
 
         # expand variables
         for node in nodes:
-            name = deps.nodes[node]['name']
-            idx = deps.nodes[node]['idx']
-            value = args[name][idx]
-            if isinstance(value, str):
-                try:
-                    value2 = partial_format(value, **args)
-                except FormattingError as e:
-                    raise RuleException(
-                        "Unable to resolve wildcard '{{{}}}' in parameter {}"
-                        "in rule {}".format(e.attr, node, rule.name))
-                except IndexError as e:
-                    raise RuleException(
-                        "Unable to format '{}' using '{}'".format(value, args))
-                args[name][idx] = value2
-                if ymp.print_rule == 1:
-                    log.error("{}::{}: {} => {}".format(rule.name,
-                                                        node, value, value2))
+            var_name = deps.nodes[node]['name']
+            var_idx = deps.nodes[node]['idx']
+            value = args[var_name][var_idx]
+            if not isinstance(value, str):
+                continue
+
+            # format what we can
+            valnew = partial_format(value, **args)
+
+            # check if any remaining wilcards refer to rule fields
+            names = [re.split(r'\.|\[', name, maxsplit=1)[0]
+                     for name in get_names(valnew)]
+            field_names = ruleinfo_fields[var_name].get('funcparams', [])
+            parm_names = [name for name in field_names if name in names]
+
+            if parm_names:
+                # Snakemake won't expand wildcards in output of functions,
+                # so we need to format everything here
+                def late_recursion(val, fparms):
+                    def wrapper(wildcards, **kwargs):
+                        # no partial here, fail if anything left
+                        return strip_wildcard_constraints(val).format(
+                            **kwargs, **wildcards)
+                    # adjust the signature so that snakemake will pass us
+                    # everything we need
+                    parms = (Parameter(pname, Parameter.POSITIONAL_OR_KEYWORD)
+                             for pname in fparms)
+                    newsig = signature(wrapper).replace(parameters=parms)
+                    wrapper.__signature__ = newsig
+                    return wrapper
+
+                valnew = late_recursion(valnew, parm_names)
+
+            args[var_name][var_idx] = valnew
+
+            if ymp.print_rule == 1:
+                log.debug("{}::{}: {} => {}".format(rule.name,
+                                                    node, value, valnew))
 
         # update ruleinfo
         for name in fields:
@@ -769,7 +838,6 @@ class InheritanceExpander(BaseExpander):
         self.ruleinfos = {}
         self.snakefiles = {}
         self.linemaps = None
-        log.debug("Ineritance Enabled")
 
     def get_code_line(self, rule: Rule) -> str:
         """Returns the source line defining *rule*"""
@@ -872,7 +940,7 @@ class DefaultExpander(InheritanceExpander):
         Creates DefaultExpander
 
         Each parameter passed is considered a RuleInfo default value. Where
-        applicable, Snakemake's argtuples `([],{})` must be passed.
+        applicable, Snakemake's argtuples ``([],{})`` must be passed.
         """
         super().__init__()
         self.defaults = RuleInfo(None)
@@ -888,25 +956,34 @@ class DefaultExpander(InheritanceExpander):
 class WorkflowObject(object):
     """
     Base for extension classes defined from snakefiles
+
+    This currently encompasses `ymp.env.Env` and `ymp.stage.Stage`.
+
+    This mixin sets the properties ``filename`` and ``lineno`` according
+    to the definition source in the rules file. It also maintains a registry
+    within the Snakemake workflow object and provides an accessor method
+    to this registry.
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # Fill filename and lineno
-        #
-        # For simplicity, we assume that's two levels up on the call stack.
-        # One level up is our derived class, above that should be the rule
-        # file.
+        # We assume the creating call is the first up the stack
+        # that is not a constructor call (i.e. not __init__)
+        try:
+            caller = next(fi for fi in stack() if fi.function != "__init__")
+            if not hasattr(self, 'filename'):
+                #: str: Name of file in which object was defined
+                self.filename = caller.filename
+            if not hasattr(self, 'lineno'):
+                #: int: Line number of object definition
+                self.lineno = caller.lineno
+        except IndexError:
+            log.error("Failed to find source code defining %s", self)
 
-        caller = next(fi for fi in stack() if fi.function != "__init__")
-        if not hasattr(self, 'filename'):
-            #: str: Name of file in which object was defined
-            self.filename = caller.filename
-        if not hasattr(self, 'lineno'):
-            #: int: Line number of object definition
-            self.lineno = caller.lineno
-
-        objs = self.get_registry()
+    def register(self):
+        """Add self to registry"""
+        cache = self.get_registry()
 
         names = []
         for attr in 'name', 'altname':
@@ -914,10 +991,11 @@ class WorkflowObject(object):
                 names += ensure_list(getattr(self, attr))
 
         for name in names:
-            if name in objs and self != objs[name] and \
-               (self.filename != objs[name].filename
-                or self.lineno != objs[name].lineno):
-                other = objs[name]
+            if (name in cache
+                and self != cache[name]
+                and (self.filename != cache[name].filename
+                     or self.lineno != cache[name].lineno)):
+                other = cache[name]
                 raise YmpRuleError(
                     self,
                     f"Failed to create {self.__class__.__name__} '{names[0]}':"
@@ -925,17 +1003,24 @@ class WorkflowObject(object):
                 )
 
         for name in names:
-            objs[name] = self
+            cache[name] = self
+
+    @property
+    def defined_in(self):
+        return self.filename
 
     @classmethod
-    def get_registry(cls):
+    def new_registry(cls):
+        return cls.get_registry(clean=True)
+
+    @classmethod
+    def get_registry(cls, clean=False):
         """
         Return all objects of this class registered with current workflow
         """
-        workflow = get_workflow()
-        if not hasattr(workflow, "ymp_object_registry"):
-            workflow.ymp_object_registry = AttrDict()
-        registry = workflow.ymp_object_registry
-        if cls.__name__ not in registry:
-            registry[cls.__name__] = AttrDict()
-        return registry[cls.__name__]
+        import ymp
+        cfg = ymp.get_config()
+        return cfg.cache.get_cache(
+            cls.__name__,
+            loadfunc=ExpandableWorkflow.ensure_global_workflow,
+            clean=clean)

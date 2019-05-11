@@ -7,7 +7,7 @@ rule trinity:
         r1 = "{dir}/{:sources:}.{:pairnames[0]:}.fq.gz",
         r2 = "{dir}/{:sources:}.{:pairnames[0]:}.fq.gz"
     output:
-        fa = "{dir}{by}.trinity/{target}.contigs.fasta.gz",
+        fa = "{dir}{by}.trinity/{target}.fasta.gz",
         tm = "{dir}{by}.trinity/{target}.timing",
         mp = "{dir}{by}.trinity/{target}.fasta.gene_trans_map"
     log:
@@ -46,7 +46,7 @@ rule trinity_stats:
     message:
         "Trinity: collecting assembly stats"
     input:
-        "{dir}.trinity/{target}.contigs.fasta.gz"
+        "{dir}.trinity/{target}.fasta.gz"
     output:
         "{dir}.trinity{target}.stats"
     conda:

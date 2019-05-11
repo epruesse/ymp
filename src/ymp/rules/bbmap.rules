@@ -18,34 +18,44 @@ bbstats  = bbstats.split()
 bbduk_stats = "bhist qhist qchist aqhist bqhist lhist gchist".split()
 
 
-rule bbmap_makedb:
-    """
-    Precomputes BBMap index
-    """
-    message:
-        "BBMap: preparing index for ref={input}"
-    input:
-        "{path}/{file}.fasta.gz"
-    output:
-        "{path}/{file}.bbidx/ref/genome/1/summary.txt",
-        "{path}/{file}.bbidx"
-    log:
-        "{path}/{file}.bbidx/bbmap_index.log"
-    params:
-        path="{path}/{file}.bbidx/",
-        mem=icfg.mem("80g")
-    threads: 8
-    conda:
-        "bbmap"
-    shell: """
-    bbmap.sh \
-        path={params.path} \
-        ref={input} \
-        threads={threads} \
-        pigz unpigz \
-        -Xmx{params.mem}m \
-        >{log} 2>&1
-    """
+with Stage("index_bbmap") as S:
+    S.doc("""
+    >>> ymp make toy.ref_genome.index_bbmap
+    """)
+    rule bbmap_makedb:
+        """
+        Precomputes BBMap index
+        """
+        message:
+            "BBMap: Indexing {input}"
+        input:
+            "{:prev:}/{target}.fasta.gz"
+        output:
+            directory("{:this:}/{target}")
+        log:
+            "{:this:}/{target}.log"
+        params:
+            mem=icfg.mem("80g")
+        threads: 8
+        conda:
+            "bbmap"
+        shell: """
+        bbmap.sh \
+            path={output} \
+            ref={input} \
+            threads={threads} \
+            pigz unpigz \
+            -Xmx{params.mem}m \
+            >{log} 2>&1
+        """
+
+    rule bbmap_makedb_all:
+        message:
+            "BBMap: indexing done"
+        output:
+            touch("{:this:}/all_targets.stamp")
+        input:
+            directory("{:this:}/{:targets:}")
 
 
 with Stage("correct_bbmap") as S:
@@ -56,17 +66,20 @@ with Stage("correct_bbmap") as S:
     read pairs and choose the base with the higher quality where the alignment
     contains mismatches and increase the quality score as indicated by the double
     observation where the alignment contains matches.
+
+    >>> ymp make toy.correct_bbmap
+    >>> ymp make mpic.correct_bbmap
     """)
     rule bbmap_error_correction:
         """Error correction with BBMerge overlapping"""
         message: "BBMap: applying error correction to {input[0]}"
         input:
-            "{:prev:}/{sample}.{:pairnames:}.fq.gz"
+            "{:prev:}/{:target:}.{:pairnames:}.fq.gz"
         output:
-            "{:this:}/{sample}.{:pairnames:}.fq.gz",
-            adapter = "{:this:}/{sample}.adapter.fq"
+            "{:this:}/{target}.{:pairnames:}.fq.gz",
+            adapter = "{:this:}/{target}.adapter.fq"
         log:
-            "{:this:}/{sample}.log"
+            "{:this:}/{target}.log"
         threads: 16
         params:
             inout  = "in={input[0]} out={output[0]}",
@@ -84,9 +97,20 @@ with Stage("correct_bbmap") as S:
 
     # FIXME: Is this applicable?
     rule bbmap_error_correction_se:  # ymp: extends bbmap_error_correction
-        input:  ["{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"],
-        output: ["{:this:}/{sample}.{:pairnames[0]:}.fq.gz"],
-        params: inout2 = ""
+        input:
+            ["{:prev:}/{target}.{:pairnames[0]:}.fq.gz"],
+        output:
+            ["{:this:}/{target}.{:pairnames[0]:}.fq.gz"],
+        params:
+            inout2 = ""
+
+    rule bbmap_error_correction_all:
+        message:
+            "BBMap: error correction complete"
+        output:
+            touch("{:this:}/all_targets.stamp")
+        input:
+            "{:this:}/{:fq_names:}.fq.gz"
 
 
 with Stage("trim_bbmap") as S:
@@ -99,26 +123,26 @@ with Stage("trim_bbmap") as S:
       A: append to enable adapter trimming
       Q20: append to select phred score cutoff (default 20)
       L20: append to select minimum read length (default 20)
+
+    >>> ymp make toy.trim_bbmap
+    >>> ymp make toy.trim_bbmapA
+    >>> ymp make toy.trim_bbmapAQ10L10
+    >>> ymp make mpic.trim_bbmap
     """)
+    S.add_param("A", typ="flag", name="adapt", value="ref=$BB_RSRC/adapters.fa ")
+    S.add_param("Q", typ="int", name="qual", default=20)
+    S.add_param("L", typ="int", name="length", default=20)
     rule bbmap_trim:
         """Trimming and Adapter Removal using BBTools BBDuk"""
         message:
             "BBMap: Trimming {input[0]} "
-            "({params.adapt}Q={params.qual} L={params.length})"
-        wildcard_constraints:
-            A = "(A?)",
-            Q = "(Q\d+|)",
-            L = "(L\d+|)"
         input:
-            "{:prev:}/{sample}.{:pairnames:}.fq.gz"
+            "{:prev:}/{target}.{:pairnames:}.fq.gz"
         output:
-            "{:this:}{A}{Q}{L}/{sample}.{:pairnames:}.fq.gz"
+            "{:this:}/{target}.{:pairnames:}.fq.gz"
         log:
-            "{:this:}{A}{Q}{L}/{sample}.log"
+            "{:this:}/{target}.log"
         params:
-            length = lambda wc: wc.L[1:] if wc.L else 20,
-            qual   = lambda wc: wc.Q[1:] if wc.Q else 20,
-            adapt  = lambda wc: 'ref=$BB_RSRC/adapters.fa ' if wc.A else '',
             k      = 23,
             mink   = 11,
             hdist  = 1,
@@ -151,11 +175,20 @@ with Stage("trim_bbmap") as S:
 
     rule bbmap_trim_se:  # ymp: extends bbmap_trim
         input:
-            ["{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"]
+            ["{:prev:}/{target}.{:pairnames[0]:}.fq.gz"]
         output:
-            ["{:this:}{A}{Q}{L}/{sample}.{:pairnames[0]:}.fq.gz"]
+            ["{:this:}/{target}.{:pairnames[0]:}.fq.gz"]
         params:
             inout2 = ""
+
+    localrules: bbmap_trim_all
+    rule bbmap_trim_all:
+        message:
+            "BBMap: finished {output}"
+        input:
+            "{:this:}/{:fq_names:}.fq.gz"
+        output:
+            touch("{:this:}/all_targets.stamp")
 
 
 with Stage("dedup_bbmap") as S:
@@ -163,6 +196,9 @@ with Stage("dedup_bbmap") as S:
     Remove duplicate reads
 
     Applies BBMap's "dedupe.sh"
+
+    >>> ymp make toy.dedup_bbmap
+    >>> ymp make mpic.dedup_bbmap
     """)
     rule bbmap_dedupe:
         """
@@ -171,11 +207,11 @@ with Stage("dedup_bbmap") as S:
         message:
             "BBTools dedupe'ing {input}"
         input:
-            "{:prev:}/{sample}.{:pairnames:}.fq.gz"
+            "{:prev:}/{:target:}.{:pairnames:}.fq.gz"
         output:
-            "{:this:}/{sample}.{:pairnames:}.fq.gz"
+            "{:this:}/{target}.{:pairnames:}.fq.gz"
         log:
-            "{:this:}/{sample}.log"
+            "{:this:}/{target}.log"
         params:
             mem = icfg.mem("80g")
         threads: 4
@@ -204,11 +240,11 @@ with Stage("dedup_bbmap") as S:
         message:
             "BBTools dedupe'ing {input}"
         input:
-            "{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"
+            "{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz"
         output:
-            "{:this:}/{sample}.{:pairnames[0]:}.fq.gz"
+            "{:this:}/{target}.{:pairnames[0]:}.fq.gz"
         log:
-            "{:this:}/{sample}.log"
+            "{:this:}/{target}.log"
         params:
             mem = icfg.mem("80g")
         threads: 4
@@ -225,6 +261,14 @@ with Stage("dedup_bbmap") as S:
             " |"
             " pigz -p {threads} > {output[0]}"
 
+    rule bbmap_dedupe_all:
+        message:
+            "BBMap: dedupe done"
+        output:
+            touch("{:this:}/all_targets.stamp")
+        input:
+            "{:this:}/{:fq_names:}.fq.gz"
+
 
 ruleorder: bbmap_dedupe > bbmap_dedupe_se
 
@@ -237,22 +281,22 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
     Matching reads are collected in the stage *filter_bbmap* and remaining reads
     are collectec in the stage *remove_bbmap*.
 
-    Example:
-      # remove human reads from samples:
-      ymp make toy.ref_hg19.remove_bbmap/all
+    >>> ymp make toy.ref_phiX.index_bbmap.remove_bbmap
+    >>> ymp make toy.ref_phiX.index_bbmap.filter_bbmap
+    >>> ymp make mpic.ref_phiX.index_bbmap.remove_bbmap
     """)
     rule bbmap_split:
         message:
             "BBMap filtering - {input[0]}"
         input:
-            fq    = "{:prev:}/{sample}.{:pairnames:}.fq.gz",
-            ref   = "{:reference:}.bbidx"
+            fq    = "{:prev:}/{target}.{:pairnames:}.fq.gz",
+            ref   = directory("{:prev:}/{:target:}")
         output:
-            clean = "{:this:}/{sample}.{:pairnames:}.fq.gz",
-            human = "{:that:}/{sample}.{:pairnames:}.fq.gz",
-            stats = expand("{{:this:}}/{{sample}}.{x}", x=bbstats)
+            clean = "{:this:}/{target}.{:pairnames:}.fq.gz",
+            human = "{:that:}/{target}.{:pairnames:}.fq.gz",
+            stats = expand("{{:this:}}/{{target}}.{x}", x=bbstats)
         log:
-                    "{:this:}/{sample}.log"
+                    "{:this:}/{target}.log"
         params:
             stats    = lambda wc, output: ["{}={}".format(x,y) for x,y in zip(bbstats, output.stats)],
             minid    = 0.95,
@@ -291,82 +335,124 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
 
     rule bbmap_split_se:  # ymp: extends bbmap_split
         input:
-            fq    = ["{:prev:}/{sample}.{:pairnames[0]:}.fq.gz"]
+            fq    = ["{:prev:}/{target}.{:pairnames[0]:}.fq.gz"]
         output:
-            clean = ["{:this:}/{sample}.{:pairnames[0]:}.fq.gz"],
-            human = ["{:that:}/{sample}.{:pairnames[0]:}.fq.gz"]
+            clean = ["{:this:}/{target}.{:pairnames[0]:}.fq.gz"],
+            human = ["{:that:}/{target}.{:pairnames[0]:}.fq.gz"]
         params:
             inout2 = ""
 
+    rule bbmap_split_all:
+        message:
+            "BBMap: split complete"
+        output:
+            touch("{:this:}/all_targets.stamp")
+        input:
+            "{:this:}/{:fq_names:}.fq.gz"
+
+    rule bbmap_split_all_remove:
+        message:
+            "BBMap: split complete"
+        output:
+            touch("{:that:}/all_targets.stamp")
+        input:
+            "{:that:}/{:fq_names:}.fq.gz"
 
 
 ###
 ### Primer Filtering
 ###
 
-rule bbduk_primer:
-    """
-    Splits reads based on primer matching into "primermatch" and "primerfail".
-    """
-    message: "BBduk: Filtering {wildcards.sample} for primer set {input.primer}"
-    input:   "{dir}/{sample}.{:pairnames:}.fq.gz",
-             primer = "primers.fasta"
-    output:  match  = "{dir}.primermatch/{sample}.{:pairnames:}.fq.gz",
-             fail   = "{dir}.primerfail/{sample}.{:pairnames:}.fq.gz",
-             stats  = expand("{{dir}}.primermatch/{{sample}}.{x}", x=bbduk_stats)
-    log:     "{dir}.primermatch/{sample}.log"
-    threads: 8
-    params:
-        stats=lambda wc: expand("{x}={dir}.primermatch/{sample}.{x}",x=bbduk_stats,**wc),
-        mem=icfg.mem("80g"),
-        k=12,
-        rl=12,
-        inout2="in2={input[1]} outm2={output.match[1]} outu2={output.fail[1]}"
-    conda: "bbmap"
-    shell:
-        'bbduk.sh'
-        ' in={input[0]} outm={output.match[0]} outu={output.fail[0]} '
-        ' {params.inout2} '
-        ' ref={input.primer}'
-        ' k={params.k}'               # match using k-mers
-        ' restrictleft={params.rl} '  # only match leftmost n bases
-        ' maskmiddle=f'               # don't mask middle base in kmer
-        ' rcomp=f'                    # don't check reverse complement
-        ' copyundefined=t'            # expand wobbles in input
-        ' removeifeitherbad=f'        # "bad" is "match", we want both to match
-        ' pigz unpigz'
-        ' {params.stats}'
-        ' -Xmx{params.mem}m'
+with Stage("primermatch_bbmap", "primerfail_bbmap") as S:
+    S.doc("""
+    Filters reads by matching reference primer
 
+    >>> ymp make mpic.ref_primers.primermatch_bbmap
+    """)
 
-rule bbduk_primer_se:  # ymp: extends bbduk_primer
-    input:          "{dir}/{sample}.{:pairnames[0]:}.fq.gz"
-    output: match = ["{dir}.primermatch/{sample}.{:pairnames[0]:}.fq.gz"],
-            fail  = ["{dir}.primerfail/{sample}.{:pairnames[0]:}.fq.gz"]
-    params: inout2 = ""
+    rule bbduk_primer:
+        """
+        Splits reads based on primer matching into "primermatch" and "primerfail".
+        """
+        message:
+            "BBduk: Filtering {wildcards.target} for primer set {input.primer}"
+        input:
+            fq     = "{:prev:}/{:target:}.{:pairnames:}.fq.gz",
+            primer = "{:prev:}/{:target:}.fasta.gz"
+        output:
+            match  = "{:this:}/{target}.{:pairnames:}.fq.gz.xx",
+            fail   = "{:that:}/{target}.{:pairnames:}.fq.gz",
+            stats  = expand("{{:this:}}/{{target}}.{x}", x=bbduk_stats)
+        log:
+            "{:this:}/{target}.log"
+        threads: 8
+        params:
+            stats   = lambda wc, output: ["{}={}".format(x,y) for x,y in zip(bbstats, output.stats)],
+            mem     = icfg.mem("80g"),
+            k       = 12,
+            rl      = 12,
+            inout2  = "in2={input.fq[1]} outm2={output.match[1]} outu2={output.fail[1]}"
+        conda: "bbmap"
+        shell:
+            'bbduk.sh'
+            ' in={input.fq[0]} outm={output.match[0]} outu={output.fail[0]} '
+            ' {params.inout2} '
+            ' ref={input.primer}'
+            ' k={params.k}'               # match using k-mers
+            ' restrictleft={params.rl} '  # only match leftmost n bases
+            ' maskmiddle=f'               # don't mask middle base in kmer
+            ' rcomp=f'                    # don't check reverse complement
+            ' copyundefined=t'            # expand wobbles in input
+            ' removeifeitherbad=f'        # "bad" is "match", we want both to match
+            ' pigz unpigz'
+            ' {params.stats}'
+            ' -Xmx{params.mem}m'
+            ' >{log} 2>&1'
+
+    rule bbduk_primer_se:  # ymp: extends bbduk_primer
+        input:
+            fq = ["{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz"]
+        output:
+            match = ["{:this:}/{target}.{:pairnames[0]:}.fq.gz"],
+            fail  = ["{:that:}/{target}.{:pairnames[0]:}.fq.gz"]
+        params:
+            inout2 = ""
+
+    rule bbduk_primer_all:
+        message:
+            "BBMap: primer filter done"
+        output:
+            touch("{:this:}/all_targets.stamp")
+        input:
+            "{:this:}/{:fq_names:}.fq.gz"
 
 
 with Stage("map_bbmap") as S:
     S.doc("""
     Map reads using BBMap
+
+    >>> ymp make toy.assemble_megahit.map_bbmap
+    >>> ymp make toy.ref_genome.map_bbmap
+    >>> ymp make mpic.ref_ssu.map_bbmap
     """)
     rule bbmap_map:
         """Map read from each (co-)assembly read file to the assembly"""
         message:
             "BBMap mapping {input.fq[0]} to {input.fa}"
         input:
-            fq = "{:prev:}/{source}.{:pairnames:}.fq.gz",
-            fa = "{:reference:}.fasta.gz",
+            fq = "{:prev:}/{:target:}.{:pairnames:}.fq.gz",
+            fa = "{:prev:}/{:target:}.fasta.gz",
         output:
-            bam   = temp("{:this:}/{target}.{source}.bam"),
-            stats =      "{:this:}/{target}.contigs.{source}.stats",
-            ihist =      "{:this:}/{target}.contigs.{source}.ihist"
+            bam   = temp("{:this:}/{target}.bam"),
+            stats =      "{:this:}/{target}.stats",
+            ihist =      "{:this:}/{target}.ihist"
         log:
-                         "{:this:}/{target}.contigs.{source}.log"
+                         "{:this:}/{target}.log"
         benchmark:
-            "benchmarks/bbmap/{:this:}/{target}.contigs.{source}.txt"
+            "benchmarks/bbmap/{:this:}/{target}.txt"
         params:
-            mem = icfg.mem("80g")
+            mem = icfg.mem("80g"),
+            in2 = "in2={input.fq[1]}"
         threads:
             8
         conda:
@@ -379,7 +465,7 @@ with Stage("map_bbmap") as S:
             # " jni"                # use JNI for C alignment algo
             " nodisk "              # don't write index to disk
             " ref={input.fa}"       # reference
-            " in={input.fq[0]} in2={input.fq[1]}"
+            " in={input.fq[0]} {params.in2}"
             " out=stdout"           # write sam to stdout
             " machineout statsfile={output.stats}" # parseable stats
             " ihist={output.ihist}" # insert histogram
@@ -390,3 +476,16 @@ with Stage("map_bbmap") as S:
             " 2>{log}"              # log error
             " | samtools view -b -o {output.bam} -" # convert to bam
 
+    rule bbmap_map_SE: # ymp: extends bbmap_map
+        input:
+            fq = ["{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz"]
+        params:
+            in2 = ""
+
+    rule bbmap_map_all:
+        message:
+            "BBMap: mapping done"
+        output:
+            touch("{:this:}/all_targets.stamp")
+        input:
+            "{:this:}/{:targets:}.bam"

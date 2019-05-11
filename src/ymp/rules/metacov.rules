@@ -12,7 +12,7 @@ rule cov_all_for_target:
     message:
         "Collected coverages for {wildcards.target}"
     input:
-        "{dir}.contigcov/{target}.contigs.{:sources:}.csv"
+        "{dir}.contigcov/{target}.{:sources:}.csv"
     output:
         touch("{dir}.contigcov/all_{target}")
 
@@ -23,20 +23,20 @@ rule cov_all:
     input:
         "{dir}.contigcov/all_{:targets:}"
     output:
-        touch("{dir}.contigcov/all")
+        touch("{dir}.contigcov/all_targets.stamp")
 
 
 rule metacov_scan:
     message:
         "MetaCov Scan: {output.khist} + basehist"
     input:
-        bam = "{dir}/{target}.contigs.{source}.sorted.bam",
-        bai = "{dir}/{target}.contigs.{source}.sorted.bam.bai"
+        bam = "{dir}/{target}.{source}.sorted.bam",
+        bai = "{dir}/{target}.{source}.sorted.bam.bai"
     output:
-        khist = "{dir}.contigcov/{target}.contigs.{source}.kmerhist.csv",
-        bhist = "{dir}.contigcov/{target}.contigs.{source}.basehist.csv"
+        khist = "{dir}.contigcov/{target}.{source}.kmerhist.csv",
+        bhist = "{dir}.contigcov/{target}.{source}.basehist.csv"
     log:
-        "{dir}.contigcov/{target}.contigs.{source}.scan.log"
+        "{dir}.contigcov/{target}.{source}.scan.log"
     conda:
         "metacov.yml"
     shell:"""
@@ -51,14 +51,14 @@ rule metacov_by_contig:
     message:
         "MetaCov Pileup: {output.csv}"
     input:
-        bam = "{dir}.{mapper}/{target}.contigs.{source}.sorted.bam",
-        bai = "{dir}.{mapper}/{target}.contigs.{source}.sorted.bam.bai",
-        khist = "{dir}.{mapper}.contigcov/{target}.contigs.{source}.kmerhist.csv",
-        ref = "{dir}/{target}.contigs.fasta"
+        bam = "{dir}.{mapper}/{target}.{source}.sorted.bam",
+        bai = "{dir}.{mapper}/{target}.{source}.sorted.bam.bai",
+        khist = "{dir}.{mapper}.contigcov/{target}.{source}.kmerhist.csv",
+        ref = "{dir}/{target}.fasta"
     output:
-        csv = "{dir}.{mapper}.contigcov/{target}.contigs.{source}.csv"
+        csv = "{dir}.{mapper}.contigcov/{target}.{source}.csv"
     log:
-        "{dir}.{mapper}.contigcov/{target}.contigs.{source}.log"
+        "{dir}.{mapper}.contigcov/{target}.{source}.log"
     conda:
         "metacov.yml"
     shell:"""
@@ -80,13 +80,13 @@ rule metacov:
     message:
         "MetaCov Pileup: {output}"
     input:
-        csv = "{dir}.{genefind}/{target}.contigs.{query}.{gene}.csv",
-        bam = "{dir}.{mapper}/{target}.contigs.{source}.sorted.bam",
-        bai = "{dir}.{mapper}/{target}.contigs.{source}.sorted.bam.bai"
+        csv = "{dir}.{genefind}/{target}.{query}.{gene}.csv",
+        bam = "{dir}.{mapper}/{target}.{source}.sorted.bam",
+        bai = "{dir}.{mapper}/{target}.{source}.sorted.bam.bai"
     output:
-        "{dir}.{mapper}.cov/{target}.contigs.{source}.{genefind}.{query}.{gene}.csv"
+        "{dir}.{mapper}.cov/{target}.{source}.{genefind}.{query}.{gene}.csv"
     log:
-        "{dir}.{mapper}.cov/{target}.contigs.{source}.{genefind}.{query}.{gene}.log"
+        "{dir}.{mapper}.cov/{target}.{source}.{genefind}.{query}.{gene}.log"
     conda:
         "metacov.yml"
     shell:"""
@@ -98,14 +98,14 @@ rule metacov:
     """
 
 
-localrules: blast7_coverage_join_sources
+localrules: metacov_join_sources
 rule metacov_join_sources:
     message:
         "Merging coverage"
     input:
-        csv="{dir}.cov/{target}.contigs.{: sources :}.{genefind}.{query}.{gene}.csv"
+        csv="{dir}.cov/{target}.{: sources :}.{genefind}.{query}.{gene}.csv"
     output:
-        csv=temp("{dir}.cov/{target}.contigs.{genefind}.{query}.{gene}.csv")
+        csv=temp("{dir}.cov/{target}.{genefind}.{query}.{gene}.csv")
     shell: """
     if test "$(echo {input.csv} | wc -w)" -eq 1; then
        cp {input.csv} {output.csv}
@@ -118,12 +118,12 @@ rule metacov_join_sources:
     """
 
 
-localrules: blast7_coverage_join_targets
+localrules: metacov_join_targets
 rule metacov_join_targets:
     message:
         "Merging coverage"
     input:
-        csv="{dir}.cov/{:targets:}.contigs.{genefind}.{query}.{gene}.csv"
+        csv="{dir}.cov/{:targets:}.{genefind}.{query}.{gene}.csv"
     output:
         csv="{dir}.cov/{genefind}.{query}.{gene}.csv"
     shell: """

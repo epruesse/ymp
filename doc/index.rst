@@ -1,17 +1,16 @@
-YMP - a flexible omics pipeline
+YMP - a Flexible Omics Pipeline
 ===============================
 
-Welcome to the YMP documentation! YMP is an omics pipeline designed to be simple to
-install and use, yet flexible enough for you to easily add your own custom processing
-steps.
+Welcome to the YMP documentation!
 
-YMP is built on top of Snakemake_ and Bioconda_, which are used for task management
-and software provisioning, respectively. Around these, YMP provides a simple command
-line interface, a dataset configuration management layer and a predefined collection
-of rules covering the common tasks for NGS sequence data preprocessing, assembly and
-mapping.
+.. include:: ../README.rst
+   :start-after: begin intro
+   :end-before: end intro
 
-.. _Snakemake: https://snakemake.readthedocs.io
-.. _Bioconda: https://bioconda.github.io
+.. include:: ../README.rst
+   :start-after: begin features
+   :end-before: end features
 
-
+.. include:: ../README.rst
+   :start-after: begin background
+   :end-before: end background

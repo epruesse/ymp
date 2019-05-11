@@ -135,6 +135,7 @@ intersphinx_mapping = {
     'snakemake': ('http://snakemake.readthedocs.io/en/stable', None),
     'sphinx': ('http://www.sphinx-doc.org/en/stable', None),
     'bioconda': ('https://bioconda.github.io', None),
+    'click': ('http://click.pocoo.org/5/', None),
 }
 
 

@@ -1,0 +1,85 @@
+Env(name="rsem", base="bioconda", packages="rsem")
+
+RSEM_IDX = "chrlist grp idx.fa n2g.idx.fa seq ti transcripts.fa".split()
+
+rule rsem_index:
+    """Build Genome Index for RSEM"""
+    message:
+        "RSEM: Indexing {input.contigs}"
+    input:
+        contigs = "{path}/{source}.fasta",
+        gtf     = "{path}/{source}.gtf"
+    output:
+        index   = expand("{{params.index}}.{ext}", ext=RSEM_IDX)
+    log:
+        "{params.index}.log"
+    params:
+        index   = "{path}.index/{source}.rsem",
+        mem     = icfg.mem("20G")
+    threads:
+        1
+    conda:
+        "rsem"
+    shell: """
+    rsem-prepare-reference --gtf {input.gtf} {input.contigs} {params.index}  >{log} 2>&1
+    """
+
+with Stage("quant_rsem") as S:
+    S.doc("""
+    Quantify transcripts using RSEM
+    """)
+    rule rsem_quant:
+        message:
+            "RSEM: calculating expression"
+        input:
+            bam = "{:prev:}/{target}-annotated.{source}.bam",
+            idx = expand("{{:reference.dir:}}.index/{{target}}.rsem.{ext}",
+                         ext=RSEM_IDX)
+        output:
+            "{params.outprefix}.genes.results",
+            "{params.outprefix}.isoforms.results"
+        log:
+            "{params.outprefix}.log"
+        params:
+            index = "{:reference.dir:}.index/{target}.rsem",
+            outprefix = "{:this:}/{target}.{source}",
+            forward_prob = 0, # P of having fwd read
+            mem = icfg.mem("16G"),
+            ci_mem = icfg.mem("10G")
+        threads:
+            16
+        conda:
+            "rsem"
+        shell:
+            "rsem-calculate-expression "
+            " -p {threads} "
+            " --bam "
+            " --no-bam-output "
+            " --estimate-rspd " # estimate read start position
+            " --calc-ci" # calculate 95% credibility intervals and posterior mean estimates
+            " --ci-memory {params.ci_mem} "
+            " --forward-prob {params.forward_prob} "
+            " --paired-end "
+            " {input.bam} "
+            " {params.index} "
+            " {params.outprefix} "
+            " >{log} 2>&1 "
+
+    rule rsem_all_for_target:
+        message:
+            "RSEM: finished {output}"
+        input:
+            "{:this:}/{target}.{:sources:}.genes.results",
+        output:
+            touch("{:this:}/all_{target}")
+
+    rule rsem_all:
+        message:
+            "RSEM: finished {output}"
+        input:
+            "{:this:}/all_{:targets:}"
+        output:
+            touch("{:this:}/all_targets.stamp")
+
+    # TODO: SE mode
+

@@ -1,5 +1,6 @@
 """Exceptions raised by YMP"""
 
+import textwrap
 from inspect import stack
 from typing import Optional
 
@@ -24,8 +25,16 @@ class YmpNoStackException(YmpException, ClickException):
 
     Note that click will call the ``show`` method on this object to
     print the exception. The default implementation from click will
-    just prefix the ``msg`` with ``Error: ``.
+    just prefix the ``msg`` with ``Error:``.
+
+    FIXME: This does not work if the exception is raised from within
+        the snakemake workflow as snakemake.snakemake catches and
+        reformats exceptions.
     """
+
+
+class YmpUsageError(YmpNoStackException):
+    pass
 
 
 class YmpSystemError(YmpNoStackException):
@@ -73,6 +82,16 @@ class YmpConfigError(YmpNoStackException):
         self.stack = stack()
         self.exc = exc
         super().__init__(msg)
+
+
+class YmpStageError(YmpNoStackException):
+    """Indicates an error in the requested stage stack
+    """
+    def __init__(self, msg: str) -> None:
+        super().__init__(textwrap.dedent(msg))
+
+    def show(self) -> None:
+        echo(self.format_message(), err=True)
 
 
 class YmpWorkflowError(YmpNoStackException):

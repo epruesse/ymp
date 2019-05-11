@@ -1,14 +1,33 @@
+"""
+Parsers for blast output formats 6 (CSV) and 7 (CSV with comments between queries).
+"""
+
 from collections import namedtuple
+from typing import List
 
 
-def reader(fileobj, t=7):
+def reader(fileobj, t: int=7) -> 'BlastParser':
+    """
+    Creates a reader for files in BLAST format
+
+    >>> with open(blast_file) as infile:
+    >>>    reader = blast.reader(infile)
+    >>>    for hit in reader:
+    >>>       print(hit)
+
+    Args:
+      fileobj: iterable yielding lines in blast format
+      t: number of blast format type
+    """
     if t == 7:
-        return fmt7_parser(fileobj)
+        return Fmt7Parser(fileobj)
+    elif t == 6:
+        return Fmt6Parser(fileobj)
     else:
         ValueError("other formats not implemented")
 
 
-class blast_parser(object):
+class BlastParser(object):
     "Base class for BLAST parsers"
 
     # Map between field short and long names
@@ -47,9 +66,9 @@ class blast_parser(object):
     }
 
 
-class fmt7_parser(blast_parser):
+class Fmt7Parser(BlastParser):
     """
-    Parses BLAST results in fmt7 (CSV with comments)
+    Parses BLAST results in format '7' (CSV with comments)
     """
     FIELDS = "# Fields: "
     QUERY = "# Query: "
@@ -62,7 +81,16 @@ class fmt7_parser(blast_parser):
         if "BLAST" not in fileobj.readline():
             raise ValueError("not a BLAST7 formatted file")
 
-    def get_fields(self):
+    def get_fields(self) -> List[str]:
+        """Returns list of available field names
+
+        Format 7 specifies which columns it contains in comment lines, allowing
+        this parser to be agnostic of the selection of columns made when running
+        BLAST.
+
+        Returns:
+          List of field names (e.g. ``['sacc', 'qacc', 'evalue']``)
+        """
         return self.fields
 
     def __iter__(self):
@@ -92,5 +120,29 @@ class fmt7_parser(blast_parser):
                                           line.strip().split('\t'))
                 ])
 
-    def isfirsthit(self):
+    def isfirsthit(self) -> bool:
+        """Returns `True` if the current hit is the first hit for the current
+        query"""
         return self.hit == 1
+
+
+class Fmt6Parser(BlastParser):
+    """Parser for BLAST format 6 (CSV)
+    """
+    #: Default field types
+    fields = ("qseqid sseqid pident length mismatch gapopen "
+              "qstart qend sstart send evalue bitscore").split()
+    field_types = [BlastParser.FIELD_TYPE.get(n, None) for n in fields ]
+    Hit = namedtuple("BlastHit", fields)
+    def __init__(self, fileobj):
+        self.fileobj = fileobj
+
+    def get_fields(self):
+        return self.fields
+
+    def __iter__(self):
+        for line in self.fileobj:
+            yield self.Hit(*[t(v) if t else v
+                             for v, t in zip(line.split("\t"),
+                                             self.field_types)])
+

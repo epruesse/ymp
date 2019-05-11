@@ -1,0 +1,87 @@
+Env(name="star", base="bioconda", packages="star")
+
+rule star_index:
+    """Build Genome Index for Star"""
+    message:
+        "Star: Indexing {input.contigs}"
+    input:
+        contigs = "{path}/{source}.fasta",
+        gtf     = "{path}/{source}.gtf"
+    output:
+        gdir    = "{path}.index/{source}.star/",
+        index   = "{path}.index/{source}.star/SA"
+    log:
+        std     = "{path}.index/{source}.star.log",
+        log     = "{path}.index/{source}.star/Log.txt"
+    threads:
+        16
+    params:
+        mem = icfg.mem("32G"),
+        overhang = 100
+    shadow:
+        "shallow"
+    conda:
+        "star"
+    shell: """
+    STAR \
+      --runThreadN {threads} \
+      --limitGenomeGenerateRAM $(({params.mem}-1000))000000 \
+      --runMode genomeGenerate \
+      --genomeDir {output.gdir} \
+      --genomeFastaFiles {input.contigs} \
+      --sjdbGTFfile {input.gtf} \
+      --sjdbOverhang {params.overhang} \
+      >{log.std} 2>&1
+    mv Log.txt {log.log}
+    """
+    # TODO:
+    # - pass --genomeSAindexNbases =min(14, math.log2(genomelen)/2-1)
+
+
+with Stage("map_star") as S:
+    S.doc("""
+    Map RNA-Seq reads with STAR
+    """)
+    rule star_map:
+        input:
+            index = "{:reference.dir:}.index/{target}.star/SA",
+            fq  = "{:prev:}/{source}.{:pairnames:}.fq.gz"
+        output:
+            bamgn = "{:this:}/{target}.{source}.bam",
+            bamtr = "{:this:}/{target}-annotated.{source}.bam",
+            sj    = "{:this:}/{target}.{source}.SJ.out.tab"
+        log:
+            std = "{:this:}/{target}.{source}.log",
+            log = "{:this:}/{target}.{source}.Log.out",
+            prg = "{:this:}/{target}.{source}.Log.progress.out",
+            fin = "{:this:}/{target}.{source}.Log.final.out"
+        params:
+            outprefix = "{:this:}/{target}.{source}.",
+            mem = icfg.mem("32G"),
+            multimap_nmax = 10,
+            quantmode = "TranscriptomeSAM",
+            tmpdir = "{params.outprefix}_STAR_tmp"
+        threads:
+            16
+        conda:
+            "star"
+        shell: """
+        STAR \
+        --genomeDir $(dirname {input.index}) \
+        --genomeLoad NoSharedMemory \
+        --runThreadN {threads} \
+        --readFilesIn {input.fq} \
+        --readFilesCommand zcat \
+        --outFileNamePrefix {params.outprefix} \
+        --outSAMtype BAM Unsorted \
+        --outSAMunmapped Within \
+        --outFilterMultimapNmax {params.multimap_nmax} \
+        --outTmpDir {params.tmpdir} \
+        --quantMode {params.quantmode} \
+        >{log.std} 2>&1
+
+        mv {params.outprefix}Aligned.out.bam {output.bamgn}
+        mv {params.outprefix}Aligned.toTranscriptome.out.bam {output.bamtr}
+        """
+
+    # TODO: SE mode

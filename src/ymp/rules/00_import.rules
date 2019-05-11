@@ -1,0 +1,187 @@
+"""
+This file contains the rules dealing with FQ file provisioning and preparation. 
+"""
+
+
+###
+###  SRA access 
+###
+
+
+localrules: prefetch
+rule prefetch:
+    """
+    Downloads SRA files into NCBI SRA folder (ncbi/public/sra).
+    """
+    # get path with
+    # vdb-config /repository/user/main/public/root/
+    # ?
+    message:
+        "Pre-Fetching {wildcards.SRR}"
+    output:
+        "{:dir.sra:}/{SRR}.sra"
+    conda:
+        "sratools.yml"
+    shell: """
+    prefetch {wildcards.SRR}
+    """
+
+
+rule fastq_dump:
+    """
+    Extracts FQ from SRA files
+    """
+    message:
+        "Extracting FastQ from {wildcards.SRR}"
+    output:
+        "{:dir.scratch:}/SRR/{SRR}_1.fastq.gz",
+        "{:dir.scratch:}/SRR/{SRR}_2.fastq.gz"
+    params:
+        outdir = icfg.dir.scratch + "/SRR",
+        p      = lambda wc, threads: int(threads/2+.5),
+        mem    = icfg.mem("200M")
+    conda:
+        "sratools.yml"
+    threads:
+        4
+    # FIXME
+    # the two cut processes use about 1 cpu each, fastqdump 1/4 and pgzip about 1 each.
+    # not ideal. not sure why cut needs so much time. 
+    shell: """
+    fastq-dump {wildcards.SRR} \
+        --split-files \
+        --readids \
+        --dumpbase \
+        --skip-technical \
+        --clip \
+        --read-filter pass \
+        --stdout | \
+      paste - - - -  - - - - | \
+      tee >(cut -f 1-4 | tr "\t" "\\n" | pigz -p {params.p} > {output[0]}) | \
+      cut -f 5-8 | tr "\t" "\\n" | pigz -p {params.p} > {output[1]}
+    """
+
+with Stage("") as import_stage:
+    import_stage.add_param(typ="choice", name="project", value=list(icfg.projects.keys()),key="")
+    import_stage.doc("""
+    >>> ymp make toy
+    >>> ymp make mpic
+    """)
+
+    localrules: symlink_raw_reads
+    rule symlink_raw_reads:
+        """Normalize FQ names by creating symlinks to original files"""
+        message:
+            "Creating symlink {output} -> {input}"
+        input:
+            # extract path from config file:
+            lambda wc: import_stage.stack(wc).project.source_path(wc.target, 0),
+            lambda wc: import_stage.stack(wc).project.source_path(wc.target, 1)
+        output:
+            "{:this:}/{target}.{:pairnames:}.fq.gz"
+        run:
+            for n in range(len(input)):
+                if not os.path.isabs(input[n]):
+                    input[n] = os.path.join("..", input[n])
+                os.symlink(input[n], output[n])
+
+    localrules: symlink_raw_reads_SE
+    rule symlink_raw_reads_SE: # ymp: extends symlink_raw_reads
+        input:
+            # extract path from config file:
+            lambda wc: import_stage.stack(wc).project.source_path(wc.target, 0)
+        output:
+            ["{:this:}/{target}.{:pairnames[0]:}.fq.gz"]
+
+    rule export_qiime_map_file:
+        message:
+            "Creating Qiime map file"
+        output:
+            "{:this:}/qiime_mapping.tsv"
+        run:
+            import csv
+            project = import_stage.stack(wildcards).project
+            cols = project.variables
+            if "Description" in cols:
+                desc_idx = cols.index("Description")
+                cols = cols[:desc_idx] + cols[desc_idx+1:] + [cols[desc_idx]]
+                fake_description = False
+            else:
+                fake_description = True
+
+            with open(output[0], "w") as out:
+                writer = csv.writer(out, delimiter="\t")
+                writer.writerow(cols + (["Description"] if fake_description else []))
+                for row in project.iter_samples(cols):
+                    if fake_description:
+                        row = list(row) + ['']
+                    writer.writerow(row[1:])
+
+                # TODO: Rename bccol to "BarcodeSequence"
+                #       Fake LinkerPrimerSequence col if not exists
+                #       Make first/index column be called "#SampleID"
+
+
+    rule import_all:
+        message:
+            "Created project data directory"
+        output:
+            touch("{:this:}/all_targets.stamp")
+        input:
+            "{:this:}/{:fq_names:}.fq.gz"
+
+
+with Stage("split_library"):
+    rule split_library:
+        """
+        Splits barcode indexed files into separate fq files
+        """
+        message:
+            "Splitting library (barcodes: {input[0]}, reads: {input[1]})"
+        input:
+            lambda wc: icfg.projects[wc.project].unsplit_path(wc.barcodes, wc.pairname),
+            mapping = "{project}/qiime_mapping.tsv",
+            tmpdir  = ancient(icfg.dir.tmp)
+        output:
+            outdir  = temp(directory("{project}.split_libraries/{barcodes}/{pairname}/"))
+        log:
+            "{project}.split_libraries/{barcodes}/{pairname}/split_library_log.txt",
+            "{project}.split_libraries/{barcodes}/{pairname}/split_seq_file_log.txt",
+        conda:
+            "qiime.yml"
+        shell: """
+        split_libraries_fastq.py \
+           -b {input[0]} \
+           -i {input[1]} \
+           -m {input.mapping} \
+           --store_demultiplexed_fastq \
+           --max_bad_run_length=1000000 \
+           --min_per_read_length_fraction=0.000001 \
+           --sequence_max_n=100000 \
+           --phred_quality_threshold=1 \
+           -o {output}
+
+        split_sequence_file_on_sample_ids.py \
+           -i {output}/seqs.fastq \
+           --file_type fastq \
+           -o {output} \
+           > {log[1]} 2>&1
+        """
+
+    rule split_library_compress_sample:
+        message:
+            "Compressing {wildcards.sample}.{wildcards.pairname}.fq.gz"
+        input:
+            "{project}.split_libraries/{barcodes}/{pairname}/"
+        output:
+            "{project}.split_libraries/{barcodes}/{sample}.{pairname}.fq.gz"
+        conda:
+            "pigz.yml"
+        shell: """
+        pigz -6 -c <{input}/{wildcards.sample}.fastq >{output}
+        """
+    
+
+
+
+
