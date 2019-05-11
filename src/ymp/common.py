@@ -105,7 +105,7 @@ class Cache(object):
 
         # Drop tables if the database has the wrong version number
         version = self.conn.execute("PRAGMA user_version").fetchone()[0]
-        if version == ymp.__numeric_version__:
+        if version == ymp.__numeric_version__ and version > 0:
             try:
                 curs = self.conn.execute("SELECT file, time from stamps")
                 update = any(os.path.getmtime(row[0]) > row[1] for row in curs)
