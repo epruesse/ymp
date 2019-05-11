@@ -8,4 +8,4 @@ python:
       - docs
 
 conda:
-  file: pinned_env.yaml
+  file: environment.yaml
