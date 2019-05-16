@@ -263,6 +263,12 @@ class ExpandableWorkflow(Workflow):
             workflow.__init__()
             cls.global_workflow = workflow
 
+        # Remove log stream handler installed by Snakemake
+        from snakemake.logging import logger, ColorizingStreamHandler
+        for handler in logger.logger.handlers:
+            if isinstance(handler, ColorizingStreamHandler):
+                logger.logger.removeHandler(handler)
+
     @classmethod
     def load_workflow(cls, snakefile=ymp._snakefile):
         workflow = cls(snakefile=snakefile)
