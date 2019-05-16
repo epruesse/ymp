@@ -1,6 +1,8 @@
 projects:
   toy:
     data: 'toy_data/toy.txt'
+  sim:
+    data: 'sim_data/sim.txt'
   mpic:
     barcode_col: 'barcodes'
     data:
