@@ -357,11 +357,11 @@ class Project(Stage):
         if not groups:
             groups = [self.idcol]
         if len(groups) > 1:
-            groups = [g for g in groups if g != 'ALL']
+            groups = [g for g in groups if g != 'ALL']  # FIXME: lowercase?
         if len(groups) > 1:
             groups = self.data.groupby_dedup(groups)
         if len(groups) > 1:
-            raise YmpStageError("multi-idx grouping not implemented")
+            raise YmpStageError(f"multi-idx grouping not implemented (groups={groups})")
         return groups
 
     def get_ids(self, groups, match_groups=None, match_value=None):
