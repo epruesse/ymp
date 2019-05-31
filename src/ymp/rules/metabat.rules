@@ -1,0 +1,84 @@
+Env(name="metabat2", base="bioconda", packages=[
+    "metabat2",
+    "libdeflate==1.0"  # pinning in bioconda broken
+])
+
+with Stage("bin_metabat") as S:
+    S.doc("""
+    Bin metagenome assembly into MAGs
+    """)
+
+    rule metabat_depth:
+        """
+        Generates a depth file from BAM
+        """
+        message:
+            "Summarizing contig depth"
+        input:
+            bam    = "{:prev:}/{:target:}.sorted.bam"
+        output:
+            depth  = "{:this:}/{target}.depth.txt",
+            paired = "{:this:}/{target}.paired.txt"
+        log:
+                     "{:this:}/{target}.depth.log"
+        threads:
+            1
+        params:
+            min_contig_length = 1000,
+            min_contig_depth = 1
+        conda:
+            "metabat2"
+        shell:
+            "jgi_summarize_bam_contig_depths"
+            " --outputDepth {output.depth}"
+            " --pairedContigs {output.paired}"
+            " --minContigLength {params.min_contig_length}"
+            " --minContigDepth {params.min_contig_depth}"
+            " {input.bam}"
+
+    rule metabat_bin:
+        """
+        Bin metagenome
+        """
+        message:
+            "Binning {wildcards.target} with metabat"
+        input:
+            depth = "{:this:}/{target}.depth.txt",
+            fasta = "{:prev:}/{target}.fasta.gz"
+        output:
+            fasta_dir = directory("{:this:}/{target}/")
+        log:
+            "{:this:}/{target}.metabat.log"
+        threads:
+            32
+        params:
+            min_contig_len = 2500,  # decrease if input quality very high
+            max_p = 95,             # decrease if input quality very low
+            max_edges = 200,        # decrease if input quality very low,
+                                    # increase if completeness low
+            min_s = 60,             # increase if input quality very low
+            min_cls_size = 200000,  # minimum bp per bin
+            seed = "123456"
+        conda:
+            "metabat2"
+        shell:
+            "metabat2"
+            " --inFile {input.fasta}"
+            " --abdFile {input.depth}"
+            " --outFile {output.fasta_dir}"
+            " --minContig {params.min_contig_len}"
+            " --maxP {params.max_p}"
+            " --minS {params.min_s}"
+            " --maxEdges {params.max_edges}"
+            " --minClsSize {params.min_cls_size}"
+            " --numThreads {threads}"
+            " --seed {params.seed}"
+
+    rule metabat_all:
+        message:
+            "Completed Metabat binning"
+        input:
+            "{:this:}/{:targets:}/"
+        output:
+            touch("{:this:}/all_targets.stamp")
+        
