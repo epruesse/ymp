@@ -1,0 +1,6 @@
+sample,FQ1,FQ2
+s0,s0.R1.fq.gz,s0.R2.fq.gz
+s1,s1.R1.fq.gz,s1.R2.fq.gz
+s2,s2.R1.fq.gz,s2.R2.fq.gz
+s3,s3.R1.fq.gz,s3.R2.fq.gz
+s4,s4.R1.fq.gz,s4.R2.fq.gz
