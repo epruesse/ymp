@@ -125,7 +125,10 @@ class ConfigMgr(object):
         # try to find an ymp.yml in CWD and upwards
         filename = cls.CONF_FNAME
         log.debug("Locating '%s'", filename)
-        curpath = os.path.abspath(os.getcwd())
+        try:
+            curpath = os.path.abspath(os.getcwd())
+        except FileNotFoundError:
+            raise YmpSystemError("The current work directory has been deleted?!")
         while not os.path.exists(os.path.join(curpath, filename)):
             log.debug("  not in '%s'", curpath)
             curpath, removed = os.path.split(curpath)
