@@ -200,6 +200,8 @@ def start_snakemake(kwargs):
     if log.getEffectiveLevel() < logging.WARNING:
         kwargs['verbose'] = True
     kwargs['use_conda'] = True
+
+    stage_stack_failure = None
     if 'targets' in kwargs:
         if cur_path:
             kwargs['targets'] = [os.path.join(cur_path, t)
@@ -210,8 +212,8 @@ def start_snakemake(kwargs):
                 try:
                     stack = StageStack.get(t)
                     targets.append(os.path.join(t, 'all_targets.stamp'))
-                except YmpStageError as e:
-                    #log.exception("asd")
+                except YmpStageError as exc:
+                    stage_stack_failure = exc
                     targets.append(t)
             kwargs['targets'] = targets
 
@@ -223,7 +225,10 @@ def start_snakemake(kwargs):
     cfg.unload()
 
     import snakemake
-    return snakemake.snakemake(ymp._snakefile, **kwargs)
+    res = snakemake.snakemake(ymp._snakefile, **kwargs)
+    if not res and stage_stack_failure:
+        log.error("Incomplete stage stack: %s", stage_stack_failure)
+    return res
 
 
 @command()
