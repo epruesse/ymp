@@ -32,7 +32,7 @@ overrides:
       params:
         chocophlan: 'DEMO'
         uniref: 'DEMO_diamond'
-    metabat_bin:
+    metabat2_bin:
       params:
         min_cls_size: 2000
 

@@ -3,12 +3,12 @@ Env(name="metabat2", base="bioconda", packages=[
     "libdeflate==1.0"  # pinning in bioconda broken
 ])
 
-with Stage("bin_metabat") as S:
+with Stage("bin_metabat2") as S:
     S.doc("""
     Bin metagenome assembly into MAGs
     """)
 
-    rule metabat_depth:
+    rule metabat2_depth:
         """
         Generates a depth file from BAM
         """
@@ -35,13 +35,14 @@ with Stage("bin_metabat") as S:
             " --minContigLength {params.min_contig_length}"
             " --minContigDepth {params.min_contig_depth}"
             " {input.bam}"
+            " > {log} 2>&1"
 
-    rule metabat_bin:
+    rule metabat2_bin:
         """
-        Bin metagenome
+        Bin metagenome with MetaBat2
         """
         message:
-            "Binning {wildcards.target} with metabat"
+            "Binning {wildcards.target} with MetaBat2"
         input:
             depth = "{:this:}/{target}.depth.txt",
             fasta = "{:prev:}/{target}.fasta.gz"
@@ -73,8 +74,9 @@ with Stage("bin_metabat") as S:
             " --minClsSize {params.min_cls_size}"
             " --numThreads {threads}"
             " --seed {params.seed}"
+            " > {log} 2>&1"
 
-    rule metabat_all:
+    rule metabat2_all:
         message:
             "Completed Metabat binning"
         input:
