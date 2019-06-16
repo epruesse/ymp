@@ -41,6 +41,8 @@ class StageStack(object):
     """The "head" of a processing chain - a stack of stages
     """
 
+    used_stacks = set()
+
     @classmethod
     def get(cls, path, stage=None):
         """
@@ -52,7 +54,11 @@ class StageStack(object):
         """
         cfg = ymp.get_config()
         cache = cfg.cache.get_cache(cls.__name__, itemloadfunc=StageStack)
-        return cache[path]
+        res = cache[path]
+        if res not in cls.used_stacks:
+            cls.used_stacks.add(res)
+            log.error("Stage stack %s using column %s", res, res.group)
+        return res
 
     def __str__(self):
         return self.path
@@ -128,8 +134,6 @@ class StageStack(object):
                                         for group in p.group))
             self.group = self.project.minimize_variables(groups)
 
-        log.info("Stage stack %s using column %s", self, self.group)
-
     def _find_stage(self, name):
         cfg = ymp.get_config()
         registry = Stage.get_registry()
@@ -178,7 +182,8 @@ class StageStack(object):
         """
         Directory of previous stage
         """
-        _, _, suffix = kwargs.get('item').partition("{:prev:}")
+        item = kwargs.get('item')
+        _, _, suffix = item.partition("{:prev:}")
         if not kwargs or "wc" not in kwargs:
             raise ExpandLateException()
         suffix = norm_wildcards(suffix)
@@ -186,6 +191,8 @@ class StageStack(object):
         for stack in self.prevs:
             if suffix in stack.outputs:
                 return stack
+        raise YmpStageError(
+            f"No suffix '{suffix}' (from '{item}') in any previous stage")
 
     @property
     def targets(self):
@@ -196,7 +203,8 @@ class StageStack(object):
 
     def target(self, args, kwargs):
         """Finds the target in the prev stage matching current target"""
-        prev = self.get(self.prev(args, kwargs).name)
+        prev_stage = self.prev(args, kwargs)
+        prev = self.get(prev_stage.name)
         cur_target = kwargs['wc'].target
         return self.project.get_ids(prev.group, self.group, cur_target)
 
