@@ -145,7 +145,7 @@ def mock_conda(bin_dir):
         '  --version)   echo conda 4.2; exit 0;;',
         '  --prefix|-p) shift; p="$1";;',
         '  --file|-f)   shift; f="$1";;'
-        '  --json)      shift; j=Y;;'
+        '  --json)      j=Y;;'
         '  *)           cmd="$cmd $1";;',
         '  esac',
         '  shift',

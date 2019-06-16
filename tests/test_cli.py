@@ -303,7 +303,7 @@ def test_env_run(invoker, demo_dir, mock_conda, mock_downloader, capfd):
     "words,result",
     [
         ["ymp make", [
-            "toy", "toy.", "mpic", "mpic.", 0
+            "toy", "toy.", "mpic", "mpic.", 2
         ]],
         ["ymp make t", [
             "toy", "toy.", 0

@@ -263,6 +263,12 @@ class ExpandableWorkflow(Workflow):
             workflow.__init__()
             cls.global_workflow = workflow
 
+        # Remove log stream handler installed by Snakemake
+        from snakemake.logging import logger, ColorizingStreamHandler
+        for handler in logger.logger.handlers:
+            if isinstance(handler, ColorizingStreamHandler):
+                logger.logger.removeHandler(handler)
+
     @classmethod
     def load_workflow(cls, snakefile=ymp._snakefile):
         workflow = cls(snakefile=snakefile)
@@ -344,15 +350,14 @@ class ExpandableWorkflow(Workflow):
             name = self._last_rule_name
         return super().get_rule(name)
 
-    def rule(self, name=None, lineno=None, snakefile=None):
+    def rule(self, name=None, lineno=None, snakefile=None, checkpoint=None):
         """Intercepts "rule:"
         Here we have the entire ruleinfo object
         """
-        decorator = super().rule(name, lineno, snakefile)
+        decorator = super().rule(name, lineno, snakefile, checkpoint)
         rule = self.get_rule(name)
 
         def decorate(ruleinfo):
-
             if ymp.print_rule == 1:
                 log.error("#### BEGIN expansion")
                 print_ruleinfo(rule, ruleinfo, log.error)

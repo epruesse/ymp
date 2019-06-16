@@ -100,8 +100,9 @@ class Cache(object):
     def __init__(self, root):
         import sqlite3
         os.makedirs(os.path.join(root), exist_ok=True)
-        self.conn = sqlite3.connect(os.path.join(root, "ymp.db"),
-                                    check_same_thread=False)
+        db_fname = os.path.join(root, "ymp.db")
+        log.debug("Opening database %s", db_fname)
+        self.conn = sqlite3.connect(db_fname, check_same_thread=False)
 
         # Drop tables if the database has the wrong version number
         version = self.conn.execute("PRAGMA user_version").fetchone()[0]

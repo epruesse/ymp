@@ -3,8 +3,8 @@ import os
 import sys
 
 import click
-
 import tqdm
+from coloredlogs import ColoredFormatter
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -106,6 +106,25 @@ class TqdmHandler(logging.StreamHandler):
         tqdm.tqdm.write(self.format(record))
 
 
+class LogFormatter(ColoredFormatter):
+    snakemake_level_styles = {
+        'warning': {'color': 'yellow'},
+        'info': {'color': 'green'},
+        'debug': {'color': 'blue'},
+        'crirical': {'color': 'red'},
+        'error': {'color': 'red'},
+    }
+    def __init__(self):
+        super().__init__("%(source)s%(message)s", level_styles=self.snakemake_level_styles)
+
+    def format(self, record):
+        if record.name.startswith('ymp.'):
+            record.source = "YMP "
+        else:
+            record.source = ""
+        return super().format(record)
+
+
 class Log(object):
     """
     Set up Logging
@@ -122,22 +141,25 @@ class Log(object):
     # in a python-logging style way as it installs its own stream
     # handlers once control has passed to snakemake.
     def __init__(self):
-        from coloredlogs import ColoredFormatter
-
-        log = logging.getLogger("ymp")
-        log.setLevel(logging.WARNING)
-        log_handler = TqdmHandler()
-        log_handler.setLevel(logging.DEBUG)  # no filtering here
-        formatter = ColoredFormatter("YMP: %(message)s")
-        log_handler.setFormatter(formatter)
-        log.addHandler(log_handler)
-
-        self.log = log
+        self.root_logger = logging.getLogger()
+        self.log = logging.getLogger("ymp")
+        self.log.setLevel(logging.WARNING)
+        self.console_handler = TqdmHandler()
+        self.console_handler.setLevel(logging.DEBUG)  # no filtering
+        self.console_handler.setFormatter(LogFormatter())
+        self.root_logger.addHandler(self.console_handler)
 
     def mod_level(self, n):
         new_level = self.log.getEffectiveLevel() + n*10
         clamped_level = max(logging.DEBUG, min(logging.CRITICAL, new_level))
         self.log.setLevel(clamped_level)
+
+    def set_logfile(self, filename):
+        log_handler = logging.FileHandler(filename)
+        log_handler.setLevel(logging.DEBUG)
+        formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s")
+        log_handler.setFormatter(formatter)
+        logging.getLogger().addHandler(log_handler)
 
     @classmethod
     def verbose_option(cls, ctx, param, val):
@@ -150,6 +172,12 @@ class Log(object):
         log = ctx.ensure_object(Log)
         if val:
             log.mod_level(val)
+
+    @classmethod
+    def logfile_option(cls, ctx, param, val):
+        log = ctx.ensure_object(Log)
+        if val:
+            log.set_logfile(val)
 
 
 verbose_option = click.option(
@@ -164,6 +192,13 @@ quiet_option = click.option(
     "--quiet", "-q", count=True,
     help="Decrease log verbosity",
     callback=Log.quiet_option,
+    expose_value=False
+)
+
+logfile_option = click.option(
+    "--log-file",
+    help="Specify a log file",
+    callback=Log.logfile_option,
     expose_value=False
 )
 
@@ -191,6 +226,7 @@ debug_option = click.option(
 
 
 def log_options(f):
+    f = logfile_option(f)
     f = verbose_option(f)
     f = quiet_option(f)
     f = debug_option(f)

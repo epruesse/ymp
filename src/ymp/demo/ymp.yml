@@ -1,6 +1,8 @@
 projects:
   toy:
     data: 'toy_data/toy.txt'
+  mock:
+    data: 'mock_data/mock.csv'
   mpic:
     barcode_col: 'barcodes'
     data:
@@ -30,6 +32,9 @@ overrides:
       params:
         chocophlan: 'DEMO'
         uniref: 'DEMO_diamond'
+    metabat_bin:
+      params:
+        min_cls_size: 2000
 
 limits:
   max_mem: '3G'
