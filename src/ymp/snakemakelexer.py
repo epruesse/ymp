@@ -13,7 +13,7 @@ class SnakemakeLexer(Python3Lexer):
     name = 'Snakemake'
     tokens = {
         'root': [
-            (r'(rule)((?:\s|\\\s)+)', bygroups(Keyword, Text), 'rulename'),
+            (r'(rule|checkpoint)((?:\s|\\\s)+)', bygroups(Keyword, Text), 'rulename'),
             include('rulekeyword'),
             include('globalkeyword'),
             inherit,
