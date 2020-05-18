@@ -73,6 +73,8 @@ class Env(WorkflowObject, snakemake_conda.Env):
     def __init__(self, env_file: Optional[str] = None,
                  dag: Optional[object] = None,
                  singularity_img=None,
+                 container_img=None,
+                 cleanup=None,
                  name: Optional[str] = None,
                  packages: Optional[Union[list, str]] = None,
                  base: str = "none",
@@ -143,7 +145,8 @@ class Env(WorkflowObject, snakemake_conda.Env):
                 with open(env_file, "w") as out:
                     out.write(contents)
 
-        super().__init__(env_file, pseudo_dag, singularity_img)
+        super().__init__(env_file, pseudo_dag, singularity_img or container_img,
+                         cleanup)
         self.register()
 
     def set_prefix(self, prefix):

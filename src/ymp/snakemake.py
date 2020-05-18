@@ -110,6 +110,10 @@ class NamedList(_Namedlist):
       Updates values in ``(args,kwargs)`` tuples as present in
       :class:`ruleinfo` structures.
     """
+    def get_names(self, *args, **kwargs):
+        """Export ``get_names`` as public func"""
+        return self._get_names(*args, *kwargs)
+
     def __init__(self, fromtuple=None, **kwargs):
         super().__init__(**kwargs)
         self._fromtuple = fromtuple
@@ -121,10 +125,10 @@ class NamedList(_Namedlist):
                     start = len(self)
                     for subvalue in value:
                         self.append(subvalue)
-                    self.set_name(key, start, len(self))
+                    self._set_name(key, start, len(self))
                 else:
                     self.append(value)
-                    self.add_name(key)
+                    self._add_name(key)
 
     def __setitem__(self, idx, value):
         # set value in list
@@ -132,7 +136,7 @@ class NamedList(_Namedlist):
         # set value in attributes (copied references)
         for name, (i, j) in self.get_names():
             if idx >= i and (j is None or idx < j):
-                self.set_name(name, i, j)
+                self._set_name(name, i, j)
 
     def update_tuple(self, totuple):
         """Update values in ``(args, kwargs)`` tuple.
@@ -213,7 +217,7 @@ ruleinfo_fields = {
         'apply_wildcards': True,
         # works only with shell/script/wrapper, not run
     },
-    'singularity_img': {
+    'container_img': {
         'format': 'string',
         # works ony with shell/script/wrapper, not run
     },
@@ -234,6 +238,12 @@ ruleinfo_fields = {
         'format': 'string',
     }
     # restart_times
+    # env_modules
+    # shadow_depth
+    # group
+    # notebook
+    # cwl
+    # cache
 }
 
 
