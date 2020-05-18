@@ -518,7 +518,7 @@ class ParamFlag(Param):
         if not self.value:
             self.value = self.key
 
-        self.regex = f"({self.key}?)"
+        self.regex = f"((?:{self.key})?)"
 
     def param_func(self):
         """Returns function that will extract parameter value from wildcards"""
