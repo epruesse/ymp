@@ -534,7 +534,7 @@ class ParamInt(Param):
     """Stage Int Parameter"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if not self.default:
+        if self.default is None:
             raise YmpRuleError(
                 self.stage,
                 f"Stage Int Parameter must have 'default' set")
