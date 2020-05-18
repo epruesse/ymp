@@ -2,6 +2,7 @@ import logging
 import os
 import re
 from collections import Mapping, Sequence
+import sqlite3
 
 import ymp
 from ymp.common import ensure_list
@@ -201,23 +202,28 @@ class PandasProjectData(object):
 
 class SQLiteProjectData(object):
     def __init__(self, cfg, name="data"):
-        import sqlite3
-        self.conn = sqlite3.connect(":memory:")
         self.name = name
+        self.conn = self._connect()
         table_builder = PandasTableBuilder()
         table_builder.load_data(cfg).to_sql(name, self.conn, index=False)
 
-    def query(self, *args):
-        return self.conn.execute(*args)
+    @property
+    def db_url(self):
+        return f"file:{id(self)}?mode=memory"
+
+    def _connect(self):
+        return sqlite3.connect(self.db_url, uri=True, check_same_thread=False)
 
     def __getstate__(self):
         return (self.name, self.dump())
 
     def __setstate__(self, state):
-        import sqlite3
-        self.conn = sqlite3.connect(":memory:")
         self.name = state[0]
+        self.conn = self._connect()
         self.conn.executescript(state[1])
+
+    def query(self, *args):
+        return self.conn.execute(*args)
 
     @property
     def nrows(self):
