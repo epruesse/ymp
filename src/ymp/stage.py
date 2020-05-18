@@ -526,7 +526,7 @@ class ParamFlag(Param):
             if getattr(wildcards, self.wildcard, None):
                 return self.value
             else:
-                return ""
+                return self.default or ""
         return name2param
 
 
