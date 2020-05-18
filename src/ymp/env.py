@@ -13,7 +13,11 @@ from typing import Optional, Union
 from ruamel.yaml import YAML
 
 import snakemake
-import snakemake.conda
+try:
+    import snakemake.conda as snakemake_conda
+except ModuleNotFoundError:
+    import snakemake.deployment.conda as snakemake_conda
+
 from snakemake.rules import Rule
 
 import ymp
@@ -25,7 +29,7 @@ from ymp.snakemake import BaseExpander, WorkflowObject
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-class Env(WorkflowObject, snakemake.conda.Env):
+class Env(WorkflowObject, snakemake_conda.Env):
     """Represents YMP conda environment
 
     Snakemake expects the conda environments in a per-workflow
@@ -363,7 +367,7 @@ class Env(WorkflowObject, snakemake.conda.Env):
 
 
 # Patch Snakemake's Env class with our own
-snakemake.conda.Env = Env
+snakemake_conda.Env = Env
 
 
 class CondaPathExpander(BaseExpander):
