@@ -121,7 +121,7 @@ def ls(param_all, static, dynamic, sort_col, reverse, envnames):
 @snake_params
 def prepare(**kwargs):
     "Create envs needed to build target"
-    kwargs['create_envs_only'] = True
+    kwargs['conda_create_envs_only'] = True
     rval = start_snakemake(kwargs)
     if not rval:
         sys.exit(1)
