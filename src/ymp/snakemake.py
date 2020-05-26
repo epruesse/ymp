@@ -524,6 +524,7 @@ class BaseExpander(object):
     def expand_ruleinfo(self, rule, item, expand_args, rec):
         self.current_rule = rule
         for field in filter(self.expands_field, ruleinfo_fields):
+            expand_args['field'] = field
             attr = getattr(item, field)
             value = self.expand(rule, attr, expand_args=expand_args, rec=rec)
             setattr(item, field, value)
