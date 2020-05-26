@@ -57,7 +57,7 @@ class StageStack(object):
         res = cache[path]
         if res not in cls.used_stacks:
             cls.used_stacks.add(res)
-            log.error("Stage stack %s using column %s", res, res.group)
+            log.info("Stage stack %s using column %s", res, res.group)
         return res
 
     def __str__(self):
