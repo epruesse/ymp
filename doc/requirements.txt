@@ -1,4 +1,4 @@
-sphinx ==1.7.0
+sphinx ==3.0.4
 cloud_sptheme
 setuptools_scm
 sphinxcontrib-fulltoc
