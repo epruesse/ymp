@@ -17,6 +17,8 @@ jobs:
         python-version: ['3.7']
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: true
       - uses: actions/cache@v1
         env:
           CACHE_VERS: 0  # bump to manually reset cache
