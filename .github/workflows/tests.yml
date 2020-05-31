@@ -41,3 +41,9 @@ jobs:
         shell: bash -l {0}
         run: |
           pytest -vv -n 2
+      - name: Upload logs
+        if: ${{ failure() }}
+        uses: actions/upload-artifacts@v1
+        with:
+          name: Test Failure Logs
+          path: test_failures
