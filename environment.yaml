@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - python >=3.6
-  - bioconda::snakemake-minimal >=5.4.4
+  - bioconda::snakemake-minimal =5.20.1
   - conda !=4.6.11
   - click
   - click-completion
