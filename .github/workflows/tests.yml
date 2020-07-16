@@ -38,7 +38,7 @@ jobs:
       - name: Install
         shell: bash -l {0}
         run: |
-          python setup.py install
+          pip install --no-deps .
       - name: Test
         shell: bash -l {0}
         run: |
