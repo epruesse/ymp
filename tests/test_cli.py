@@ -300,50 +300,57 @@ def test_env_run(invoker, demo_dir, mock_conda, mock_downloader, capfd):
 
 
 @pytest.mark.parametrize(
-    "words,result",
+    "comp_words,exp_len,exp_res",
     [
-        ["ymp make", [
-            "toy", "toy.", "mpic", "mpic.", 2
-        ]],
-        ["ymp make t", [
-            "toy", "toy.", 0
-        ]],
-        ["ymp make toy.", [
+        ["ymp make", 6, {
+            "toy", "toy.", "mpic", "mpic."
+        }],
+        ["ymp make t", 2, {
+            "toy", "toy."
+        }],
+        ["ymp make toy.", -1, {
             "toy.assemble_", "toy.trim_"
-        ]],
-        ["ymp make toy.assemble_", [
+        }],
+        ["ymp make toy.assemble_", -1, {
             "toy.assemble_megahit",
             "toy.assemble_megahit."
-         ]],
-        ["ymp make toy.assemble_megahit.", [
+        }],
+        ["ymp make toy.assemble_megahit.", -1, {
             "toy.assemble_megahit.trim_",
             "toy.assemble_megahit.map_"
-        ]],
-        ["ymp make toy.assemble_megahit.map_", [
+        }],
+        ["ymp make toy.assemble_megahit.map_", -1, {
             "toy.assemble_megahit.map_bbmap",
-        ]],
-        ["ymp make toy.map_bowtie2.", [
-            0
-        ]],
-        ["ymp make toy.group_", [
+        }],
+        ["ymp make toy.map_bowtie2.", 0, set()],
+        ["ymp make toy.group_", 14, {
             "toy.group_name", "toy.group_Subject",
             "toy.group_name.", "toy.group_Subject.",
-            10
-        ]],
+        }],
     ]
 )
-def test_completion(invoker, demo_dir, capfd, envvar, words, result):
+def test_completion(
+        # fixtures:
+        invoker, demo_dir, capfd, envvar,
+        # parameters:
+        comp_words,  # command line prefix to expand
+        exp_len,     # expected number of result options (or -1)
+        exp_res      # (subset of) expected result options
+):
     import subprocess as sp
     envvar('YMP_DEBUG_EXPAND', 'stderr')
     envvar('_YMP_COMPLETE', 'complete-bash')
     envvar('COMP_CWORD', '2')
-    envvar('COMP_WORDS', words)
+    envvar('COMP_WORDS', comp_words)
     sp.run(["python", "-m", "ymp"])
     cap = capfd.readouterr()
-    expanded = set(cap.out.split())
+    result = set(cap.out.split())
 
-    for val in result:
-        if isinstance(val, str):
-            expanded.remove(val)
-        else:
-            assert len(expanded) == val
+    if exp_len != -1:
+        assert len(result) == exp_len, \
+            f"Expected {exp_len} results for '{comp_words}' but got" \
+            f" {len(result)}:\n" \
+            f"{result}"
+
+    assert exp_res.issubset(result), \
+        f"Completion for '{comp_words}' is missing: {exp_res - result}"

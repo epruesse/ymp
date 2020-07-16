@@ -9,7 +9,7 @@ import sys
 import click
 
 import ymp
-from ymp.cli.shared_options import command, nohup_option
+from ymp.cli.shared_options import command, nohup_option, Log
 from ymp.common import Cache
 from ymp.exceptions import YmpException, YmpStageError
 from ymp.stage import StageStack
@@ -41,7 +41,7 @@ class TargetParam(click.ParamType):
     """Handles tab expansion for build targets"""
 
     @classmethod
-    def complete(cls, _ctx, incomplete):
+    def complete(cls, ctx, incomplete):
         """Try to complete incomplete command
 
         This is executed on tab or tab-tab from the shell
@@ -53,6 +53,11 @@ class TargetParam(click.ParamType):
         Returns:
           list of words incomplete can be completed to
         """
+
+        # Turn of logging!
+        log = ctx.ensure_object(Log)
+        log.mod_level(10)
+
         result: list = []
 
         stack, _, tocomplete = incomplete.rpartition(".")
