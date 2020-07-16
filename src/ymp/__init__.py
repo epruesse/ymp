@@ -20,8 +20,8 @@ try:
         (100 ** n) * int(m)
         for n, m in enumerate(__version__.split(".")[2::-1]))
 except:
-    warnings.warn("Could not parse version {__version__}")
-    __numeric_version__ = 0
+    warnings.warn(f"Could not parse version {__version__}")
+    __numeric_version__ = 1
 
 # Importing pkg_resources takes rather long (~200ms), for CLI snappiness,
 # we manually gather the paths for our distributed files.

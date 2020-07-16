@@ -105,8 +105,9 @@ class Cache(object):
         self.conn = sqlite3.connect(db_fname, check_same_thread=False)
 
         # Drop tables if the database has the wrong version number
+        # or if the user_version has not been set (defaults to 0)
         version = self.conn.execute("PRAGMA user_version").fetchone()[0]
-        if version == ymp.__numeric_version__ and version > 0:
+        if version == ymp.__numeric_version__ and version != 0:
             try:
                 curs = self.conn.execute("SELECT file, time from stamps")
                 update = any(os.path.getmtime(row[0]) > row[1] for row in curs)
@@ -114,12 +115,13 @@ class Cache(object):
                 update = True
             del curs
             if update:
-                log.error("dropping cache")
+                log.error("Dropping cache: files changed")
                 self.conn.executescript("""
                 DROP TABLE caches;
                 DROP TABLE stamps;
                 """)
         else:
+            log.error("Dropping cache: version changed")
             update = True
 
         if update:

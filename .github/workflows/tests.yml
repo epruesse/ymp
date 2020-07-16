@@ -17,6 +17,14 @@ jobs:
         python-version: ['3.7']
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - uses: actions/cache@v1
+        env:
+          CACHE_VERS: 0  # bump to manually reset cache
+        with:
+          path: ~/conda_pkgs_dir
+          key: ${{runner.os}}-conda-${{env.CACHE_VERS}}-${{hashFiles('environment.yaml')}}
       - uses: goanpeca/setup-miniconda@v1
         with:
           miniconda-version: 'latest'
@@ -25,11 +33,19 @@ jobs:
           channels: conda-forge,bioconda
           environment-file: environment.yaml
           activate-environment: ymp
+          channel-priority: strict
+          use-only-tar-bz2: true  # needed for caching
       - name: Install
         shell: bash -l {0}
         run: |
-          python setup.py install
+          pip install --no-deps .
       - name: Test
         shell: bash -l {0}
         run: |
           pytest -vv -n 2
+      - name: Upload logs
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v1
+        with:
+          name: Test Failure Logs
+          path: test_failures

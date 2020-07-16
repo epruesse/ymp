@@ -13,7 +13,11 @@ from typing import Optional, Union
 from ruamel.yaml import YAML
 
 import snakemake
-import snakemake.conda
+try:
+    import snakemake.conda as snakemake_conda
+except ModuleNotFoundError:
+    import snakemake.deployment.conda as snakemake_conda
+
 from snakemake.rules import Rule
 
 import ymp
@@ -25,7 +29,7 @@ from ymp.snakemake import BaseExpander, WorkflowObject
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-class Env(WorkflowObject, snakemake.conda.Env):
+class Env(WorkflowObject, snakemake_conda.Env):
     """Represents YMP conda environment
 
     Snakemake expects the conda environments in a per-workflow
@@ -69,6 +73,8 @@ class Env(WorkflowObject, snakemake.conda.Env):
     def __init__(self, env_file: Optional[str] = None,
                  dag: Optional[object] = None,
                  singularity_img=None,
+                 container_img=None,
+                 cleanup=None,
                  name: Optional[str] = None,
                  packages: Optional[Union[list, str]] = None,
                  base: str = "none",
@@ -95,7 +101,9 @@ class Env(WorkflowObject, snakemake.conda.Env):
                 'persistence': {
                     'conda_env_path': cfg.ensuredir.conda_prefix,
                     'conda_env_archive_path': cfg.ensuredir.conda_archive_prefix
-                }
+                },
+                'conda_frontend': 'conda',
+                'singularity_args': '',
             }
         })
 
@@ -139,7 +147,8 @@ class Env(WorkflowObject, snakemake.conda.Env):
                 with open(env_file, "w") as out:
                     out.write(contents)
 
-        super().__init__(env_file, pseudo_dag, singularity_img)
+        super().__init__(env_file, pseudo_dag, singularity_img or container_img,
+                         cleanup)
         self.register()
 
     def set_prefix(self, prefix):
@@ -363,7 +372,7 @@ class Env(WorkflowObject, snakemake.conda.Env):
 
 
 # Patch Snakemake's Env class with our own
-snakemake.conda.Env = Env
+snakemake_conda.Env = Env
 
 
 class CondaPathExpander(BaseExpander):

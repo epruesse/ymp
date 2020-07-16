@@ -57,7 +57,7 @@ class StageStack(object):
         res = cache[path]
         if res not in cls.used_stacks:
             cls.used_stacks.add(res)
-            log.error("Stage stack %s using column %s", res, res.group)
+            log.info("Stage stack %s using column %s", res, res.group)
         return res
 
     def __str__(self):
@@ -347,7 +347,7 @@ class Stage(WorkflowObject):
             raise YmpRuleError(self, f"Unknown Stage Parameter type '{typ}'")
 
     def wc2path(self, wc):
-        wildcards = self.wildcards
+        wildcards = self.wildcards()
         for p in self.params:
             wildcards = wildcards.replace(p.constraint, "")
         return wildcards.format(**wc)
@@ -389,10 +389,9 @@ class Stage(WorkflowObject):
             raise YmpException("Internal Error")
         prefix, _, pattern = item.partition("{:this:}")
 
-        return self.wildcards
+        return self.wildcards(args=args, kwargs=kwargs)
 
-    @property
-    def that(self):
+    def that(self, args=None, kwargs=None):
         """
         Alternate directory of current stage
 
@@ -406,13 +405,14 @@ class Stage(WorkflowObject):
             raise YmpException(
                 "Use of {:that:} requires with altname"
             )
+        show_constraint = kwargs and kwargs.get('field') != 'input'
         return "".join(["{_YMP_DIR}", self.altname] +
-                       [p.pattern for p in self.params])
+                       [p.pattern(show_constraint) for p in self.params])
 
-    @property
-    def wildcards(self):
+    def wildcards(self, args=None, kwargs=None):
+        show_constraint = kwargs and kwargs.get('field') != 'input'
         return "".join(["{_YMP_DIR}", self.name] +
-                       [p.pattern for p in self.params])
+                       [p.pattern(show_constraint) for p in self.params])
 
 
 class StageExpander(ColonExpander):
@@ -502,13 +502,15 @@ class Param(object):
             return "," + self.regex
         return ""
 
-    @property
-    def pattern(self):
+    def pattern(self, show_constraint=True):
         """String to add to filenames passed to Snakemake
 
         I.e. a pattern of the form ``{wildcard,constraint}``
         """
-        return f"{{{self.wildcard}{self.constraint}}}"
+        if show_constraint:
+            return f"{{{self.wildcard}{self.constraint}}}"
+        else:
+            return f"{{{self.wildcard}}}"
 
 
 class ParamFlag(Param):
@@ -518,7 +520,7 @@ class ParamFlag(Param):
         if not self.value:
             self.value = self.key
 
-        self.regex = f"({self.key}?)"
+        self.regex = f"((?:{self.key})?)"
 
     def param_func(self):
         """Returns function that will extract parameter value from wildcards"""
@@ -526,7 +528,7 @@ class ParamFlag(Param):
             if getattr(wildcards, self.wildcard, None):
                 return self.value
             else:
-                return ""
+                return self.default or ""
         return name2param
 
 
@@ -534,7 +536,7 @@ class ParamInt(Param):
     """Stage Int Parameter"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if not self.default:
+        if self.default is None:
             raise YmpRuleError(
                 self.stage,
                 f"Stage Int Parameter must have 'default' set")
