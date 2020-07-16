@@ -2,8 +2,13 @@
 Parsers for blast output formats 6 (CSV) and 7 (CSV with comments between queries).
 """
 
+import logging
+
 from collections import namedtuple
 from typing import List
+
+
+log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 def reader(fileobj, t: int=7) -> 'BlastParser':
@@ -30,6 +35,13 @@ def reader(fileobj, t: int=7) -> 'BlastParser':
 class BlastParser(object):
     "Base class for BLAST parsers"
 
+    def tupleofint(text):
+        try:
+            return tuple(int(i) for i in text.split(';'))
+        except ValueError:
+            log.warning("Error parsing BLAST file")
+            return tuple()
+
     # Map between field short and long names
     FIELD_MAP = {
         "query acc.": "qacc",
@@ -40,13 +52,17 @@ class BlastParser(object):
         "gap opens": "gapopen",
         "q. start": "qstart",
         "q. end": "qend",
+        "query length": "qlen",
         "s. start": "sstart",
         "s. end": "send",
         "evalue": "evalue",
         "bit score": "bitscore",
         "subject strand": "sstrand",
         "sbjct frame": "sframe",
-        "score": "score"
+        "score": "score",
+        "query frame": "qframe",
+        "subject title": "stitle",
+        "subject tax ids": "staxids"
     }
 
     # Map defining types of fields
@@ -57,12 +73,16 @@ class BlastParser(object):
         'gapopen': int,
         'qstart': int,
         'qend': int,
+        'qlen': int,
         'sstart': int,
         'send': int,
         'evalue': float,
         'bitscore': float,
         'score': float,
-        'sframe': int
+        'sframe': int,
+        'qframe': int,
+        'stitle': str,
+        'staxids': tupleofint
     }
 
 
