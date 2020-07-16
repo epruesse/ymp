@@ -7,8 +7,8 @@ on:
     branches: [ master ]
 
 jobs:
-  test-job:
-    name: TestRun (${{ matrix.python-version }}, ${{ matrix.os }})
+  main_tests:
+    name: Main Tests (${{ matrix.python-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -43,7 +43,7 @@ jobs:
       - name: Test
         shell: bash -l {0}
         run: |
-          pytest -vv -n 2
+          pytest -vv -n 2 --cov --junit-xml junit/report.xml
       - name: Upload logs
         if: ${{ failure() }}
         uses: actions/upload-artifact@v1
