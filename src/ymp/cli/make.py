@@ -140,6 +140,18 @@ def snake_params(func):
         "--notemp", is_flag=True, default=False,
         help="Do not remove temporary files"
     )
+    @click.option(
+        "--touch", "-t", is_flag=True, default=False,
+        help="Only touch files, faking update"
+    )
+    @click.option(
+        "--shadow-prefix", default=None,
+        help="Directory to place data for shadowed rules"
+    )
+    @click.option(
+        "--reason", "-r", "printreason", is_flag=True, default=False,
+        help="Print reason for executing rule"
+    )
     @nohup_option
     @functools.wraps(func)
     def decorated(*args, **kwargs):  # pylint: disable=missing-docstring
