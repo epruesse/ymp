@@ -103,6 +103,7 @@ class Env(WorkflowObject, snakemake_conda.Env):
                     'conda_env_archive_path': cfg.ensuredir.conda_archive_prefix
                 },
                 'conda_frontend': 'conda',
+                'singularity_args': '',
             }
         })
 
