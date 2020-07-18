@@ -452,6 +452,8 @@ with Stage("map_bbmap") as S:
     >>> ymp make toy.ref_genome.map_bbmap
     >>> ymp make mpic.ref_ssu.map_bbmap
     """)
+    S.add_param("", typ="choice", name="sensitivity",
+                value=['F', 'N', 'S', 'VS'], default='N')
     rule bbmap_map:
         """Map read from each (co-)assembly read file to the assembly"""
         message:
@@ -466,7 +468,7 @@ with Stage("map_bbmap") as S:
         log:
                          "{:this:}/{target}.log"
         benchmark:
-            "benchmarks/bbmap/{:this:}/{target}.txt"
+            "benchmarks/bbmap_map/{:this:}/{target}.txt"
         params:
             mem = icfg.mem("80g"),
             in2 = "in2={input.fq[1]}"
@@ -475,7 +477,11 @@ with Stage("map_bbmap") as S:
         conda:
             "bbmap"
         shell:
+            "case {params.sensitivity} in"
+            "  N) SENS='';; F) SENS='fast';; S) SENS='slow';; VS) SENS='vslow';;"
+            "esac;"
             "bbmap.sh"
+            " $SENS"
             " threads={threads}"
             " pigz unpigz"          # enable use of pigz for zip/unzip
             # this is disabled because not compiled in conda:
