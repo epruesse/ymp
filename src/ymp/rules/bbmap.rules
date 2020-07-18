@@ -5,6 +5,8 @@ Rules using tools from the BBTools / BBMap suite by Brian Bushnell
 Env(name="bbmap", base="bioconda", packages=[
     "bbmap",
     "pigz",
+    "pbgzip",
+    "htslib",
     "samtools",
     "coreutils"  # for readlink -f
 ])
