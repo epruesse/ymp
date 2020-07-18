@@ -217,6 +217,14 @@ cluster:
         memory:   "--mem={params.mem}"
         walltime: "--time={params.walltime}"
       cluster_status: "python -m ymp.cluster slurm status"
+    lsf:
+      command:    "python -m ymp.cluster lsf submit"
+      args:
+        log:      "-o {:ensuredir.log:}/%J.log"
+        threads:  "-R 'span[hosts=1]' -n {threads}"
+        memory:   "-R 'select[mem>{params.mem}] rusage[mem={params.mem}]'"
+#        walltime: "-W {params.walltime}"  # [hours:]minutes - fixme check format
+      cluster_status: "python -m ymp.cluster lsf status"
 
   rule_params:
     default:
