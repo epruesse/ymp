@@ -562,3 +562,44 @@ with Stage("dust_bbmap") as S:
             touch("{:this:}/all_targets.stamp")
         input:
             "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
+
+
+with Stage("format_bbmap") as S:
+    S.doc("""
+    Process sequences with BBMap's format.sh
+
+    Parameter ``Ln`` filters sequences at a minimum length.
+
+    >>> ymp make toy.assemble_metaspades.format_bbmapL200
+    """)
+    S.add_param("L", typ="int", name="length", default=1)
+    rule bbmap_reformat:
+        message:
+            "BBMap: reformatting fasta"
+        input:
+            fasta = "{:prev:}/{target}.fasta.gz"
+        output:
+            fasta = "{:this:}/{target}.fasta.gz"
+        log:
+                    "{:this:}/{target}.log"
+        threads:
+            4
+        conda:
+            "bbmap"
+        shell:
+            'reformat.sh'
+            ' in={input.fasta}'
+            ' out={output.fasta}'
+            ' >{log} 2>&1'
+            ' bgzip'
+            ' fastawrap=0'  # sequence on one line
+            ' fastaminlen={params.length}'
+
+    rule bbmap_reformat_all:
+        message:
+            "BBMap: completed {output}"
+        input:
+            "{:this:}/{:targets:}.fasta.gz"
+        output:
+            touch("{:this:}/all_targets.stamp")
+
