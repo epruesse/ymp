@@ -146,7 +146,8 @@ with Stage("trim_bbmap") as S:
         input:
             "{:prev:}/{target}.{:pairnames:}.fq.gz"
         output:
-            "{:this:}/{target}.{:pairnames:}.fq.gz"
+            temp("{:this:}/{target}.{:pairnames[0]:}.fq.gz"),
+            temp("{:this:}/{target}.{:pairnames[1]:}.fq.gz")
         log:
             "{:this:}/{target}.log"
         benchmark:
