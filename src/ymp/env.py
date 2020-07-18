@@ -12,7 +12,6 @@ from typing import Optional, Union
 
 from ruamel.yaml import YAML
 
-import snakemake
 try:
     import snakemake.conda as snakemake_conda
 except ModuleNotFoundError:

@@ -10,7 +10,6 @@ import click
 
 import ymp
 from ymp.cli.shared_options import command, nohup_option, Log
-from ymp.common import Cache
 from ymp.exceptions import YmpException, YmpStageError
 from ymp.stage import StageStack
 
@@ -227,7 +226,7 @@ def start_snakemake(kwargs):
             targets = []
             for t in kwargs['targets']:
                 try:
-                    stack = StageStack.get(t)
+                    StageStack.get(t)
                     targets.append(os.path.join(t, 'all_targets.stamp'))
                 except YmpStageError as exc:
                     stage_stack_failure = exc

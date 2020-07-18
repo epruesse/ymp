@@ -53,7 +53,6 @@ class Slurm(ClusterMS):
         """
 
         header = None
-        jobs = []
         res = sp.run(['sacct', '-pbj', jobid], stdout=sp.PIPE)
         for line in res.stdout.decode('ascii').splitlines():
             line = line.strip().split("|")
@@ -133,8 +132,8 @@ class Lsf(ClusterMS):
         if match:
             print(match.group(1))
         else:
-            raise
             print(res.stdout)
+            return -1
 
 
 if __name__ == "__main__":

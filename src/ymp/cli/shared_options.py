@@ -154,7 +154,8 @@ class Log(object):
         clamped_level = max(logging.DEBUG, min(logging.CRITICAL, new_level))
         self.log.setLevel(clamped_level)
 
-    def set_logfile(self, filename):
+    @staticmethod
+    def set_logfile(filename):
         log_handler = logging.FileHandler(filename)
         log_handler.setLevel(logging.DEBUG)
         formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s")
