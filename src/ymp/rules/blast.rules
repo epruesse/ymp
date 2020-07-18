@@ -76,7 +76,7 @@ with Stage("annotate_tblastn") as S:
             db_name = lambda wc, input: input.index[0][:-4],
             blastfmt = BLASTFMT
         threads:
-            8
+            24
         conda:
             "blast"
         shell: """
