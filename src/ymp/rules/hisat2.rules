@@ -1,4 +1,4 @@
-Env(name="hisat2", base="bioconda", packages=["hisat2", "samtools"])
+Env(name="hisat2", base="bioconda", packages=["hisat2=2.1.0", "samtools"])
 
 HT2IDX_SUFFIXES = ["{}.ht2".format(n+1) for n in range(8)]
 
