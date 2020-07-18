@@ -3,48 +3,50 @@ Env(name="hisat2", base="bioconda", packages=["hisat2=2.1.0", "samtools"])
 HT2IDX_SUFFIXES = ["{}.ht2".format(n+1) for n in range(8)]
 
 with Stage("map_hisat2") as S:
-    rule hisat2:
+    S.doc("""
+    Map reads using Hisat2
+    """)
+    rule hisat2_map:
         """
         For hisat we always assume a pre-build index as providing SNPs and haplotypes
         etc is beyond this pipelines scope.
         """
         message: "Hisat2: mapping "
         input:
-            pairs = "{:prev:}/{source}.{: pairnames :}.fq.gz",
-            index = expand("{{:reference.dir:}}.index/{{target}}.{ext}",
-                           ext=HT2IDX_SUFFIXES)
+            pairs =        "{:prev:}/{:target:}.{: pairnames :}.fq.gz",
+            index = expand("{{:prev:}}/{{:target:}}.{ext}", ext=HT2IDX_SUFFIXES)
         output:
-            bam   = temp("{:this:}/{target}.{source}.bam"),
-            stats = "{:this:}/{target}.{source}.stats"
+            bam   = temp(  "{:this:}/{target}.bam"),
+            stats =        "{:this:}/{target}.stats"
         log:
-                    "{:this:}/{target}.{source}.log"
+                           "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/hisat2_map/{:this:}/{target}.txt"
         params:
-            mem      = icfg.mem("16G"),
-            ht2_base = "{:reference.dir:}.index/genome_snp_tran"
+            mem   = icfg.mem("32G")
         threads:
             16
         conda:
             "hisat2"
         shell:
+            "INDEX={input.index[0]}  ;"
+            "INDEX=\"${{INDEX%.1.ht2}}\"  ;"
             "hisat2"
             " -1 {input.pairs[0]}"
             " -2 {input.pairs[1]}"
-            " -x {params.ht2_base}"
+            " -x \"$INDEX\""
+            # print time for each stage
+            " --time"
+            # write summary in new format
             " --new-summary"
             " --summary-file {output.stats}"
-            " --downstream-transcriptome-assembly" #  require longer anchors for de novo splice
             " -p {threads} "
             " 2>{log}"
             " | samtools view -b -o {output.bam} -"
 
-    rule hisat2_all_for_target:
-        message: "Hisat2: Mapping target {wildcards.target} done"
-        input:        "{:this:}/{target}.{:sources:}.sorted.bam.bai"
-        output: touch("{:this:}/stamp.all_{target}")
-
     rule hisat2_all:
         message: "Hisat2: Mapped all in {output}"
-        input:        "{:this:}/stamp.all_{:targets:}"
+        input:        "{:this:}/{:targets:}.bam"
         output: touch("{:this:}/all_targets.stamp")
 
 
