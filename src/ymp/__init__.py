@@ -3,7 +3,6 @@ import sys
 import warnings
 
 
-
 try:
     from ymp._version import version as __version__
 except ModuleNotFoundError:
@@ -48,6 +47,11 @@ if 'sphinx' in sys.modules:
 #:
 #: >>> ymp make broken -vvv
 print_rule = 0
+
+#: List of versions this version of YMP has been verified to work with
+snakemake_versions = [
+    '5.20.1'
+]
 
 
 def get_config() -> 'config.ConfigMgr':

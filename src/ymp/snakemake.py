@@ -29,6 +29,18 @@ partial_format = partial_formatter.format
 get_names = partial_formatter.get_names
 
 
+def check_snakemake() -> bool:
+    prev_result = getattr("check_snakemake", "result", None)
+    if prev_result is not None:
+        return prev_result
+    import snakemake
+    check_snakemake.result = snakemake.__version__ in ymp.snakemake_versions
+    if not check_snakemake.result:
+        log.fatal("YMP-%s was not verified to work with Snakemake-%s",
+                  ymp.__version__, snakemake.__version__)
+    return check_snakemake.result
+
+
 def networkx():
     import networkx
     if networkx.__version__[0] != "2":
@@ -260,6 +272,8 @@ class ExpandableWorkflow(Workflow):
         with an instance of this class and initializes default expanders
         (the snakemake syntax).
         """
+        check_snakemake()
+
         try:
             from snakemake.workflow import workflow
         except ImportError:
