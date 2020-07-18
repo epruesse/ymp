@@ -512,3 +512,53 @@ with Stage("map_bbmap") as S:
             touch("{:this:}/all_targets.stamp")
         input:
             "{:this:}/{:targets:}.bam"
+
+
+with Stage("dust_bbmap") as S:
+    S.doc("""
+    Perform entropy filtering on reads using BBMap's bbduk.sh
+
+    The parameter ``Enn`` gives the entropy cutoff. Higher values
+    filter more sequences.
+
+    >>> ymp make toy.dust_bbmap
+    >>> ymp make toy.dust_bbmapE60
+    """)
+    S.add_param("E", typ="int", name="entropy", default=10)
+
+    rule bbmap_dust:
+        message:
+            "BBMap: removing low entropy reads"
+        input:
+            fq = "{:prev:}/{target}.{:pairnames:}.fq.gz"
+        output:
+            fq = "{:this:}/{target}.{:pairnames:}.fq.gz"
+        log:
+                 "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/bbmap_dust/{:this:}/{target}.txt"
+        threads: 8
+        conda: "bbmap"
+        params:
+            entropy_window = 50,
+            entropy_k = 5,
+            inout2 = "in2={input.fq[1]} out2={output.fq[1]}",
+            mem = icfg.mem("80g")
+        shell:
+            'bbduk.sh'
+            ' in={input.fq[0]} out={output.fq[0]}'
+            ' {params.inout2}'
+            ' entropy=0.{params.entropy}'
+            ' entropywindow={params.entropy_window}'
+            ' entropyk={params.entropy_k}'
+            ' pigz unpigz'
+            ' -Xmx{params.mem}m'
+            ' >{log} 2>&1'
+
+    rule bbmap_dust_all:
+        message:
+            "BBMap: fishished removing low entropy reads"
+        output:
+            touch("{:this:}/all_targets.stamp")
+        input:
+            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
