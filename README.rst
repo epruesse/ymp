@@ -2,8 +2,10 @@ YMP - a Flexible Omics Pipeline
 ===============================
 
 
-|CircleCI| |Read the Docs| |Codacy grade| |Codecov|
+|Github Unit Tests| |Read the Docs| |Codacy grade| |Codecov|
 
+.. |Github Unit Tests| image::https://github.com/epruesse/ymp/workflows/Unit%20Tests/badge.svg
+   :target: https://github.com/epruesse/ymp/actions?query=workflow%3A%22Unit+Tests%22
 .. |CircleCI| image:: https://img.shields.io/circleci/project/github/epruesse/ymp.svg?label=CircleCI
    :target: https://circleci.com/gh/epruesse/ymp
 .. |Read the Docs| image:: https://img.shields.io/readthedocs/ymp/latest.svg
