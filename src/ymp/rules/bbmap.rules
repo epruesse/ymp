@@ -36,6 +36,8 @@ with Stage("index_bbmap") as S:
             "{:this:}/{target}.log"
         params:
             mem=icfg.mem("80g")
+        benchmark:
+            "benchmarks/bbmap_makedb/{:this:}/{target}.txt"
         threads: 8
         conda:
             "bbmap"
@@ -81,6 +83,8 @@ with Stage("correct_bbmap") as S:
         log:
             "{:this:}/{target}.log"
         threads: 16
+        benchmark:
+            "benchmarks/bbmap_ecco/{:this:}/{target}.txt"
         params:
             inout  = "in={input[0]} out={output[0]}",
             inout2 = "in2={input[1]} out2={output[1]}",
@@ -142,6 +146,8 @@ with Stage("trim_bbmap") as S:
             "{:this:}/{target}.{:pairnames:}.fq.gz"
         log:
             "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/bbmap_trim/{:this:}/{target}.txt"
         params:
             k      = 23,
             mink   = 11,
@@ -212,6 +218,8 @@ with Stage("dedup_bbmap") as S:
             "{:this:}/{target}.{:pairnames:}.fq.gz"
         log:
             "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/bbmap_dedupe/{:this:}/{target}.txt"
         params:
             mem = icfg.mem("80g")
         threads: 4
