@@ -1,0 +1,159 @@
+Env(name="samtools", base="bioconda", packages=["samtools", "htslib"])
+
+with Stage("extract_reads") as S:
+    S.doc("""
+    Extract reads from BAM file using ``samtools fastq``.
+
+    Parameters ``fn``, ``Fn`` and ``Gn`` are passed through.
+    Some options include:
+
+    - f2: fully mapped (only proper pairs)
+    - F2: not fully mapped (unmapped at least one read)
+    - f12: not mapped (neither read mapped)
+    """)
+    S.add_param("f", typ="int", name="f", default=0)
+    S.add_param("F", typ="int", name="F", default=0x900)
+    S.add_param("G", typ="int", name="G", default=0)
+    rule samtools_fastq:
+        message:
+            "Samtools fastq: extracting reads from BAM"
+        input:
+            bam =  "{:prev:}/{target}.bam"
+        output:
+            pairs = "{:this:}/{target}.{:pairnames:}.fq.gz"
+        log:
+                    "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/samtools_extract_reads/{:this:}/{target}.txt"
+        threads:
+            4
+        conda:
+            "samtools"
+        shell:
+            "samtools fastq"
+            " -0 /dev/null"
+            " -s /dev/null"
+            " -1 {output.pairs[0]}"
+            " -2 {output.pairs[1]}"
+            " --threads {threads}"
+            " -f {params.f}"
+            " -F {params.F}"
+            " -G {params.G}"
+            " {input}"
+            " 2>&1 >{log}"
+
+    rule samtools_fastq_all:
+        message:
+            "Samtools fastq: finished"
+        input:
+            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
+        output:
+            touch("{:this:}/all_targets.stamp")
+
+
+with Stage("extract_seqs") as S:
+    S.doc("""
+    Extract sequences from ``.fasta.gz`` file using ``samtools faidx``
+
+    Currently requires a ``.blast7`` file as input.
+
+    Use parameter ``Nomatch`` to instead keep unmatched sequences.
+    """)
+    S.add_param("Nomatch", typ="flag", name="match",
+                value="-13", default="-12")
+
+    rule samtools_select_blast:
+        message:
+            "Samtools faidx: getting region list"
+        input:
+            fasta = "{:prev:}/{target}.fasta.gz",
+            blast7 = "{:prev:}/{target}.blast7"
+        output:
+            regions = temp("{:this:}/{target}.ids")
+        threads:
+            1
+        shell:
+            'comm {params.match}'
+            ' <(grep -v "^#" {input.blast7} | cut -f1 -d $\'\\t\' | sort | uniq)'
+            ' <(gzip -dc {input.fasta} | grep "^>" | '
+            '   sed -n \'/^>/ s/>\([^[:space:]]*\).*/\\1/p\' | sort)'
+            ' >{output.regions}'
+
+    rule samtools_faidx:
+        message:
+            "Samtools faidx: extracting sequences from FASTA"
+        input:
+            fasta = "{:prev:}/{target}.fasta.gz",
+            regions = "{:this:}/{target}.ids"
+        output:
+            fasta = "{:this:}/{target}.fasta.gz"
+        log:
+                    "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/samtools_extract_seqs/{:this:}/{target}.txt"
+        threads:
+            2
+        conda:
+            "samtools"
+        shadow:
+            "minimal"
+        shell:
+            'if [ 0 -eq $(wc -l < {input.regions}) ]; then'
+            '  echo "YMP: no sequences" >{log};'
+            '  echo -n;'
+            'else'
+            '  samtools faidx'
+            '   --length 99999999'
+            '   --region-file {input.regions}'
+            '   {input.fasta}'
+            '   2>{log};'
+            'fi | '
+            'bgzip '
+            ' --stdout'
+            ' --threads {threads}'
+            ' >{output.fasta}'
+
+
+    rule samtools_faidx_all:
+        message:
+            "Finished {output}"
+        input:
+            "{:this:}/{:targets:}.fasta.gz"
+        output:
+            touch("{:this:}/all_targets.stamp")
+
+
+with Stage("coverage_samtools") as S:
+    S.doc("""
+    Computes coverage from a sorted bam file using ``samtools coverage``
+    """)
+    rule samtools_coverage:
+        message:
+            "Samtools coverage:"
+        input:
+            "{:prev:}/{target}.sorted.bam"
+        output:
+            "{:this:}/{target}.coverage"
+        log:
+            "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/samtools_coverage/{:this:}/{target}.txt"
+        conda:
+            "samtools"
+        threads:
+            1
+        shell:
+            'samtools coverage'
+            ' {input}'
+            ' -o {output}'
+            ' >{log} 2>&1'
+
+    localrules: samtools_coverage_all
+    rule samtools_coverage_all:
+        message:
+            "Finished {output}"
+        input:
+            "{:this:}/{:targets:}.coverage"
+        output:
+            touch("{:this:}/all_targets.stamp")
+
