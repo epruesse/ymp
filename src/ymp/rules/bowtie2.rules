@@ -23,13 +23,12 @@ with Stage("index_bowtie2") as S:
             "benchmarks/bowtie2_index/{:this:}/{target}.txt"
         conda:
             "bowtie2"
-        shell:"""
-        bowtie2-build-s \
-          {input} \
-          {params.bt2_base} \
-          --threads {threads} \
-          >& {log}
-        """
+        shell:
+            "bowtie2-build-s"
+            " {input}"
+            " {params.bt2_base}"
+            " --threads {threads}"
+            " >& {log}"
 
     rule bowtie2_index_all:
         message:
