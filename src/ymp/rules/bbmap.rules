@@ -136,6 +136,7 @@ with Stage("trim_bbmap") as S:
     S.add_param("A", typ="flag", name="adapt", value="ref=$BB_RSRC/adapters.fa ")
     S.add_param("Q", typ="int", name="qual", default=20)
     S.add_param("L", typ="int", name="length", default=20)
+    S.add_param("E", typ="int", name="entropy", default=0)
     rule bbmap_trim:
         """Trimming and Adapter Removal using BBTools BBDuk"""
         message:
@@ -153,6 +154,8 @@ with Stage("trim_bbmap") as S:
             mink   = 11,
             hdist  = 1,
             mem    = icfg.mem("80g"),
+            entropy_window = 50,
+            entropy_k = 5,
             flags  = "pigz unpigz",
             inout  = "in={input[0]} out={output[0]}",
             inout2 = "in2={input[1]} out2={output[1]}" # overriden by child rule
@@ -163,21 +166,24 @@ with Stage("trim_bbmap") as S:
             # find adapter dir:
             'BB_RSRC="$(dirname $(readlink -f $(command -v bbduk.sh)))/resources";'
             # run bbduk:
-            'bbduk.sh '
-            '{params.inout} {params.inout2} '
-            'trimq={params.qual} qtrim=r '         # quality trimming
-            'minlength={params.length} '           # length filtering
-            '{params.adapt}'                       # adapter trimming
-            'ktrim=r '                             # 3' side only
-            'k={params.k} '                        # k for adapter matching
-            'mink={params.mink} '                  # k at read end
-            'hdist={params.hdist} '                # hamming distance, allow 1 mismatch
-            'tpe ' # trimpairsevenly -- in case adapter detected in only one read
-            'tbo ' # trimbyoverlap -- trim if read runs over other reads' end
-            '{params.flags} '                      # processing settings
-            'threads={threads} '
-            '-Xmx{params.mem}m '
-            '>{log} 2>&1'
+            'bbduk.sh'
+            ' {params.inout} {params.inout2}'
+            ' trimq={params.qual} qtrim=r'         # quality trimming
+            ' minlength={params.length}'           # length filtering
+            ' {params.adapt} '                     # adapter trimming
+            ' ktrim=r'                             # 3' side only
+            ' k={params.k}'                        # k for adapter matching
+            ' mink={params.mink}'                  # k at read end
+            ' hdist={params.hdist}'                # hamming distance, allow 1 mismatch
+            ' tpe' # trimpairsevenly -- in case adapter detected in only one read
+            ' tbo' # trimbyoverlap -- trim if read runs over other reads' end
+            ' entropy=0.{params.entropy}'
+            ' entropywindow={params.entropy_window}'
+            ' entropyk={params.entropy_k}'
+            ' {params.flags}'                      # processing settings
+            ' threads={threads}'
+            ' -Xmx{params.mem}m'
+            ' >{log} 2>&1'
 
     rule bbmap_trim_se:  # ymp: extends bbmap_trim
         input:
