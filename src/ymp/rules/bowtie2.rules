@@ -19,6 +19,8 @@ with Stage("index_bowtie2") as S:
             8
         log:
             "{:this:}/{target}.btbuild.log"
+        benchmark:
+            "benchmarks/bowtie2_index/{:this:}/{target}.txt"
         conda:
             "bowtie2"
         shell:"""
@@ -58,6 +60,8 @@ with Stage("map_bowtie2") as S:
             stats =        "{:this:}/{target}.stats"
         log:
                            "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/bowtie2_map/{:this:}/{target}.txt"
         params:
             maxins = 800,
             k      = 100,  # max number of secondary alignments
