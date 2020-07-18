@@ -371,14 +371,24 @@ class Project(Stage):
         return groups
 
     def get_ids(self, groups, match_groups=None, match_value=None):
+        ids = None
         if groups == ['ALL']:
-            return 'ALL'
-        if groups == match_groups:
-            return match_value
-        if match_groups and match_groups != ['ALL']:
-            return self.data.get(match_groups[0], match_value, groups[0])
-        else:
-            return self.data.column(groups[0])
+            ids = 'ALL'
+        elif groups == match_groups:
+            ids = match_value
+        elif groups[0] in self.data.columns():
+            if match_groups and match_groups != ['ALL']:
+                ids = self.data.get(match_groups[0], match_value, groups[0])
+            else:
+                ids = self.data.column(groups[0])
+        if not ids:
+            if len(groups) == 1:
+                ids = groups[0]
+            else:
+                raise YmpStageError(
+                    f"no ids for {groups} {match_groups} {match_value}"
+                )
+        return ids
 
     def iter_samples(self, variables=None):
         if not variables:
