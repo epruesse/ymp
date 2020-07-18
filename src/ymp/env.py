@@ -41,8 +41,9 @@ class Env(WorkflowObject, snakemake_conda.Env):
     Within the folder ``conda_prefix``, each environment is created in
     a folder named by the hash of the environment definition file's
     contents and the ``conda_prefix`` path. This class inherits from
-    ``snakemake.conda.Env`` to ensure that the hash we use is
-    identical to the one Snakemake will use during workflow execution.
+    ``snakemake.deployment.conda.Env`` to ensure that the hash we use
+    is identical to the one Snakemake will use during workflow
+    execution.
 
     The class provides additional features for updating environments,
     creating environments dynamically and executing commands within
@@ -154,7 +155,7 @@ class Env(WorkflowObject, snakemake_conda.Env):
     def set_prefix(self, prefix):
         self._env_dir = op.abspath(prefix)
 
-    def create(self, dryrun=False):
+    def create(self, dryrun=False, force=False):
         """Ensure the conda environment has been created
 
         Inherits from snakemake.conda.Env.create
@@ -182,7 +183,7 @@ class Env(WorkflowObject, snakemake_conda.Env):
         FIXME
         """
         # Skip if environment already exists
-        if op.exists(self.path):
+        if not force and op.exists(self.path):
             log.info("Environment '%s' already exists", self.name)
             return self.path
 
