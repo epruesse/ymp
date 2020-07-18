@@ -226,8 +226,10 @@ class Env(WorkflowObject, snakemake_conda.Env):
           files: List of package archive files
         """
         packages_txt = op.join(self.archive_file, "packages.txt")
+        log.info("Checking for archive in %s", self.archive_file)
         if not op.exists(packages_txt):
             return []
+        log.info("... found. Using archive.")
         with open(packages_txt) as f:
             packages = [package.strip() for package in f]
         missing_packages = [package for package in packages
@@ -257,12 +259,20 @@ class Env(WorkflowObject, snakemake_conda.Env):
           md5s: list of md5 sums
         """
         cfg = ymp.get_config()
-        if not cfg.conda.env_specs:
-            return [], [], []
-
-        spec_file = op.join(ymp._env_dir, cfg.conda.env_specs,
-                            cfg.platform, self.name + ".txt")
-        if not op.exists(spec_file):
+        for spec_path in cfg.conda.env_specs:
+            if spec_path.startswith("BUILTIN:"):
+                spec_path = spec_path.replace("BUILTIN:", "")
+                spec_path = op.join(ymp._env_dir, spec_path)
+            for path in (op.join(spec_path, cfg.platform), spec_path):
+                spec_file = op.join(path, self.name + ".txt")
+                log.debug("Trying %s", spec_file)
+                if op.exists(spec_file):
+                    log.info("Using %s", spec_file)
+                    break
+            else:
+                continue
+            break
+        else:
             return [], [], []
 
         log.debug("Using env spec '%s'", spec_file)
