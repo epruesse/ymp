@@ -73,11 +73,11 @@ with Stage("extract_seqs") as S:
         threads:
             1
         shell:
-            'comm {params.match}'
-            ' <(grep -v "^#" {input.blast7} | cut -f1 -d $\'\\t\' | sort | uniq)'
-            ' <(gzip -dc {input.fasta} | grep "^>" | '
-            '   sed -n \'/^>/ s/>\([^[:space:]]*\).*/\\1/p\' | sort)'
-            ' >{output.regions}'
+            r'comm {params.match}'
+            r' <(grep -v "^#" {input.blast7} | cut -f1 -d $\'\\t\' | sort | uniq)'
+            r' <(gzip -dc {input.fasta} | grep "^>" | '
+            r'   sed -n \'/^>/ s/>\([^[:space:]]*\).*/\\1/p\' | sort)'
+            r' >{output.regions}'
 
     rule samtools_faidx:
         message:
