@@ -231,6 +231,10 @@ def start_snakemake(kwargs):
                 except YmpStageError as exc:
                     stage_stack_failure = exc
                     targets.append(t)
+                except YmpException as exc:
+                    log.error("Failure assembling stack:")
+                    exc.show()
+                    return False
             kwargs['targets'] = targets
 
     log.debug("Running snakemake.snakemake with args: %s", kwargs)

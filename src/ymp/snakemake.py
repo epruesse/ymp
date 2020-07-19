@@ -83,17 +83,14 @@ class ExpandLateException(Exception):
     pass
 
 
-class CircularReferenceException(RuleException):
+class CircularReferenceException(YmpRuleError):
     """Exception raised if parameters in rule contain a circular reference"""
-    def __init__(self, deps, rule, include=None, lineno=None, snakefile=None):
+    def __init__(self, deps, rule):
         nodes = [n[0] for n in networkx().find_cycle(deps)]
-        message = "Circular reference in rule {}:\n{}".format(
+        message = "Circular reference in rule {}\n'{}'".format(
             rule, " => ".join(nodes + [nodes[0]]))
-        super().__init__(message=message,
-                         include=include,
-                         lineno=lineno,
-                         snakefile=snakefile,
-                         rule=rule)
+        rule.filename = rule.snakefile
+        super().__init__(rule, message)
 
 
 class InheritanceException(RuleException):
@@ -775,7 +772,7 @@ class RecursiveExpander(BaseExpander):
                 if deps.out_degree(node) > 0 and 'core' in deps.nodes[node]
             ]))
         except networkx().NetworkXUnfeasible:
-            raise CircularReferenceException(deps, rule)
+            raise CircularReferenceException(deps, rule) from None
 
         # expand variables
         for node in nodes:
