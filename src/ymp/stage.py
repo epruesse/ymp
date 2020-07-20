@@ -455,8 +455,9 @@ class StageExpander(ColonExpander):
                 return self.get_value_(key, args, kwargs)
             except Exception as e:
                 if not isinstance(e, ExpandLateException):
-                    log.warning(f"key={key} args={args} kwargs={kwargs}",
-                                exc_info=True)
+                    log.debug(f"Failed to get value: "
+                              f"key={key} args={args} kwargs={kwargs}",
+                              exc_info=True)
                 raise
 
         def get_value_(self, key, args, kwargs):
