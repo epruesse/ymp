@@ -502,7 +502,7 @@ class BaseExpander(object):
             expand_args = {}
         debug = ymp.print_rule or getattr(rule, "_ymp_print_rule", False)
         if debug:
-            log.debug("{}{} {} {} in rule {} with args {}"
+            log.debug("{}{}: ({}) {} in rule {} with args {}"
                       "".format(" "*rec*4, type(self).__name__,
                                 type(item).__name__, item, rule, expand_args))
         if item is None:
@@ -522,9 +522,8 @@ class BaseExpander(object):
         elif isinstance(item, tuple):
             item = self.expand_tuple(rule, item, expand_args, rec)
         else:
-            raise ValueError("unable to expand item '{}' with args '{}'"
-                             "".format(repr(item),
-                                       repr(expand_args)))
+            log.debug("Not expanding item '{}' of type {}".format(
+                repr(item), type(item)))
 
         if debug:
             log.debug("{}=> {} {}"
@@ -566,7 +565,7 @@ class BaseExpander(object):
             res = self.expand(rule, item(*args, **kwargs),
                               expand_args={'wc': args[0]}, rec=rec, cb=True)
             if debug:
-                log.debug("{}=> {}".format(" "*rec*4, res))
+                log.debug("{}=> '{}'".format(" "*rec*4, res))
             return res
         return late_expand
 
