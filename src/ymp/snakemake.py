@@ -518,9 +518,9 @@ class BaseExpander(object):
         elif isinstance(item, dict):
             item = self.expand_dict(rule, item, expand_args, rec)
         elif isinstance(item, list):
-            item = self.expand_list(rule, item, expand_args, rec)
+            item = self.expand_list(rule, item, expand_args, rec, cb)
         elif isinstance(item, tuple):
-            item = self.expand_tuple(rule, item, expand_args, rec)
+            item = self.expand_tuple(rule, item, expand_args, rec, cb)
         else:
             log.debug("Not expanding item '{}' of type {}".format(
                 repr(item), type(item)))
@@ -594,7 +594,9 @@ class BaseExpander(object):
         return wrapper
 
     def expand_dict(self, rule, item, expand_args, rec):
+        path = expand_args.get('path', list())
         for key, value in item.items():
+            expand_args['path'] = path + [key]
             value = self.expand(rule, value, expand_args=expand_args, rec=rec)
 
             # Snakemake can't have functions in lists in dictionaries.
@@ -605,13 +607,17 @@ class BaseExpander(object):
                 item[key] = value
         return item
 
-    def expand_list(self, rule, item, expand_args, rec):
-        return [self.expand(rule, subitem, expand_args=expand_args, rec=rec)
-                for subitem in item]
+    def expand_list(self, rule, item, expand_args, rec, cb):
+        path = expand_args.get('path', list())
+        res = list()
+        for n, subitem in enumerate(item):
+            expand_args['path'] = path + [str(n)]
+            res.append(self.expand(rule, subitem, expand_args=expand_args,
+                                   rec=rec, cb=cb))
+        return res
 
-    def expand_tuple(self, rule, item, expand_args, rec):
-        return tuple(self.expand(rule, subitem, expand_args=expand_args, rec=rec)
-                     for subitem in item)
+    def expand_tuple(self, rule, item, expand_args, rec, cb):
+        return tuple(self.expand_list(rule, item, expand_args, rec, cb))
 
 
 class SnakemakeExpander(BaseExpander):
@@ -626,7 +632,7 @@ class SnakemakeExpander(BaseExpander):
 
     def format(self, item, *args, **kwargs):
         if 'wc' in kwargs:
-            return apply_wildcards(item, kwargs['wc'])
+            item = apply_wildcards(item, kwargs['wc'])
         return item
 
 
