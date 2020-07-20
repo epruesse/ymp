@@ -42,9 +42,9 @@ with Stage("assemble_megahit") as S:
         conda:
             "megahit"
         shell: r"""
-        # iff there is an existing opts.txt with an existing megahit temp dir,
+        # iff there is an existing options.json with an existing megahit temp dir,
         # then we can continue an existing run
-        MHTMP=$(sed -n '/MEGAHIT_TEMP_DIR:/ s/.*:\s*//p' "{params.workdir}/opts.txt" 2>/dev/null||true)
+        MHTMP=$(sed -n '/MEGAHIT_TEMP_DIR:/ s/.*:\s*//p' "{params.workdir}/options.json" 2>/dev/null||true)
         CONTINUE=""
         if [ -e "$MHTMP" ]; then
             echo "YMP: Trying to restart aborted assembly"
@@ -68,11 +68,12 @@ with Stage("assemble_megahit") as S:
         pigz -p {threads} -9 -c {params.workdir}/final.contigs.fa > {output.fasta}
 
         # output the zipped log
-        cat {params.workdir}/{{opts.txt,log}} |\
+        cat {params.workdir}/{{options.json,log}} |\
         pigz -p {threads} -9 -c > {log.log}
 
         # determine largest K used
-        MAXK=`tac {params.workdir}/log | sed -nr 's/^---.*k = ([0-9]{{2,3}}) ---/\\1/p;' | head -n1`
+        MAXK=$(ls {params.workdir}/intermediate_contigs -1 |\
+               sed -n 's%^k\([0-9]*\).*%\1%p' | sort -nr | head -n1)
 
         # output the zipped fastg
         megahit_toolkit contig2fastg $MAXK \
@@ -80,7 +81,7 @@ with Stage("assemble_megahit") as S:
         pigz -p {threads} -9 -c > {output.fastg}
 
         # remove intermediate contigs
-        #rm -rf {params.workdir}
+        rm -rf {params.workdir}
         """
 
     rule megahit_all:
