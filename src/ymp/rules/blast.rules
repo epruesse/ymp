@@ -6,8 +6,8 @@ BLASTFMT =  "7 qacc sacc pident length mismatch gapopen qstart qend sstart send 
 BLASTFMT += " sstrand sframe qframe score qlen stitle staxids"
 
 BLASTIDX_SUFFIXES = "nin nhr nsi nsd nsq nog".split()
-
-
+BLASTSPLITIDX_SUFFIXES = "nal ndb nos not ntf nto".split()
+BLASTN_SUFFIXES = "nin nhr nsq".split()
 
 blast_assembly_results = "{dir}.blast/{: targets :}.{query}.blast7"
 blast_assembly_results_fa  = "{dir}.blast/{: targets :}.{query}.{gene}.fasta"
@@ -124,8 +124,102 @@ with Stage("annotate_tblastn") as S:
                     )
                     writer.write(feature)
 
+with Stage("annotate_blast") as S:
+    S.doc("""
+    Annotate sequences with BLAST
 
+    Searches a reference database for hits with ``blastn``. Use `E`
+    flag to specify exponent to required E-value. Use ``N`` or
+    ``Mega`` to specify default. Use ``Best`` to add
+    ``-subject_besthit`` flag.
+    """)
+    S.add_param("E", typ="int", name="evalue_exp", default=0)
+    S.add_param("", typ="choice", name="task",
+                value=['N','Mega'], default='N')
+    S.add_param("Best", typ="flag", name="besthit",
+                value="-subject_besthit")
+    S.require(
+        contigs = [["fasta.gz"]],
+        db = [BLASTIDX_SUFFIXES, BLASTSPLITIDX_SUFFIXES]
+    )
 
+    localrules: blast_db_size, blast_db_size_SPLIT
+    rule blast_db_size:
+        message:
+            "BLASTDBCMD: Getting database size"
+        input:
+            db = expand("{{:prev:}}/{{:target:}}.{ext}",
+                        ext=BLASTIDX_SUFFIXES)
+        output:
+            temp("{:this:}/{target}.blast_db_size")
+        params:
+            db_name = lambda wc, input: input.db[0][:-4]
+        threads:
+            4
+        conda:   "blast"
+        shell:
+            "blastdbcmd  -list $(dirname {input.db[0]}) -list_outfmt '%f %l'"
+            " | grep {params.db_name}"
+            " | head -n 1"
+            " |cut -d ' ' -f 2"
+            " >{output}"
+
+    rule blast_db_size_SPLIT: # ymp: extends blast_db_size
+        input:
+            db = expand("{{:prev:}}/{{:target:}}.{ext}",
+                         ext=BLASTSPLITIDX_SUFFIXES)
+
+    rule blastn_query:
+        message:
+            "BLASTN: {input.contigs} vs {params.db_name}"
+        input:
+            contigs =   "{:prev:}/{:target:}.fasta.gz",
+            db = expand("{{:prev:}}/{{:target:}}.{ext}",
+                        ext=BLASTIDX_SUFFIXES)
+        output:
+            "{:this:}/{target}.blast7"
+        log:
+            "{:this:}/{target}.blast7.log"
+        benchmark:
+            "benchmarks/blastn_query/{:this:}/{target}.txt"
+        params:
+            db_name = lambda wc, input: input.db[0][:-4],
+            blastfmt = BLASTFMT,
+        threads:
+            24
+        conda:   "blast"
+        shell:
+            'case {params.task} in'
+            ' N) TASK="blastn";;'
+            ' Mega) TASK="megablast";;'
+            'esac;'
+            'gunzip -c {input.contigs} |'
+            'blastn'
+            ' -query -'
+            ' -db {params.db_name}'
+            ' -out {output}'
+            ' -outfmt "{params.blastfmt}"'
+            ' -evalue 1e-{params.evalue_exp}'
+            ' -num_threads {threads}'
+            ' {params.besthit}'
+            ' -task $TASK'
+            ' >{log} 2>&1'
+
+    rule blastn_query_SPLIT: # ymp: extends blastn_query
+        input:
+            db = expand("{{:prev:}}/{{:target:}}.{ext}",
+                        ext=BLASTSPLITIDX_SUFFIXES)
+
+    rule blastn_query_all:
+        message:
+            "Completed {params.this}"
+        params:
+            this = lambda wc, output: os.path.dirname(output[0])
+        input:
+            "{:this:}/{:targets:}.blast7",
+            "{:this:}/ALL.blast_db_size"
+        output:
+            touch("{:this:}/all_targets.stamp")
 
 
 localrules: blast7_merge
