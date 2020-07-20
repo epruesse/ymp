@@ -5,6 +5,8 @@ Rules using tools from the BBTools / BBMap suite by Brian Bushnell
 Env(name="bbmap", base="bioconda", packages=[
     "bbmap",
     "pigz",
+    "pbgzip",
+    "htslib",
     "samtools",
     "coreutils"  # for readlink -f
 ])
@@ -36,6 +38,8 @@ with Stage("index_bbmap") as S:
             "{:this:}/{target}.log"
         params:
             mem=icfg.mem("80g")
+        benchmark:
+            "benchmarks/bbmap_makedb/{:this:}/{target}.txt"
         threads: 8
         conda:
             "bbmap"
@@ -81,6 +85,8 @@ with Stage("correct_bbmap") as S:
         log:
             "{:this:}/{target}.log"
         threads: 16
+        benchmark:
+            "benchmarks/bbmap_ecco/{:this:}/{target}.txt"
         params:
             inout  = "in={input[0]} out={output[0]}",
             inout2 = "in2={input[1]} out2={output[1]}",
@@ -132,6 +138,7 @@ with Stage("trim_bbmap") as S:
     S.add_param("A", typ="flag", name="adapt", value="ref=$BB_RSRC/adapters.fa ")
     S.add_param("Q", typ="int", name="qual", default=20)
     S.add_param("L", typ="int", name="length", default=20)
+    S.add_param("E", typ="int", name="entropy", default=0)
     rule bbmap_trim:
         """Trimming and Adapter Removal using BBTools BBDuk"""
         message:
@@ -139,14 +146,19 @@ with Stage("trim_bbmap") as S:
         input:
             "{:prev:}/{target}.{:pairnames:}.fq.gz"
         output:
-            "{:this:}/{target}.{:pairnames:}.fq.gz"
+            temp("{:this:}/{target}.{:pairnames[0]:}.fq.gz"),
+            temp("{:this:}/{target}.{:pairnames[1]:}.fq.gz")
         log:
             "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/bbmap_trim/{:this:}/{target}.txt"
         params:
             k      = 23,
             mink   = 11,
             hdist  = 1,
             mem    = icfg.mem("80g"),
+            entropy_window = 50,
+            entropy_k = 5,
             flags  = "pigz unpigz",
             inout  = "in={input[0]} out={output[0]}",
             inout2 = "in2={input[1]} out2={output[1]}" # overriden by child rule
@@ -157,21 +169,24 @@ with Stage("trim_bbmap") as S:
             # find adapter dir:
             'BB_RSRC="$(dirname $(readlink -f $(command -v bbduk.sh)))/resources";'
             # run bbduk:
-            'bbduk.sh '
-            '{params.inout} {params.inout2} '
-            'trimq={params.qual} qtrim=r '         # quality trimming
-            'minlength={params.length} '           # length filtering
-            '{params.adapt}'                       # adapter trimming
-            'ktrim=r '                             # 3' side only
-            'k={params.k} '                        # k for adapter matching
-            'mink={params.mink} '                  # k at read end
-            'hdist={params.hdist} '                # hamming distance, allow 1 mismatch
-            'tpe ' # trimpairsevenly -- in case adapter detected in only one read
-            'tbo ' # trimbyoverlap -- trim if read runs over other reads' end
-            '{params.flags} '                      # processing settings
-            'threads={threads} '
-            '-Xmx{params.mem}m '
-            '>{log} 2>&1'
+            'bbduk.sh'
+            ' {params.inout} {params.inout2}'
+            ' trimq={params.qual} qtrim=r'         # quality trimming
+            ' minlength={params.length}'           # length filtering
+            ' {params.adapt} '                     # adapter trimming
+            ' ktrim=r'                             # 3' side only
+            ' k={params.k}'                        # k for adapter matching
+            ' mink={params.mink}'                  # k at read end
+            ' hdist={params.hdist}'                # hamming distance, allow 1 mismatch
+            ' tpe' # trimpairsevenly -- in case adapter detected in only one read
+            ' tbo' # trimbyoverlap -- trim if read runs over other reads' end
+            ' entropy=0.{params.entropy}'
+            ' entropywindow={params.entropy_window}'
+            ' entropyk={params.entropy_k}'
+            ' {params.flags}'                      # processing settings
+            ' threads={threads}'
+            ' -Xmx{params.mem}m'
+            ' >{log} 2>&1'
 
     rule bbmap_trim_se:  # ymp: extends bbmap_trim
         input:
@@ -212,6 +227,8 @@ with Stage("dedup_bbmap") as S:
             "{:this:}/{target}.{:pairnames:}.fq.gz"
         log:
             "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/bbmap_dedupe/{:this:}/{target}.txt"
         params:
             mem = icfg.mem("80g")
         threads: 4
@@ -435,6 +452,8 @@ with Stage("map_bbmap") as S:
     >>> ymp make toy.ref_genome.map_bbmap
     >>> ymp make mpic.ref_ssu.map_bbmap
     """)
+    S.add_param("", typ="choice", name="sensitivity",
+                value=['F', 'N', 'S', 'VS'], default='N')
     rule bbmap_map:
         """Map read from each (co-)assembly read file to the assembly"""
         message:
@@ -449,7 +468,7 @@ with Stage("map_bbmap") as S:
         log:
                          "{:this:}/{target}.log"
         benchmark:
-            "benchmarks/bbmap/{:this:}/{target}.txt"
+            "benchmarks/bbmap_map/{:this:}/{target}.txt"
         params:
             mem = icfg.mem("80g"),
             in2 = "in2={input.fq[1]}"
@@ -458,7 +477,11 @@ with Stage("map_bbmap") as S:
         conda:
             "bbmap"
         shell:
+            "case {params.sensitivity} in"
+            "  N) SENS='';; F) SENS='fast';; S) SENS='slow';; VS) SENS='vslow';;"
+            "esac;"
             "bbmap.sh"
+            " $SENS"
             " threads={threads}"
             " pigz unpigz"          # enable use of pigz for zip/unzip
             # this is disabled because not compiled in conda:
@@ -489,3 +512,94 @@ with Stage("map_bbmap") as S:
             touch("{:this:}/all_targets.stamp")
         input:
             "{:this:}/{:targets:}.bam"
+
+
+with Stage("dust_bbmap") as S:
+    S.doc("""
+    Perform entropy filtering on reads using BBMap's bbduk.sh
+
+    The parameter ``Enn`` gives the entropy cutoff. Higher values
+    filter more sequences.
+
+    >>> ymp make toy.dust_bbmap
+    >>> ymp make toy.dust_bbmapE60
+    """)
+    S.add_param("E", typ="int", name="entropy", default=10)
+
+    rule bbmap_dust:
+        message:
+            "BBMap: removing low entropy reads"
+        input:
+            fq = "{:prev:}/{target}.{:pairnames:}.fq.gz"
+        output:
+            fq = "{:this:}/{target}.{:pairnames:}.fq.gz"
+        log:
+                 "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/bbmap_dust/{:this:}/{target}.txt"
+        threads: 8
+        conda: "bbmap"
+        params:
+            entropy_window = 50,
+            entropy_k = 5,
+            inout2 = "in2={input.fq[1]} out2={output.fq[1]}",
+            mem = icfg.mem("80g")
+        shell:
+            'bbduk.sh'
+            ' in={input.fq[0]} out={output.fq[0]}'
+            ' {params.inout2}'
+            ' entropy=0.{params.entropy}'
+            ' entropywindow={params.entropy_window}'
+            ' entropyk={params.entropy_k}'
+            ' pigz unpigz'
+            ' -Xmx{params.mem}m'
+            ' >{log} 2>&1'
+
+    rule bbmap_dust_all:
+        message:
+            "BBMap: fishished removing low entropy reads"
+        output:
+            touch("{:this:}/all_targets.stamp")
+        input:
+            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
+
+
+with Stage("format_bbmap") as S:
+    S.doc("""
+    Process sequences with BBMap's format.sh
+
+    Parameter ``Ln`` filters sequences at a minimum length.
+
+    >>> ymp make toy.assemble_metaspades.format_bbmapL200
+    """)
+    S.add_param("L", typ="int", name="length", default=1)
+    rule bbmap_reformat:
+        message:
+            "BBMap: reformatting fasta"
+        input:
+            fasta = "{:prev:}/{target}.fasta.gz"
+        output:
+            fasta = "{:this:}/{target}.fasta.gz"
+        log:
+                    "{:this:}/{target}.log"
+        threads:
+            4
+        conda:
+            "bbmap"
+        shell:
+            'reformat.sh'
+            ' in={input.fasta}'
+            ' out={output.fasta}'
+            ' >{log} 2>&1'
+            ' bgzip'
+            ' fastawrap=0'  # sequence on one line
+            ' fastaminlen={params.length}'
+
+    rule bbmap_reformat_all:
+        message:
+            "BBMap: completed {output}"
+        input:
+            "{:this:}/{:targets:}.fasta.gz"
+        output:
+            touch("{:this:}/all_targets.stamp")
+

@@ -48,13 +48,17 @@ with Stage("assemble_metaspades") as S:
         message:
             "(Co-)Assembling {wildcards.target} with MetaSpades"
         input:
-            conf    = "{:this:}/{target}.yaml"
+            conf    = "{:this:}/{target}.yaml",
+            r1 = "{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz",
+            r2 = "{:prev:}/{:target:}.{:pairnames[1]:}.fq.gz"
         output:
             fasta   = "{:this:}/{target}.fasta.gz",
             fastg   = "{:this:}/{target}.fastg.gz"
         log:
             console = "{:this:}/{target}.log",
             spades  = "{:this:}/{target}.spades.log.gz"
+        benchmark:
+            "benchmarks/metaspades/{:this:}/{target}.txt"
         params:
             workdir = "{:this:}/tmp.{target}/",
             tmpdir  = "{:dir.tmp:}",
@@ -67,20 +71,29 @@ with Stage("assemble_metaspades") as S:
         CONTINUE=""
         if [ -e "{params.workdir}" ]; then
           if [ -e "{params.workdir}/params.txt" ]; then
-            CONTINUE="--continue"
+            CONTINUE=y
           else
             rm -rf "{params.workdir}"
           fi
         fi
 
-        metaspades.py \
-          -o {params.workdir} \
-          --threads {threads} \
-          --tmp-dir {params.tmpdir} \
-          --dataset {input.conf} \
-          --memory $(({params.mem}/1024)) \
-          $CONTINUE \
-          >{log.console} 2>&1
+        if [ -n "$CONTINUE" ]; then
+          metaspades.py \
+            -o {params.workdir} \
+            --threads {threads} \
+            --tmp-dir {params.tmpdir} \
+            --memory $(({params.mem}/1024)) \
+            --restart-from last \
+            >{log.console} 2>&1
+        else
+          metaspades.py \
+            -o {params.workdir} \
+            --threads {threads} \
+            --tmp-dir {params.tmpdir} \
+            --dataset {input.conf} \
+            --memory $(({params.mem}/1024)) \
+            >{log.console} 2>&1
+        fi
 
         pigz -p {threads} -9 -c {params.workdir}/scaffolds.fasta > {output.fasta}
         pigz -p {threads} -9 -c {params.workdir}/assembly_graph.fastg > {output.fastg}

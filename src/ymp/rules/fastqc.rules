@@ -1,8 +1,4 @@
-Env(name="fastqc", base="bioconda", packages=[
-    "fastqc",
-    "conda-forge::openjdk",  # avoid default channel, it's missing fonts
-    "freetype = 2.7"         # and conda-forge jdk is missing this dependency
-])
+Env(name="fastqc", base="bioconda", packages=["fastqc"])
 
 
 with Stage("qc_fastqc") as S:

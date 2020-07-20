@@ -15,6 +15,7 @@ YMP processes data in stages, each of which is contained in its own directory.
 import logging
 import re
 from typing import TYPE_CHECKING
+from copy import copy
 
 import ymp
 from ymp.exceptions import YmpException, YmpRuleError, YmpStageError
@@ -35,6 +36,28 @@ def norm_wildcards(pattern):
     for n in ("{:targets:}", "{:sources:}"):
         pattern = pattern.replace(n, "{:samples:}")
     return pattern
+
+
+class GroupBy(object):
+    """Dummy stage for grouping"""
+    def __init__(self, name):
+        self.name = name
+
+    def __str__(self):
+        return self.name
+
+    def get_inputs(self):
+        return set()
+
+    def get_path(self):
+        return None
+
+    def can_provide(self, inputs):
+        return set()
+
+    @property
+    def outputs(self):
+        return set()
 
 
 class StageStack(object):
@@ -68,18 +91,23 @@ class StageStack(object):
 
     def __init__(self, path, stage=None):
         self.name = path
-        # immediate predecessors (sources) for the Stage of this Stack
-        self.prevs = []
+        self.stage_names = path.split(".")
+        self.stages = [self._find_stage(name)
+                       for name in self.stage_names]
 
         cfg = ymp.get_config()
-        registry = Stage.get_registry()
-        stage_names = path.split(".")
 
-        # project for this stage stack
-        self.project = cfg.projects.get(stage_names[0])
-        if not self.project:
+        # determine project
+        bottom_stage = self.stage_names[0]
+        if bottom_stage in cfg.projects:
+            self.project = cfg.projects[bottom_stage]
+        elif bottom_stage in cfg.pipelines:
+            self.project = cfg.pipelines[bottom_stage].project
+        else:
             raise YmpStageError(f"No project for stage stack {path} found")
 
+        # determine top stage
+        stage_names = copy(self.stage_names)
         top_stage = stage_names.pop()
         if stage:
             if not stage.match(top_stage):
@@ -89,33 +117,48 @@ class StageStack(object):
             stage = self._find_stage(top_stage)
         self.stage = stage
 
-        self.path = getattr(stage, "dir", path)
-
+        # determine grouping
         self.group = getattr(stage, "group", None)
         if stage_names and stage_names[-1].startswith("group_"):
             self.group = [stage_names.pop().split("_")[1]]
 
-        # gather prev stage stacks for this stack, going backwards
-        # through stack until all inputs have been satisfied
-        inputs = set(self.stage.inputs)
-        while stage_names and inputs:
-            path = ".".join(stage_names)
-            stage = self._find_stage(stage_names.pop())
-            if not stage:
-                continue
-            stack = self.get(path, stage)
-            provides = inputs.intersection(stack.outputs)
-            if provides:
-                inputs -= provides
-                self.prevs.append(stack)
+        # collect inputs
+        self.prevs = self.resolve_prevs()
+
+        if self.group is None:
+            groups = list(dict.fromkeys(
+                group
+                for p in reversed(list(self.prevs.values()))
+                for group in p.group
+            ))
+            self.group = self.project.minimize_variables(groups)
+
+        log.info("Stage stack %s using column %s", self, self.group)
+        prevmap = dict()
+        for typ, stack in self.prevs.items():
+            prevmap.setdefault(str(stack), []).append(typ)
+        for stack, typ in prevmap.items():
+            ftypes = ", ".join(typ).replace("/{sample}", "*")
+            title = stack.split(".")[-1]
+            if self.stage_names.count(title)  != 1:
+                title = stack
+            log.info(f".. from {title}: {ftypes}")
+
+    def resolve_prevs(self):
+        inputs = self.stage.get_inputs()
+        stage = self.stage
+
+        prevs = self._do_resolve_prevs(stage, inputs, exclude_self=True)
 
         if inputs:
+            registry = Stage.get_registry()
+
             # Can't find the right types, try to present useful error message:
             words = []
-            for suffix in inputs:
-                words.extend((suffix, "--"))
+            for item in inputs:
+                words.extend((item, "--"))
                 words.extend([name for name, stage in registry.items()
-                              if suffix in stage.outputs])
+                              if stage.can_provide(set(item))])
                 words.extend('\n')
             text = ' '.join(words)
 
@@ -127,25 +170,44 @@ class StageStack(object):
                 {text}
                 """
             )
+        return prevs
 
-        if self.group is None:
-            groups = list(dict.fromkeys(group
-                                        for p in reversed(self.prevs)
-                                        for group in p.group))
-            self.group = self.project.minimize_variables(groups)
+    def _do_resolve_prevs(self, stage, inputs, exclude_self):
+        stage_names = copy(self.stage_names)
+        if exclude_self:
+            stage_names.pop()
+
+        prevs = {}
+        while stage_names and inputs:
+            path = ".".join(stage_names)
+            prevstage = self._find_stage(stage_names.pop())
+            if hasattr(prevstage, 'stagestack'):
+                prevs.update(
+                    prevstage.stagestack._do_resolve_prevs(
+                        stage, inputs, exclude_self=False
+                    )
+                )
+            else:
+                prevstack = self.get(path, prevstage)
+                provides = stage.satisfy_inputs(prevstage, inputs)
+                for typ in provides:
+                    prevs[typ] = prevstack
+        return prevs
 
     def _find_stage(self, name):
         cfg = ymp.get_config()
         registry = Stage.get_registry()
 
         if name.startswith("group_"):
-            return None  ## fails FIXME
+            return GroupBy(name)
         if name.startswith("ref_"):
             refname = name[4:]
             if refname in cfg.ref:
                 return cfg.ref[refname]
             else:
                 raise YmpStageError(f"Unknown reference '{cfg.ref[refname]}'")
+        if name in cfg.pipelines:
+            return cfg.pipelines[name]
         for stage in registry.values():
             if stage.match(name):
                 return stage
@@ -171,8 +233,9 @@ class StageStack(object):
         return result
 
     @property
-    def outputs(self):
-        return self.stage.outputs
+    def path(self):
+        # some stage types have fixed path
+        return self.stage.get_path() or self.name
 
     @property
     def defined_in(self):
@@ -182,17 +245,14 @@ class StageStack(object):
         """
         Directory of previous stage
         """
-        item = kwargs.get('item')
-        _, _, suffix = item.partition("{:prev:}")
         if not kwargs or "wc" not in kwargs:
             raise ExpandLateException()
+
+        item = kwargs.get('item')
+        _, _, suffix = kwargs['item'].partition("{:prev:}")
         suffix = norm_wildcards(suffix)
 
-        for stack in self.prevs:
-            if suffix in stack.outputs:
-                return stack
-        raise YmpStageError(
-            f"No suffix '{suffix}' (from '{item}') in any previous stage")
+        return self.prevs[suffix]
 
     @property
     def targets(self):
@@ -206,7 +266,12 @@ class StageStack(object):
         prev_stage = self.prev(args, kwargs)
         prev = self.get(prev_stage.name)
         cur_target = kwargs['wc'].target
-        return self.project.get_ids(prev.group, self.group, cur_target)
+        try:
+            target = self.project.get_ids(prev.group, self.group, cur_target)
+        except e:
+            log.exception("failed getting id")
+            raise
+        return target
 
 
 class Stage(WorkflowObject):
@@ -248,6 +313,7 @@ class Stage(WorkflowObject):
         # Input / Output types
         self.inputs = set()
         self.outputs = set()
+        self.requires = None
         # Regex matching self
         self._regex = None
 
@@ -313,6 +379,9 @@ class Stage(WorkflowObject):
         return (f"{self.__class__.__name__} {self!s} "
                 f"({self.filename}:{self.lineno})")
 
+    def get_path(self, suffix=None):
+        return None
+
     def _add_rule(self, rule):
         rule.ymp_stage = self
         # FIXME: disabled because it breaks pickling of Stage
@@ -345,6 +414,42 @@ class Stage(WorkflowObject):
             self.params.append(ParamChoice(self, key, name, value, default))
         else:
             raise YmpRuleError(self, f"Unknown Stage Parameter type '{typ}'")
+
+    def require(self, **kwargs):
+        """Override inferred stage inputs
+
+        In theory, this should not be needed. But it's simpler for now.
+        """
+        self.requires = kwargs
+
+    def get_inputs(self):
+        if not self.requires:
+            return copy(self.inputs)
+        return copy(self.requires)
+
+    def satisfy_inputs(self, other_stage, inputs):
+        if not self.requires: # inputs is set
+            provides = other_stage.can_provide(inputs)
+            inputs -= provides
+            return provides
+
+        provides = set()
+        keys = set()
+        for key, input_alts in inputs.items():
+            for input_alt in input_alts:
+                have = other_stage.can_provide(set(
+                    "/{{sample}}.{}".format(ext) for ext in input_alt
+                ))
+                if len(have) == len(input_alt):
+                    provides.update(have)
+                    keys.add(key)
+                    break
+        for key in keys:
+            del inputs[key]
+        return provides
+
+    def can_provide(self, inputs):
+        return inputs.intersection(self.outputs)
 
     def wc2path(self, wc):
         wildcards = self.wildcards()
@@ -454,9 +559,10 @@ class StageExpander(ColonExpander):
             try:
                 return self.get_value_(key, args, kwargs)
             except Exception as e:
-                if not isinstance(e, ExpandLateException):
-                    log.warning(f"key={key} args={args} kwargs={kwargs}",
-                                exc_info=True)
+                if False and not isinstance(e, ExpandLateException):
+                    log.debug(f"Failed to get value: "
+                              f"key={key} args={args} kwargs={kwargs}",
+                              exc_info=True)
                 raise
 
         def get_value_(self, key, args, kwargs):

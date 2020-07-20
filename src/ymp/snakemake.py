@@ -83,17 +83,14 @@ class ExpandLateException(Exception):
     pass
 
 
-class CircularReferenceException(RuleException):
+class CircularReferenceException(YmpRuleError):
     """Exception raised if parameters in rule contain a circular reference"""
-    def __init__(self, deps, rule, include=None, lineno=None, snakefile=None):
+    def __init__(self, deps, rule):
         nodes = [n[0] for n in networkx().find_cycle(deps)]
-        message = "Circular reference in rule {}:\n{}".format(
+        message = "Circular reference in rule {}\n'{}'".format(
             rule, " => ".join(nodes + [nodes[0]]))
-        super().__init__(message=message,
-                         include=include,
-                         lineno=lineno,
-                         snakefile=snakefile,
-                         rule=rule)
+        rule.filename = rule.snakefile
+        super().__init__(rule, message)
 
 
 class InheritanceException(RuleException):
@@ -505,7 +502,7 @@ class BaseExpander(object):
             expand_args = {}
         debug = ymp.print_rule or getattr(rule, "_ymp_print_rule", False)
         if debug:
-            log.debug("{}{} {} {} in rule {} with args {}"
+            log.debug("{}{}: ({}) {} in rule {} with args {}"
                       "".format(" "*rec*4, type(self).__name__,
                                 type(item).__name__, item, rule, expand_args))
         if item is None:
@@ -521,13 +518,12 @@ class BaseExpander(object):
         elif isinstance(item, dict):
             item = self.expand_dict(rule, item, expand_args, rec)
         elif isinstance(item, list):
-            item = self.expand_list(rule, item, expand_args, rec)
+            item = self.expand_list(rule, item, expand_args, rec, cb)
         elif isinstance(item, tuple):
-            item = self.expand_tuple(rule, item, expand_args, rec)
+            item = self.expand_tuple(rule, item, expand_args, rec, cb)
         else:
-            raise ValueError("unable to expand item '{}' with args '{}'"
-                             "".format(repr(item),
-                                       repr(expand_args)))
+            log.debug("Not expanding item '{}' of type {}".format(
+                repr(item), type(item)))
 
         if debug:
             log.debug("{}=> {} {}"
@@ -569,7 +565,7 @@ class BaseExpander(object):
             res = self.expand(rule, item(*args, **kwargs),
                               expand_args={'wc': args[0]}, rec=rec, cb=True)
             if debug:
-                log.debug("{}=> {}".format(" "*rec*4, res))
+                log.debug("{}=> '{}'".format(" "*rec*4, res))
             return res
         return late_expand
 
@@ -598,7 +594,9 @@ class BaseExpander(object):
         return wrapper
 
     def expand_dict(self, rule, item, expand_args, rec):
+        path = expand_args.get('path', list())
         for key, value in item.items():
+            expand_args['path'] = path + [key]
             value = self.expand(rule, value, expand_args=expand_args, rec=rec)
 
             # Snakemake can't have functions in lists in dictionaries.
@@ -609,13 +607,17 @@ class BaseExpander(object):
                 item[key] = value
         return item
 
-    def expand_list(self, rule, item, expand_args, rec):
-        return [self.expand(rule, subitem, expand_args=expand_args, rec=rec)
-                for subitem in item]
+    def expand_list(self, rule, item, expand_args, rec, cb):
+        path = expand_args.get('path', list())
+        res = list()
+        for n, subitem in enumerate(item):
+            expand_args['path'] = path + [str(n)]
+            res.append(self.expand(rule, subitem, expand_args=expand_args,
+                                   rec=rec, cb=cb))
+        return res
 
-    def expand_tuple(self, rule, item, expand_args, rec):
-        return tuple(self.expand(rule, subitem, expand_args=expand_args, rec=rec)
-                     for subitem in item)
+    def expand_tuple(self, rule, item, expand_args, rec, cb):
+        return tuple(self.expand_list(rule, item, expand_args, rec, cb))
 
 
 class SnakemakeExpander(BaseExpander):
@@ -630,7 +632,7 @@ class SnakemakeExpander(BaseExpander):
 
     def format(self, item, *args, **kwargs):
         if 'wc' in kwargs:
-            return apply_wildcards(item, kwargs['wc'])
+            item = apply_wildcards(item, kwargs['wc'])
         return item
 
 
@@ -775,7 +777,7 @@ class RecursiveExpander(BaseExpander):
                 if deps.out_degree(node) > 0 and 'core' in deps.nodes[node]
             ]))
         except networkx().NetworkXUnfeasible:
-            raise CircularReferenceException(deps, rule)
+            raise CircularReferenceException(deps, rule) from None
 
         # expand variables
         for node in nodes:

@@ -19,15 +19,16 @@ with Stage("index_bowtie2") as S:
             8
         log:
             "{:this:}/{target}.btbuild.log"
+        benchmark:
+            "benchmarks/bowtie2_index/{:this:}/{target}.txt"
         conda:
             "bowtie2"
-        shell:"""
-        bowtie2-build-s \
-          {input} \
-          {params.bt2_base} \
-          --threads {threads} \
-          >& {log}
-        """
+        shell:
+            "bowtie2-build-s"
+            " {input}"
+            " {params.bt2_base}"
+            " --threads {threads}"
+            " >& {log}"
 
     rule bowtie2_index_all:
         message:
@@ -48,38 +49,33 @@ with Stage("map_bowtie2") as S:
     """)
     rule bowtie2_map:
         message:
-            "Bowtie2: Mapping {input.fq[0]} to {input.fa}"
+            "Bowtie2: Mapping {input.fq[0]} to {params.bt2_base}"
         input:
             fq    =        "{:prev:}/{:target:}.{:pairnames:}.fq.gz",
-            fa    =        "{:prev:}/{:target:}.fasta.gz",
             index = expand("{{:prev:}}/{{:target:}}.{ext}", ext=BT2IDX_SUFFIXES)
         output:
-            bam   = temp(  "{:this:}/{target}.bam"),
-            stats =        "{:this:}/{target}.stats"
+            bam   = temp(  "{:this:}/{target}.bam")
         log:
                            "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/bowtie2_map/{:this:}/{target}.txt"
         params:
-            maxins = 800,
-            k      = 100,  # max number of secondary alignments
+            bt2_base = lambda wc, input: input.index[0][:-len(BT2IDX_SUFFIXES[0])-1],
+            maxins = 800,  # default 500
             mem    = icfg.mem("8g"),
             read2  = "-2 {input.fq[1]}"
         threads:
             16
         conda:
             "bowtie2"
-        shell:"""
-        INDEX={input.index[0]}
-        INDEX="${{INDEX%.1.bt2}}"
-        bowtie2 \
-            -x "$INDEX" \
-            -1 {input.fq[0]} {params.read2} \
-            -X {params.maxins} \
-            --met-file {output.stats} \
-            -k {params.k} \
-            -p {threads} \
-            2>{log} \
-            | samtools view -b -o {output.bam} -
-        """
+        shell:
+            "bowtie2 "
+            " -x {params.bt2_base}"
+            " -1 {input.fq[0]} {params.read2} "
+            " -X {params.maxins} "
+            " -p {threads} "
+            " 2>{log} "
+            " | samtools view -b -o {output.bam} -"
 
     rule bowtie2_map_SE: # ymp: extends bowtie2_map
         input:

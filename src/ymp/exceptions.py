@@ -58,7 +58,7 @@ class YmpRuleError(YmpNoStackException):
         super().__init__(msg)
 
     def show(self) -> None:
-        echo('Error in line %i of %s: %s' % (self.obj.lineno,
+        echo('Error in line %i of %s:\n%s' % (self.obj.lineno,
                                              self.obj.filename,
                                              self.format_message()),
              err=True)

@@ -1,0 +1,46 @@
+Env(name="fastq-multx", base="bioconda", packages=["fastq-multx", "pigz"])
+
+with Stage("split_library") as S:
+    S.doc("""
+    Demultiplexes amplicon sequencing files
+    
+    This rule is treated specially. If a configured project specifies
+    a ``barcode_col``, reads from the file (or files) are used in combination 
+    with 
+    """)
+    rule fastq_multix:
+        message:
+            "FastQ-MultiX: Splitting library {input[1]}"
+        input:
+            lambda wc: icfg.projects[wc.project].unsplit_path(wc.barcodes, wc.pairname),
+            mapfile = "{project}/qiime_mapping.tsv"
+        output:
+            temp(directory("{project}.split_libraries/{barcodes}/{pairname}/"))
+        log:
+            "{project}.split_libraries/{barcodes}.{pairname}.log"
+        conda:
+            "fastq-multx"
+        threads:
+            1
+        shell:
+            'fastq-multx'
+            ' -B {input.mapfile}'
+            ' {input[0]}'
+            ' {input[1]}'
+            ' -o n/a'
+            ' -o {output[0]}/%.fq'
+            ' >{log} 2>&1'
+
+    rule split_library_compress_sample:
+        message:
+            "Compressing {wildcards.sample}.{wildcards.pairname}.fq.gz"
+        input:
+            "{project}.split_libraries/{barcodes}/{pairname}/"
+        output:
+            "{project}.split_libraries/{barcodes}/{sample}.{pairname}.fq.gz"
+        conda:
+            "fastq-multx"
+        threads:
+            8
+        shell: 
+            "pigz -6 -c <{input}{wildcards.sample}.fq >{output}"

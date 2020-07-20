@@ -140,8 +140,12 @@ def prepare(**kwargs):
     "--dry-run", "-n", is_flag=True,
     help="Only show what would be done"
 )
+@click.option(
+    "--force", "-f", is_flag=True,
+    help="Install environment even if it already exists"
+)
 @click.argument("ENVNAMES", nargs=-1)
-def install(conda_prefix, conda_env_spec, dry_run, envnames):
+def install(conda_prefix, conda_env_spec, dry_run, force, envnames):
     "Install conda software environments"
     if conda_env_spec is not None:
         cfg = ymp.get_config()
@@ -152,7 +156,7 @@ def install(conda_prefix, conda_env_spec, dry_run, envnames):
     for env in envs.values():
         if conda_prefix:
             env.set_prefix(conda_prefix)
-        env.create(dry_run)
+        env.create(dry_run, force)
 
 
 @env.command()

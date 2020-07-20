@@ -61,13 +61,17 @@ rule fastq_dump:
       cut -f 5-8 | tr "\t" "\\n" | pigz -p {params.p} > {output[1]}
     """
 
-with Stage("") as import_stage:
-    import_stage.add_param(typ="choice", name="project", value=list(icfg.projects.keys()),key="")
-    import_stage.doc("""
+with Stage("") as S:
+    S.doc("""
+    Imports raw read files into YMP.
+
     >>> ymp make toy
     >>> ymp make mpic
     """)
+    S.add_param(typ="choice", name="project",
+                value=list(icfg.projects.keys()),key="")
 
+    _ymp_stage_import = S
     localrules: symlink_raw_reads
     rule symlink_raw_reads:
         """Normalize FQ names by creating symlinks to original files"""
@@ -75,8 +79,8 @@ with Stage("") as import_stage:
             "Creating symlink {output} -> {input}"
         input:
             # extract path from config file:
-            lambda wc: import_stage.stack(wc).project.source_path(wc.target, 0),
-            lambda wc: import_stage.stack(wc).project.source_path(wc.target, 1)
+            lambda wc: _ymp_stage_import.stack(wc).project.source_path(wc.target, 0),
+            lambda wc: _ymp_stage_import.stack(wc).project.source_path(wc.target, 1)
         output:
             "{:this:}/{target}.{:pairnames:}.fq.gz"
         run:
@@ -89,18 +93,25 @@ with Stage("") as import_stage:
     rule symlink_raw_reads_SE: # ymp: extends symlink_raw_reads
         input:
             # extract path from config file:
-            lambda wc: import_stage.stack(wc).project.source_path(wc.target, 0)
+            lambda wc: _ymp_stage_import.stack(wc).project.source_path(wc.target, 0)
         output:
             ["{:this:}/{target}.{:pairnames[0]:}.fq.gz"]
 
     rule export_qiime_map_file:
         message:
-            "Creating Qiime map file"
+            "Creating Qiime-Style map file"
         output:
             "{:this:}/qiime_mapping.tsv"
+        params:
+            S=S
         run:
+            # Note: Do not use variables inside of "run" that are reassigned
+            #       elsewhere. This is why we pass "S" via params. Otherwise,
+            #       it would be the last assigned value of S, so likely
+            #       some other stage.
             import csv
-            project = import_stage.stack(wildcards).project
+
+            project = params.S.stack(wildcards).project
             cols = project.variables
             if "Description" in cols:
                 desc_idx = cols.index("Description")
@@ -129,59 +140,5 @@ with Stage("") as import_stage:
             touch("{:this:}/all_targets.stamp")
         input:
             "{:this:}/{:fq_names:}.fq.gz"
-
-
-with Stage("split_library"):
-    rule split_library:
-        """
-        Splits barcode indexed files into separate fq files
-        """
-        message:
-            "Splitting library (barcodes: {input[0]}, reads: {input[1]})"
-        input:
-            lambda wc: icfg.projects[wc.project].unsplit_path(wc.barcodes, wc.pairname),
-            mapping = "{project}/qiime_mapping.tsv",
-            tmpdir  = ancient(icfg.dir.tmp)
-        output:
-            outdir  = temp(directory("{project}.split_libraries/{barcodes}/{pairname}/"))
-        log:
-            "{project}.split_libraries/{barcodes}/{pairname}/split_library_log.txt",
-            "{project}.split_libraries/{barcodes}/{pairname}/split_seq_file_log.txt",
-        conda:
-            "qiime.yml"
-        shell: """
-        split_libraries_fastq.py \
-           -b {input[0]} \
-           -i {input[1]} \
-           -m {input.mapping} \
-           --store_demultiplexed_fastq \
-           --max_bad_run_length=1000000 \
-           --min_per_read_length_fraction=0.000001 \
-           --sequence_max_n=100000 \
-           --phred_quality_threshold=1 \
-           -o {output}
-
-        split_sequence_file_on_sample_ids.py \
-           -i {output}/seqs.fastq \
-           --file_type fastq \
-           -o {output} \
-           > {log[1]} 2>&1
-        """
-
-    rule split_library_compress_sample:
-        message:
-            "Compressing {wildcards.sample}.{wildcards.pairname}.fq.gz"
-        input:
-            "{project}.split_libraries/{barcodes}/{pairname}/"
-        output:
-            "{project}.split_libraries/{barcodes}/{sample}.{pairname}.fq.gz"
-        conda:
-            "pigz.yml"
-        shell: """
-        pigz -6 -c <{input}/{wildcards.sample}.fastq >{output}
-        """
-    
-
-
 
 

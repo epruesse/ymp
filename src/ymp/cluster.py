@@ -6,7 +6,7 @@ Module handling talking to cluster management systems
 
 import subprocess as sp
 import sys
-
+import re
 
 def error(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
@@ -53,7 +53,6 @@ class Slurm(ClusterMS):
         """
 
         header = None
-        jobs = []
         res = sp.run(['sacct', '-pbj', jobid], stdout=sp.PIPE)
         for line in res.stdout.decode('ascii').splitlines():
             line = line.strip().split("|")
@@ -74,9 +73,67 @@ class Slurm(ClusterMS):
             print('running')
         elif 'failed' in snakestates:
             print('failed')
-        else:
+        else: # job doesn't exist... assuming success
             print('success')
         sys.exit(0)
+
+
+class Lsf(ClusterMS):
+    "Talking to LSF"
+
+    states = {
+        'PEND': 'running',
+        'RUN': 'running',
+        'DONE': 'success',
+        'PSUSP': 'running',
+        'USUSP': 'running',
+        'SSUSP': 'running',
+        'WAIT': 'running',
+        'EXIT': 'failed',
+        'POST_DONE': 'success',
+        'POST_ERR': 'failed',
+        'UNKWN': 'running',
+    }
+
+    @staticmethod
+    def status(jobid):
+        header = None
+        jobs = []
+        res = sp.run(['bjobs', jobid], stdout=sp.PIPE, stderr=sp.PIPE)
+        for line in res.stdout.decode('ascii').splitlines():
+            if line[0] == " ":
+                continue
+            if header is None:
+                colstarts = [(x, line.index(x)) for x in line.strip().split()]
+                endcol = None
+                header = {}
+                for col in reversed(colstarts):
+                    header[col[0]] = (col[1], endcol)
+                    endcol=col[1]
+                continue
+            try:
+                start, end = header['STAT']
+                status = line[start:end].strip()
+                snakestate = Lsf.states[status]
+                print(snakestate)
+                sys.exit(0)
+            except (KeyError, ValueError) as e:
+                error(e)
+                for l in res.stdout.splitlines():
+                    print(b"STDOUT: " + l)
+                for l in res.stderr.splitlines():
+                    print(b"ERROUT: " + l)
+                raise
+
+    @staticmethod
+    def submit(args):
+        res = sp.run(['bsub'] + args, stdout=sp.PIPE)
+        match = re.search("Job <(\d+)>", res.stdout.decode('ascii'))
+        if match:
+            print(match.group(1))
+        else:
+            print(res.stdout)
+            return -1
 
 
 if __name__ == "__main__":
@@ -88,10 +145,13 @@ if __name__ == "__main__":
         Supported engines:
 
           - slurm
+          - lsf
 
         Supported commands:
 
           - status <jobid> Returns running|success|failed status for
+          - submit <args>
+
         jobid to be used by snakemake.
         """.format(self=sys.argv[0]))
         sys.exit(0 if sys.argv[1] == "-h" else 1)
@@ -101,6 +161,8 @@ if __name__ == "__main__":
 
     if engine_name == "slurm":
         engine = Slurm()
+    elif engine_name == "lsf":
+        engine = Lsf()
     else:
         error("Don't know about cluster engine named '{}'".format(engine_name))
         sys.exit(1)
@@ -110,6 +172,8 @@ if __name__ == "__main__":
             error("Status command needs exactly one argument, the job id.")
             sys.exit(1)
         engine.status(sys.argv[3])
+    if command == "submit":
+        engine.submit(sys.argv[3:])
     else:
         error("Command '{}' not understood.".format(command))
         sys.exit(1)

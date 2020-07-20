@@ -294,6 +294,7 @@ class LayeredConfProxy(MultiMapProxy):
             outfile = self._maps[layer][0]
             with open(outfile+".tmp", "w") as outstream:
                 rt_yaml.dump(self._maps[layer][1], outstream)
+            os.rename(outfile, outfile+".bkup")
             os.rename(outfile+".tmp", outfile)
 
 

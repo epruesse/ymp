@@ -10,23 +10,20 @@ directories:
     rules: 'rules'
     downloads: 'downloads'
     dynamic_envs: &dynamic_envs '.ymp/envs'
+    conda_envs: &conda_envs 'conda_envs'
     conda_prefix: '~/.ymp/conda'
     conda_archive_prefix: "~/.ymp/conda_archive"
-    conda_spec_prefix: &conda_frozen_specs "env_specs"
 
 conda:
-  # Search path for environment.yml files:
+  # If set, use frozen environments from this set
+  env_specs:
+    - *conda_envs
+    - BUILTIN:latest
+
+  # Search path for <envname>.yml files:
   env_path:
     10: "."
     20: *dynamic_envs
-
-  # If set, use frozen environments from this set
-  env_specs: latest
-
-  # Search path for archived environments:
-  archived_env_path:
-    10: "../conda_envs"
-    20: *conda_frozen_specs
 
   # Parameters for generating environments:
   defaults:
@@ -220,6 +217,14 @@ cluster:
         memory:   "--mem={params.mem}"
         walltime: "--time={params.walltime}"
       cluster_status: "python -m ymp.cluster slurm status"
+    lsf:
+      command:    "python -m ymp.cluster lsf submit"
+      args:
+        log:      "-o {:ensuredir.log:}/%J.log"
+        threads:  "-R 'span[hosts=1]' -n {threads}"
+        memory:   "-R 'select[mem>{params.mem}] rusage[mem={params.mem}]'"
+#        walltime: "-W {params.walltime}"  # [hours:]minutes - fixme check format
+      cluster_status: "python -m ymp.cluster lsf status"
 
   rule_params:
     default:

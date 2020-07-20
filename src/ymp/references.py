@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from hashlib import sha1
 from typing import Dict, Optional
 from collections.abc import Mapping, Sequence
@@ -18,10 +19,9 @@ class Archive(object):
     strip_components = None
     files = None
 
-    def __init__(self, name, dirname, stage, tar, url, strip, files):
+    def __init__(self, name, dirname, tar, url, strip, files):
         self.name = name
         self.dirname = dirname
-        self.stage = stage
         self.tar = tar
         self.url = url
         self.strip = strip
@@ -32,10 +32,10 @@ class Archive(object):
 
     def get_files(self):
         if isinstance(self.files, Sequence):
-            return {self.stage + fn: os.path.join(self.prefix, fn)
+            return {fn: os.path.join(self.prefix, fn)
                     for fn in self.files}
         elif isinstance(self.files, Mapping):
-            return {self.stage + fn_ymp: os.path.join(self.prefix, fn_arch)
+            return {fn_ymp: os.path.join(self.prefix, fn_arch)
                     for fn_ymp, fn_arch in self.files.items()}
         else:
             raise Exception("unknown data type for reference.files")
@@ -80,40 +80,67 @@ class Reference(object):
         self.cfg = cfg
         self.files = {}
         self.archives = []
+        self.inputs = set()
+        self.group = []
+
         self.dir = os.path.join(cfgmgr.dir.references,
                                 reference)
 
         for rsc in cfg:
             if isinstance(rsc, str):
                 rsc = {'url': rsc}
-            type_name = rsc.get('type', 'fasta').lower()
-            stage = rsc.get("stage", "") + "/"
-            downloaded_path = make_local_path(cfgmgr, rsc['url'])
-            if type_name == 'fasta':
-                self.files[stage + 'ALL.fasta.gz'] = downloaded_path
-            elif type_name == 'fastp':
-                self.files[stage + 'ALL.fastp.gz'] = downloaded_path
-            elif type_name == 'gtf':
-                self.files[stage + 'ALL.gtf'] = downloaded_path
-            elif type_name == 'snp':
-                self.files[stage + 'ALL.snp'] = downloaded_path
-            elif type_name == 'dir':
-                archive = Archive(name=self.name,
-                                  dirname=self.dir,
-                                  stage=stage,
-                                  tar=downloaded_path,
-                                  url=rsc['url'],
-                                  files=rsc['files'],
-                                  strip=rsc.get('strip_components', 0))
-                self.files.update(archive.get_files())
-                self.archives.append(archive)
-            else:
-                log.debug("unknown type {} used in reference {}"
-                          "".format(type_name, self.name))
+            self.add_files(rsc, make_local_path(cfgmgr, rsc['url']))
 
-        self.outputs = set(f.replace("ALL", "{sample}") for f in self.files)
-        self.inputs = set()
-        self.group = ["ALL"]
+        self.outputs = set("/" + f.replace("ALL", "{sample}") for f in self.files)
+        self.group = self.group or ["ALL"]
+
+    def add_files(self, rsc, local_path):
+        type_name = rsc.get('type', 'fasta').lower()
+
+        if type_name == 'fasta':
+            self.files['ALL.fasta.gz'] = local_path
+        elif type_name == 'fastp':
+            self.files['ALL.fastp.gz'] = local_path
+        elif type_name == 'gtf':
+            self.files['ALL.gtf'] = local_path
+        elif type_name == 'snp':
+            self.files['ALL.snp'] = local_path
+        elif type_name == 'tsv':
+            self.files['ALL.tsv'] = local_path
+        elif type_name == 'csv':
+            self.files['ALL.csv'] = local_path
+        elif type_name == 'dir':
+            archive = Archive(name=self.name,
+                              dirname=self.dir,
+                              tar=local_path,
+                              url=rsc['url'],
+                              files=rsc['files'],
+                              strip=rsc.get('strip_components', 0))
+            self.files.update(archive.get_files())
+            self.archives.append(archive)
+        elif type_name == 'dirx':
+            self.files.update({
+                key: local_path + val
+                for key, val in rsc.get('files', {}).items()
+            })
+        elif type_name == 'path':
+            self.dir = rsc['url'].rstrip('/')
+            self.group = rsc.get('group', [])
+            for filename in os.listdir(rsc['url']):
+                for regex in rsc.get('match', []):
+                    match = re.fullmatch(regex, filename)
+                    if not match:
+                        continue
+                    name = ''.join((
+                        filename[:match.start('sample')],
+                        'ALL',
+                        filename[match.end('sample'):]
+                    ))
+                    self.files[name] = rsc['url'] + filename
+        else:
+            log.debug("unknown type {} used in reference {}"
+                      "".format(type_name, self.name))
+
 
     @property
     def defined_in(self):
@@ -122,10 +149,15 @@ class Reference(object):
     def match(self, name):
         return name == self.name
 
-    def get_file(self, filename, stage):
-        downloaded_path = self.files.get(stage + "/" + filename)
-        if downloaded_path:
-            return downloaded_path
+    def get_path(self, suffix=None):
+        return self.dir
+
+    def get_file(self, filename):
+        local_path = self.files.get(filename)
+        if local_path:
+            return local_path
+        log.error(f"{self.name}: Failed to find {filename}")
+        log.warning(f"  Available: {self.files}")
         return ("YMP_FILE_NOT_FOUND__" +
                 "No file {} in Reference {}"
                 "".format(filename, self.name).replace(" ", "_"))
@@ -136,3 +168,9 @@ class Reference(object):
 
     def __str__(self):
         return os.path.join(self.dir, "ALL")
+
+    def can_provide(self, inputs):
+        return inputs.intersection(self.outputs)
+
+    def get_inputs(self):
+        return set()
