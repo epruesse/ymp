@@ -565,7 +565,7 @@ class Project(Stage):
 
     def encode_barcode_path(self, barcode_file, run, pair):
         if barcode_file:
-            barcode_id = barcode_file.replace("_", "__").replace("/", "_%")
+            barcode_id = barcode_file.replace("_", "__").replace("/", "_x_")
             return (
                 "{project}.split_libraries/{barcodes}/{run}.{pair}.fq.gz"
                 "".format(
@@ -576,7 +576,7 @@ class Project(Stage):
             )
 
     def unsplit_path(self, barcode_id, pairname):
-        barcode_file = barcode_id.replace("_%", "/").replace("__", "_")
+        barcode_file = barcode_id.replace("_x_", "/").replace("__", "_")
         pair = self.pairnames.index(pairname)
 
         run = self.data.get(self.bccol, barcode_file, self.idcol)[0]
