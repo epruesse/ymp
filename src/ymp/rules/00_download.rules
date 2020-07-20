@@ -60,11 +60,9 @@ with Stage("references") as S:
         message:
             "Preparing {output}"
         input:
-            files = lambda wc: icfg.ref[wc.refname].get_file(wc.path, wc.stage)
+            files = lambda wc: icfg.ref[wc.refname].get_file(wc.path)
         output:
-            "{:dir.references:}/{refname}{stage}/{path}"
-        wildcard_constraints:
-            stage = r"(\.[^/]+|)"
+            "{:dir.references:}/{refname}/{path}"
         run:
             if isinstance(input.files, str):
                 infile = input.files
