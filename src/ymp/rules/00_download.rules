@@ -113,3 +113,19 @@ with Stage("references") as S:
         for unpack_rule in icfg.ref[ref].make_unpack_rules(workflow._rules['unpack_archive']):
             unpack_rule
 
+
+with Stage("pipelines") as S:
+    S.doc("""
+    This is a virtual stage. It contains rules for symlinking pipeline results.
+    """)
+    localrules: pipeline_link
+    rule pipeline_link:
+        output:
+            touch("{pipename}/all_targets.stamp")
+        input:
+            lambda wc: icfg.pipelines[wc.pipename].stagestack.name  + "/all_targets.stamp"
+        run:
+            pipedir = os.path.dirname(input[0])
+            outdir = os.path.dirname(output[0])
+            os.symlink(os.path.relpath(pipedir, outdir),
+                       os.path.join(outdir, pipedir))

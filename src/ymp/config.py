@@ -9,6 +9,7 @@ import ymp.yaml
 from ymp.common import AttrDict, Cache, MkdirDict, parse_number
 from ymp.env import CondaPathExpander
 from ymp.exceptions import YmpSystemError
+from ymp.pipelines import Pipeline
 from ymp.projects import Project
 from ymp.references import Reference
 from ymp.snakemake import \
@@ -90,6 +91,7 @@ class ConfigMgr(object):
     """
     KEY_PROJECTS = 'projects'
     KEY_REFERENCES = 'references'
+    KEY_PIPELINES = 'pipelines'
     CONF_FNAME = 'ymp.yml'
     CONF_DEFAULT_FNAME = ymp._defaults_file
     CONF_USER_FNAME = os.path.expanduser("~/.ymp/ymp.yml")
@@ -198,6 +200,13 @@ class ConfigMgr(object):
             dependfiles=conffiles
         )
 
+        self.pipelines = cache.get_cache(
+            "pipelines",
+            itemloadfunc=Pipeline,
+            itemdata=self._config.get(self.KEY_PIPELINES) or {},
+            dependfiles=conffiles
+        )
+
         self._workflow = ExpandableWorkflow.register_expanders(
             SnakemakeExpander(),
             RecursiveExpander(),
@@ -218,6 +227,13 @@ class ConfigMgr(object):
         Configure references
         """
         return self.references
+
+    @property
+    def pipeline(self):
+        """
+        Configure pipelines
+        """
+        return self.pipelines
 
     @property
     def pairnames(self):
