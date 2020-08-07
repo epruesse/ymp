@@ -10,8 +10,6 @@ class Pipeline(object):
     """
     Represents a subworkflow or pipeline
     """
-
-
     def __init__(self, pipeline, cfg):
         self.name = pipeline
         self.stages = cfg

@@ -521,25 +521,28 @@ class Project(Stage):
 
         return source_config
 
-    def source_path(self, run, pair, nosplit=False):
+    def raw_reads_source_path(self, args, kwargs):
+        return self.source_path(*args)
+
+    def source_path(self, target, pair, nosplit=False):
         """Get path for FQ file for ``run`` and ``pair``"""
-        source = self.source_cfg.get(run)
+        source = self.source_cfg.get(target)
         cfg = ymp.get_config()
         if not source:
             raise YmpConfigError(self.cfg,
-                                 "No run '{}' in source config".format(run))
+                                 "No run '{}' in source config".format(target))
 
         if isinstance(pair, str):
             pair = self.pairnames.index(pair)
 
         if self.bccol and not nosplit:
-            barcode_file = self.data.get(self.idcol, run, self.bccol)[0]
+            barcode_file = self.data.get(self.idcol, target, self.bccol)[0]
             if barcode_file:
-                return self.encode_barcode_path(barcode_file, run, pair)
+                return self.encode_barcode_path(barcode_file, target, pair)
 
         kind = source[0]
         if kind == 'srr':
-            srr = self.data.get(self.idcol, run, source[1])[0]
+            srr = self.data.get(self.idcol, target, source[1])[0]
             f = os.path.join(cfg.dir.scratch,
                              "SRR",
                              "{}_{}.fastq.gz".format(srr, pair+1))
@@ -549,9 +552,9 @@ class Project(Stage):
         if not isinstance(fq_col, str):
             return (
                 "Configuration Error: no source for sample {} and read {} "
-                "found.".format(run, pair+1))
+                "found.".format(target, pair+1))
 
-        fn = self.data.get(self.idcol, run, fq_col)[0]
+        fn = self.data.get(self.idcol, target, fq_col)[0]
         if kind == 'file':
             return fn
 
@@ -561,7 +564,7 @@ class Project(Stage):
         raise YmpConfigError(
             self.cfg,
             "Configuration Error: no source for sample {} and read {} found."
-            "".format(run, pair+1))
+            "".format(target, pair+1))
 
     def encode_barcode_path(self, barcode_file, run, pair):
         if barcode_file:
