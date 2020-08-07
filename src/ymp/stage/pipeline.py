@@ -1,17 +1,19 @@
 import logging
 
 from ymp.stage import StageStack
+from ymp.stage.base import ConfigStage
 from ymp.exceptions import YmpConfigError
+
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-class Pipeline(object):
+class Pipeline(ConfigStage):
     """
     Represents a subworkflow or pipeline
     """
-    def __init__(self, pipeline, cfg):
-        self.name = pipeline
+    def __init__(self, name, cfg):
+        super().__init__(name, cfg)
         self.stages = cfg
         self.stagestack = StageStack.get(".".join(self.stages))
 
@@ -38,12 +40,6 @@ class Pipeline(object):
             return cfg.pipelines[self.stages[0]].project
         raise YmpConfigError(self.stages, "Pipeline must start with project")
 
-    def __str__(self):
-        return self.name
-
-    def __repr__(self):
-        return f"{self.__class__.__name__} {self!s}"
-
     def get_path(self, suffix=None):
         return self.name
 
@@ -55,8 +51,3 @@ class Pipeline(object):
     def stamp(self):
         return self.dir + "/all_targets.stamp"
 
-    def can_provide(self, inputs):
-        return inputs.intersection(self.outputs)
-
-    def get_inputs(self):
-        return set()

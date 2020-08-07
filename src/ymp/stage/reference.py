@@ -7,6 +7,7 @@ from collections.abc import Mapping, Sequence
 
 from ymp.snakemake import make_rule
 from ymp.util import make_local_path
+from ymp.stage.base import ConfigStage
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -67,24 +68,22 @@ class Archive(object):
         )
 
 
-class Reference(object):
+class Reference(ConfigStage):
     """
     Represents (remote) reference file/database configuration
     """
     ONEFILE = "ALL.contigs"
 
-    def __init__(self, reference, cfg):
-        self.name = "ref_" + reference
-        import ymp
-        cfgmgr = ymp.get_config()
-        self.cfg = cfg
+    def __init__(self, name, cfg):
+        super().__init__("ref_" + name, cfg)
         self.files = {}
         self.archives = []
-        self.inputs = set()
         self.group = []
 
-        self.dir = os.path.join(cfgmgr.dir.references,
-                                reference)
+        import ymp
+        cfgmgr = ymp.get_config()
+
+        self.dir = os.path.join(cfgmgr.dir.references, self.name)
 
         for rsc in cfg:
             if isinstance(rsc, str):
@@ -142,13 +141,6 @@ class Reference(object):
                       "".format(type_name, self.name))
 
 
-    @property
-    def defined_in(self):
-        return self.cfg.get_files()
-
-    def match(self, name):
-        return name == self.name
-
     def get_path(self, suffix=None):
         return self.dir
 
@@ -168,9 +160,3 @@ class Reference(object):
 
     def __str__(self):
         return os.path.join(self.dir, "ALL")
-
-    def can_provide(self, inputs):
-        return inputs.intersection(self.outputs)
-
-    def get_inputs(self):
-        return set()

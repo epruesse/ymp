@@ -7,7 +7,7 @@ import sqlite3
 import ymp
 from ymp.common import ensure_list
 from ymp.exceptions import YmpConfigError, YmpStageError
-from ymp.stage import Stage
+from ymp.stage.base import ConfigStage
 from ymp.util import is_fq, make_local_path
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -298,7 +298,7 @@ class SQLiteProjectData(object):
         return result
 
 
-class Project(Stage):
+class Project(ConfigStage):
     """Contains configuration for a source dataset to be processed"""
     KEY_DATA = 'data'
     KEY_IDCOL = 'id_col'
@@ -313,16 +313,9 @@ class Project(Stage):
     RE_SRR = re.compile(r"^[SED]RR[0-9]+$")
     RE_FILE = re.compile(r"^(?!http://).*(?:fq|fastq)(?:|\.gz)$")
 
-    def __init__(self, project, cfg):
-        # Fixme: put line in config here
-        self.filename = "fn"
-        self.lineno = 0
-        # triggers early workflow load, breaking things... :/
-        # super().__init__(project)
-        self.project = project
-        self.name = project
+    def __init__(self, name, cfg):
+        super().__init__(name, cfg)
         self.altname = None
-        self.cfg = cfg
         self.pairnames = ymp.get_config().pairnames
         self.fieldnames = None
         self._data = None
@@ -331,18 +324,13 @@ class Project(Stage):
         self.bccol = cfg.get(self.KEY_BCCOL)
         self.outputs = set(("/{sample}.R1.fq.gz", "/{sample}.R2.fq.gz",
                             "/{:samples:}.R1.fq.gz", "/{:samples:}.R2.fq.gz"))
-        self.inputs = set()
 
         if self.KEY_DATA not in self.cfg:
             raise YmpConfigError(
                 self.cfg, "Missing key '{}'".format(self.KEY_DATA))
 
     def __repr__(self):
-        return "{}(project={})".format(self.__class__.__name__, self.project)
-
-    @property
-    def defined_in(self):
-        return self.cfg.get_files()
+        return "{}(project={})".format(self.__class__.__name__, self.name)
 
     @property
     def data(self):
@@ -572,7 +560,7 @@ class Project(Stage):
             return (
                 "{project}.split_libraries/{barcodes}/{run}.{pair}.fq.gz"
                 "".format(
-                    project=self.project,
+                    project=self.name,
                     barcodes=barcode_id,
                     run=run,
                     pair=self.pairnames[pair])

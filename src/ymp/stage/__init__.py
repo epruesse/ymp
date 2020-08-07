@@ -12,21 +12,9 @@ YMP processes data in stages, each of which is contained in its own directory.
 
 """
 
-import logging
-import re
-from typing import TYPE_CHECKING
-from copy import copy
-
-import ymp
-from ymp.exceptions import YmpException, YmpRuleError, YmpStageError
-from ymp.snakemake import ColonExpander, ExpandLateException, WorkflowObject
-
-
-if TYPE_CHECKING:
-    from typing import List
-    from snakemake.rules import Rule
-
 from ymp.stage.stack import StageStack
+
+from ymp.stage.base import BaseStage, ConfigStage
 from ymp.stage.stage import Stage
 from ymp.stage.pipeline import Pipeline
 from ymp.stage.reference import Reference
