@@ -74,6 +74,10 @@ class MultiProxy(object):
     def get_files(self):
         return [fn for fn, layer in self._maps]
 
+    def get_linenos(self):
+        return [layer._yaml_line_col.line
+                for fn, layer in self._maps]
+
     def to_yaml(self, show_source=False):
         buf = io.StringIO()
         if show_source:
