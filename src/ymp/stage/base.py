@@ -48,6 +48,14 @@ class BaseStage(object):
         """Determines which of ``inputs`` this stage can provide"""
         return inputs.intersection(self.outputs)
 
+    def get_path(self):
+        """On disk location for this stage.
+
+        Returns:
+          Path to fixed location for this stage or None.
+        """
+        return None
+
 
 class ConfigStage(BaseStage):
     """Base for stages created via configuration

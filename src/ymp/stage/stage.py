@@ -110,9 +110,6 @@ class Stage(WorkflowObject, BaseStage):
         return (f"{self.__class__.__name__} {self!s} "
                 f"({self.filename}:{self.lineno})")
 
-    def get_path(self, suffix=None):
-        return None
-
     def _add_rule(self, rule):
         rule.ymp_stage = self
         # FIXME: disabled because it breaks pickling of Stage
