@@ -186,18 +186,27 @@ class PandasProjectData(object):
         return list(self.df[col])
 
     def groupby_dedup(self, cols):
-        skip = set()
-        result = []
+        """Return non-redundant identifying subset of cols
+        """
+        identifiers = []
+        redundant = set()
         df = self.df
         for g in cols:
-            if g in skip:
+            # Skip columns we found redundant with previously
+            # selected columns
+            if g in redundant:
                 continue
-            result.append(g)
-            # get columns constant for current g
-            rcols = set(df.columns[df.groupby(result).agg('nunique').eq(1).all()])
-            # mark redundant columns
-            skip |= rcols
-        return result
+            # Add current column to identifier list
+            identifiers.append(g)
+            # Group data by identifying colummns, then count unique
+            # values for all other columns. Mark as True those that
+            # are exatly one.
+            colidx = df.groupby(identifiers, as_index=False).agg('nunique').eq(1).all()
+            # Extract names
+            rcols = set(df.columns[colidx])
+            # Add to redundant set
+            redundant |= rcols
+        return identifiers
 
 
 class SQLiteProjectData(object):
