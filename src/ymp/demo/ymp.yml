@@ -39,3 +39,13 @@ overrides:
 limits:
   max_mem: '3G'
 
+pipelines:
+  toy_metagenome:
+    - toy
+    - assemble_megahit
+    - index_bowtie2
+    - map_bowtie2
+  toy_coverage:
+    - toy_metagenome
+    - sort_bam
+

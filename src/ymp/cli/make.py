@@ -72,7 +72,7 @@ class TargetParam(click.ParamType):
             try:
                 stackobj = StageStack.get(stack)
             except YmpStageError as e:
-                debug(e.format_message())
+                debug(e.format_message().replace("{", "{{").replace("}", "}}"))
                 return []
             debug("stacko = {}", repr(stack))
             options = stackobj.complete(tocomplete)

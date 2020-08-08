@@ -48,6 +48,8 @@ class Stage(WorkflowObject, BaseStage):
         self.register()
         # Rules in this stage
         self.rules: List[Rule] = []
+        # Inputs required by stage
+        self._inputs: Set[str] = set()
         # Stage Parameters
         self.params: List[Param] = []
         self.requires = None
@@ -153,7 +155,7 @@ class Stage(WorkflowObject, BaseStage):
 
     def get_inputs(self):
         if not self.requires:
-            return copy.copy(self.inputs)
+            return copy.copy(self._inputs)
         return copy.copy(self.requires)
 
     def satisfy_inputs(self, other_stage, inputs):
@@ -197,7 +199,7 @@ class Stage(WorkflowObject, BaseStage):
         """Gathers {:prev:} calls from rules"""
         prefix, _, suffix = kwargs.get('item').partition("{:prev:}")
         if not prefix:
-            self.inputs.add(norm_wildcards(suffix))
+            self._inputs.add(norm_wildcards(suffix))
         return None
 
     def this(self, args=None, kwargs=None):

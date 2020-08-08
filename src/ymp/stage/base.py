@@ -26,9 +26,6 @@ class BaseStage(object):
         #: Docstring describing stage
         self.docstring = doc
         
-        #: Inputs required by stage
-        self.inputs: Set[str] = set()
-
         #: Outputs provided by stage
         self.outputs: Set[str] = set()
 

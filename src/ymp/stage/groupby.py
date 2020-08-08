@@ -12,8 +12,3 @@ class GroupBy(BaseStage):
     def can_provide(self, inputs):
         # group_xxx does not privide anything
         return set()
-
-    @property
-    def outputs(self):
-        return set()
-

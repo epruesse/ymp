@@ -1,3 +1,9 @@
+"""Pipelines Module
+
+Contains classes for pre-configured pipelines comprising multiple
+stages.
+"""
+
 import logging
 
 from ymp.stage import StageStack
@@ -24,14 +30,15 @@ class Pipeline(ConfigStage):
             stage = self.stagestack._find_stage(stage_names.pop())
             if not stage:
                 continue
-            for fn in stage.outputs:
-                if fn not in self.output_map:
-                    self.output_map[fn] = path
-
-        self.inputs = set()
+            for fname in stage.outputs:
+                if fname not in self.output_map:
+                    self.output_map[fname] = path
 
     @property
     def project(self):
+        """
+
+        """
         import ymp
         cfg = ymp.get_config()
         if self.stages[0] in cfg.projects:
@@ -50,4 +57,3 @@ class Pipeline(ConfigStage):
     @property
     def stamp(self):
         return self.dir + "/all_targets.stamp"
-

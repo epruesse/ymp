@@ -72,8 +72,6 @@ class Reference(ConfigStage):
     """
     Represents (remote) reference file/database configuration
     """
-    ONEFILE = "ALL.contigs"
-
     def __init__(self, name, cfg):
         super().__init__("ref_" + name, cfg)
         self.files = {}
@@ -83,7 +81,7 @@ class Reference(ConfigStage):
         import ymp
         cfgmgr = ymp.get_config()
 
-        self.dir = os.path.join(cfgmgr.dir.references, self.name)
+        self.dir = os.path.join(cfgmgr.dir.references, name)
 
         for rsc in cfg:
             if isinstance(rsc, str):
