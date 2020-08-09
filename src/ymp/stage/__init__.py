@@ -12,7 +12,7 @@ YMP processes data in stages, each of which is contained in its own directory.
 
 """
 
-from ymp.stage.stack import StageStack
+from ymp.stage.stack import StageStack, find_stage
 
 from ymp.stage.base import BaseStage, ConfigStage
 from ymp.stage.stage import Stage

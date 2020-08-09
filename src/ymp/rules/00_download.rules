@@ -113,19 +113,28 @@ with Stage("references") as S:
         for unpack_rule in icfg.ref[ref].make_unpack_rules(workflow._rules['unpack_archive']):
             unpack_rule
 
+def _get_pipeline_realpath(wc):
+    from ymp.stage import StageStack, Pipeline
+    link = wc.pipeline_stack_link
+    stack = StageStack.get(link)
+    if not isinstance(stack.stage, Pipeline):
+        raise IndexError
+    depends = [tgt for tgt in stack.all_targets()
+               if tgt != link]
+    return depends
 
-with Stage("pipelines") as S:
-    S.doc("""
-    This is a virtual stage. It contains rules for symlinking pipeline results.
-    """)
+if (icfg.pipelines):
     localrules: pipeline_link
     rule pipeline_link:
         output:
-            touch("{pipename}/all_targets.stamp")
+            directory("{{pipeline_stack_link,[^/]*.{}}}".format(
+                "|".join(icfg.pipelines)
+            ))
         input:
-            lambda wc: icfg.pipelines[wc.pipename].stagestack.name  + "/all_targets.stamp"
+            _get_pipeline_realpath
         run:
-            pipedir = os.path.dirname(input[0])
-            outdir = os.path.dirname(output[0])
-            os.symlink(os.path.relpath(pipedir, outdir),
-                       os.path.join(outdir, pipedir))
+            from ymp.stage import StageStack
+            os.symlink(
+                StageStack.get(output[0]).path,
+                output[0]
+            )

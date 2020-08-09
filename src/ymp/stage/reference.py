@@ -139,7 +139,7 @@ class Reference(ConfigStage):
                       "".format(type_name, self.name))
 
 
-    def get_path(self, suffix=None):
+    def get_path(self, _stack):
         return self.dir
 
     def get_file(self, filename):

@@ -5,8 +5,9 @@ stages.
 """
 
 import logging
+import os
 
-from ymp.stage import StageStack
+from ymp.stage import StageStack, find_stage
 from ymp.stage.base import ConfigStage
 from ymp.exceptions import YmpConfigError
 
@@ -20,40 +21,32 @@ class Pipeline(ConfigStage):
     """
     def __init__(self, name, cfg):
         super().__init__(name, cfg)
-        self.stages = cfg
-        self.stagestack = StageStack.get(".".join(self.stages))
-
+        self.stage_names = cfg
         self.output_map = {}
-        stage_names = list(self.stages)
-        while stage_names:
-            path = ".".join(stage_names)
-            stage = self.stagestack._find_stage(stage_names.pop())
-            if not stage:
-                continue
-            for fname in stage.outputs:
-                if fname not in self.output_map:
-                    self.output_map[fname] = path
+        path = ""
+        for stage_name in cfg:
+            stage = find_stage(stage_name)
+            path = ".".join((path, stage_name))
+            for output in stage.outputs:
+                self.output_map[output] = path
+        self.pipeline = path
 
-    @property
-    def project(self):
-        """
+    def get_path(self, stack):
+        prefix = stack.name.rsplit('.',1)[0]
+        return prefix + self.pipeline
 
-        """
-        import ymp
-        cfg = ymp.get_config()
-        if self.stages[0] in cfg.projects:
-            return cfg.projects[self.stages[0]]
-        if self.stages[0] in cfg.pipelines:
-            return cfg.pipelines[self.stages[0]].project
-        raise YmpConfigError(self.stages, "Pipeline must start with project")
-
-    def get_path(self, suffix=None):
-        return self.name
+    def get_all_targets(self, stack):
+        if os.path.exists(stack.name):
+            # WORKAROUND:
+            # If the symlink to the output of the pipeline already exists,
+            # Snakemake raises an unnecessary ChildIOException because
+            # the symlink gets resolved to the pipeline output directory
+            # before checking that no output is contained in another rule's
+            # output. See snakemake.dag.DAG.check_directory_output.
+            return super().get_all_targets(stack)
+        return super().get_all_targets(stack) + [stack.name]
 
     @property
     def outputs(self):
         return list(self.output_map.keys())
 
-    @property
-    def stamp(self):
-        return self.dir + "/all_targets.stamp"

@@ -77,12 +77,10 @@ class StageStack(object):
         cfg = ymp.get_config()
 
         # determine project
-        bottom_stage = self.stage_names[0]
-        if bottom_stage in cfg.projects:
-            self.project = cfg.projects[bottom_stage]
-        elif bottom_stage in cfg.pipelines:
-            self.project = cfg.pipelines[bottom_stage].project
-        else:
+        try:
+            self.project = cfg.projects[self.stage_names[0]]
+        except IndexError:
+            log.error("here")
             raise YmpStageError(f"No project for stage stack {path} found")
 
         # determine top stage
@@ -126,30 +124,28 @@ class StageStack(object):
     def resolve_prevs(self):
         inputs = self.stage.get_inputs()
         stage = self.stage
-
         prevs = self._do_resolve_prevs(stage, inputs, exclude_self=True)
-
         if inputs:
-            registry = Stage.get_registry()
-
-            # Can't find the right types, try to present useful error message:
-            words = []
-            for item in inputs:
-                words.extend((item, "--"))
-                words.extend([name for name, stage in registry.items()
-                              if stage.can_provide(set(item))])
-                words.extend('\n')
-            text = ' '.join(words)
-
-            raise YmpStageError(
-                f"""
-                File type(s) '{" ".join(inputs)}' required by '{self.stage}'
-                not found in '{self.name}'. Stages providing missing
-                file types:
-                {text}
-                """
-            )
+            raise YmpStageError(self._format_missing_input_error(inputs))
         return prevs
+
+    def _format_missing_input_error(self, inputs):
+        registry = Stage.get_registry()
+
+        # Can't find the right types, try to present useful error message:
+        words = []
+        for item in inputs:
+            words.extend((item, "--"))
+            words.extend([name for name, stage in registry.items()
+                          if stage.can_provide(set(item))])
+            words.extend('\n')
+        text = ' '.join(words)
+        return f"""
+        File type(s) '{" ".join(inputs)}' required by '{self.stage}'
+        not found in '{self.name}'. Stages providing missing
+        file types:
+        {text}
+        """
 
     def _do_resolve_prevs(self, stage, inputs, exclude_self):
         stage_names = copy.copy(self.stage_names)
@@ -159,18 +155,11 @@ class StageStack(object):
         prevs = {}
         while stage_names and inputs:
             path = ".".join(stage_names)
-            prevstage = find_stage(stage_names.pop())
-            if hasattr(prevstage, 'stagestack'):
-                prevs.update(
-                    prevstage.stagestack._do_resolve_prevs(
-                        stage, inputs, exclude_self=False
-                    )
-                )
-            else:
-                prevstack = self.get(path, prevstage)
-                provides = stage.satisfy_inputs(prevstage, inputs)
-                for typ in provides:
-                    prevs[typ] = prevstack
+            prev_stage = find_stage(stage_names.pop())
+            prev_stack = self.get(path, prev_stage)
+            provides = stage.satisfy_inputs(prev_stage, inputs)
+            for typ in provides:
+                prevs[typ] = prev_stack
         return prevs
 
     def complete(self, incomplete):
@@ -194,8 +183,11 @@ class StageStack(object):
 
     @property
     def path(self):
-        # some stage types have fixed path
-        return self.stage.get_path() or self.name
+        """On disk location of files provided by this stack"""
+        return self.stage.get_path(self)
+
+    def all_targets(self):
+        return self.stage.get_all_targets(self)
 
     @property
     def defined_in(self):

@@ -1,4 +1,6 @@
 import logging
+import os
+
 from typing import Set
 
 
@@ -48,13 +50,13 @@ class BaseStage(object):
         """Determines which of ``inputs`` this stage can provide"""
         return inputs.intersection(self.outputs)
 
-    def get_path(self):
+    def get_path(self, stack):
         """On disk location for this stage.
-
-        Returns:
-          Path to fixed location for this stage or None.
         """
-        return None
+        return stack.name
+
+    def get_all_targets(self, stack):
+        return [os.path.join(stack.path, "all_targets.stamp")]
 
 
 class ConfigStage(BaseStage):
