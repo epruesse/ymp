@@ -1,6 +1,6 @@
 Env(name="cdhit", base="bioconda", packages="cd-hit")
 
-with Stage("cluster_cdhit"):
+with Stage("cluster_cdhit") as S:
     S.doc("""
     Clusters protein sequences using CD-HIT
 
