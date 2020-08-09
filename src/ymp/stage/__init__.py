@@ -20,3 +20,4 @@ from ymp.stage.pipeline import Pipeline
 from ymp.stage.reference import Reference
 from ymp.stage.project import Project
 from ymp.stage.expander import StageExpander
+from ymp.stage.groupby import GroupBy
