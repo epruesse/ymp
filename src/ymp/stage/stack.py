@@ -17,6 +17,28 @@ def norm_wildcards(pattern):
     return pattern
 
 
+def find_stage(name):
+    cfg = ymp.get_config()
+    registry = Stage.get_registry()
+
+    if name.startswith("group_"):
+        return GroupBy(name)
+    if name.startswith("ref_"):
+        refname = name[4:]
+        if refname in cfg.ref:
+            return cfg.ref[refname]
+        else:
+            raise YmpStageError(f"Unknown reference '{cfg.ref[refname]}'")
+    if name in cfg.projects:
+        return cfg.projects[name]
+    if name in cfg.pipelines:
+        return cfg.pipelines[name]
+    for stage in registry.values():
+        if stage.match(name):
+            return stage
+    raise YmpStageError(f"Unknown stage '{name}'")
+
+
 class StageStack(object):
     """The "head" of a processing chain - a stack of stages
     """
@@ -49,7 +71,7 @@ class StageStack(object):
     def __init__(self, path, stage=None):
         self.name = path
         self.stage_names = path.split(".")
-        self.stages = [self._find_stage(name)
+        self.stages = [find_stage(name)
                        for name in self.stage_names]
 
         cfg = ymp.get_config()
@@ -71,7 +93,7 @@ class StageStack(object):
                 raise YmpStageError(
                     f"Internal error: {top_stage} not matched by {stage}")
         if not stage:
-            stage = self._find_stage(top_stage)
+            stage = find_stage(top_stage)
         self.stage = stage
 
         # determine grouping
@@ -137,7 +159,7 @@ class StageStack(object):
         prevs = {}
         while stage_names and inputs:
             path = ".".join(stage_names)
-            prevstage = self._find_stage(stage_names.pop())
+            prevstage = find_stage(stage_names.pop())
             if hasattr(prevstage, 'stagestack'):
                 prevs.update(
                     prevstage.stagestack._do_resolve_prevs(
@@ -150,25 +172,6 @@ class StageStack(object):
                 for typ in provides:
                     prevs[typ] = prevstack
         return prevs
-
-    def _find_stage(self, name):
-        cfg = ymp.get_config()
-        registry = Stage.get_registry()
-
-        if name.startswith("group_"):
-            return GroupBy(name)
-        if name.startswith("ref_"):
-            refname = name[4:]
-            if refname in cfg.ref:
-                return cfg.ref[refname]
-            else:
-                raise YmpStageError(f"Unknown reference '{cfg.ref[refname]}'")
-        if name in cfg.pipelines:
-            return cfg.pipelines[name]
-        for stage in registry.values():
-            if stage.match(name):
-                return stage
-        raise YmpStageError(f"Unknown stage '{name}'")
 
     def complete(self, incomplete):
         registry = Stage.get_registry()
