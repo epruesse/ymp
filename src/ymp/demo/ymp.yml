@@ -1,23 +1,40 @@
 projects:
+  # Projects configure the sequencing projects you wish to analyse
   toy:
+    # The `data` field specifies a TSV, CSV or Excel sheet containing
+    # the experiment matrix. It should have at least one column each
+    # for forward and reverse reads (if available) and an identifying
+    # (=unique) column. Additional data columns can be used for
+    # grouping data (e.g. for co-assemblies within subjects sampled
+    # multiple timees, or to merge technical replicates).
+    # The field may be a list of files, which will be concatenated.
     data: 'toy_data/toy.txt'
   mock:
     data: 'mock_data/mock.csv'
   mpic:
+    # If a barcode column is specified, this column is expected to
+    # contain the name of a barcode file for demultiplexing reads.
     barcode_col: 'barcodes'
     data:
       - paste:
+          # You can also combine files by adding columns, rather
+          # than rows. Paste assumes identical order.
           - 'mpic_data/map.tsv'
           - table:
-             - forward_reads: 'mpic_data/forward_reads.fastq.gz'
-             - barcodes: 'mpic_data/barcodes.fastq.gz'
+              # Or create a table directly within this configuration.
+              - forward_reads: 'mpic_data/forward_reads.fastq.gz'
+              - barcodes: 'mpic_data/barcodes.fastq.gz'
 
 references:
+  # References configure static reference data.
   ssu:
+    # The URL points to a single, local or remote file.
     - url: 'toy_data/ssu.fasta.gz'
   genome:
     - url: 'toy_data/reference_1K.fa.gz'
   query:
+    # If the file type cannot be deduced from the file name,
+    # you should specify it explicitly:
     - url: 'toy_data/query.faa'
       type: fastp
   primers:
@@ -25,6 +42,8 @@ references:
 
 overrides:
   rules:
+    # Override any rule parameter for all workflows
+    # executed with this configuration.
     bmtagger_bitmask:
       params:
         wordsize: 12
@@ -37,15 +56,31 @@ overrides:
         min_cls_size: 2000
 
 limits:
+  # Set resource limits. These act as minimum/maximum for build in
+  # memory requirements. Set this to the minimum and maximum memory
+  # any job may try to request. E.g. the maximum memory on any of your
+  # compute nodes, or the maximum you want to use on your local
+  # machine.
+  min_mem: '20M'
   max_mem: '3G'
 
 pipelines:
-  toy_metagenome:
-    - toy
-    - assemble_megahit
+  # Pipelines are sequential combinations of stages. Once your workflow
+  # becomes longer, this will be required to keep filename lengths
+  # below 254 characters. It also helps with the amount of typing.
+  # Warning: Change pipelines with care. Changes do not (always)
+  #          automatically lead to recomputation!
+  trim:
+    # Use as shortcut for a single stage:
+    - trim_bbmap
+  map:
+    # Use as shortcut for a few stages:
     - index_bowtie2
     - map_bowtie2
-  toy_coverage:
-    - toy_metagenome
+  assembly:
+    # Use pipelines in pipelines:
+    - trim
+    - assemble_megahit
+    - map
     - sort_bam
-
+    - coverage_samtools
