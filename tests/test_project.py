@@ -3,7 +3,7 @@ import logging
 import pytest
 
 import ymp
-from ymp.projects import SQLiteProjectData, PandasProjectData
+from ymp.stage.project import SQLiteProjectData, PandasProjectData
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 

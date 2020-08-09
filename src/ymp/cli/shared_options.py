@@ -219,7 +219,7 @@ def enable_debug(ctx, param, val):
 
 
 debug_option = click.option(
-    "--python-debug", "-P", is_flag=True,
+    "--pdb", "-P", is_flag=True,
     help="Drop into debugger on uncaught exception",
     callback=enable_debug,
     expose_value=False

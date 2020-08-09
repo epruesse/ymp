@@ -7,7 +7,7 @@ import sqlite3
 import ymp
 from ymp.common import ensure_list
 from ymp.exceptions import YmpConfigError, YmpStageError
-from ymp.stage import Stage
+from ymp.stage.base import ConfigStage
 from ymp.util import is_fq, make_local_path
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -186,18 +186,27 @@ class PandasProjectData(object):
         return list(self.df[col])
 
     def groupby_dedup(self, cols):
-        skip = set()
-        result = []
+        """Return non-redundant identifying subset of cols
+        """
+        identifiers = []
+        redundant = set()
         df = self.df
         for g in cols:
-            if g in skip:
+            # Skip columns we found redundant with previously
+            # selected columns
+            if g in redundant:
                 continue
-            result.append(g)
-            # get columns constant for current g
-            rcols = set(df.columns[df.groupby(result).agg('nunique').eq(1).all()])
-            # mark redundant columns
-            skip |= rcols
-        return result
+            # Add current column to identifier list
+            identifiers.append(g)
+            # Group data by identifying colummns, then count unique
+            # values for all other columns. Mark as True those that
+            # are exatly one.
+            colidx = df.groupby(identifiers, as_index=False).agg('nunique').eq(1).all()
+            # Extract names
+            rcols = set(df.columns[colidx])
+            # Add to redundant set
+            redundant |= rcols
+        return identifiers
 
 
 class SQLiteProjectData(object):
@@ -298,7 +307,7 @@ class SQLiteProjectData(object):
         return result
 
 
-class Project(Stage):
+class Project(ConfigStage):
     """Contains configuration for a source dataset to be processed"""
     KEY_DATA = 'data'
     KEY_IDCOL = 'id_col'
@@ -313,16 +322,9 @@ class Project(Stage):
     RE_SRR = re.compile(r"^[SED]RR[0-9]+$")
     RE_FILE = re.compile(r"^(?!http://).*(?:fq|fastq)(?:|\.gz)$")
 
-    def __init__(self, project, cfg):
-        # Fixme: put line in config here
-        self.filename = "fn"
-        self.lineno = 0
-        # triggers early workflow load, breaking things... :/
-        # super().__init__(project)
-        self.project = project
-        self.name = project
+    def __init__(self, name, cfg):
+        super().__init__(name, cfg)
         self.altname = None
-        self.cfg = cfg
         self.pairnames = ymp.get_config().pairnames
         self.fieldnames = None
         self._data = None
@@ -331,18 +333,13 @@ class Project(Stage):
         self.bccol = cfg.get(self.KEY_BCCOL)
         self.outputs = set(("/{sample}.R1.fq.gz", "/{sample}.R2.fq.gz",
                             "/{:samples:}.R1.fq.gz", "/{:samples:}.R2.fq.gz"))
-        self.inputs = set()
 
         if self.KEY_DATA not in self.cfg:
             raise YmpConfigError(
                 self.cfg, "Missing key '{}'".format(self.KEY_DATA))
 
     def __repr__(self):
-        return "{}(project={})".format(self.__class__.__name__, self.project)
-
-    @property
-    def defined_in(self):
-        return self.cfg.get_files()
+        return "{}(project={})".format(self.__class__.__name__, self.name)
 
     @property
     def data(self):
@@ -521,25 +518,28 @@ class Project(Stage):
 
         return source_config
 
-    def source_path(self, run, pair, nosplit=False):
+    def raw_reads_source_path(self, args, kwargs):
+        return self.source_path(*args)
+
+    def source_path(self, target, pair, nosplit=False):
         """Get path for FQ file for ``run`` and ``pair``"""
-        source = self.source_cfg.get(run)
+        source = self.source_cfg.get(target)
         cfg = ymp.get_config()
         if not source:
             raise YmpConfigError(self.cfg,
-                                 "No run '{}' in source config".format(run))
+                                 "No run '{}' in source config".format(target))
 
         if isinstance(pair, str):
             pair = self.pairnames.index(pair)
 
         if self.bccol and not nosplit:
-            barcode_file = self.data.get(self.idcol, run, self.bccol)[0]
+            barcode_file = self.data.get(self.idcol, target, self.bccol)[0]
             if barcode_file:
-                return self.encode_barcode_path(barcode_file, run, pair)
+                return self.encode_barcode_path(barcode_file, target, pair)
 
         kind = source[0]
         if kind == 'srr':
-            srr = self.data.get(self.idcol, run, source[1])[0]
+            srr = self.data.get(self.idcol, target, source[1])[0]
             f = os.path.join(cfg.dir.scratch,
                              "SRR",
                              "{}_{}.fastq.gz".format(srr, pair+1))
@@ -549,9 +549,9 @@ class Project(Stage):
         if not isinstance(fq_col, str):
             return (
                 "Configuration Error: no source for sample {} and read {} "
-                "found.".format(run, pair+1))
+                "found.".format(target, pair+1))
 
-        fn = self.data.get(self.idcol, run, fq_col)[0]
+        fn = self.data.get(self.idcol, target, fq_col)[0]
         if kind == 'file':
             return fn
 
@@ -561,7 +561,7 @@ class Project(Stage):
         raise YmpConfigError(
             self.cfg,
             "Configuration Error: no source for sample {} and read {} found."
-            "".format(run, pair+1))
+            "".format(target, pair+1))
 
     def encode_barcode_path(self, barcode_file, run, pair):
         if barcode_file:
@@ -569,7 +569,7 @@ class Project(Stage):
             return (
                 "{project}.split_libraries/{barcodes}/{run}.{pair}.fq.gz"
                 "".format(
-                    project=self.project,
+                    project=self.name,
                     barcodes=barcode_id,
                     run=run,
                     pair=self.pairnames[pair])

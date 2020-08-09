@@ -58,10 +58,11 @@ class YmpRuleError(YmpNoStackException):
         super().__init__(msg)
 
     def show(self) -> None:
-        echo('Error in line %i of %s:\n%s' % (self.obj.lineno,
-                                             self.obj.filename,
-                                             self.format_message()),
-             err=True)
+        echo('Error in line %i of %s:\n%s' % (
+            getattr(self.obj, "lineno", -1),
+            getattr(self.obj, "filename", "<NOT FOUND>"),
+            self.format_message()
+        ), err=True)
         for fi in self.stack:
             if not fi.filename.endswith(".py"):
                 echo(f"  included from {fi.filename}:{fi.lineno}")

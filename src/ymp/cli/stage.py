@@ -93,7 +93,7 @@ def ls(long_opt, short_opt, stage_opt, code_opt, type_opt):
             code = ""
 
         if type_opt:
-            dtypes = (wrap("  inputs: ", stage.inputs) +
+            dtypes = (wrap("  inputs: ", stage.get_inputs()) +
                       wrap("  outputs:", stage.outputs))
         else:
             dtypes = ""

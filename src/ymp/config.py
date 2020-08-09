@@ -9,9 +9,7 @@ import ymp.yaml
 from ymp.common import AttrDict, Cache, MkdirDict, parse_number
 from ymp.env import CondaPathExpander
 from ymp.exceptions import YmpSystemError
-from ymp.pipelines import Pipeline
-from ymp.projects import Project
-from ymp.references import Reference
+from ymp.stage import Pipeline, Project, Reference
 from ymp.snakemake import \
     BaseExpander, \
     ColonExpander, \
