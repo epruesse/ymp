@@ -8,13 +8,17 @@ on:
 
 jobs:
   main_tests:
-    name: Main Tests (${{ matrix.python-version }}, ${{ matrix.os }})
+    name: 'Python ${{ matrix.python-version }} on ${{ matrix.os }}: ${{ matrix.section}})'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: ['ubuntu-latest', 'macos-latest']
+        section: ["Tools", "Core"]
         python-version: ['3.7']
+    defaults:
+      run:
+        shell: bash -l {0}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -37,15 +41,18 @@ jobs:
           channel-priority: strict
           use-only-tar-bz2: true  # needed for caching
       - name: Install
-        shell: bash -l {0}
         run: |
           pip install --no-deps .
-      - name: Test
-        shell: bash -l {0}
+      - name: Testing Core
+        if: matrix.section == 'Core'
         run: |
           pytest -vv -n 2 --cov --junit-xml junit/report.xml
+      - name: Testing Tools
+        if: matrix.section == 'Tools'
+        run: |
+          pytest -vvvs --cov --junit-xml junit-tools/report.xml -n1 --run-tools -m runs_tool --timeout=600
       - name: Upload logs
-        if: ${{ failure() }}
+        if: failure()
         uses: actions/upload-artifact@v1
         with:
           name: Test Failure Logs
