@@ -169,19 +169,52 @@ with Stage("annotate_blast") as S:
             db = expand("{{:prev:}}/{{:target:}}.{ext}",
                          ext=BLASTSPLITIDX_SUFFIXES)
 
+    localrules: blastn_split_query_fasta
+    rule blastn_split_query_fasta:
+        message:
+            "BLASTN: preparing query fasta file(s)"
+        input:
+            contigs = "{:prev:}/{:target:}.fasta.gz",
+        output:
+            queries = temp(dynamic("{:this:}/{target}.blast_query.{blastn_query_part}.fasta"))
+        params:
+            prefix = "{:this:}/{target}.blast_query.",
+            nseqs = 1000  # number of queries to blast in one job
+        run:
+            import gzip
+            template = params.prefix + "{index}.fasta"
+            with gzip.open(input.contigs) as infile:
+                lines = []
+                seq_count = 0
+                file_count = 0
+                for line in infile:
+                    if line.startswith(b">"):
+                        if seq_count == params.nseqs:
+                            fname = template.format(index=file_count)
+                            with open(fname, "wb") as out:
+                                out.write(b"".join(lines))
+                            seq_count = 0
+                            file_count += 1
+                            lines = []
+                        seq_count += 1
+                    lines.append(line)
+                fname = template.format(index=file_count)
+                with open(fname, "wb") as out:
+                    out.write(b"".join(lines))
+
     rule blastn_query:
         message:
             "BLASTN: {input.contigs} vs {params.db_name}"
         input:
-            contigs =   "{:prev:}/{:target:}.fasta.gz",
+            contigs = "{:this:}/{target}.blast_query.{blastn_query_part}.fasta",
             db = expand("{{:prev:}}/{{:target:}}.{ext}",
                         ext=BLASTIDX_SUFFIXES)
         output:
-            "{:this:}/{target}.blast7"
+            temp("{:this:}/{target}.blast7.{blastn_query_part}")
         log:
-            "{:this:}/{target}.blast7.log"
+            "{:this:}/{target}.blast7.{blastn_query_part}.log"
         benchmark:
-            "benchmarks/blastn_query/{:this:}/{target}.txt"
+            "benchmarks/blastn_query/{:this:}/{target}.{blastn_query_part}.txt"
         params:
             db_name = lambda wc, input: input.db[0][:-4],
             blastfmt = BLASTFMT,
@@ -193,9 +226,8 @@ with Stage("annotate_blast") as S:
             ' N) TASK="blastn";;'
             ' Mega) TASK="megablast";;'
             'esac;'
-            'gunzip -c {input.contigs} |'
             'blastn'
-            ' -query -'
+            ' -query {input.contigs}'
             ' -db {params.db_name}'
             ' -out {output}'
             ' -outfmt "{params.blastfmt}"'
@@ -209,6 +241,17 @@ with Stage("annotate_blast") as S:
         input:
             db = expand("{{:prev:}}/{{:target:}}.{ext}",
                         ext=BLASTSPLITIDX_SUFFIXES)
+
+    localrules: blastn_merge_result
+    rule blastn_merge_result:
+        message:
+            "BLASTN: merging result {output}"
+        input:
+            dynamic("{:this:}/{target}.blast7.{blastn_query_part}")
+        output:
+            "{:this:}/{target}.blast7"
+        shell:
+            "cat {input} > {output}"
 
     rule blastn_query_all:
         message:
