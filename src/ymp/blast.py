@@ -29,7 +29,7 @@ def reader(fileobj, t: int=7) -> 'BlastParser':
     elif t == 6:
         return Fmt6Parser(fileobj)
     else:
-        ValueError("other formats not implemented")
+        raise ValueError("other formats not implemented")
 
 
 class BlastParser(object):

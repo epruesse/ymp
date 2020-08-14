@@ -30,8 +30,6 @@ def get_envs(patterns=None):
         envs = {env: envs[env] for env in envs
                 if any(fnmatch(env, pat)
                        for pat in ensure_list(patterns))}
-    else:
-        envs = envs
     return envs
 
 

@@ -4,6 +4,8 @@ import re
 from collections import Mapping, Sequence
 import sqlite3
 
+from typing import List
+
 import ymp
 from ymp.common import ensure_list
 from ymp.exceptions import YmpConfigError, YmpStageError
