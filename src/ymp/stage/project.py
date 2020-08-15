@@ -644,3 +644,7 @@ class Project(ConfigStage):
     def fwd_fq_names(self):
         "Names of forward FastQ files (se and pe)"
         return self.get_fq_names(only_fwd=True)
+
+    @property
+    def project_name(self):
+        return self.name
