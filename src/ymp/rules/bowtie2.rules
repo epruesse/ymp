@@ -63,7 +63,7 @@ with Stage("map_bowtie2") as S:
             bt2_base = lambda wc, input: input.index[0][:-len(BT2IDX_SUFFIXES[0])-1],
             maxins = 800,  # default 500
             mem    = icfg.mem("8g"),
-            read2  = "-2 {input.fq[1]}"
+            reads  = "-1 {input.fq[0]} -2 {input.fq[1]}"
         threads:
             16
         conda:
@@ -71,7 +71,7 @@ with Stage("map_bowtie2") as S:
         shell:
             "bowtie2 "
             " -x {params.bt2_base}"
-            " -1 {input.fq[0]} {params.read2} "
+            " {params.reads}"
             " -X {params.maxins} "
             " -p {threads} "
             " 2>{log} "
@@ -81,7 +81,7 @@ with Stage("map_bowtie2") as S:
         input:
             fq    = ["{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz"]
         params:
-            read2 = ""
+            reads = "-U {input.fq[0]}"
 
     rule bowtie2_all:
         message:
