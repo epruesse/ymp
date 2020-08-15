@@ -1,9 +1,10 @@
 name: ymp
 channels:
   - conda-forge
+  - bioconda
 dependencies:
   - python >=3.6
-  - bioconda::snakemake-minimal =5.20.1
+  - snakemake-minimal =5.20.1
   - conda !=4.6.11
   - click
   - click-completion
@@ -12,7 +13,9 @@ dependencies:
   - pandas >=0.20  # need dtype support in python csv engine
   - xlrd         # excel support
   - coloredlogs
-  - setuptools_scm >=3.2 # versioning
+  - setuptools_scm >=3.4 # versioning
+  - setuptools >=42
+  - wheel
   - xdg # user paths
   - tqdm >=4.21 # progress bar
   - aiohttp # async http
