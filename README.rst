@@ -1,9 +1,10 @@
 YMP - a Flexible Omics Pipeline
 ===============================
 
+|Install with Bioconda| |Github Unit Tests| |Read the Docs| |Codacy grade| |Codecov|
 
-|Github Unit Tests| |Read the Docs| |Codacy grade| |Codecov|
-
+.. |Install with Bioconda| image:: https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat
+   :target: http://bioconda.github.io/recipes/ymp/README.html)
 .. |Github Unit Tests| image:: https://github.com/epruesse/ymp/workflows/Unit%20Tests/badge.svg
    :target: https://github.com/epruesse/ymp/actions?query=workflow%3A%22Unit+Tests%22
 .. |CircleCI| image:: https://img.shields.io/circleci/project/github/epruesse/ymp.svg?label=CircleCI
