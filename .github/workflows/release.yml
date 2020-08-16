@@ -1,0 +1,58 @@
+name: PyPI Release
+
+on:
+  release:
+    types: [ published ]
+
+jobs:
+  upload_pypi:
+    name: Building Package
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        #os: ['ubuntu-latest', 'macos-latest']
+        python-version: ['3.7']
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+          fetch-depth: 0  # full history for setuptools_scm
+      - uses: actions/cache@v1
+        env:
+          CACHE_VERS: 0  # bump to manually reset cache
+        with:
+          path: ~/conda_pkgs_dir
+          key: ${{runner.os}}-conda-${{env.CACHE_VERS}}-${{hashFiles('environment.yaml')}}
+      - uses: goanpeca/setup-miniconda@v1
+        with:
+          # Don't update conda - performance:
+          #  miniconda-version: 'latest'
+          #  auto-update-conda: true
+          python-version: ${{ matrix.python-version }}
+          channels: conda-forge,bioconda
+          environment-file: environment.yaml
+          activate-environment: ymp
+          channel-priority: strict
+          use-only-tar-bz2: true  # needed for caching
+      - name: Install Twine
+        run: |
+          pip install --user twine
+      - name: Install
+        run: |
+          pip install --no-deps .
+      - name: Build Source Package
+        run: |
+          ./setup.py sdist
+      - name: Build Wheel
+        run:
+          ./setup.py bdist_wheel
+      - name: Publish
+        if: startsWith(github.event.ref, 'refs/tags') || github.event_name == 'release'
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.pypi_password }}
+          #repository_url: https://test.pypi.org/legacy/
