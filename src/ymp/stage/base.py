@@ -37,9 +37,6 @@ class BaseStage(object):
         """
         #: Docstring describing stage
         self.docstring = doc
-        
-        #: Outputs provided by stage
-        self.outputs: Set[str] = set()
 
     def match(self, name: str) -> bool:
         """Check if the ``name`` can refer to this stage
@@ -55,16 +52,42 @@ class BaseStage(object):
     def get_inputs(self) -> Set[str]:
         """Returns the set of inputs required by this stage
 
-        Function returns a copy, to ensure internal data is not modified.
+        This function must return a copy, to ensure internal data is
+        not modified.
+
         """
         return set()
 
-    def can_provide(self, inputs: Set[str]) -> Set[str]:
-        """Determines which of ``inputs`` this stage can provide"""
-        return inputs.intersection(self.outputs)
+    @property
+    def outputs(self) -> Union[Set[str], Dict[str, str]]:
+        """Returns the set of outputs this stage is able to generate.
 
-    def get_path(self, stack):
-        """On disk location for this stage.
+        May return either a `set` or a `dict` with the dictionary
+        values representing redirections in the case of virtual stages
+        such as `Pipeline` or `Reference`.
+
+        """
+        return set()
+
+    def can_provide(self, inputs: Set[str]) -> Dict[str, str]:
+        """Determines which of ``inputs`` this stage can provide.
+
+        Returns a dictionary with the keys a subset of ``inputs`` and
+        the values identifying redirections. An empty string indicates
+        that no redirection is to take place. Otherwise, the string is
+        the suffix to be appended to the prior `StageStack`.
+
+        """
+        return {
+            output: ""
+            for output in inputs.intersection(self.outputs)
+        }
+
+    def get_path(self, stack: "StageStack") -> str:
+        """On disk location for this stage given ``stack``.
+
+        Called by `StageStack` to determine the real path for
+        virtual stages (which must override this function).
         """
         return stack.name
 

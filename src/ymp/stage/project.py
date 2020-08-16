@@ -4,7 +4,7 @@ import re
 from collections import Mapping, Sequence
 import sqlite3
 
-from typing import List
+from typing import List, Union, Dict, Set
 
 import ymp
 from ymp.common import ensure_list
@@ -333,8 +333,6 @@ class Project(ConfigStage):
         self._source_cfg = None
         self._idcol = None
         self.bccol = cfg.get(self.KEY_BCCOL)
-        self.outputs = set(("/{sample}.R1.fq.gz", "/{sample}.R2.fq.gz",
-                            "/{:samples:}.R1.fq.gz", "/{:samples:}.R2.fq.gz"))
 
         if self.KEY_DATA not in self.cfg:
             raise YmpConfigError(
@@ -342,6 +340,11 @@ class Project(ConfigStage):
 
     def __repr__(self):
         return "{}(project={})".format(self.__class__.__name__, self.name)
+
+    @property
+    def outputs(self) -> Union[Set[str], Dict[str, str]]:
+        return set(("/{sample}.R1.fq.gz", "/{sample}.R2.fq.gz",
+                    "/{:samples:}.R1.fq.gz", "/{:samples:}.R2.fq.gz"))
 
     @property
     def data(self):

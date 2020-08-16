@@ -159,7 +159,10 @@ class StageStack(object):
             prev_stage = find_stage(stage_names.pop())
             prev_stack = self.get(path, prev_stage)
             provides = stage.satisfy_inputs(prev_stage, inputs)
-            for typ in provides:
+            for typ, path in provides.items():
+                if path:
+                    path = ".".join(stage_names) + path
+                    prev_stack = self.get(path)
                 prevs[typ] = prev_stack
         return prevs
 
