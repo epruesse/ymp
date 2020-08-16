@@ -176,6 +176,7 @@ class Cache(object):
             pass
 
     def commit(self):
+        import sqlite3
         try:
             self.conn.commit()
         except sqlite3.OperationalError as e:
