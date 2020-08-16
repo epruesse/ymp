@@ -237,6 +237,10 @@ def start_snakemake(kwargs):
                     return False
             kwargs['targets'] = targets
 
+        log.info("Making targets:")
+        for target in targets:
+            log.info("  - %s", target)
+
     log.debug("Running snakemake.snakemake with args: %s", kwargs)
 
     # A snakemake workflow was created above to resolve the
