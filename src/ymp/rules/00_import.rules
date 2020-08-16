@@ -102,16 +102,16 @@ with Stage("") as S:
         output:
             "{:this:}/qiime_mapping.tsv"
         params:
-            S=S
+            variables = "{:variables:}",
+            project = "{:project_name:}"
         run:
             # Note: Do not use variables inside of "run" that are reassigned
             #       elsewhere. This is why we pass "S" via params. Otherwise,
             #       it would be the last assigned value of S, so likely
             #       some other stage.
             import csv
-
-            project = params.S.stack(wildcards).project
-            cols = project.variables
+            project = icfg.projects[params.project]
+            cols = params.variables
             if "Description" in cols:
                 desc_idx = cols.index("Description")
                 cols = cols[:desc_idx] + cols[desc_idx+1:] + [cols[desc_idx]]

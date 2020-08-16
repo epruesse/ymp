@@ -49,4 +49,4 @@ def test_cache_version(saved_cwd):
     cache.close()
 
     # restore version
-    ymp.__numeric_version__ == true_version
+    ymp.__numeric_version__ = true_version

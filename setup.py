@@ -9,24 +9,15 @@ def read_file(fn):
         content = f.read()
     return content
 
-
-def get_content_type(fn):
-    if fn.endswith(".md"):
-        return "text/markdown"
-    if fn.endswith(".rst"):
-        return "text/x-rst"
-    return "text/plain"
-
-
 setup(
     name="ymp",
     use_scm_version={'write_to': 'src/ymp/_version.py'},
     description="Flexible multi-omic pipeline system",
     long_description=read_file("README.rst"),
-    long_description_content_type=get_content_type("README.rst"),
+    long_description_content_type="text/x-rst",
     url="https://github.com/epruesse/ymp",
     author="Elmar Pruesse",
-    author_email="elmar.pruesse@ucdenver.edu",
+    author_email="elmar@pruesse.net",
     license="GPL-3",
     classifiers=[
         'Development Status :: 4 - Beta',
@@ -40,7 +31,8 @@ setup(
         'Topic :: Scientific/Engineering :: Bio-Informatics',
     ],
     platforms=["linux", "macos"],
-    keywords=("bioinformatics pipeline rnaseq metagenomics "
+    keywords=("bioinformatics pipeline workflow automation "
+              "rnaseq genomics metagenomics "
               "conda bioconda snakemake"),
     project_urls={
         'Documentation': 'https://ymp.readthedocs.io',
@@ -50,30 +42,35 @@ setup(
     package_dir={'': 'src'},
     zip_safe=False,
     setup_requires=[
-        'setuptools_scm>=3.2',
+        'setuptools_scm>=3.4',
+        'setuptools>=42',
+        'wheel',
         'pytest-runner',
     ],
+    install_requires=[
+        'snakemake>=5.20.1',
+        'Click',
+        'Click-completion',
+        'ruamel.yaml>0.15',
+        'drmaa',
+        'pandas>=0.20',
+        'xlrd',  # excel support
+        'coloredlogs',
+        'xdg',  # user paths
+        'tqdm >4.21',
+        'aiohttp',
+        'tqdm>=4.21.0',
+    ],
     tests_require=[
+        'networkx>=2',
         'pytest-xdist',
         'pytest-logging',
         'pytest-timeout',
         'pygraphviz',
         'pytest',
         'yappi',
-        'xlrd',
-    ],
-    install_requires=[
-        'snakemake>=5.4.4',
-        'Click',
-        'Click-completion',
-        'ruamel.yaml>0.15',
-        'drmaa',
-        'pandas>=0.20',
-        'networkx>=2',
-        'coloredlogs',
-        'xdg',
-        'aiohttp',
-        'tqdm>=4.21.0',
+        'pytest-cov',
+        'codecov'
     ],
     extras_require={
         'docs': [

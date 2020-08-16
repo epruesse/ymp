@@ -54,6 +54,7 @@ class Slurm(ClusterMS):
 
         header = None
         res = sp.run(['sacct', '-pbj', jobid], stdout=sp.PIPE)
+        jobs = []
         for line in res.stdout.decode('ascii').splitlines():
             line = line.strip().split("|")
             if header is None:

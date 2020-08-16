@@ -5,6 +5,7 @@ import ymp
 from ymp.stage.stage import Stage
 from ymp.stage.groupby import GroupBy
 from ymp.exceptions import YmpStageError
+from ymp.snakemake import ExpandLateException
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -218,9 +219,5 @@ class StageStack(object):
         prev_stage = self.prev(args, kwargs)
         prev = self.get(prev_stage.name)
         cur_target = kwargs['wc'].target
-        try:
-            target = self.project.get_ids(prev.group, self.group, cur_target)
-        except e:
-            log.exception("failed getting id")
-            raise
+        target = self.project.get_ids(prev.group, self.group, cur_target)
         return target
