@@ -2,7 +2,7 @@ import copy
 import logging
 import re
 
-from typing import List, Set
+from typing import Dict, List, Set
 
 from snakemake.rules import Rule
 
@@ -56,6 +56,7 @@ class Stage(WorkflowObject, BaseStage):
         self.rules: List[Rule] = []
         # Inputs required by stage
         self._inputs: Set[str] = set()
+        self._outputs: Set[str] = set()
         # Stage Parameters
         self.params: List[Param] = []
         self.requires = None
@@ -156,18 +157,25 @@ class Stage(WorkflowObject, BaseStage):
         """
         self.requires = kwargs
 
+    @property
+    def outputs(self):
+        return self._outputs
+
     def get_inputs(self):
         if not self.requires:
             return copy.copy(self._inputs)
         return copy.copy(self.requires)
 
-    def satisfy_inputs(self, other_stage, inputs):
+    def satisfy_inputs(self, other_stage, inputs) -> Dict[str, str]:
         if not self.requires: # inputs is set
             provides = other_stage.can_provide(inputs)
-            inputs -= provides
+            # warning: `inputs -= provides.keys()` would work, but would
+            # create a new object, rather than modify the set we
+            # were passed.
+            inputs -= set(list(provides.keys()))
             return provides
 
-        provides = set()
+        provides = dict()
         keys = set()
         for key, input_alts in inputs.items():
             for input_alt in input_alts:
@@ -175,7 +183,10 @@ class Stage(WorkflowObject, BaseStage):
                     "/{{sample}}.{}".format(ext) for ext in input_alt
                 ))
                 if len(have) == len(input_alt):
-                    provides.update(have)
+                    have_new = {output: path
+                                for output, path in have.items()
+                                if output not in provides}
+                    provides.update(have_new)
                     keys.add(key)
                     break
         for key in keys:
@@ -215,7 +226,7 @@ class Stage(WorkflowObject, BaseStage):
             )
         prefix, _, suffix = kwargs.get('item').partition("{:this:}")
         if not prefix:
-            self.outputs.add(norm_wildcards(suffix))
+            self._outputs.add(norm_wildcards(suffix))
 
         item = kwargs.get('item')
         if item is None:

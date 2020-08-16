@@ -2,7 +2,7 @@ import logging
 import os
 import re
 from hashlib import sha1
-from typing import Dict, Optional
+from typing import Dict, Optional, Union, Set
 from collections.abc import Mapping, Sequence
 
 from ymp.snakemake import make_rule
@@ -77,6 +77,7 @@ class Reference(ConfigStage):
         self.files = {}
         self.archives = []
         self.group = []
+        self._outputs = None
 
         import ymp
         cfgmgr = ymp.get_config()
@@ -87,9 +88,16 @@ class Reference(ConfigStage):
             if isinstance(rsc, str):
                 rsc = {'url': rsc}
             self.add_files(rsc, make_local_path(cfgmgr, rsc['url']))
-
-        self.outputs = set("/" + f.replace("ALL", "{sample}") for f in self.files)
         self.group = self.group or ["ALL"]
+
+    @property
+    def outputs(self) -> Union[Set[str], Dict[str, str]]:
+        if self._outputs is None:
+            self._outputs = {
+                "/" + f.replace("ALL", "{sample}"): ""
+                for f in self.files
+            }
+        return self._outputs
 
     def add_files(self, rsc, local_path):
         type_name = rsc.get('type', 'fasta').lower()
