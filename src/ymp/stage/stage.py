@@ -183,9 +183,10 @@ class Stage(WorkflowObject, BaseStage):
                     "/{{sample}}.{}".format(ext) for ext in input_alt
                 ))
                 if len(have) == len(input_alt):
-                    for output, path in have.items():
-                        if output not in provides:
-                            provides[output] = path
+                    have_new = {output: path
+                                for output, path in have.items()
+                                if output not in provides}
+                    provides.update(have_new)
                     keys.add(key)
                     break
         for key in keys:
