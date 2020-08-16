@@ -10,13 +10,20 @@ log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 class BaseStage(object):
     """Base class for stage types"""
     def __init__(self, name: str) -> None:
+        #: The name of the stage is a string uniquely identifying it
+        #: among all stages.
         self.name = name
+
+        #: The docstring describing this stage. Visible via ``ymp
+        #:stage list`` and in the generated sphinx documentation.
         self.docstring: str = None
 
     def __str__(self) -> str:
+        """Cast to string we just emit our name"""
         return self.name
 
     def __repr__(self):
+        """Using `repr()` we emit the subclass as well as our name"""
         return f"{self.__class__.__name__}({self!s})"
 
     def doc(self, doc: str) -> None:
@@ -34,8 +41,11 @@ class BaseStage(object):
     def match(self, name: str) -> bool:
         """Check if the ``name`` can refer to this stage
 
-        This is a function because stages can have multiple names
-        parameters conveyed by modifying the name.
+        As component of a `StageStack`, a stage may be identified by
+        alternative names and may also be parametrized by suffix
+        modifiers. Stage types supporting this behavior must override
+        this function.
+
         """
         return name == self.name
 
@@ -65,9 +75,12 @@ class ConfigStage(BaseStage):
     These Stages derive from the ``yml.yml`` and not from a rules file.
     """
     def __init__(self, name: str, cfg: 'MultiProxy'):
+        #: Semi-colon separated list of file names defining this Stage.
         self.filename = ';'.join(cfg.get_files())
+        #: Line number within the first file at which this Stage is defined.
         self.lineno = next(iter(cfg.get_linenos()), None)
         super().__init__(name)
+        #: The configuration object defining this Stage.
         self.cfg = cfg
 
     @property
