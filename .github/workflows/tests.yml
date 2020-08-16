@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
-          fetch-depth: 300  # hopefully enough to get to the last tag
+          fetch-depth: 0  # full history for setuptools_scm
       - uses: actions/cache@v1
         env:
           CACHE_VERS: 0  # bump to manually reset cache
