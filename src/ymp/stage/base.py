@@ -1,7 +1,7 @@
 import logging
 import os
 
-from typing import Set
+from typing import Set, Dict, Union, List
 
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -9,6 +9,9 @@ log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class BaseStage(object):
     """Base class for stage types"""
+    #: The name of the stamp file that is touched to indicate
+    #: completion of the stage.
+    STAMP_FILENAME = "all_targets.stamp"
     def __init__(self, name: str) -> None:
         #: The name of the stage is a string uniquely identifying it
         #: among all stages.
@@ -65,8 +68,13 @@ class BaseStage(object):
         """
         return stack.name
 
-    def get_all_targets(self, stack):
-        return [os.path.join(stack.path, "all_targets.stamp")]
+    def get_all_targets(self, stack: "StageStack") -> List[str]:
+        """Targets to build to complete this stage given ``stack``.
+
+        Typically, this is the StageStack's path appended with the
+        stamp name.
+        """
+        return [os.path.join(stack.path, self.STAMP_FILENAME)]
 
 
 class ConfigStage(BaseStage):
