@@ -12,10 +12,7 @@ from typing import Optional, Union
 
 from ruamel.yaml import YAML
 
-try:
-    import snakemake.conda as snakemake_conda
-except ModuleNotFoundError:
-    import snakemake.deployment.conda as snakemake_conda
+import snakemake.deployment.conda as snakemake_conda
 
 from snakemake.rules import Rule
 
@@ -340,11 +337,15 @@ class Env(WorkflowObject, snakemake_conda.Env):
 
         Returns exit code of command run.
         """
+        command = " ".join(command)
+        command = snakemake_conda.Conda().shellcmd(self.path, command)
         cfg = ymp.get_config()
-        command = "source activate {}; {}".format(self.path, " ".join(command))
         log.debug("Running: %s", command)
-        return subprocess.run(command,
-                              shell=True, executable=cfg.shell).returncode
+        return subprocess.run(
+            command,
+            shell=True,
+            executable=cfg.shell
+        ).returncode
 
     def export(self, stream, typ='yml'):
         """Freeze environment"""

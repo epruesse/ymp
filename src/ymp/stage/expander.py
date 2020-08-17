@@ -60,6 +60,7 @@ class StageExpander(ColonExpander):
         def get_value_(self, key, args, kwargs):
             stage = Stage.active
             if "(" in key:
+                args = list(args)
                 if key[-1] != ")":
                     raise YmpRuleError(
                         stage,
