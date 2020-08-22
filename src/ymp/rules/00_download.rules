@@ -130,7 +130,7 @@ if (icfg.pipelines):
 
     localrules: pipeline_link
     rule pipeline_link:
-        output: pipeline_pattern
+        output: directory(pipeline_pattern)
         input: _get_pipeline_realpath
         run:
             from ymp.stage import StageStack
