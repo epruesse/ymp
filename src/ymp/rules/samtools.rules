@@ -4,11 +4,22 @@ with Stage("extract_reads") as S:
     S.doc("""
     Extract reads from BAM file using ``samtools fastq``.
 
-    Parameters ``fn``, ``Fn`` and ``Gn`` are passed through.
+    Parameters ``fn``, ``Fn`` and ``Gn`` are passed through to
+    ``samtools view``. Reads are output *only* if all bits in `f` are
+    set, *none* of the bits in `F` are set, and *any* of the bits in
+    `G` is *unset*.
+
+    1: paired
+    2: proper pair (both aligned in right orientation)
+    4: unmapped
+    8: other read unmapped
+
     Some options include:
 
-    - f2: fully mapped (only proper pairs)
-    - F2: not fully mapped (unmapped at least one read)
+    - f2: correctly mapped (only proper pairs)
+    - F12: both ends mapped (but potentially "improper")
+    - G12: either end mapped
+    - F2: not correctly mapped (not proper pair, could also be unmapped)
     - f12: not mapped (neither read mapped)
     """)
     S.add_param("f", typ="int", name="f", default=0)
@@ -66,8 +77,8 @@ with Stage("extract_seqs") as S:
         message:
             "Samtools faidx: getting region list"
         input:
-            fasta = "{:prev:}/{target}.fasta.gz",
-            blast7 = "{:prev:}/{target}.blast7"
+            fasta = "{:prev:}/{:target:}.fasta.gz",
+            blast7 = "{:prev:}/{:target:}.blast7"
         output:
             regions = temp("{:this:}/{target}.ids")
         threads:
@@ -83,7 +94,7 @@ with Stage("extract_seqs") as S:
         message:
             "Samtools faidx: extracting sequences from FASTA"
         input:
-            fasta = "{:prev:}/{target}.fasta.gz",
+            fasta = "{:prev:}/{:target:}.fasta.gz",
             regions = "{:this:}/{target}.ids"
         output:
             fasta = "{:this:}/{target}.fasta.gz"
