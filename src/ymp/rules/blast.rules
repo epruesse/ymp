@@ -3,7 +3,7 @@ Env(name="blast", base="bioconda", packages="blast")
 # "std" options output:
 BLASTFMT =  "7 qacc sacc pident length mismatch gapopen qstart qend sstart send evalue bitscore"
 # extra output
-BLASTFMT += " sstrand sframe qframe score qlen stitle staxids"
+BLASTFMT += " sstrand sframe qframe score qlen stitle staxids btop"
 
 BLASTIDX_SUFFIXES = "nin nhr nsi nsd nsq nog".split()
 BLASTSPLITIDX_SUFFIXES = "nal ndb nos not ntf nto".split()
