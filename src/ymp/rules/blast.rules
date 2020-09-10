@@ -156,31 +156,41 @@ with Stage("annotate_blast") as S:
             " >{output}"
 
     rule blast_db_size_SPLIT: # ymp: extends blast_db_size
+        """Variant of blast_db_size for split blast indices"""
         input:
             db = expand("{{:prev:}}/{{:target:}}.{ext}",
                          ext=BLASTSPLITIDX_SUFFIXES)
 
     localrules: blastn_split_query_fasta
-    rule blastn_split_query_fasta:
+    checkpoint blastn_split_query_fasta:
         message:
             "BLASTN: preparing query fasta file(s)"
         input:
             contigs = "{:prev:}/{:target:}.fasta.gz",
+            dbsize = "{:this:}/{target}.blast_db_size"
         output:
-            queries = temp(dynamic("{:this:}/{target}.blast_query.{blastn_query_part}.fasta"))
+            queries = temp(directory(
+                "{:this:}/{target}.split_queries"
+            ))
         params:
-            prefix = "{:this:}/{target}.blast_query.",
-            nseqs = 1000  # number of queries to blast in one job
+            nseq_max = 100000,
+            nseq_min = 10
         run:
+            with open(input.dbsize, "r") as fd:
+                dbsize = int(fd.read())
+            nseqs = 3*10**14/dbsize
+            nseqs = min(params.nseq_max, max(params.nseq_min, nseqs))
+
+            os.makedirs(output.queries, exist_ok=True)
             import gzip
-            template = params.prefix + "{index}.fasta"
+            template = os.path.join(output.queries,"{index}.fasta")
             with gzip.open(input.contigs) as infile:
                 lines = []
                 seq_count = 0
                 file_count = 0
                 for line in infile:
                     if line.startswith(b">"):
-                        if seq_count == params.nseqs:
+                        if seq_count == nseqs:
                             fname = template.format(index=file_count)
                             with open(fname, "wb") as out:
                                 out.write(b"".join(lines))
@@ -193,22 +203,42 @@ with Stage("annotate_blast") as S:
                 with open(fname, "wb") as out:
                     out.write(b"".join(lines))
 
+    def blastn_join_input(wildcards):
+        cpt = checkpoints.blastn_split_query_fasta.get(**wildcards)
+        cpt_outdir = cpt.output.queries
+        indices = glob_wildcards(os.path.join(cpt_outdir, '{index}.fasta'))
+        return expand(os.path.join(cpt_outdir, '{index}.blast7.gz'),
+                          index=indices.index)
+
+    localrules: blastn_join_result
+    rule blastn_join_result:
+        message:
+            "BLASTN: merging result {output}"
+        input:
+            results = blastn_join_input,
+            folder = "{:this:}/{target}.split_queries"
+        output:
+            "{:this:}/{target}.blast7.gz"
+        shell:
+            "cat {input.results} > {output}"
+
     rule blastn_query:
         message:
             "BLASTN: {input.contigs} vs {params.db_name}"
         input:
-            contigs = "{:this:}/{target}.blast_query.{blastn_query_part}.fasta",
+            contigs = "{:this:}/{target}.split_queries/{index}.fasta",
             db = expand("{{:prev:}}/{{:target:}}.{ext}",
                         ext=BLASTIDX_SUFFIXES)
         output:
-            temp("{:this:}/{target}.blast7.{blastn_query_part}")
+            "{:this:}/{target}.split_queries/{index}.blast7.gz"
         log:
-            "{:this:}/{target}.blast7.{blastn_query_part}.log"
+            "{:this:}/{target}.split_queries.{index}.log"
         benchmark:
-            "benchmarks/blastn_query/{:this:}/{target}.{blastn_query_part}.txt"
+            "benchmarks/blastn_query/{:this:}/{target}.{index}.txt"
         params:
             db_name = lambda wc, input: input.db[0][:-4],
             blastfmt = BLASTFMT,
+            tmpdir = "{:dir.tmp:}"
         threads:
             24
         conda:   "blast"
@@ -217,32 +247,28 @@ with Stage("annotate_blast") as S:
             ' N) TASK="blastn";;'
             ' Mega) TASK="megablast";;'
             'esac;'
+            ''
+            'tmpout=$(mktemp {params.tmpdir}/blastn_query.XXXXXXXX.blast7.gz);'
+            'trap "{ rm -f $tmpout; }" EXIT;'
+            ''
             'blastn'
             ' -query {input.contigs}'
             ' -db {params.db_name}'
-            ' -out {output}'
             ' -outfmt "{params.blastfmt}"'
             ' -evalue 1e-{params.evalue_exp}'
             ' -num_threads {threads}'
             ' {params.besthit}'
             ' -task $TASK'
-            ' >{log} 2>&1'
+            ''
+            ' | gzip -c >$tmpout'
+            ' 2>{log}'
+            ';'
+            'mv $tmpout {output}'
 
     rule blastn_query_SPLIT: # ymp: extends blastn_query
         input:
             db = expand("{{:prev:}}/{{:target:}}.{ext}",
                         ext=BLASTSPLITIDX_SUFFIXES)
-
-    localrules: blastn_merge_result
-    rule blastn_merge_result:
-        message:
-            "BLASTN: merging result {output}"
-        input:
-            dynamic("{:this:}/{target}.blast7.{blastn_query_part}")
-        output:
-            "{:this:}/{target}.blast7"
-        shell:
-            "cat {input} > {output}"
 
     rule blastn_query_all:
         message:
@@ -250,7 +276,7 @@ with Stage("annotate_blast") as S:
         params:
             this = lambda wc, output: os.path.dirname(output[0])
         input:
-            "{:this:}/{:targets:}.blast7",
+            "{:this:}/{:targets:}.blast7.gz",
             "{:this:}/ALL.blast_db_size"
         output:
             touch("{:this:}/all_targets.stamp")
