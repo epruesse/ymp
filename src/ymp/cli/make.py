@@ -225,6 +225,9 @@ def start_snakemake(kwargs):
         else:
             targets = []
             for t in kwargs['targets']:
+                if '/'in t:
+                    targets.append(t)
+                    continue
                 try:
                     stack = StageStack.get(t)
                     targets.extend(stack.all_targets())
