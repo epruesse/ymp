@@ -125,6 +125,8 @@ class Lsf(ClusterMS):
                 for l in res.stderr.splitlines():
                     print(b"ERROUT: " + l)
                 raise
+        print(Lsf.states['EXIT'])
+        sys.exit(0)
 
     @staticmethod
     def submit(args):
