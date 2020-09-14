@@ -62,7 +62,7 @@ limits:
   # compute nodes, or the maximum you want to use on your local
   # machine.
   min_mem: '20M'
-  max_mem: '3G'
+  max_mem: '4G'
 
 pipelines:
   # Pipelines are sequential combinations of stages. Once your workflow
