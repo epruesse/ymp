@@ -1,109 +1,160 @@
+from ymp.util import check_input, filter_input
+
 Env(name="spades", base="bioconda", packages=["spades", "pigz"])
 
-with Stage("assemble_metaspades") as S:
-    S.doc("""Assemble reads using metaspades
+with Stage("assemble_spades") as S:
+    S.doc("""Assemble reads using spades
 
-    >>> ymp make toy.assemble_metaspades
-    >>> ymp make toy.group_ALL.assemble_metaspades
-    >>> ymp make toy.group_Subject.assemble_metaspades
+    >>> ymp make toy.assemble_spades
+    >>> ymp make toy.group_ALL.assemble_spades
+    >>> ymp make toy.group_Subject.assemble_spades
+    >>> ymp make toy.assemble_spades
+    >>> ymp make toy.assemble_spadesMeta
+    >>> ymp make toy.assemble_spadesSc
+    >>> ymp make toy.assemble_spadesRna
+    >>> ymp make toy.assemble_spadesIsolate
+    >>> ymp make toy.assemble_spadesNC
+    >>> ymp make toy.assemble_spadesMetaNC
     """)
+    S.add_param("", typ="choice", name="task",
+                value=['Normal', 'Meta', 'Sc', 'Rna', 'Isolate'],
+                default="Normal")
+    S.add_param("NC", typ="flag", name="not_careful")
 
-    localrules: metaspades_input_yaml
-    rule metaspades_input_yaml:
+    localrules: spades_input_yaml
+    rule spades_input_yaml:
         """
         Prepares a dataset config for spades. Spades commandline is limited to
         at most 9 pairs of fq files, so to allow arbitrary numbers we need to
         use the dataset config option.
 
-        Preparing in a separate rule so that the main metaspades rule can use
+        Preparing in a separate rule so that the main spades rule can use
         the ``shell:`` rule and not ``run:``, which would preclude it from
         using conda environments.
         """
         message:
-            "Preparing Config YAML for MetaSpades: {output}"
+            "Preparing Config YAML for Spades: {output}"
         input:
             r1 = "{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz",
             r2 = "{:prev:}/{:target:}.{:pairnames[1]:}.fq.gz"
+        params:
+            r1 = filter_input("r1", also=["r2"], minsize=1),
+            r2 = filter_input("r2", also=["r1"], minsize=1)
         output:
             yaml = "{:this:}/{target}.yaml"
         run:
             import yaml
-            from ymp.util import filter_out_empty
-
-            r1, r2 = filter_out_empty(input.r1, input.r2)
-
             with open(output.yaml, "w") as cfg:
-                cfg.write(yaml.safe_dump([{
-                    "left reads": ["../"+r for r in r1],
-                    "right reads": ["../"+r for r in r2],
-                    "type": "paired-end",
-                    "orientation": "fr"
-                }]))
+                if params.r1:
+                    cfg.write(yaml.safe_dump([{
+                        "left reads": ["../"+r for r in params.r1],
+                        "right reads": ["../"+r for r in params.r2],
+                        "type": "paired-end",
+                        "orientation": "fr"
+                    }]))
+                else:
+                    cfg.write("")
 
-    rule metaspades:
+
+    rule spades:
         """
-        Runs MetaSpades. Supports reads.by_COLUMN.sp/complete as target for
+        Runs Spades. Supports reads.by_COLUMN.sp/complete as target for
         by group co-assembly.
         """
         message:
-            "(Co-)Assembling {wildcards.target} with MetaSpades"
+            "(Co-)Assembling {wildcards.target} with Spades"
         input:
             conf    = "{:this:}/{target}.yaml",
-            r1 = "{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz",
-            r2 = "{:prev:}/{:target:}.{:pairnames[1]:}.fq.gz"
+            r1      = "{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz",
+            r2      = "{:prev:}/{:target:}.{:pairnames[1]:}.fq.gz"
         output:
-            fasta   = "{:this:}/{target}.fasta.gz",
-            fastg   = "{:this:}/{target}.fastg.gz"
+            contigs    = "{:this:}/{target}.contigs.fasta.gz",
+            scaffolds  = "{:this:}/{target}.fasta.gz",
+            graph      = "{:this:}/{target}.fastg.gz"
         log:
-            console = "{:this:}/{target}.log",
-            spades  = "{:this:}/{target}.spades.log.gz"
+            console     = "{:this:}/{target}.log",
+            spades      = "{:this:}/{target}.spades.log.gz"
         benchmark:
-            "benchmarks/metaspades/{:this:}/{target}.txt"
+            "benchmarks/spades/{:this:}/{target}.txt"
         params:
-            workdir = "{:this:}/tmp.{target}/",
+            workdir = "{:this:}/{target}.tmp/",
             tmpdir  = "{:dir.tmp:}",
-            mem     = icfg.mem("1000g")
+            #low_read_count = 50,
+            mem     = icfg.mem("1000g"),
+            # Allow failure if we have <50 sequences
+            sufficient_input = check_input(["r1", "r2"], minlines=50*4*2)
         conda:
             "spades"
         threads:
             24
         shell: """
+        OUTPUT="scaffolds.fasta"
+        case {params.task} in
+          Normal)  TASK="" ;;
+          Meta)    TASK="--meta" ;;
+          Sc)      TASK="--sc" ;;
+          Rna)     TASK="--rna"; OUTPUT=transcripts.fasta ;;
+          Isolate) TASK="--isolate" ;;
+        esac
+        if [ -z "{params.not_careful}" ]; then
+          case {params.task} in
+            Meta|Rna|Isolate) ;;
+            *) TASK="$TASK --careful" ;;
+          esac
+        fi
         CONTINUE=""
         if [ -e "{params.workdir}" ]; then
-          if [ -e "{params.workdir}/params.txt" ]; then
-            CONTINUE=y
-          else
-            rm -rf "{params.workdir}"
-          fi
+           if [ -e "{params.workdir}/params.txt" ]; then
+              CONTINUE=y
+           else
+              rm -rf "{params.workdir}"
+           fi
         fi
-
-        if [ -n "$CONTINUE" ]; then
-          metaspades.py \
-            -o {params.workdir} \
-            --threads {threads} \
-            --tmp-dir {params.tmpdir} \
-            --memory $(({params.mem}/1024)) \
-            --restart-from last \
-            >{log.console} 2>&1
+        make_empty_result() {{
+           mkdir -p "{params.workdir}"
+           touch "{params.workdir}/$OUTPUT"
+           touch "{params.workdir}/contigs.fasta"
+           touch "{params.workdir}/assembly_graph.fastg"
+           touch "{params.workdir}/params.txt"
+           echo "YMP: $*" >> "{log.console}"
+        }}
+        if [ -e "{input.conf}" -a \! -s "{input.conf}" ]; then
+           make_empty_result "skipped, empty input"
         else
-          metaspades.py \
-            -o {params.workdir} \
-            --threads {threads} \
-            --tmp-dir {params.tmpdir} \
-            --dataset {input.conf} \
-            --memory $(({params.mem}/1024)) \
-            >{log.console} 2>&1
+           ARGS=""
+           ARGS="$ARGS -o {params.workdir}"
+           ARGS="$ARGS --threads {threads}"
+           ARGS="$ARGS --tmp-dir {params.tmpdir}"
+           ARGS="$ARGS --memory $(({params.mem}/1024))"
+           if [ -n "$CONTINUE" ]; then
+              ARGS="$ARGS --restart-from last"
+           else
+              ARGS="$TASK $ARGS --dataset {input.conf}"
+           fi
+           echo "YMP: Running spades.py $ARGS" >>{log.console}
+           if ! spades.py $ARGS >>{log.console} 2>&1; then
+              if [ "{params.sufficient_input}" = "False" ]; then
+                 make_empty_result "Assuming failure due to low read count; skipping"
+              else
+                 exit 1
+              fi
+           fi
         fi
 
-        pigz -p {threads} -9 -c {params.workdir}/scaffolds.fasta > {output.fasta}
-        pigz -p {threads} -9 -c {params.workdir}/assembly_graph.fastg > {output.fastg}
+        pigz -p {threads} -9 -c {params.workdir}/$OUTPUT > {output.scaffolds}
+        pigz -p {threads} -9 -c {params.workdir}/assembly_graph.fastg > {output.graph}
+        if [ -e {params.workdir}/contigs.fasta ]; then
+          pigz -p {threads} -9 -c {params.workdir}/contigs.fasta > {output.contigs}
+        else
+          cp {output.scaffolds} {output.contigs}
+        fi
         cat {params.workdir}/{{params.txt,spades.log}} | pigz -p {threads} -9 > {log.spades}
         rm -rf {params.workdir}
         """
 
-    rule metaspades_all:
+    rule spades_all:
         message:
-            "Completed Metaspades assemblies"
+            "Completed Spades assemblies"
         input:
             "{:this:}/{:targets:}.fasta.gz"
         output:
