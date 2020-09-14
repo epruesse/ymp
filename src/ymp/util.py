@@ -2,6 +2,9 @@ import functools
 import os
 import re
 import textwrap
+import gzip
+
+from typing import Optional, Sequence, Callable
 
 from snakemake.io import Namedlist
 from snakemake.utils import format as snake_format
@@ -27,10 +30,11 @@ def is_fq(path):
     )
 
 
-def file_not_empty(fn):
+def file_not_empty(fn, minsize=1):
     "Checks is a file is not empty, accounting for gz mininum size 20"
     if fn.endswith('gz'):
-        return os.path.getsize(fn) > 20
+        with gzip.open(fn, "r") as fd:
+            return len(fd.read(1)) > 0
     return os.path.getsize(fn) > 0
 
 
@@ -51,6 +55,55 @@ def filter_out_empty(*args):
             for arg in args)
     return zip(*(t for t in zip(*args)
                  if all(map(file_not_empty, t))))
+
+
+def filter_input(name: str,
+                 also: Optional[Sequence[str]] = None,
+                 join: Optional[str] = None,
+                 minsize: Optional[int] = None) -> Callable:
+    def filter_input_func(wildcards, input):
+        outfiles = []
+        files = getattr(input, name)
+        if isinstance(files, str):
+            files = [files]
+        extra_files = [getattr(input, extra) for extra in also]
+        for fname, extra_fnames in zip(files, extra_files):
+            if isinstance(extra_fnames, str):
+                extra_fnames = [extra_fnames]
+            if minsize is not None:
+                if not file_not_empty(fname, minsize=minsize):
+                    continue
+                if not all (file_not_empty(fn) for fn in extra_fnames):
+                    continue
+            outfiles.append(fname)
+        return outfiles
+    return filter_input_func
+
+
+def check_input(names: Sequence[str],
+                minlines: Optional[int] = None) -> Callable:
+    def check_input_func(wildcards, input):
+        lines_needed = minlines
+        files = []
+        for name in names:
+            entry = getattr(input, name)
+            if isinstance(entry, str):
+                files.append(entry)
+            else:
+                files.extend(entry)
+        for fname in files:
+            if fname.endswith(".gz"):
+                openfunc = gzip.open
+            else:
+                openfunc = open
+            with openfunc(fname) as fd:
+                nlines = len([1 for _, _ in zip(range(minlines), iter(fd))])
+            lines_needed -= nlines
+            print(nlines, lines_needed)
+            if lines_needed <= 0:
+                return True
+        return False
+    return check_input_func
 
 
 @functools.lru_cache()
