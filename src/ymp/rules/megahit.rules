@@ -29,14 +29,15 @@ with Stage("assemble_megahit") as S:
             fasta = "{:this:}/{target}.fasta.gz",
             fastg = "{:this:}/{target}.fastg.gz"
         log:
-            log = "{:this:}/{target}.log.gz",
-            out = "{:this:}/{target}.out.gz",
+            log     = "{:this:}/{target}.log",
+            megahit = "{:this:}/{target}.megahit.log.gz",
         params:
-            workdir = "{:this:}/{target}",
+            r1 = filter_input("r1", also=["r2"], minsize=1, join=","),
+            r2 = filter_input("r2", also=["r1"], minsize=1, join=","),
+            # Allow failure if we have <50 sequences
+            sufficient_input = check_input(["r1", "r2"], minlines=50*4*2),
+            workdir = "{:this:}/{target}.tmp",
             preset  = "meta-sensitive",
-            r1 = filter_input("r1", also=["r2"], join=",", minsize=1),
-            r2 = filter_input("r2", also=["r1"], join=",", minsize=1),
-            small_input = check_input(["r1", "r2"], minlines=50),
             mem = icfg.mem("500g")
         threads:
             32
