@@ -1,3 +1,5 @@
+from ymp.util import filter_input, check_input
+
 Env(name="megahit", base="bioconda", packages=[
     "megahit",
     "pigz",
@@ -32,10 +34,9 @@ with Stage("assemble_megahit") as S:
         params:
             workdir = "{:this:}/{target}",
             preset  = "meta-sensitive",
-            r1 = lambda wc, input: ",".join([input.r1]
-                                            if isinstance(input.r1, str) else input.r1),
-            r2 = lambda wc, input: ",".join([input.r2]
-                                            if isinstance(input.r2, str) else input.r2),
+            r1 = filter_input("r1", also=["r2"], join=",", minsize=1),
+            r2 = filter_input("r2", also=["r1"], join=",", minsize=1),
+            small_input = check_input(["r1", "r2"], minlines=50),
             mem = icfg.mem("500g")
         threads:
             32
@@ -52,24 +53,44 @@ with Stage("assemble_megahit") as S:
         else
             rm -rf "{params.workdir}"
         fi
-
-        megahit \
-          -1 {params.r1} -2 {params.r2} \
-          --presets {params.preset} \
-          --num-cpu-threads {threads} \
-          --out-dir {params.workdir} \
-          --tmp-dir {input.tmpdir} \
-          $CONTINUE  2> {log.out}
-
-        # abort if not finished
-        [ -e {params.workdir}/done ] || exit 1
+        make_empty_result() {{
+          echo "YMP: skipping assembly - $*" >> {log.log}
+          mkdir -p {params.workdir}
+          touch {params.workdir}/options.json
+          touch {params.workdir}/log
+          touch {params.workdir}/final.contigs.fa
+          mkdir -p {params.workdir}/intermediate_contigs
+          touch {params.workdir}/intermediate_contigs/k21.contigs.fa
+        }}
+        if [ -z "{params.r1}" ]; then
+          make_empty_result "all input empty"
+        else
+          ARGS=""
+          ARGS="$ARGS -1 {params.r1} -2 {params.r2}"
+          ARGS="$ARGS --presets {params.preset}"
+          ARGS="$ARGS --num-cpu-threads {threads}"
+          ARGS="$ARGS --out-dir {params.workdir}"
+          ARGS="$ARGS --tmp-dir {input.tmpdir}"
+          ARGS="$ARGS $CONTINUE"
+          echo "YMP: Running megahit $ARGS" >>{log.log}
+          res=0
+          megahit $ARGS >>{log.log} 2>&1 || res=$?
+          [ -e {params.workdir}/done ] || res=1
+          if [ $res -ne 0 ]; then
+            if [ "{params.sufficient_input}" = "False" ]; then
+              make_empty_result "Assuming failure due to low read count"
+            else
+              exit $res
+            fi
+          fi
+        fi
 
         # output zipped contigs
         pigz -p {threads} -9 -c {params.workdir}/final.contigs.fa > {output.fasta}
 
         # output the zipped log
         cat {params.workdir}/{{options.json,log}} |\
-        pigz -p {threads} -9 -c > {log.log}
+          pigz -p {threads} -9 -c > {log.megahit}
 
         # determine largest K used
         MAXK=$(ls {params.workdir}/intermediate_contigs -1 |\
@@ -77,8 +98,8 @@ with Stage("assemble_megahit") as S:
 
         # output the zipped fastg
         megahit_toolkit contig2fastg $MAXK \
-        {params.workdir}/intermediate_contigs/k${{MAXK}}.contigs.fa |\
-        pigz -p {threads} -9 -c > {output.fastg}
+          {params.workdir}/intermediate_contigs/k${{MAXK}}.contigs.fa |\
+          pigz -p {threads} -9 -c > {output.fastg}
 
         # remove intermediate contigs
         rm -rf {params.workdir}
