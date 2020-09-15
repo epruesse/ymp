@@ -16,6 +16,10 @@ with Stage("assemble_trinity") as S:
         log:
             "{:this:}/{target}.log"
         params:
+            r1 = filter_input("r1", also=["r2"], minsize=1, join=","),
+            r2 = filter_input("r2", also=["r1"], minsize=1, join=","),
+            # Allow failure if we have <50 sequences
+            sufficient_input = check_input(["r1", "r2"], minlines=50*4*2),
             mem = icfg.mem("32g"),
             mem_gb = icfg.mem("32g", unit="g"),
             min_contig_length = 200,
@@ -27,41 +31,32 @@ with Stage("assemble_trinity") as S:
         conda:
             "trinity"
         shell: """
-        # Remove empty files from input. Trinity must have reads in each fwd/rev file.
-        r1in=({input.r1})
-        r2in=({input.r2})
-        left=""
-        right=""
-        for idx in ${{!r1in[@]}}; do
-           r1=${{r1in[$idx]}}
-           r2=${{r2in[$idx]}}
-           if [ -z "$(gzip -dc $r1 | head -n 10 | tail -n +10)" \
-                -o -z "$(gzip -dc $r1 | head -n 10 | tail -n +10)" ]; then
-              echo "YMP: skipping pair with empty file: $r1 $r2" >> {log}
-           else
-             left="$left,$r1"
-             right="$right,$r2"
-           fi
-        done
-        left=${{left#,}}
-        right=${{right#,}}
-
-        if [ -z "$left" ]; then
-           echo "YMP: skipping assembly - all input empty" >> {log}
+        make_empty_result() {{
+           echo "YMP: skipping assembly - $*" >> {log}
            mkdir -p {params.outdir}
            touch {params.outdir}/Trinity.fasta
            touch {params.outdir}/Trinity.timing
            touch {params.outdir}/Trinity.fasta.gene_trans_map
+        }}
+        if [ -z "{params.r1}" ]; then
+           make_empty_result "all input empty"
         else
-           Trinity \
-             --seqType fq \
-             --SS_lib_type {params.lib_type} \
-             --max_memory {params.mem_gb}G \
-             --left $left --right $right \
-             --CPU {threads} \
-             --min_contig_length {params.min_contig_length} \
-             --output {params.outdir} \
-             >>{log} 2>&1;
+           ARGS=
+           ARGS="$ARGS --seqType fq"
+           ARGS="$ARGS --SS_lib_type {params.lib_type}"
+           ARGS="$ARGS --max_memory {params.mem_gb}G"
+           ARGS="$ARGS --left {params.r1} --right {params.r2}"
+           ARGS="$ARGS --CPU {threads}"
+           ARGS="$ARGS --min_contig_length {params.min_contig_length}"
+           ARGS="$ARGS --output {params.outdir}"
+           echo "YMP: Running Trinity $ARGS" >> {log}
+           if ! Trinity $ARGS >>{log} 2>&1; then
+              if [ "{params.sufficient_input}" = "False" ]; then
+                 make_empty_result "Assuming failure due to low read count"
+              else
+                 exit 1
+              fi
+           fi
         fi
 
         gzip -c {params.outdir}/Trinity.fasta > {output.fa}
@@ -89,5 +84,3 @@ with Stage("assemble_trinity") as S:
             "{:this:}/{:targets:}.fasta.gz"
         output:
             touch("{:this:}/all_targets.stamp")
-
-
