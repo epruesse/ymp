@@ -76,7 +76,9 @@ def filter_input(name: str,
                 if not all (file_not_empty(fn) for fn in extra_fnames):
                     continue
             outfiles.append(fname)
-        return outfiles
+        if join is None:
+            return outfiles
+        return join.join(outfiles)
     return filter_input_func
 
 
@@ -99,7 +101,6 @@ def check_input(names: Sequence[str],
             with openfunc(fname) as fd:
                 nlines = len([1 for _, _ in zip(range(minlines), iter(fd))])
             lines_needed -= nlines
-            print(nlines, lines_needed)
             if lines_needed <= 0:
                 return True
         return False
