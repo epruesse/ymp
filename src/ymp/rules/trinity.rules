@@ -1,3 +1,5 @@
+from ymp.util import check_input, filter_input
+
 Env(name="trinity", base="bioconda", packages="trinity")
 
 with Stage("assemble_trinity") as S:
@@ -9,39 +11,64 @@ with Stage("assemble_trinity") as S:
             r2 = "{:prev:}/{:target:}.{:pairnames[1]:}.fq.gz"
         output:
             fa = "{:this:}/{target}.fasta.gz",
-            tm = "{:this:}/{target}.timing",
+            tm = temp("{:this:}/{target}.timing"),
             mp = "{:this:}/{target}.fasta.gene_trans_map"
         log:
             "{:this:}/{target}.log"
         params:
             mem = icfg.mem("32g"),
             mem_gb = icfg.mem("32g", unit="g"),
-            reads = "--left {params.r1} --right {params.r2}",
-            r1 = lambda wc, input: ",".join([input.r1] if isinstance(input.r1, str)
-                                            else input.r1),
-            r2 = lambda wc, input: ",".join([input.r2] if isinstance(input.r2, str)
-                                            else input.r2),
             min_contig_length = 200,
             lib_type = "FR",
-            outdir = "{:this:}/trinity_{target}"
+            # outdir must contain word "trinity"
+            outdir = "{:this:}/{target}.trinity.tmp"
         threads:
-            32
+            24
         conda:
             "trinity"
-        shell:
-            "Trinity"
-            " --seqType fq"
-            " --SS_lib_type {params.lib_type}"
-            " --max_memory {params.mem_gb}G"
-            " --left {params.r1} --right {params.r2}"
-            " --CPU {threads}"
-            " --min_contig_length {params.min_contig_length}"
-            " --output {params.outdir}"
-            " >{log} 2>&1;"
-            "gzip -c {params.outdir}/Trinity.fasta > {output.fa};"
-            "mv {params.outdir}/Trinity.timing {output.tm};"
-            "mv {params.outdir}/Trinity.fasta.gene_trans_map {output.mp};"
-            "rm -rf {params.outdir}"
+        shell: """
+        # Remove empty files from input. Trinity must have reads in each fwd/rev file.
+        r1in=({input.r1})
+        r2in=({input.r2})
+        left=""
+        right=""
+        for idx in ${{!r1in[@]}}; do
+           r1=${{r1in[$idx]}}
+           r2=${{r2in[$idx]}}
+           if [ -z "$(gzip -dc $r1 | head -n 10 | tail -n +10)" \
+                -o -z "$(gzip -dc $r1 | head -n 10 | tail -n +10)" ]; then
+              echo "YMP: skipping pair with empty file: $r1 $r2" >> {log}
+           else
+             left="$left,$r1"
+             right="$right,$r2"
+           fi
+        done
+        left=${{left#,}}
+        right=${{right#,}}
+
+        if [ -z "$left" ]; then
+           echo "YMP: skipping assembly - all input empty" >> {log}
+           mkdir -p {params.outdir}
+           touch {params.outdir}/Trinity.fasta
+           touch {params.outdir}/Trinity.timing
+           touch {params.outdir}/Trinity.fasta.gene_trans_map
+        else
+           Trinity \
+             --seqType fq \
+             --SS_lib_type {params.lib_type} \
+             --max_memory {params.mem_gb}G \
+             --left $left --right $right \
+             --CPU {threads} \
+             --min_contig_length {params.min_contig_length} \
+             --output {params.outdir} \
+             >>{log} 2>&1;
+        fi
+
+        gzip -c {params.outdir}/Trinity.fasta > {output.fa}
+        mv {params.outdir}/Trinity.timing {output.tm}
+        mv {params.outdir}/Trinity.fasta.gene_trans_map {output.mp}
+        rm -rf {params.outdir}
+        """
 
     rule trinity_stats:
         message:
