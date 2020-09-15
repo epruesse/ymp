@@ -66,7 +66,10 @@ def filter_input(name: str,
         files = getattr(input, name)
         if isinstance(files, str):
             files = [files]
-        extra_files = [getattr(input, extra) for extra in also]
+        if also is None:
+            extra_files = [None for _ in files]
+        else:
+            extra_files = [getattr(input, extra) for extra in also]
         for fname, extra_fnames in zip(files, extra_files):
             if isinstance(extra_fnames, str):
                 extra_fnames = [extra_fnames]
