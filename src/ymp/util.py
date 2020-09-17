@@ -9,6 +9,8 @@ from typing import Optional, Sequence, Callable
 from snakemake.io import Namedlist
 from snakemake.utils import format as snake_format
 
+from ymp.exceptions import YmpRuleError
+
 
 def make_local_path(icfg, url: str):
     url_match = re.match("^(http|https|ftp|ftps)://", url)
@@ -70,15 +72,22 @@ def filter_input(name: str,
             extra_files = [None for _ in files]
         else:
             extra_files = [getattr(input, extra) for extra in also]
-        for fname, extra_fnames in zip(files, extra_files):
-            if isinstance(extra_fnames, str):
-                extra_fnames = [extra_fnames]
-            if minsize is not None:
-                if not file_not_empty(fname, minsize=minsize):
-                    continue
-                if not all (file_not_empty(fn) for fn in extra_fnames):
-                    continue
-            outfiles.append(fname)
+        files_exist = [os.path.exists(fname)
+                       for fnames in (files, extra_files)
+                       for fname in fnames]
+        if all(files_exist):
+            for fname, extra_fnames in zip(files, extra_files):
+                if isinstance(extra_fnames, str):
+                    extra_fnames = [extra_fnames]
+                    if minsize is not None:
+                        if not file_not_empty(fname, minsize=minsize):
+                            continue
+                        if not all (file_not_empty(fn) for fn in extra_fnames):
+                            continue
+                        outfiles.append(fname)
+        elif any(files_exist):
+            raise YmpRuleError("Missing files to check for length")
+
         if join is None:
             return outfiles
         return join.join(outfiles)
@@ -96,17 +105,22 @@ def check_input(names: Sequence[str],
                 files.append(entry)
             else:
                 files.extend(entry)
-        for fname in files:
-            if fname.endswith(".gz"):
-                openfunc = gzip.open
-            else:
-                openfunc = open
-            with openfunc(fname) as fd:
-                nlines = len([1 for _, _ in zip(range(minlines), iter(fd))])
-            lines_needed -= nlines
-            if lines_needed <= 0:
-                return True
-        return False
+        files_exist = [os.path.exists(fname) for fname in files]
+        if all(files_exist):
+            for fname in files:
+                if fname.endswith(".gz"):
+                    openfunc = gzip.open
+                else:
+                    openfunc = open
+                with openfunc(fname) as fd:
+                    nlines = len([1 for _, _ in zip(range(minlines), iter(fd))])
+                lines_needed -= nlines
+                if lines_needed <= 0:
+                    return True
+                return False
+        elif any(files_exist):
+            raise YmpRuleError("Missing files to check for length")
+        return True
     return check_input_func
 
 
