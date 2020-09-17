@@ -74,7 +74,8 @@ def filter_input(name: str,
             extra_files = [getattr(input, extra) for extra in also]
         files_exist = [os.path.exists(fname)
                        for fnames in (files, extra_files)
-                       for fname in fnames]
+                       for fname in fnames
+                       if fname is not None]
         if all(files_exist):
             for fname, extra_fnames in zip(files, extra_files):
                 if isinstance(extra_fnames, str):
