@@ -80,12 +80,13 @@ def filter_input(name: str,
             for fname, extra_fnames in zip(files, extra_files):
                 if isinstance(extra_fnames, str):
                     extra_fnames = [extra_fnames]
-                    if minsize is not None:
-                        if not file_not_empty(fname, minsize=minsize):
-                            continue
-                        if not all (file_not_empty(fn) for fn in extra_fnames):
-                            continue
-                        outfiles.append(fname)
+                if minsize is not None:
+                    if not file_not_empty(fname, minsize=minsize):
+                        continue
+                    if not all (file_not_empty(fn) for fn in extra_fnames):
+                        continue
+                outfiles.append(fname)
+
         elif any(files_exist):
             raise YmpRuleError("Missing files to check for length")
 
