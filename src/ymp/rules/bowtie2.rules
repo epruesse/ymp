@@ -1,3 +1,5 @@
+from ymp.util import filter_input
+
 Env(name="bowtie2", base="bioconda", packages=["bowtie2", "samtools"])
 
 BT2IDX_SUFFIXES = "1.bt2 2.bt2 3.bt2 4.bt2 rev.1.bt2 rev.2.bt2".split()
@@ -38,20 +40,35 @@ with Stage("index_bowtie2") as S:
         input:
             expand("{{:this:}}/{{:targets:}}.{ext}", ext=BT2IDX_SUFFIXES)
 
+
 with Stage("map_bowtie2") as S:
     S.doc("""
     Map reads using Bowtie2
 
     >>> ymp make toy.ref_genome.index_bowtie2.map_bowtie2
+    >>> ymp make toy.ref_genome.index_bowtie2.map_bowtie2VF
+    >>> ymp make toy.ref_genome.index_bowtie2.map_bowtie2F
+    >>> ymp make toy.ref_genome.index_bowtie2.map_bowtie2S
+    >>> ymp make toy.ref_genome.index_bowtie2.map_bowtie2VS
+    >>> ymp make toy.ref_genome.index_bowtie2.map_bowtie2X800
+    >>> ymp make toy.ref_genome.index_bowtie2.map_bowtie2I5
+    >>> ymp make toy.ref_genome.index_bowtie2.map_bowtie2L
     >>> ymp make toy.assemble_megahit.index_bowtie2.map_bowtie2
     >>> ymp make toy.group_Subject.assemble_megahit.index_bowtie2.map_bowtie2
     >>> ymp make mpic.ref_ssu.index_bowtie2.map_bowtie2
     """)
+    S.add_param("", typ="choice", name="sensitivity",
+                value=['VF', 'F', 'S', 'VS'], default='S')
+    S.add_param("L", typ="flag", name="local", value="local")
+    S.add_param("I", typ="int", name="minins", default="0")
+    S.add_param("X", typ="int", name="maxins", default="500")
+
     rule bowtie2_map:
         message:
-            "Bowtie2: Mapping {input.fq[0]} to {params.bt2_base}"
+            "Bowtie2: Mapping {input.r1} to {params.bt2_base}"
         input:
-            fq    =        "{:prev:}/{:target:}.{:pairnames:}.fq.gz",
+            r1 = "{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz",
+            r2 = "{:prev:}/{:target:}.{:pairnames[1]:}.fq.gz",
             index = expand("{{:prev:}}/{{:target:}}.{ext}", ext=BT2IDX_SUFFIXES)
         output:
             bam   = temp(  "{:this:}/{target}.bam")
@@ -61,27 +78,38 @@ with Stage("map_bowtie2") as S:
             "benchmarks/bowtie2_map/{:this:}/{target}.txt"
         params:
             bt2_base = lambda wc, input: input.index[0][:-len(BT2IDX_SUFFIXES[0])-1],
-            maxins = 800,  # default 500
-            mem    = icfg.mem("8g"),
-            reads  = "-1 {input.fq[0]} -2 {input.fq[1]}"
+            mem    = icfg.mem("80g"),
+            r1 = filter_input("r1", join=","),
+            r2 = filter_input("r2", join=",")
         threads:
-            16
+            12
         conda:
             "bowtie2"
         shell:
-            "bowtie2 "
-            " -x {params.bt2_base}"
-            " {params.reads}"
-            " -X {params.maxins} "
-            " -p {threads} "
-            " 2>{log} "
-            " | samtools view -b -o {output.bam} -"
+            'case {params.sensitivity} in'
+            ' VF) MODE=very-fast ;;'
+            ' F) MODE=fast ;;'
+            ' S) MODE=sensitive ;;'
+            ' VS) MODE=very-sensitive ;;'
+            'esac;'
+            'if [ -n "{params.local}" ]; then'
+            ' MODE="$MODE-local";'
+            'fi;'
+            'bowtie2'
+            ' --$MODE'
+            ' -x {params.bt2_base}'
+            ' -1 {params.r1} -2 {params.r2}'
+            ' -X {params.maxins} '
+            ' -I {params.minins} '
+            ' -p {threads} '
+            ' 2>{log} '
+            ' | samtools view -b -o {output.bam} -'
 
     rule bowtie2_map_SE: # ymp: extends bowtie2_map
         input:
-            fq    = ["{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz"]
+            r2    = []
         params:
-            reads = "-U {input.fq[0]}"
+            reads = "-U {params.r1}"
 
     rule bowtie2_all:
         message:

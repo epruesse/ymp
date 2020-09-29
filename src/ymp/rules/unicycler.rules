@@ -1,0 +1,108 @@
+from ymp.util import filter_input
+
+Env(name="unicycler", base="bioconda", packages=["unicycler", "pigz"])
+
+with Stage("assemble_unicycler") as S:
+    S.doc("""Assemble reads using unicycler
+
+    >>> ymp make toy.assemble_unicycler
+    """)
+
+    rule unicycler:
+        """
+        Runs unicycler
+        """
+        message:
+            "Assembling {wildcards.target} with Unicycler"
+        input:
+            # FIXME: unicycler does not support multiple input fq
+            #        => grouping / co assembly does not work
+            #        might be possible to concatenate, not ideal though
+            r1 = "{:prev:}/{target}.{:pairnames[0]:}.fq.gz",
+            r2 = "{:prev:}/{target}.{:pairnames[1]:}.fq.gz"
+        output:
+            fasta = "{:this:}/{target}.fasta.gz"
+        log:
+            "{:this:}/{target}.log"
+        conda:
+            "unicycler"
+        threads:
+            24
+        params:
+            r1 = filter_input("r1", also=["r2"], minsize=1),
+            r2 = filter_input("r2", also=["r1"], minsize=1),
+            # Allow failure if we have <50 sequences
+            sufficient_input = check_input(["r1", "r2"], minlines=50*4*2),
+            # Exclude contigs from the FASTA file which are shorter than this length
+            min_fasta_length = 200,
+            # Level of file retention (default: 1)
+            # 0 = only keep final files: assembly (FASTA, GFA and log),
+            # 1 = also save graphs at main checkpoints,
+            # 2 = also keep SAM (enables fast rerun in different mode),
+            # 3 = keep all temp files and save all graphs (for debugging)
+            keep = 1,
+            # Bridging mode (default: normal)
+            # conservative = smaller contigs, lowest misassembly rate
+            # normal = moderate contig size and misassembly rate
+            # bold = longest contigs, higher misassembly rate
+            mode = "normal",
+            workdir = "{:this:}/{target}.tmp/",
+            verbosity = 1
+        shell: """
+        short1=({params.r1})
+        short2=({params.r2})
+        if [ ${{#short1[*]}} -qt 1 ]; then
+          # Unicycler does not support multiple FQ files as input
+          # See https://github.com/rrwick/Unicycler/issues/66
+          # Create tmpdir, set delete trap on exit, concatenate
+          # zip files, and pass those to unicycler instead.
+          tmpdir=$(mktemp -d)
+          trap 'rm -rf $tmpdir' EXIT
+          short1=$tmpdir/R1.fq.gz
+          short2=$tmpdir/R2.fq.gz
+          echo "YMP: concatenating {params.r1} into $short1" >> {log}
+          cat {params.r1} > $short1 &
+          echo "YMP: concatenating {params.r2} into $short2" >> {log}
+          cat {params.r2} > $short2 &
+          wait
+        fi
+
+        make_empty_result() {{
+           echo "YMP: skippping assembly - $*" >> {log}
+           mkdir -p {params.workdir}
+           touch {params.workdir}assembly.fasta
+        }}
+        
+        if [ -z "{params.r1}" ]; then
+           make_empty_result "all input empty"
+        else
+           ARGS=""
+           ARGS="$ARGS --short1 $short1"
+           ARGS="$ARGS --short2 $short2"
+           ARGS="$ARGS -o {params.workdir}"
+           ARGS="$ARGS --min_fasta_length {params.min_fasta_length}"
+           ARGS="$ARGS --keep {params.keep}"
+           ARGS="$ARGS --mode {params.mode}"
+           ARGS="$ARGS --threads {threads}"
+           ARGS="$ARGS --verbosity {params.verbosity}"
+           echo "YMP: Running Unicycler $ARGS" >> {log}
+           if ! unicycler $ARGS >>{log} 2>&1; then
+             if [ "{params.sufficient_input}" = "False" ]; then
+                make_empty_result "Assuming failure due to low read count"
+             else
+                exit 1
+             fi
+           fi
+        fi
+        pigz -p {threads} {params.workdir}assembly.fasta
+        mv {params.workdir}assembly.fasta.gz {output.fasta}
+        rm -rf {params.workdir}
+        """
+
+    rule unicycler_all:
+        message:
+            "Completed Unicycler assemblies"
+        input:
+            "{:this:}/{:targets:}.fasta.gz"
+        output:
+            touch("{:this:}/all_targets.stamp")

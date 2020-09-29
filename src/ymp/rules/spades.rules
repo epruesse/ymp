@@ -98,7 +98,7 @@ with Stage("assemble_spades") as S:
         esac
         if [ -z "{params.not_careful}" ]; then
           case {params.task} in
-            Meta|Rna|Isolate) ;;
+            Meta|Rna|Isolate) break ;;
             *) TASK="$TASK --careful" ;;
           esac
         fi
@@ -116,6 +116,7 @@ with Stage("assemble_spades") as S:
            touch "{params.workdir}/contigs.fasta"
            touch "{params.workdir}/assembly_graph.fastg"
            touch "{params.workdir}/params.txt"
+           touch "{params.workdir}/spades.log"
            echo "YMP: $*" >> "{log.console}"
         }}
         if [ -e "{input.conf}" -a \! -s "{input.conf}" ]; then

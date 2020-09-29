@@ -570,7 +570,7 @@ with Stage("format_bbmap") as S:
 
     Parameter ``Ln`` filters sequences at a minimum length.
 
-    >>> ymp make toy.assemble_metaspades.format_bbmapL200
+    >>> ymp make toy.assemble_spades.format_bbmapL200
     """)
     S.add_param("L", typ="int", name="length", default=1)
     rule bbmap_reformat:
