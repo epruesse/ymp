@@ -59,25 +59,29 @@ def filter_out_empty(*args):
                  if all(map(file_not_empty, t))))
 
 
+def ensure_list(arg):
+    if isinstance(arg, str):
+        return [arg]
+    return arg
+
+
 def filter_input(name: str,
                  also: Optional[Sequence[str]] = None,
                  join: Optional[str] = None,
                  minsize: Optional[int] = None) -> Callable:
     def filter_input_func(wildcards, input):
         outfiles = []
-        files = getattr(input, name)
-        if isinstance(files, str):
-            files = [files]
+        files = ensure_list(getattr(input, name))
         if also is None:
-            extra_files = [None for _ in files]
+            extra_files = [[] for _ in files]
         else:
-            extra_files = [getattr(input, extra) for extra in also]
+            extra_files = [ensure_list(getattr(input, extra)) for extra in also]
         files_exist = [os.path.exists(fname)
                        for fnames in (files, extra_files)
                        for fname in fnames
-                       if fname is not None]
+                       if fname]
         if all(files_exist):
-            for fname, extra_fnames in zip(files, extra_files):
+            for fname, *extra_fnames in zip(files, *extra_files):
                 if isinstance(extra_fnames, str):
                     extra_fnames = [extra_fnames]
                 if minsize is not None:
@@ -86,10 +90,8 @@ def filter_input(name: str,
                     if not all (file_not_empty(fn) for fn in extra_fnames):
                         continue
                 outfiles.append(fname)
-
         elif any(files_exist):
             raise YmpRuleError("Missing files to check for length")
-
         if join is None:
             return outfiles
         return join.join(outfiles)
