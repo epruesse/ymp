@@ -110,7 +110,7 @@ def check_input(names: Sequence[str],
     def check_input_func(wildcards, input):
         files = [
             fname
-            for name in in names
+            for name in names
             for flist in ensure_list(getattr(input, name))
             for fname in flist
         ]
