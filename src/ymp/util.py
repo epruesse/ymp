@@ -120,7 +120,7 @@ def check_input(names: Sequence[str],
                     openfunc = gzip.open
                 else:
                     openfunc = open
-                with openfunc(fname) as fd:
+                with openfunc(fname, "rb") as fd:
                     btes = fd.read(8192)
                     while btes:
                         nlines += btes.count(b"\n")
