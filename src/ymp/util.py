@@ -108,15 +108,12 @@ def check_input(names: Sequence[str],
                 minlines: int = 0,
                 minbytes: int = 0) -> Callable:
     def check_input_func(wildcards, input):
-        lines_needed = minlines
-        bytes_needed = minbytes
-        files = []
-        for name in names:
-            entry = getattr(input, name)
-            if isinstance(entry, str):
-                files.append(entry)
-            else:
-                files.extend(entry)
+        files = [
+            fname
+            for name in in names
+            for flist in ensure_list(getattr(input, name))
+            for fname in flist
+        ]
         files_exist = [os.path.exists(fname) for fname in files]
         if all(files_exist):
             nbytes = 0
