@@ -97,7 +97,7 @@ def filter_input(name: str,
                         continue
                 outfiles.append(fname)
         elif any(files_exist):
-            raise YmpRuleError("Missing files to check for length")
+            raise YmpRuleError(None, "Missing files to check for length")
         if join is None:
             return outfiles
         return join.join(outfiles)
@@ -110,11 +110,11 @@ def check_input(names: Sequence[str],
     def check_input_func(wildcards, input):
         files = [
             fname
-            for name in names
-            for flist in ensure_list(getattr(input, name))
-            for fname in flist
+            for name in ensure_list(names)
+            for fname in ensure_list(getattr(input, name))
         ]
         files_exist = [os.path.exists(fname) for fname in files]
+
         if all(files_exist):
             nbytes = 0
             nlines = 0
@@ -134,7 +134,11 @@ def check_input(names: Sequence[str],
             if nbytes < minbytes or nlines < minlines:
                 return False
         elif any(files_exist):
-            raise YmpRuleError("Missing files to check for length")
+            raise YmpRuleError(
+                None,
+                f"Missing files to check for length: "
+                f"{files}"
+            )
         return True
     return check_input_func
 
