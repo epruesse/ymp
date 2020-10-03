@@ -99,9 +99,11 @@ def filter_input(name: str,
 
 
 def check_input(names: Sequence[str],
-                minlines: Optional[int] = None) -> Callable:
+                minlines: int = 0,
+                minbytes: int = 0) -> Callable:
     def check_input_func(wildcards, input):
         lines_needed = minlines
+        bytes_needed = minbytes
         files = []
         for name in names:
             entry = getattr(input, name)
@@ -111,16 +113,22 @@ def check_input(names: Sequence[str],
                 files.extend(entry)
         files_exist = [os.path.exists(fname) for fname in files]
         if all(files_exist):
+            nbytes = 0
+            nlines = 0
             for fname in files:
                 if fname.endswith(".gz"):
                     openfunc = gzip.open
                 else:
                     openfunc = open
                 with openfunc(fname) as fd:
-                    nlines = len([1 for _, _ in zip(range(minlines), iter(fd))])
-                lines_needed -= nlines
-                if lines_needed <= 0:
-                    return True
+                    btes = fd.read(8192)
+                    while btes:
+                        nlines += btes.count(b"\n")
+                        nbytes += len(btes)
+                        if nbytes >= minbytes and nlines >= minlines:
+                            break
+                        btes = fd.read(8192)
+            if nbytes < minbytes or nlines < minlines:
                 return False
         elif any(files_exist):
             raise YmpRuleError("Missing files to check for length")
