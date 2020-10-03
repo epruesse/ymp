@@ -84,8 +84,8 @@ with Stage("map_bowtie2") as S:
         params:
             bt2_base = lambda wc, input: input.index[0][:-len(BT2IDX_SUFFIXES[0])-1],
             mem    = icfg.mem("80g"),
-            r1 = filter_input("r1", join=","),
-            r2 = filter_input("r2", join=","),
+            r1 = filter_input("r1", also="r2", join=","),
+            r2 = filter_input("r2", also="r1", join=","),
             index_nonempty = check_input(["index"], minbytes=1)
         threads:
             12
@@ -106,10 +106,15 @@ with Stage("map_bowtie2") as S:
             'if [ -n "{params.local}" ]; then'
             ' MODE="$MODE-local";'
             'fi;'
+            'if [ -n "{params.r2}" ]; then'
+            ' READS="-1 {params.r1} -2 {params.r2}";'
+            'else'
+            ' READS="-U {params.r1}";'
+            'fi;'
             'bowtie2'
             ' --$MODE'
             ' -x {params.bt2_base}'
-            ' -1 {params.r1} -2 {params.r2}'
+            ' $READS'
             ' -X {params.maxins} '
             ' -I {params.minins} '
             ' -p {threads} '
@@ -120,7 +125,8 @@ with Stage("map_bowtie2") as S:
         input:
             r2    = []
         params:
-            reads = "-U {params.r1}"
+            r1 = filter_input("r1", join=","),
+            r2 = ""
 
     rule bowtie2_all:
         message:

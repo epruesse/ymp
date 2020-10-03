@@ -73,13 +73,19 @@ def filter_input(name: str,
         outfiles = []
         files = ensure_list(getattr(input, name))
         if also is None:
-            extra_files = [[] for _ in files]
+            extra_files = [[None] for _ in files]
         else:
-            extra_files = [ensure_list(getattr(input, extra)) for extra in also]
-        files_exist = [os.path.exists(fname)
-                       for fnames in (files, extra_files)
-                       for fname in fnames
-                       if fname]
+            extra_files = [ensure_list(getattr(input, extra))
+                           for extra in ensure_list(also)]
+        all_files = [
+            fname
+            for fnamell in ([files], extra_files)
+            for fnamel in fnamell
+            for fname in fnamel
+            if fname is not None
+        ]
+        files_exist = [os.path.exists(fname) for fname in all_files]
+
         if all(files_exist):
             for fname, *extra_fnames in zip(files, *extra_files):
                 if isinstance(extra_fnames, str):
@@ -138,7 +144,6 @@ def check_input(names: Sequence[str],
 
 @functools.lru_cache()
 def fasta_names(fasta_file):
-    print("Calling fasta_names on {}".format(fasta_file))
     res = []
     with open(fasta_file, "r") as f:
         for line in f:
