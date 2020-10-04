@@ -1,4 +1,4 @@
-from ymp.util import filter_input
+from ymp.util import filter_input, check_input
 
 Env(name="bowtie2", base="bioconda", packages=["bowtie2", "samtools"])
 
@@ -12,11 +12,12 @@ with Stage("index_bowtie2") as S:
         message:
             "Bowtie2: Indexing {input}"
         input:
-            "{:prev:}/{target}.fasta.gz"
+            fasta = "{:prev:}/{target}.fasta.gz"
         output:
             expand("{{:this:}}/{{target}}.{ext}", ext=BT2IDX_SUFFIXES)
         params:
-            bt2_base="{:this:}/{target}"
+            bt2_base="{:this:}/{target}",
+            nonempty = check_input(['fasta'], minlines=2)
         threads:
             8
         log:
@@ -26,6 +27,10 @@ with Stage("index_bowtie2") as S:
         conda:
             "bowtie2"
         shell:
+            "if [ '{params.nonempty}' = 'False' ]; then"
+            "  touch {output};"
+            "  exit 0;"
+            "fi;"
             "bowtie2-build-s"
             " {input}"
             " {params.bt2_base}"
@@ -79,13 +84,19 @@ with Stage("map_bowtie2") as S:
         params:
             bt2_base = lambda wc, input: input.index[0][:-len(BT2IDX_SUFFIXES[0])-1],
             mem    = icfg.mem("80g"),
-            r1 = filter_input("r1", join=","),
-            r2 = filter_input("r2", join=",")
+            r1 = filter_input("r1", also="r2", join=","),
+            r2 = filter_input("r2", also="r1", join=","),
+            index_nonempty = check_input(["index"], minbytes=1)
         threads:
             12
         conda:
             "bowtie2"
         shell:
+            'if [ "{params.index_nonempty}" = "False" ]; then'
+            ' echo -e "@HD\tVN:1.0" | samtools view -b -o {output.bam} -;'
+            ' echo YMP: empty index >{log};'
+            ' exit 0;'
+            'fi;'
             'case {params.sensitivity} in'
             ' VF) MODE=very-fast ;;'
             ' F) MODE=fast ;;'
@@ -95,10 +106,15 @@ with Stage("map_bowtie2") as S:
             'if [ -n "{params.local}" ]; then'
             ' MODE="$MODE-local";'
             'fi;'
+            'if [ -n "{params.r2}" ]; then'
+            ' READS="-1 {params.r1} -2 {params.r2}";'
+            'else'
+            ' READS="-U {params.r1}";'
+            'fi;'
             'bowtie2'
             ' --$MODE'
             ' -x {params.bt2_base}'
-            ' -1 {params.r1} -2 {params.r2}'
+            ' $READS'
             ' -X {params.maxins} '
             ' -I {params.minins} '
             ' -p {threads} '
@@ -109,7 +125,8 @@ with Stage("map_bowtie2") as S:
         input:
             r2    = []
         params:
-            reads = "-U {params.r1}"
+            r1 = filter_input("r1", join=","),
+            r2 = ""
 
     rule bowtie2_all:
         message:

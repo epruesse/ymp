@@ -59,25 +59,35 @@ def filter_out_empty(*args):
                  if all(map(file_not_empty, t))))
 
 
+def ensure_list(arg):
+    if isinstance(arg, str):
+        return [arg]
+    return arg
+
+
 def filter_input(name: str,
                  also: Optional[Sequence[str]] = None,
                  join: Optional[str] = None,
                  minsize: Optional[int] = None) -> Callable:
     def filter_input_func(wildcards, input):
         outfiles = []
-        files = getattr(input, name)
-        if isinstance(files, str):
-            files = [files]
+        files = ensure_list(getattr(input, name))
         if also is None:
-            extra_files = [None for _ in files]
+            extra_files = [[None] for _ in files]
         else:
-            extra_files = [getattr(input, extra) for extra in also]
-        files_exist = [os.path.exists(fname)
-                       for fnames in (files, extra_files)
-                       for fname in fnames
-                       if fname is not None]
+            extra_files = [ensure_list(getattr(input, extra))
+                           for extra in ensure_list(also)]
+        all_files = [
+            fname
+            for fnamell in ([files], extra_files)
+            for fnamel in fnamell
+            for fname in fnamel
+            if fname is not None
+        ]
+        files_exist = [os.path.exists(fname) for fname in all_files]
+
         if all(files_exist):
-            for fname, extra_fnames in zip(files, extra_files):
+            for fname, *extra_fnames in zip(files, *extra_files):
                 if isinstance(extra_fnames, str):
                     extra_fnames = [extra_fnames]
                 if minsize is not None:
@@ -86,10 +96,8 @@ def filter_input(name: str,
                     if not all (file_not_empty(fn) for fn in extra_fnames):
                         continue
                 outfiles.append(fname)
-
         elif any(files_exist):
-            raise YmpRuleError("Missing files to check for length")
-
+            raise YmpRuleError(None, "Missing files to check for length")
         if join is None:
             return outfiles
         return join.join(outfiles)
@@ -97,38 +105,46 @@ def filter_input(name: str,
 
 
 def check_input(names: Sequence[str],
-                minlines: Optional[int] = None) -> Callable:
+                minlines: int = 0,
+                minbytes: int = 0) -> Callable:
     def check_input_func(wildcards, input):
-        lines_needed = minlines
-        files = []
-        for name in names:
-            entry = getattr(input, name)
-            if isinstance(entry, str):
-                files.append(entry)
-            else:
-                files.extend(entry)
+        files = [
+            fname
+            for name in ensure_list(names)
+            for fname in ensure_list(getattr(input, name))
+        ]
         files_exist = [os.path.exists(fname) for fname in files]
+
         if all(files_exist):
+            nbytes = 0
+            nlines = 0
             for fname in files:
                 if fname.endswith(".gz"):
                     openfunc = gzip.open
                 else:
                     openfunc = open
-                with openfunc(fname) as fd:
-                    nlines = len([1 for _, _ in zip(range(minlines), iter(fd))])
-                lines_needed -= nlines
-                if lines_needed <= 0:
-                    return True
+                with openfunc(fname, "rb") as fd:
+                    btes = fd.read(8192)
+                    while btes:
+                        nlines += btes.count(b"\n")
+                        nbytes += len(btes)
+                        if nbytes >= minbytes and nlines >= minlines:
+                            break
+                        btes = fd.read(8192)
+            if nbytes < minbytes or nlines < minlines:
                 return False
         elif any(files_exist):
-            raise YmpRuleError("Missing files to check for length")
+            raise YmpRuleError(
+                None,
+                f"Missing files to check for length: "
+                f"{files}"
+            )
         return True
     return check_input_func
 
 
 @functools.lru_cache()
 def fasta_names(fasta_file):
-    print("Calling fasta_names on {}".format(fasta_file))
     res = []
     with open(fasta_file, "r") as f:
         for line in f:
