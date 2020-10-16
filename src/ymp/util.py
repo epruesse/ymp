@@ -98,6 +98,8 @@ def filter_input(name: str,
                 outfiles.append(fname)
         elif any(files_exist):
             raise YmpRuleError(None, "Missing files to check for length")
+        else:
+            outfiles = files
         if join is None:
             return outfiles
         return join.join(outfiles)
