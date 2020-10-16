@@ -70,17 +70,26 @@ pipelines:
   # below 254 characters. It also helps with the amount of typing.
   # Warning: Change pipelines with care. Changes do not (always)
   #          automatically lead to recomputation!
-  trim:
+  mytrim:
     # Use as shortcut for a single stage:
-    - trim_bbmap
-  map:
+    stages:
+      - trim_bbmap
+  myassemble:
+    stages:
+      - dust_bbmapE60:
+          hide: true
+      - assemble_megahit
+  mymap:
     # Use as shortcut for a few stages:
-    - index_bowtie2
-    - map_bowtie2
-  assembly:
+    hide: true
+    stages:
+      - index_bowtie2
+      - map_bowtie2
+      - sort_bam:
+          hide: false
+  mypipeline:
     # Use pipelines in pipelines:
-    - trim
-    - assemble_megahit
-    - map
-    - sort_bam
-    - coverage_samtools
+    stages:
+      - mytrim
+      - myassemble
+      - mymap
