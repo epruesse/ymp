@@ -69,6 +69,13 @@ class BaseStage(object):
         """
         return set()
 
+    def get_outputs(self, path: str) -> Dict[str, str]:
+        """Returns a dictionary of outputs"""
+        outputs = self.outputs
+        if isinstance(outputs, set):
+            return {output: path for output in outputs}
+        return outputs
+
     def can_provide(self, inputs: Set[str]) -> Dict[str, str]:
         """Determines which of ``inputs`` this stage can provide.
 
