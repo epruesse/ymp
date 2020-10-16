@@ -158,7 +158,7 @@ class Stage(WorkflowObject, BaseStage):
         self.requires = kwargs
 
     @property
-    def outputs(self):
+    def outputs(self) -> Set[str]:
         return self._outputs
 
     def get_inputs(self):
