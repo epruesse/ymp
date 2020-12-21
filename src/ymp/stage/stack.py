@@ -47,7 +47,7 @@ class StageStack(object):
     used_stacks = set()
 
     @classmethod
-    def get(cls, path, stage=None):
+    def instance(cls, path):
         """
         Cached access to StageStack
 
@@ -81,7 +81,6 @@ class StageStack(object):
         try:
             self.project = cfg.projects[self.stage_names[0]]
         except IndexError:
-            log.error("here")
             raise YmpStageError(f"No project for stage stack {path} found")
 
         # determine top stage
@@ -157,12 +156,12 @@ class StageStack(object):
         while stage_names and inputs:
             path = ".".join(stage_names)
             prev_stage = find_stage(stage_names.pop())
-            prev_stack = self.get(path, prev_stage)
+            prev_stack = self.instance(path)
             provides = stage.satisfy_inputs(prev_stage, inputs)
             for typ, path in provides.items():
                 if path:
                     path = ".".join(stage_names) + path
-                    prev_stack = self.get(path)
+                    prev_stack = self.instance(path)
                 prevs[typ] = prev_stack
         return prevs
 
@@ -178,7 +177,7 @@ class StageStack(object):
             for name in (stage.name, stage.altname):
                 if name and name.startswith(incomplete):
                     try:
-                        self.get(".".join((self.path, name)))
+                        self.instance(".".join((self.path, name)))
                         result.append(name)
                     except YmpStageError:
                         pass
@@ -220,7 +219,7 @@ class StageStack(object):
     def target(self, args, kwargs):
         """Finds the target in the prev stage matching current target"""
         prev_stage = self.prev(args, kwargs)
-        prev = self.get(prev_stage.name)
+        prev = self.instance(prev_stage.name)
         cur_target = kwargs['wc'].target
         target = self.project.get_ids(prev.group, self.group, cur_target)
         return target
