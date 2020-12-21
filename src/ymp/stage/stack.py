@@ -96,7 +96,7 @@ class StageStack(object):
         if len(self.stages) > 1 and isinstance(self.stages[-2], GroupBy):
             if self.group:
                 raise YmpStageError(f"Cannot apply grouping to {self.stage}")
-            self.group = self.stages[-1].get_group(self)
+            self.group = self.stages[-2].get_group(self)
 
         if self.group is None:
             groups = list(dict.fromkeys(

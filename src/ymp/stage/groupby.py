@@ -31,7 +31,7 @@ class GroupBy(BaseStage):
     def get_group(self, stack: "StageStack") -> List[str]:
         for name in reversed(stack.stage_names):
             if self.match(name):
-                return name[len(self.PREFIX):]
+                return [name[len(self.PREFIX):]]
 
     def match(self, name: str) -> bool:
         return name.startswith(self.PREFIX)
