@@ -1,3 +1,7 @@
+"""
+Implements the StageStack
+"""
+
 import logging
 import copy
 
@@ -69,11 +73,12 @@ class StageStack(object):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.name}, {self.stage})"
 
-    def __init__(self, path, stage=None):
+    def __init__(self, path):
         self.name = path
         self.stage_names = path.split(".")
         self.stages = [find_stage(name)
                        for name in self.stage_names]
+        self.stage = self.stages[-1]
 
         cfg = ymp.get_config()
 
@@ -83,24 +88,15 @@ class StageStack(object):
         except IndexError:
             raise YmpStageError(f"No project for stage stack {path} found")
 
-        # determine top stage
-        stage_names = copy.copy(self.stage_names)
-        top_stage = stage_names.pop()
-        if stage:
-            if not stage.match(top_stage):
-                raise YmpStageError(
-                    f"Internal error: {top_stage} not matched by {stage}")
-        if not stage:
-            stage = find_stage(top_stage)
-        self.stage = stage
-
-        # determine grouping
-        self.group = getattr(stage, "group", None)
-        if stage_names and stage_names[-1].startswith("group_"):
-            self.group = [stage_names.pop().split("_")[1]]
-
         # collect inputs
         self.prevs = self.resolve_prevs()
+
+        # determine grouping
+        self.group = self.stage.get_group(self)
+        if len(self.stages) > 1 and isinstance(self.stages[-2], GroupBy):
+            if self.group:
+                raise YmpStageError(f"Cannot apply grouping to {self.stage}")
+            self.group = self.stages[-1].get_group(self)
 
         if self.group is None:
             groups = list(dict.fromkeys(
@@ -110,6 +106,7 @@ class StageStack(object):
             ))
             self.group = self.project.minimize_variables(groups)
 
+        # Logging
         log.info("Stage stack %s using column %s", self, self.group)
         prevmap = dict()
         for typ, stack in self.prevs.items():

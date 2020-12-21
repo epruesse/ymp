@@ -92,7 +92,7 @@ class StageExpander(ColonExpander):
             if "wc" not in kwargs:
                 raise ExpandLateException()
             wc = kwargs['wc']
-            stack = StageStack.get(stage.wc2path(wc), stage)
+            stack = StageStack.instance(stage.wc2path(wc))
             if hasattr(stack, key):
                 val = getattr(stack, key)
                 if hasattr(val, "__call__"):

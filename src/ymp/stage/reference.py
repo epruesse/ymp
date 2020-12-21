@@ -2,7 +2,7 @@ import logging
 import os
 import re
 from hashlib import sha1
-from typing import Dict, Optional, Union, Set
+from typing import Dict, Optional, Union, Set, List
 from collections.abc import Mapping, Sequence
 
 from ymp.snakemake import make_rule
@@ -76,7 +76,7 @@ class Reference(ConfigStage):
         super().__init__("ref_" + name, cfg)
         self.files = {}
         self.archives = []
-        self.group = []
+        self._group = []
         self._outputs = None
 
         import ymp
@@ -88,7 +88,10 @@ class Reference(ConfigStage):
             if isinstance(rsc, str):
                 rsc = {'url': rsc}
             self.add_files(rsc, make_local_path(cfgmgr, rsc['url']))
-        self.group = self.group or ["ALL"]
+
+    def get_group(self, _stack: "StageStack") -> List[str]:
+        # References are not affected by stack groups
+        return self._group or ["ALL"]
 
     @property
     def outputs(self) -> Union[Set[str], Dict[str, str]]:

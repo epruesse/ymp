@@ -106,6 +106,10 @@ class BaseStage(object):
         """
         return [os.path.join(stack.path, self.STAMP_FILENAME)]
 
+    def get_group(self, stack: "StageStack") -> List[str]:
+        """Returns grouping if the stage has a fixed grouping"""
+        return None
+
 
 class ConfigStage(BaseStage):
     """Base for stages created via configuration
