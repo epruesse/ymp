@@ -56,5 +56,5 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v1
         with:
-          name: Test Failure Logs
+          name: Test Failure Logs ${{matrix.os}} ${{matrix.section}}
           path: test_failures
