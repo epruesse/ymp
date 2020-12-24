@@ -261,7 +261,6 @@ class Project(ConfigStage):
 
     def __init__(self, name, cfg):
         super().__init__(name, cfg)
-        self.altname = None
         self.pairnames = ymp.get_config().pairnames
         self.fieldnames = None
         self._data = None

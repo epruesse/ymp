@@ -17,6 +17,9 @@ class BaseStage(object):
         #: among all stages.
         self.name = name
 
+        #: Alternative name
+        self.altname = None
+
         #: The docstring describing this stage. Visible via ``ymp
         #:stage list`` and in the generated sphinx documentation.
         self.docstring: str = None
