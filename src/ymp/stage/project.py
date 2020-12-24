@@ -297,6 +297,7 @@ class Project(ConfigStage):
         return self.data.columns()
 
     def minimize_variables(self, groups):
+        """Removes redundant groupings"""
         if not groups:
             groups = [self.idcol]
         if len(groups) > 1:
@@ -308,6 +309,13 @@ class Project(ConfigStage):
         return groups
 
     def get_ids(self, groups, match_groups=None, match_value=None):
+        """Determine the target ID names for a set of active groupings
+
+        Called from `{:target:}` and `{:targets:}`. For `{:targets:}`,
+        `groups` is the set of active groupings for the stage
+        stack. For `{:target:}`, it's the same set for the source of
+        the file type, the current grouping and the current target.
+        """
         ids = None
         if groups == ['ALL']:
             ids = 'ALL'
