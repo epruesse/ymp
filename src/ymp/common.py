@@ -188,7 +188,12 @@ class Cache(object):
         SELECT data FROM caches WHERE name=? AND key=?
         """, [cache, key]).fetchone()
         if row:
-            return pickle.loads(row[0])
+            obj = pickle.loads(row[0])
+            try:
+                obj.load_from_pickle()
+            except AttributeError:
+                pass
+            return obj
         else:
             return None
 
