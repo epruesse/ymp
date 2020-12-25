@@ -169,7 +169,14 @@ class SQLiteProjectData(object):
         self.conn.executescript(state[1])
 
     def query(self, *args):
-        return self.conn.execute(*args)
+        try:
+            return self.conn.execute(*args)
+        except:
+            log.error(f"Failed to query project {self.name} data: {args}")
+            import pdb; pdb.set_trace()
+            raise
+        return ids
+
 
     @property
     def nrows(self):
