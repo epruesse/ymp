@@ -4,7 +4,7 @@ import re
 from collections import Mapping, Sequence
 import sqlite3
 
-from typing import List, Union, Dict, Set
+from typing import List, Union, Dict, Set, Optional
 
 import ymp
 from ymp.common import ensure_list
@@ -219,18 +219,31 @@ class SQLiteProjectData(object):
             )
         )
 
-    def get(self, idcol, row, col):
-        query = f'SELECT "{col}" from "{self.name}" where "{idcol}"=?'
-        res = [row[0] for row in self.query(query, [row]).fetchall()]
-        return res
-
-    def column(self, col):
-        if isinstance(col, str):
-            col = [col]
-        col = ",".join('"{}"'.format(c) for c in col)
-        return [t[0] for t in self.query(
-            'SELECT {c} from "{n}"'.format(n=self.name, c=col)
-        )]
+    def fetch(
+            self,
+            cols: Union[List[str], str],
+            idcols: Optional[Union[List[str], str]] = None,
+            values: Optional[Union[List[str], str]] = None
+    ) -> List[List[str]]:
+        if isinstance(cols, str):
+            cols = [cols]
+        query = "SELECT " + ",".join(f'"{col}"' for col in cols)
+        query += f" FROM {self.name}"
+        if idcols is not None:
+            if values is None:
+                raise RuntimeError("idcols set but values is not")
+            if isinstance(idcols, str):
+                idcols = [idcols]
+            if isinstance(values, str):
+                values = [values]
+            if len(idcols) != len(values):
+                log.error("len(%s) != len(%s)", idcols, values)
+                raise RuntimeError("idcols and values must have same length")
+            query += " WHERE "
+            query += " AND ".join(f'"{col}"=?' for col in idcols)
+        else:
+            values = []
+        return [".".join(t) for t in self.query(query, values).fetchall()]
 
     def groupby_dedup(self, cols):
         skip = set()
@@ -321,6 +334,11 @@ class Project(ConfigStage):
         `groups` is the set of active groupings for the stage
         stack. For `{:target:}`, it's the same set for the source of
         the file type, the current grouping and the current target.
+
+        Args:
+          groups: Set of columns the values of which should form IDs
+          match_value: Limit output to rows with this value
+          match_groups: ... in these groups
         """
         ids = None
         if groups == ['ALL']:
@@ -329,9 +347,9 @@ class Project(ConfigStage):
             ids = match_value
         elif groups[0] in self.data.columns():
             if match_groups and match_groups != ['ALL']:
-                ids = self.data.get(match_groups[0], match_value, groups[0])
+                ids = self.data.fetch(groups[0], match_groups[0], match_value)
             else:
-                ids = self.data.column(groups[0])
+                ids = self.data.fetch(groups[0])
         if not ids:
             if len(groups) == 1:
                 ids = groups[0]
@@ -352,7 +370,7 @@ class Project(ConfigStage):
 
         Lazy loading property, first call may take a while.
         """
-        return self.data.column(self.idcol)
+        return self.data.fetch(self.idcol)
 
     @property
     def idcol(self):
@@ -402,7 +420,8 @@ class Project(ConfigStage):
                 ))
         else:
             idcol = unique_columns[0]
-            log.info("Autoselected column %s=%s", self.KEY_IDCOL, idcol)
+            log.warn("Project '%s' using column '%s' to identify units",
+                     self.name, idcol)
 
         return idcol
 
@@ -487,13 +506,13 @@ class Project(ConfigStage):
             pair = self.pairnames.index(pair)
 
         if self.bccol and not nosplit:
-            barcode_file = self.data.get(self.idcol, target, self.bccol)[0]
+            barcode_file = self.data.fetch(self.bccol, self.idcol, target)[0]
             if barcode_file:
                 return self.encode_barcode_path(barcode_file, target, pair)
 
         kind = source[0]
         if kind == 'srr':
-            srr = self.data.get(self.idcol, target, source[1])[0]
+            srr = self.data.fetch(source[1], self.idcol, target)[0]
             f = os.path.join(cfg.dir.scratch,
                              "SRR",
                              "{}_{}.fastq.gz".format(srr, pair+1))
@@ -505,7 +524,7 @@ class Project(ConfigStage):
                 "Configuration Error: no source for sample {} and read {} "
                 "found.".format(target, pair+1))
 
-        fn = self.data.get(self.idcol, target, fq_col)[0]
+        fn = self.data.fetch(fq_col, self.idcol, target)[0]
         if kind == 'file':
             return fn
 
@@ -533,7 +552,7 @@ class Project(ConfigStage):
         barcode_file = barcode_id.replace("_x_", "/").replace("__", "_")
         pair = self.pairnames.index(pairname)
 
-        run = self.data.get(self.bccol, barcode_file, self.idcol)[0]
+        run = self.data.fetch(self.idcol, self.bccol, barcode_file)[0]
         source = self.source_path(run, pair, nosplit=True)
         return [barcode_file, source]
 
