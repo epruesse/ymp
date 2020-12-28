@@ -89,9 +89,15 @@ class Reference(ConfigStage):
                 rsc = {'url': rsc}
             self.add_files(rsc, make_local_path(cfgmgr, rsc['url']))
 
-    def get_group(self, _stack: "StageStack") -> List[str]:
-        # References are not affected by stack groups
-        return self._group or ["ALL"]
+    def get_group(
+            self,
+            _stack: "StageStack",
+            default_groups: List[str],
+            override_groups: List[str]
+    ) -> List[str]:
+        if override_groups:
+            raise YmpStageError("Cannot override reference grouping")
+        return self._group
 
     @property
     def outputs(self) -> Union[Set[str], Dict[str, str]]:
@@ -133,7 +139,8 @@ class Reference(ConfigStage):
             })
         elif type_name == 'path':
             self.dir = rsc['url'].rstrip('/')
-            self.group = rsc.get('group', [])
+            #FIXME
+            self._group = rsc.get('group', [])
             for filename in os.listdir(rsc['url']):
                 for regex in rsc.get('match', []):
                     match = re.fullmatch(regex, filename)

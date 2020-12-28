@@ -41,7 +41,7 @@ with Stage("bin_metabat2") as S:
             " {input.bam}"
             " > {log} 2>&1"
 
-    rule metabat2_bin:
+    checkpoint metabat2_bin:
         """
         Bin metagenome with MetaBat2
         """
@@ -49,9 +49,10 @@ with Stage("bin_metabat2") as S:
             "Binning {wildcards.target} with MetaBat2"
         input:
             depth = "{:this:}/{target}.depth.txt",
-            fasta = "{:prev:}/{target}.fasta.gz"
+            fasta = "{:prev:}/{:target:}.fasta.gz"
         output:
-            bins = "{:this:}/{target}.bins"
+            bins = "{:this:}/{target}.bins",
+            fasta = "{:this:}/{target}.{:bin:}.fasta.gz"
         log:
             "{:this:}/{target}.metabat.log"
         threads:

@@ -23,15 +23,23 @@ from typing import List
 from ymp.stage.base import BaseStage
 
 class GroupBy(BaseStage):
-    """Dummy stage for grouping"""
+    """Virtual stage for grouping"""
     PREFIX = "group_"
     def __init__(self, name: str) -> None:
         super().__init__(name)
 
-    def get_group(self, stack: "StageStack") -> List[str]:
+    def get_group(
+            self,
+            stack: "StageStack",
+            _default_groups: List[str],
+            _override_groups: List[str],
+    ) -> List[str]:
         for name in reversed(stack.stage_names):
             if self.match(name):
-                return [name[len(self.PREFIX):]]
+                group = name[len(self.PREFIX):]
+                if group == "ALL":
+                    return []
+                return [group]
 
     def match(self, name: str) -> bool:
         return name.startswith(self.PREFIX)

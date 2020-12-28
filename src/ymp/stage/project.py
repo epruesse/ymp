@@ -231,7 +231,7 @@ class SQLiteProjectData(object):
         query += f" FROM {self.name}"
         if idcols is not None:
             if values is None:
-                raise RuntimeError("idcols set but values is not")
+                raise RuntimeError(f"idcols set ({idcols}) but values is not")
             if isinstance(idcols, str):
                 idcols = [idcols]
             if isinstance(values, str):
@@ -243,7 +243,7 @@ class SQLiteProjectData(object):
             query += " AND ".join(f'"{col}"=?' for col in idcols)
         else:
             values = []
-        return [".".join(t) for t in self.query(query, values).fetchall()]
+        return self.query(query, values).fetchall()
 
     def groupby_dedup(self, cols):
         skip = set()
@@ -316,48 +316,36 @@ class Project(ConfigStage):
         return self.data.columns()
 
     def minimize_variables(self, groups):
-        """Removes redundant groupings"""
-        if not groups:
-            groups = [self.idcol]
-        if len(groups) > 1:
-            groups = [g for g in groups if g != 'ALL']  # FIXME: lowercase?
-        if len(groups) > 1:
-            groups = self.data.groupby_dedup(groups)
-        if len(groups) > 1:
-            raise YmpStageError(f"multi-idx grouping not implemented (groups={groups})")
-        return groups
-
-    def get_ids(self, groups, match_groups=None, match_value=None):
-        """Determine the target ID names for a set of active groupings
-
-        Called from `{:target:}` and `{:targets:}`. For `{:targets:}`,
-        `groups` is the set of active groupings for the stage
-        stack. For `{:target:}`, it's the same set for the source of
-        the file type, the current grouping and the current target.
-
-        Args:
-          groups: Set of columns the values of which should form IDs
-          match_value: Limit output to rows with this value
-          match_groups: ... in these groups
+        """Removes redundant groupings
         """
-        ids = None
-        if groups == ['ALL']:
-            ids = 'ALL'
-        elif groups == match_groups:
-            ids = match_value
-        elif groups[0] in self.data.columns():
-            if match_groups and match_groups != ['ALL']:
-                ids = self.data.fetch(groups[0], match_groups[0], match_value)
-            else:
-                ids = self.data.fetch(groups[0])
-        if not ids:
-            if len(groups) == 1:
-                ids = groups[0]
-            else:
-                raise YmpStageError(
-                    f"no ids for {groups} {match_groups} {match_value}"
-                )
-        return ids
+        include = set(self.variables)
+        known_groups = list(filter(lambda x: x in include, groups))
+        other_groups = list(filter(lambda x: x not in include, groups))
+        if len(known_groups) < 2:
+            minimal_groups = known_groups
+        else:
+            minimal_groups = self.data.groupby_dedup(known_groups)
+        return minimal_groups, other_groups
+
+    def get_group(
+            self,
+            _stack: "StageStack",
+            default_groups: List[str],
+            override_groups: Optional[List[str]]
+    ) -> List[str]:
+        if override_groups:
+            raise YmpStageError("Cannot override project grouping")
+        return [self.idcol]
+
+    def get_ids(self, _stack, groups, match_groups=None, match_values=None):
+        if match_values:
+            match_values = match_values.split("__")
+        
+        return ["__".join(t) for t in self.data.fetch(
+            groups,
+            match_groups,
+            match_values
+        )]
 
     def iter_samples(self, variables=None):
         if not variables:
@@ -370,7 +358,7 @@ class Project(ConfigStage):
 
         Lazy loading property, first call may take a while.
         """
-        return self.data.fetch(self.idcol)
+        return self.data.fetch(self.idcol)[0]
 
     @property
     def idcol(self):
@@ -506,13 +494,13 @@ class Project(ConfigStage):
             pair = self.pairnames.index(pair)
 
         if self.bccol and not nosplit:
-            barcode_file = self.data.fetch(self.bccol, self.idcol, target)[0]
+            barcode_file, = self.data.fetch(self.bccol, self.idcol, target)[0]
             if barcode_file:
                 return self.encode_barcode_path(barcode_file, target, pair)
 
         kind = source[0]
         if kind == 'srr':
-            srr = self.data.fetch(source[1], self.idcol, target)[0]
+            srr, = self.data.fetch(source[1], self.idcol, target)[0]
             f = os.path.join(cfg.dir.scratch,
                              "SRR",
                              "{}_{}.fastq.gz".format(srr, pair+1))
@@ -524,7 +512,7 @@ class Project(ConfigStage):
                 "Configuration Error: no source for sample {} and read {} "
                 "found.".format(target, pair+1))
 
-        fn = self.data.fetch(fq_col, self.idcol, target)[0]
+        fn, = self.data.fetch(fq_col, self.idcol, target)[0]
         if kind == 'file':
             return fn
 
@@ -552,7 +540,7 @@ class Project(ConfigStage):
         barcode_file = barcode_id.replace("_x_", "/").replace("__", "_")
         pair = self.pairnames.index(pairname)
 
-        run = self.data.fetch(self.idcol, self.bccol, barcode_file)[0]
+        run, = self.data.fetch(self.idcol, self.bccol, barcode_file)[0]
         source = self.source_path(run, pair, nosplit=True)
         return [barcode_file, source]
 
@@ -589,7 +577,11 @@ class Project(ConfigStage):
     @property
     def fq_names(self):
         "Names of all FastQ files"
-        return self.get_fq_names()
+        try:
+            return self.get_fq_names()
+        except:
+            log.exception("hetre")
+            raise
 
     @property
     def pe_fq_names(self):
