@@ -323,9 +323,10 @@ def test_env_run(invoker, demo_dir, mock_conda, mock_downloader, capfd):
             "toy.assemble_megahit.map_bbmap",
         }],
         ["ymp make toy.map_bowtie2.", 0, set()],
-        ["ymp make toy.group_", 14, {
+        ["ymp make toy.group_", 16, {
             "toy.group_name", "toy.group_Subject",
             "toy.group_name.", "toy.group_Subject.",
+            "toy.group_ALL.", "toy.group_ALL",
         }],
     ]
 )

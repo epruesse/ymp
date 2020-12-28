@@ -166,7 +166,7 @@ class StageStack(object):
         registry = Stage.get_registry()
         cfg = ymp.get_config()
         result = []
-        groups = ("group_" + name for name in self.project.variables)
+        groups = ("group_" + name for name in self.project.variables + ['ALL'])
         result += (opt for opt in groups if opt.startswith(incomplete))
         refs = ("ref_" + name for name in cfg.ref)
         result += (opt for opt in refs if opt.startswith(incomplete))
