@@ -131,7 +131,7 @@ class BaseStage(object):
             stack: "StageStack",
             groups: List[str],
             match_groups: Optional[List[str]] = None,
-            match_values: Optional[List[str]] = None
+            match_value: Optional[str] = None
     ) -> List[str]:
         """Determine the target ID names for a set of active groupings
 
@@ -148,15 +148,15 @@ class BaseStage(object):
         # empty groups means single output file, termed ALL
         if not groups:
             return ['ALL']
-        if match_values == 'ALL':
-            match_values = None
+        if match_value == 'ALL':
+            match_value = None
             match_groups = None
-        if not match_groups and match_values:
-            return match_values
+        if not match_groups and match_value:
+            return [match_value]
         # Fastpath: If groups and match groups are identical the input
         # and output IDs must be identical.
         if groups == match_groups:
-            return match_values
+            return [match_value]
         # Pass through to project
         return stack.project.get_ids(stack, groups, match_groups, match_values)
 

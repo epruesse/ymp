@@ -92,7 +92,7 @@ with Stage("bin_metabat2") as S:
             "for bin in {params.prefix}.*.fa.gz; do"
             "  base=${{bin#{params.prefix}.}};"
             "  binid=bin_${{base%.fa.gz}};"
-            "  mv $bin {params.prefix}.$binid.fasta.gz;"
+            "  mv $bin {params.prefix}__$binid.fasta.gz;"
             "  echo $binid >> {output.bins};"
             "done;"
 

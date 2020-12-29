@@ -337,7 +337,7 @@ class Project(ConfigStage):
             raise YmpStageError("Cannot override project grouping")
         return [self.idcol]
 
-    def get_ids(self, _stack, groups, match_groups=None, match_values=None):
+    def do_get_ids(self, _stack, groups, match_groups=None, match_values=None):
         if match_values:
             match_values = match_values.split("__")
         

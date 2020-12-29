@@ -285,9 +285,77 @@ class Stage(WorkflowObject, BaseStage):
             groups = default_groups
         else:
             groups = override_groups
-        #if self.checkpoints:
-        #    groups.append('__bins__')
+        if self.has_checkpoint():
+            groups.append(stack)
+
         return groups
+
+    def get_checkpoint_ids(self, stack, target):
+        from snakemake.workflow import checkpoints
+        if len(self.checkpoints) > 1:
+            raise RuntimeError("Multiple checkpoints not implemented")
+        checkpoint_name = next(iter(self.checkpoints.keys()))
+        checkpoint = getattr(checkpoints, checkpoint_name)
+        ymp_dir = stack.path[:-len(stack.stage.name)]
+        job = checkpoint.get(_YMP_DIR=ymp_dir, target=target)
+        with open(job.output.bins, "r") as fd:
+            bins = [line.strip() for line in fd.readlines()]
+        return bins
+
+    def get_ids(self, stack, groups, mygroups=None, target=None):
+        groups = list(groups)
+        if mygroups is not None:
+            mygroups = list(mygroups)
+
+        bins = []
+        mybins = {}
+        if mygroups is None and target is None:
+            # If we are getting IDs for {:targets:} of binning stage,
+            # don't return self
+            if stack in groups:
+                groups.remove(stack)
+            # If we are getting IDs for {:targets:} of subsequent stage,
+            # find all generated ids from binning stage.
+            # Multiply binned ids
+            for group in list(groups):
+                if not isinstance(group, type(stack)):
+                    continue
+                groups.remove(group)
+                bins.append(group)
+        elif mygroups is None:
+            raise RuntimeError("Mygroups none but target not?")
+        else:
+            # If we are getting IDs for {:target:} of subsequent stage,
+            # find all generated ids from binning stage.
+            # Multiply binned ids
+            for group in list(groups):
+                if not isinstance(group, type(stack)):
+                    continue
+                groups.remove(group)
+                bins.append(group)
+
+            target_parts = []
+            for group, tgt in zip(list(mygroups), target.split("__")):
+                if isinstance(group, type(stack)):
+                    mygroups.remove(group)
+                    mybins[group] = tgt
+                    log.error(f"  mybins = {mybins}")
+                else:
+                    target_parts.append(tgt)
+            if target_parts:
+                mygroups = mygroups[0:len(target_parts)]
+                target = "__".join(target_parts)
+
+        # Pass to standard
+        ids = super().get_ids(stack, groups, mygroups, target)
+        for bin in bins:
+            ids = [
+                "__".join((target, binid))
+                for target in ids
+                for binid in bin.stage.get_checkpoint_ids(bin, target)
+                if bin not in mybins or binid == mybins[bin]
+            ]
+        return ids
 
 
 class Param(object):
