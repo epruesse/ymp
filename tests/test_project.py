@@ -3,7 +3,7 @@ import logging
 import pytest
 
 import ymp
-from ymp.stage.project import SQLiteProjectData, PandasProjectData
+from ymp.stage.project import SQLiteProjectData
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -14,7 +14,7 @@ def pickled_sqlite_pd(cfg):
     return pickle.loads(pkl)
 
 
-@pytest.fixture(params=[PandasProjectData, SQLiteProjectData, pickled_sqlite_pd])
+@pytest.fixture(params=[SQLiteProjectData, pickled_sqlite_pd])
 def project_data(request, project_dir, saved_cwd):
     ymp.get_config().unload()
     cfg = ymp.get_config()
@@ -42,6 +42,6 @@ def test_project_data(project_data):
                      ['apple', 'orange', 'grape', 'banana', 'cherry', 'melon']
             ):
         assert row[1] == test
-    assert obj.get('fruit', 'apple', 'skin_color') == ['green']
-    assert obj.column('fruit') == ['apple', 'orange', 'grape', 'banana', 'cherry', 'melon']
+    assert obj.fetch('skin_color', 'fruit', 'apple') == [('green',)]
+    assert obj.fetch('fruit') == [('apple',), ('orange',), ('grape',), ('banana',), ('cherry',), ('melon',)]
     assert obj.groupby_dedup(cols[1:]) == cols[1:3]

@@ -1,7 +1,7 @@
 import logging
 import os
 
-from typing import Set, Dict, Union, List
+from typing import Set, Dict, Union, List, Optional
 
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -16,6 +16,9 @@ class BaseStage(object):
         #: The name of the stage is a string uniquely identifying it
         #: among all stages.
         self.name = name
+
+        #: Alternative name
+        self.altname = None
 
         #: The docstring describing this stage. Visible via ``ymp
         #:stage list`` and in the generated sphinx documentation.
@@ -105,6 +108,60 @@ class BaseStage(object):
         stamp name.
         """
         return [os.path.join(stack.path, self.STAMP_FILENAME)]
+
+    def get_group(
+            self,
+            _stack: "StageStack",
+            default_groups: List[str],
+            override_groups: Optional[List[str]]
+    ) -> List[str]:
+        """Determine output grouping for stage
+
+        Args:
+          stack: The stack for which output grouping is requested.
+          default_groups: Grouping determined from stage inputs
+          override_groups: Override grouping from GroupBy stage or None.
+        """
+        if override_groups:
+            return override_groups
+        return default_groups
+
+    def get_ids(
+            self,
+            stack: "StageStack",
+            groups: List[str],
+            match_groups: Optional[List[str]] = None,
+            match_values: Optional[List[str]] = None
+    ) -> List[str]:
+        """Determine the target ID names for a set of active groupings
+
+        Called from `{:target:}` and `{:targets:}`. For `{:targets:}`,
+        `groups` is the set of active groupings for the stage
+        stack. For `{:target:}`, it's the same set for the source of
+        the file type, the current grouping and the current target.
+
+        Args:
+          groups: Set of columns the values of which should form IDs
+          match_value: Limit output to rows with this value
+          match_groups: ... in these groups
+        """
+        # empty groups means single output file, termed ALL
+        if not groups:
+            return ['ALL']
+        if match_values == 'ALL':
+            match_values = None
+            match_groups = None
+        if not match_groups and match_values:
+            return match_values
+        # Fastpath: If groups and match groups are identical the input
+        # and output IDs must be identical.
+        if groups == match_groups:
+            return match_values
+        # Pass through to project
+        return stack.project.get_ids(stack, groups, match_groups, match_values)
+
+    def has_checkpoint(self) -> bool:
+        return False
 
 
 class ConfigStage(BaseStage):

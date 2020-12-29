@@ -1,11 +1,15 @@
 Env(name="metabat2", base="bioconda", packages=[
     "metabat2",
+    "pigz",
     "libdeflate==1.0"  # pinning in bioconda broken
 ])
 
 with Stage("bin_metabat2") as S:
     S.doc("""
     Bin metagenome assembly into MAGs
+
+    >>> ymp make mock.assemble_megahit.map_bbmap.sort_bam.bin_metabat2
+    >>> ymp make mock.group_ALL.assemble_megahit.map_bbmap.sort_bam.group_ALL.bin_metabat2
     """)
 
     rule metabat2_depth:
@@ -37,7 +41,7 @@ with Stage("bin_metabat2") as S:
             " {input.bam}"
             " > {log} 2>&1"
 
-    rule metabat2_bin:
+    checkpoint metabat2_bin:
         """
         Bin metagenome with MetaBat2
         """
@@ -45,14 +49,17 @@ with Stage("bin_metabat2") as S:
             "Binning {wildcards.target} with MetaBat2"
         input:
             depth = "{:this:}/{target}.depth.txt",
-            fasta = "{:prev:}/{target}.fasta.gz"
+            fasta = "{:prev:}/{:target:}.fasta.gz"
         output:
-            fasta_dir = directory("{:this:}/{target}/")
+            bins = "{:this:}/{target}.bins",
+            fasta = "{:this:}/{target}.{:bin:}.fasta.gz"
         log:
             "{:this:}/{target}.metabat.log"
         threads:
             32
         params:
+            prefix = "{:this:}/{target}",
+
             min_contig_len = 2500,  # decrease if input quality very high
             max_p = 95,             # decrease if input quality very low
             max_edges = 200,        # decrease if input quality very low,
@@ -66,7 +73,7 @@ with Stage("bin_metabat2") as S:
             "metabat2"
             " --inFile {input.fasta}"
             " --abdFile {input.depth}"
-            " --outFile {output.fasta_dir}"
+            " --outFile {params.prefix}"
             " --minContig {params.min_contig_len}"
             " --maxP {params.max_p}"
             " --minS {params.min_s}"
@@ -74,13 +81,26 @@ with Stage("bin_metabat2") as S:
             " --minClsSize {params.min_cls_size}"
             " --numThreads {threads}"
             " --seed {params.seed}"
-            " > {log} 2>&1"
+            " --saveCls"
+            " > {log} 2>&1;"
+            ""
+            "mv {params.prefix} {params.prefix}.metabat.txt;"
+            ""
+            "touch {output.bins};"
+            "ls {params.prefix}*.fa | xargs -P4 pigz;"
+            ""
+            "for bin in {params.prefix}.*.fa.gz; do"
+            "  base=${{bin#{params.prefix}.}};"
+            "  binid=bin_${{base%.fa.gz}};"
+            "  mv $bin {params.prefix}.$binid.fasta.gz;"
+            "  echo $binid >> {output.bins};"
+            "done;"
 
     rule metabat2_all:
         message:
             "Completed Metabat binning"
         input:
-            "{:this:}/{:targets:}/"
+            "{:this:}/{:targets:}.bins"
         output:
             touch("{:this:}/all_targets.stamp")
         

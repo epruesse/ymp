@@ -121,7 +121,7 @@ if (icfg.pipelines):
     def _get_pipeline_realpath(wc):
         from ymp.stage import StageStack, Pipeline
         link = wc.pipeline_stack_link
-        stack = StageStack.get(link)
+        stack = StageStack.instance(link)
         if not isinstance(stack.stage, Pipeline):
             raise IndexError
         depends = [tgt for tgt in stack.all_targets()
@@ -135,6 +135,6 @@ if (icfg.pipelines):
         run:
             from ymp.stage import StageStack
             os.symlink(
-                StageStack.get(output[0]).path,
+                StageStack.instance(output[0]).path,
                 output[0]
             )

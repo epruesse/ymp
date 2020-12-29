@@ -6,7 +6,7 @@ from typing import Dict, List, Set
 
 from snakemake.rules import Rule
 
-from ymp.snakemake import WorkflowObject
+from ymp.snakemake import WorkflowObject, RemoveValue
 from ymp.stage.base import BaseStage
 from ymp.exceptions import YmpRuleError, YmpException
 
@@ -49,11 +49,12 @@ class Stage(WorkflowObject, BaseStage):
             env: See `Stage.env`
         """
         super().__init__(name)
-        # Alternate stage name
         self.altname: str = altname
         self.register()
-        # Rules in this stage
+        #: Rules in this stage
         self.rules: List[Rule] = []
+        #: Checkpoints in this stage
+        self.checkpoints: Dict[str, Set[str]] = {}
         # Inputs required by stage
         self._inputs: Set[str] = set()
         self._outputs: Set[str] = set()
@@ -119,8 +120,7 @@ class Stage(WorkflowObject, BaseStage):
 
     def _add_rule(self, rule):
         rule.ymp_stage = self
-        # FIXME: disabled because it breaks pickling of Stage
-        # self.rules.append(rule)
+        self.rules.append(rule.name)
 
     def add_param(self, key, typ, name, value=None, default=None):
         """Add parameter to stage
@@ -194,7 +194,7 @@ class Stage(WorkflowObject, BaseStage):
         return provides
 
     def wc2path(self, wc):
-        wildcards = self.wildcards()
+        wildcards = self._wildcards(self.name)
         for p in self.params:
             wildcards = wildcards.replace(p.constraint, "")
         return wildcards.format(**wc)
@@ -209,31 +209,42 @@ class Stage(WorkflowObject, BaseStage):
             self._regex = re.compile(pat)
         return self._regex.fullmatch(name) is not None
 
-    def prev(self, args, kwargs):
-        """Gathers {:prev:} calls from rules"""
-        prefix, _, suffix = kwargs.get('item').partition("{:prev:}")
+    def _check_active_stage(self, name: str) -> None:
+        if not Stage.active:
+            raise YmpException(
+                f"Use of {{:{name}:}} requires active Stage"
+            )
+
+    def _register_inout(self, name: str, target, item) -> None:
+        self._check_active_stage(name)
+        prefix, _, suffix = item.partition(f"{{:{name}:}}")
+        norm_suffix = norm_wildcards(suffix)
         if not prefix:
-            self._inputs.add(norm_wildcards(suffix))
+            target.add(norm_suffix)
+        return norm_suffix
+
+    def _wildcards(self, name, kwargs=None):
+        show_constraint = kwargs and kwargs.get('field') != 'input'
+        return "".join(["{_YMP_DIR}", name] +
+                       [p.pattern(show_constraint) for p in self.params])
+
+    def prev(self, args, kwargs) -> None:
+        """Gathers {:prev:} calls from rules
+
+        Here, input requirements for each stage are collected.
+        """
+        item = kwargs['item']
+        self._register_inout("prev", self._inputs, item)
         return None
 
     def this(self, args=None, kwargs=None):
-        """
-        Directory of current stage
-        """
-        if not Stage.active:
-            raise YmpException(
-                "Use of {:this:} requires active Stage"
-            )
-        prefix, _, suffix = kwargs.get('item').partition("{:this:}")
-        if not prefix:
-            self._outputs.add(norm_wildcards(suffix))
+        """Replaces {:this:} in rules
 
-        item = kwargs.get('item')
-        if item is None:
-            raise YmpException("Internal Error")
-        prefix, _, pattern = item.partition("{:this:}")
-
-        return self.wildcards(args=args, kwargs=kwargs)
+        Also gathers output capabilities of each stage.
+        """
+        item = kwargs['item']
+        self._register_inout("this", self._outputs, item)
+        return self._wildcards(self.name, kwargs=kwargs)
 
     def that(self, args=None, kwargs=None):
         """
@@ -241,24 +252,42 @@ class Stage(WorkflowObject, BaseStage):
 
         Used for splitting stages
         """
-        if not Stage.active:
-            raise YmpException(
-                "Use of {:that:} requires active Stage"
-            )
+        self._check_active_stage("that")
         if not Stage.active.altname:
             raise YmpException(
                 "Use of {:that:} requires with altname"
             )
-        show_constraint = kwargs and kwargs.get('field') != 'input'
-        return "".join(["{_YMP_DIR}", self.altname] +
-                       [p.pattern(show_constraint) for p in self.params])
+        return self._wildcards(self.altname, kwargs=kwargs)
 
-    def wildcards(self, args=None, kwargs=None):
-        show_constraint = kwargs and kwargs.get('field') != 'input'
-        return "".join(["{_YMP_DIR}", self.name] +
-                       [p.pattern(show_constraint) for p in self.params])
+    def bin(self, args=None, kwargs=None):
+        """
+        Dynamic ID for splitting stages
+        """
+        rule = kwargs['rule']
+        if not rule.is_checkpoint:
+            raise YmpStageError("Only checkpoints may use '{:bin:}'")
+        item = kwargs['item']
+        norm_item = item.replace(".{:bin:}", "")
+        norm_suffix = self._register_inout("this", self._outputs, norm_item)
+        self.checkpoints.setdefault(rule.name, set()).add(norm_suffix)
+        raise RemoveValue()
 
+    def has_checkpoint(self) -> bool:
+        return bool(self.checkpoints)
 
+    def get_group(
+            self,
+            stack: "StageStack",
+            default_groups: List[str],
+            override_groups: List[str],
+    ) -> List[str]:
+        if override_groups is None:
+            groups = default_groups
+        else:
+            groups = override_groups
+        #if self.checkpoints:
+        #    groups.append('__bins__')
+        return groups
 
 
 class Param(object):

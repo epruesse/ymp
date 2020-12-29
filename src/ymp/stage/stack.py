@@ -1,3 +1,7 @@
+"""
+Implements the StageStack
+"""
+
 import logging
 import copy
 
@@ -47,7 +51,7 @@ class StageStack(object):
     used_stacks = set()
 
     @classmethod
-    def get(cls, path, stage=None):
+    def instance(cls, path):
         """
         Cached access to StageStack
 
@@ -60,7 +64,7 @@ class StageStack(object):
         res = cache[path]
         if res not in cls.used_stacks:
             cls.used_stacks.add(res)
-            log.info("Stage stack %s using column %s", res, res.group)
+            res.show_info()
         return res
 
     def __str__(self):
@@ -69,49 +73,52 @@ class StageStack(object):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.name}, {self.stage})"
 
-    def __init__(self, path, stage=None):
+    def __init__(self, path):
+        #: Name of stack, aka is its full path
         self.name = path
+        #: Names of stages on stack
         self.stage_names = path.split(".")
+        #: Stages on stack
         self.stages = [find_stage(name)
                        for name in self.stage_names]
+        #: Top Stage
+        self.stage = self.stages[-1]
+        #: Stage below top stage or None if first in stack
+        self.prev_stage = self.stages[-2] if len(self.stages) > 1 else None
 
         cfg = ymp.get_config()
 
-        # determine project
-        try:
-            self.project = cfg.projects[self.stage_names[0]]
-        except IndexError:
-            log.error("here")
+        #: Project on which stack operates
+        #: This is needed for grouping variables currently.
+        self.project = cfg.projects.get(self.stage_names[0])
+        if not self.project:
             raise YmpStageError(f"No project for stage stack {path} found")
 
-        # determine top stage
-        stage_names = copy.copy(self.stage_names)
-        top_stage = stage_names.pop()
-        if stage:
-            if not stage.match(top_stage):
-                raise YmpStageError(
-                    f"Internal error: {top_stage} not matched by {stage}")
-        if not stage:
-            stage = find_stage(top_stage)
-        self.stage = stage
-
-        # determine grouping
-        self.group = getattr(stage, "group", None)
-        if stage_names and stage_names[-1].startswith("group_"):
-            self.group = [stage_names.pop().split("_")[1]]
-
-        # collect inputs
+        #: Mapping of each input type required by the stage of this stack
+        #: to the prefix stack providing it.
         self.prevs = self.resolve_prevs()
 
-        if self.group is None:
-            groups = list(dict.fromkeys(
-                group
-                for p in reversed(list(self.prevs.values()))
-                for group in p.group
-            ))
-            self.group = self.project.minimize_variables(groups)
+        # Gather all previous groups
+        groups = list(dict.fromkeys(
+            group
+            for stack in reversed(list(self.prevs.values()))
+            for group in stack.group
+        ))
+        project_groups, other_groups = self.project.minimize_variables(groups)
+        # Check for groupby
+        if isinstance(self.prev_stage, GroupBy):
+            groupby = self.prev_stage.get_group(self, [], [])
+        else:
+            groupby = None
+        self.group = self.stage.get_group(self, project_groups + other_groups, groupby)
 
-        log.info("Stage stack %s using column %s", self, self.group)
+    def show_info(self):
+        log.info(
+            "Stage stack '%s' (output by %s%s)",
+            self,
+            ", ".join(self.group) or "*ALL*",
+            " + bins" if self.stage.has_checkpoint() else ""
+        )
         prevmap = dict()
         for typ, stack in self.prevs.items():
             prevmap.setdefault(str(stack), []).append(typ)
@@ -120,7 +127,7 @@ class StageStack(object):
             title = stack.split(".")[-1]
             if self.stage_names.count(title)  != 1:
                 title = stack
-            log.info(f".. from {title}: {ftypes}")
+            log.info(f"  input from {title}: {ftypes}")
 
     def resolve_prevs(self):
         inputs = self.stage.get_inputs()
@@ -157,12 +164,12 @@ class StageStack(object):
         while stage_names and inputs:
             path = ".".join(stage_names)
             prev_stage = find_stage(stage_names.pop())
-            prev_stack = self.get(path, prev_stage)
+            prev_stack = self.instance(path)
             provides = stage.satisfy_inputs(prev_stage, inputs)
             for typ, path in provides.items():
                 if path:
                     path = ".".join(stage_names) + path
-                    prev_stack = self.get(path)
+                    prev_stack = self.instance(path)
                 prevs[typ] = prev_stack
         return prevs
 
@@ -170,7 +177,7 @@ class StageStack(object):
         registry = Stage.get_registry()
         cfg = ymp.get_config()
         result = []
-        groups = ("group_" + name for name in self.project.variables)
+        groups = ("group_" + name for name in self.project.variables + ['ALL'])
         result += (opt for opt in groups if opt.startswith(incomplete))
         refs = ("ref_" + name for name in cfg.ref)
         result += (opt for opt in refs if opt.startswith(incomplete))
@@ -178,7 +185,7 @@ class StageStack(object):
             for name in (stage.name, stage.altname):
                 if name and name.startswith(incomplete):
                     try:
-                        self.get(".".join((self.path, name)))
+                        self.instance(".".join((self.path, name)))
                         result.append(name)
                     except YmpStageError:
                         pass
@@ -213,14 +220,31 @@ class StageStack(object):
     @property
     def targets(self):
         """
-        Returns the current targets
+        ID names of output files to be generated by current stage.
         """
-        return self.project.get_ids(self.group)
+        try:
+            ids = self.stage.get_ids(self, self.group)
+            log.error(f"Targets for {self}: {ids}")
+            return ids
+        except:
+            log.exception("Unexpected!")
+            import pdb; pdb.post_mortem()
+            raise
 
     def target(self, args, kwargs):
-        """Finds the target in the prev stage matching current target"""
-        prev_stage = self.prev(args, kwargs)
-        prev = self.get(prev_stage.name)
+        """
+        ID names of input files for a specific input of the current stage
+        """
+        # Find stage stack from which input was generated
+        prev_stack = self.prev(args, kwargs)
+        # Find name of current output target
         cur_target = kwargs['wc'].target
-        target = self.project.get_ids(prev.group, self.group, cur_target)
-        return target
+
+        try:
+            ids = self.stage.get_ids(self, prev_stack.group, self.group, cur_target)
+            log.error(f"Prev targets for {self} and {prev_stack}/{cur_target}: {repr(ids)}")
+            return ids
+        except:
+            log.exception("Unexpected 2!")
+            import pdb; pdb.post_mortem()
+            raise

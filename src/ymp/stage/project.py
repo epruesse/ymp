@@ -4,7 +4,7 @@ import re
 from collections import Mapping, Sequence
 import sqlite3
 
-from typing import List, Union, Dict, Set
+from typing import List, Union, Dict, Set, Optional
 
 import ymp
 from ymp.common import ensure_list
@@ -146,71 +146,6 @@ class PandasTableBuilder(object):
         })
 
 
-class PandasProjectData(object):
-    def __init__(self, cfg):
-        import pandas
-        self.pd = pandas
-        table_builder = PandasTableBuilder()
-        self.df = table_builder.load_data(cfg)
-
-    def columns(self):
-        return list(self.df.columns)
-
-    def identifying_columns(self):
-        column_frequencies = self.df.apply(self.pd.Series.nunique)
-        log.debug("Column frequencies: {}".format(column_frequencies))
-        nrows = self.df.shape[0]
-        log.debug("Row count: {}".format(nrows))
-        columns = self.df.columns[column_frequencies == nrows]
-        return list(columns)
-
-    def dump(self):
-        return self.df.to_dict()
-
-    def duplicate_rows(self, column):
-        duplicated = self.df.duplicated(subset=[column], keep=False)
-        values = self.df[duplicated][column]
-        return list(values)
-
-    def string_columns(self):
-        cols = self.df.select_dtypes(include=['object'])
-        # turn NaN into '' so they don't bother us later
-        cols.fillna('', inplace=True)
-        return list(cols)
-
-    def rows(self, cols):
-        yield from self.df[cols].itertuples()
-
-    def get(self, idcol, row, col):
-        return ensure_list(self.df[self.df[idcol] == row][col].values[0])
-
-    def column(self, col):
-        return list(self.df[col])
-
-    def groupby_dedup(self, cols):
-        """Return non-redundant identifying subset of cols
-        """
-        identifiers = []
-        redundant = set()
-        df = self.df
-        for g in cols:
-            # Skip columns we found redundant with previously
-            # selected columns
-            if g in redundant:
-                continue
-            # Add current column to identifier list
-            identifiers.append(g)
-            # Group data by identifying colummns, then count unique
-            # values for all other columns. Mark as True those that
-            # are exatly one.
-            colidx = df.groupby(identifiers, as_index=False).agg('nunique').eq(1).all()
-            # Extract names
-            rcols = set(df.columns[colidx])
-            # Add to redundant set
-            redundant |= rcols
-        return identifiers
-
-
 class SQLiteProjectData(object):
     def __init__(self, cfg, name="data"):
         self.name = name
@@ -234,7 +169,14 @@ class SQLiteProjectData(object):
         self.conn.executescript(state[1])
 
     def query(self, *args):
-        return self.conn.execute(*args)
+        try:
+            return self.conn.execute(*args)
+        except:
+            log.error(f"Failed to query project {self.name} data: {args}")
+            import pdb; pdb.set_trace()
+            raise
+        return ids
+
 
     @property
     def nrows(self):
@@ -277,18 +219,31 @@ class SQLiteProjectData(object):
             )
         )
 
-    def get(self, idcol, row, col):
-        query = f'SELECT "{col}" from "{self.name}" where "{idcol}"=?'
-        res = [row[0] for row in self.query(query, [row]).fetchall()]
-        return res
-
-    def column(self, col):
-        if isinstance(col, str):
-            col = [col]
-        col = ",".join('"{}"'.format(c) for c in col)
-        return [t[0] for t in self.query(
-            'SELECT {c} from "{n}"'.format(n=self.name, c=col)
-        )]
+    def fetch(
+            self,
+            cols: Union[List[str], str],
+            idcols: Optional[Union[List[str], str]] = None,
+            values: Optional[Union[List[str], str]] = None
+    ) -> List[List[str]]:
+        if isinstance(cols, str):
+            cols = [cols]
+        query = "SELECT " + ",".join(f'"{col}"' for col in cols)
+        query += f" FROM {self.name}"
+        if idcols is not None:
+            if values is None:
+                raise RuntimeError(f"idcols set ({idcols}) but values is not")
+            if isinstance(idcols, str):
+                idcols = [idcols]
+            if isinstance(values, str):
+                values = [values]
+            if len(idcols) != len(values):
+                log.error("len(%s) != len(%s)", idcols, values)
+                raise RuntimeError("idcols and values must have same length")
+            query += " WHERE "
+            query += " AND ".join(f'"{col}"=?' for col in idcols)
+        else:
+            values = []
+        return self.query(query, values).fetchall()
 
     def groupby_dedup(self, cols):
         skip = set()
@@ -326,7 +281,6 @@ class Project(ConfigStage):
 
     def __init__(self, name, cfg):
         super().__init__(name, cfg)
-        self.altname = None
         self.pairnames = ymp.get_config().pairnames
         self.fieldnames = None
         self._data = None
@@ -362,35 +316,36 @@ class Project(ConfigStage):
         return self.data.columns()
 
     def minimize_variables(self, groups):
-        if not groups:
-            groups = [self.idcol]
-        if len(groups) > 1:
-            groups = [g for g in groups if g != 'ALL']  # FIXME: lowercase?
-        if len(groups) > 1:
-            groups = self.data.groupby_dedup(groups)
-        if len(groups) > 1:
-            raise YmpStageError(f"multi-idx grouping not implemented (groups={groups})")
-        return groups
+        """Removes redundant groupings
+        """
+        include = set(self.variables)
+        known_groups = list(filter(lambda x: x in include, groups))
+        other_groups = list(filter(lambda x: x not in include, groups))
+        if len(known_groups) < 2:
+            minimal_groups = known_groups
+        else:
+            minimal_groups = self.data.groupby_dedup(known_groups)
+        return minimal_groups, other_groups
 
-    def get_ids(self, groups, match_groups=None, match_value=None):
-        ids = None
-        if groups == ['ALL']:
-            ids = 'ALL'
-        elif groups == match_groups:
-            ids = match_value
-        elif groups[0] in self.data.columns():
-            if match_groups and match_groups != ['ALL']:
-                ids = self.data.get(match_groups[0], match_value, groups[0])
-            else:
-                ids = self.data.column(groups[0])
-        if not ids:
-            if len(groups) == 1:
-                ids = groups[0]
-            else:
-                raise YmpStageError(
-                    f"no ids for {groups} {match_groups} {match_value}"
-                )
-        return ids
+    def get_group(
+            self,
+            _stack: "StageStack",
+            default_groups: List[str],
+            override_groups: Optional[List[str]]
+    ) -> List[str]:
+        if override_groups:
+            raise YmpStageError("Cannot override project grouping")
+        return [self.idcol]
+
+    def get_ids(self, _stack, groups, match_groups=None, match_values=None):
+        if match_values:
+            match_values = match_values.split("__")
+        
+        return ["__".join(t) for t in self.data.fetch(
+            groups,
+            match_groups,
+            match_values
+        )]
 
     def iter_samples(self, variables=None):
         if not variables:
@@ -403,7 +358,7 @@ class Project(ConfigStage):
 
         Lazy loading property, first call may take a while.
         """
-        return self.data.column(self.idcol)
+        return self.data.fetch(self.idcol)[0]
 
     @property
     def idcol(self):
@@ -453,7 +408,8 @@ class Project(ConfigStage):
                 ))
         else:
             idcol = unique_columns[0]
-            log.info("Autoselected column %s=%s", self.KEY_IDCOL, idcol)
+            log.warn("Project '%s' using column '%s' to identify units",
+                     self.name, idcol)
 
         return idcol
 
@@ -538,13 +494,13 @@ class Project(ConfigStage):
             pair = self.pairnames.index(pair)
 
         if self.bccol and not nosplit:
-            barcode_file = self.data.get(self.idcol, target, self.bccol)[0]
+            barcode_file, = self.data.fetch(self.bccol, self.idcol, target)[0]
             if barcode_file:
                 return self.encode_barcode_path(barcode_file, target, pair)
 
         kind = source[0]
         if kind == 'srr':
-            srr = self.data.get(self.idcol, target, source[1])[0]
+            srr, = self.data.fetch(source[1], self.idcol, target)[0]
             f = os.path.join(cfg.dir.scratch,
                              "SRR",
                              "{}_{}.fastq.gz".format(srr, pair+1))
@@ -556,7 +512,7 @@ class Project(ConfigStage):
                 "Configuration Error: no source for sample {} and read {} "
                 "found.".format(target, pair+1))
 
-        fn = self.data.get(self.idcol, target, fq_col)[0]
+        fn, = self.data.fetch(fq_col, self.idcol, target)[0]
         if kind == 'file':
             return fn
 
@@ -584,7 +540,7 @@ class Project(ConfigStage):
         barcode_file = barcode_id.replace("_x_", "/").replace("__", "_")
         pair = self.pairnames.index(pairname)
 
-        run = self.data.get(self.bccol, barcode_file, self.idcol)[0]
+        run, = self.data.fetch(self.idcol, self.bccol, barcode_file)[0]
         source = self.source_path(run, pair, nosplit=True)
         return [barcode_file, source]
 
@@ -621,7 +577,11 @@ class Project(ConfigStage):
     @property
     def fq_names(self):
         "Names of all FastQ files"
-        return self.get_fq_names()
+        try:
+            return self.get_fq_names()
+        except:
+            log.exception("hetre")
+            raise
 
     @property
     def pe_fq_names(self):

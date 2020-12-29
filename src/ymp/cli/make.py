@@ -70,7 +70,7 @@ class TargetParam(click.ParamType):
         else:
             from ymp.stage import StageStack
             try:
-                stackobj = StageStack.get(stack)
+                stackobj = StageStack.instance(stack)
             except YmpStageError as e:
                 debug(e.format_message().replace("{", "{{").replace("}", "}}"))
                 return []
@@ -229,7 +229,7 @@ def start_snakemake(kwargs):
                     targets.append(t)
                     continue
                 try:
-                    stack = StageStack.get(t)
+                    stack = StageStack.instance(t)
                     targets.extend(stack.all_targets())
                 except YmpStageError as exc:
                     stage_stack_failure = exc

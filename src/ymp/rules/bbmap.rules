@@ -444,6 +444,11 @@ with Stage("primermatch_bbmap", "primerfail_bbmap") as S:
             "{:this:}/{:fq_names:}.fq.gz"
 
 
+def ensure_list(x):
+    if isinstance(x, str):
+        return [x]
+    return x
+
 with Stage("map_bbmap") as S:
     S.doc("""
     Map reads using BBMap
@@ -457,9 +462,10 @@ with Stage("map_bbmap") as S:
     rule bbmap_map:
         """Map read from each (co-)assembly read file to the assembly"""
         message:
-            "BBMap mapping {input.fq[0]} to {input.fa}"
+            "BBMap mapping {input.fq1} to {input.fa}"
         input:
-            fq = "{:prev:}/{:target:}.{:pairnames:}.fq.gz",
+            fq1 = "{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz",
+            fq2 = "{:prev:}/{:target:}.{:pairnames[1]:}.fq.gz",
             fa = "{:prev:}/{:target:}.fasta.gz",
         output:
             bam   = temp("{:this:}/{target}.bam"),
@@ -471,7 +477,8 @@ with Stage("map_bbmap") as S:
             "benchmarks/bbmap_map/{:this:}/{target}.txt"
         params:
             mem = icfg.mem("80g"),
-            in2 = "in2={input.fq[1]}"
+            in1 = lambda wc, input: "in="+",".join(ensure_list(input.fq1)),
+            in2 = lambda wc, input: "in2="+",".join(ensure_list(input.fq2))
         threads:
             8
         conda:
@@ -480,7 +487,7 @@ with Stage("map_bbmap") as S:
             "case {params.sensitivity} in"
             "  N) SENS='';; F) SENS='fast';; S) SENS='slow';; VS) SENS='vslow';;"
             "esac;"
-            "bbmap.sh"
+            "bbwrap.sh mapper=bbmap"
             " $SENS"
             " threads={threads}"
             " pigz unpigz"          # enable use of pigz for zip/unzip
@@ -488,7 +495,7 @@ with Stage("map_bbmap") as S:
             # " jni"                # use JNI for C alignment algo
             " nodisk "              # don't write index to disk
             " ref={input.fa}"       # reference
-            " in={input.fq[0]} {params.in2}"
+            " {params.in1} {params.in2}"
             " out=stdout"           # write sam to stdout
             " machineout statsfile={output.stats}" # parseable stats
             " ihist={output.ihist}" # insert histogram
@@ -501,7 +508,7 @@ with Stage("map_bbmap") as S:
 
     rule bbmap_map_SE: # ymp: extends bbmap_map
         input:
-            fq = ["{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz"]
+            fq2 = []
         params:
             in2 = ""
 

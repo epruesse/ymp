@@ -30,7 +30,7 @@ jobs:
         with:
           path: ~/conda_pkgs_dir
           key: ${{runner.os}}-conda-${{env.CACHE_VERS}}-${{hashFiles('environment.yaml')}}
-      - uses: goanpeca/setup-miniconda@v1
+      - uses: conda-incubator/setup-miniconda@v2
         with:
           # Don't update conda - performance:
           #  miniconda-version: 'latest'
@@ -56,5 +56,5 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v1
         with:
-          name: Test Failure Logs
+          name: Test Failure Logs ${{matrix.os}} ${{matrix.section}}
           path: test_failures

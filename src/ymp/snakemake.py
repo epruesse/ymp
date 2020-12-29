@@ -421,6 +421,10 @@ def make_rule(name: str=None, lineno: int=None, snakefile: str=None,
         return None
 
 
+class RemoveValue(Exception):
+    """Return to remove a value from the list"""
+
+
 class BaseExpander(object):
     """
     Base class for Snakemake expansion modules.
@@ -429,6 +433,7 @@ class BaseExpander(object):
     work on the entire RuleInfo object or the :meth:format and
     :meth:expands_field methods if they intend to modify specific fields.
     """
+
     def __init__(self):
         self.workflow = None
 
@@ -510,7 +515,10 @@ class BaseExpander(object):
         elif isinstance(item, RuleInfo):
             item = self.expand_ruleinfo(rule, item, expand_args, rec)
         elif isinstance(item, str):
-            item = self.expand_str(rule, item, expand_args, rec, cb)
+            try:
+                item = self.expand_str(rule, item, expand_args, rec, cb)
+            except RemoveValue:
+                item = None
         elif hasattr(item, '__call__'):
             item = self.expand_func(rule, item, expand_args, rec, debug)
         elif isinstance(item, int) or isinstance(item, float):
@@ -595,7 +603,7 @@ class BaseExpander(object):
 
     def expand_dict(self, rule, item, expand_args, rec):
         path = expand_args.get('path', list())
-        for key, value in item.items():
+        for key, value in tuple(item.items()):
             expand_args['path'] = path + [key]
             value = self.expand(rule, value, expand_args=expand_args, rec=rec)
 
@@ -603,6 +611,8 @@ class BaseExpander(object):
             # Let's fix that, even if we have to jump a lot of hoops here.
             if isinstance(value, list) and any(callable(x) for x in value):
                 item[key] = self._make_list_wrapper(value)
+            elif value is None:
+                del item[key]
             else:
                 item[key] = value
         return item
@@ -612,8 +622,10 @@ class BaseExpander(object):
         res = list()
         for n, subitem in enumerate(item):
             expand_args['path'] = path + [str(n)]
-            res.append(self.expand(rule, subitem, expand_args=expand_args,
-                                   rec=rec, cb=cb))
+            newitem = self.expand(rule, subitem, expand_args=expand_args,
+                                  rec=rec, cb=cb)
+            if newitem is not None:
+                res.append(newitem)
         return res
 
     def expand_tuple(self, rule, item, expand_args, rec, cb):

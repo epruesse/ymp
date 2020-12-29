@@ -2,11 +2,12 @@ import logging
 import re
 
 from ymp.exceptions import YmpRuleError
-from ymp.snakemake import ColonExpander, ExpandLateException
+from ymp.snakemake import ColonExpander, ExpandLateException, RemoveValue
 from ymp.string import PartialFormatter
 from ymp.stage.stage import Stage
 from ymp.stage.stack import StageStack
 
+from snakemake.exceptions import IncompleteCheckpointException
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -50,11 +51,17 @@ class StageExpander(ColonExpander):
         def get_value(self, key, args, kwargs):
             try:
                 return self.get_value_(key, args, kwargs)
+            except ExpandLateException:
+                raise
+            except IncompleteCheckpointException:
+                raise
+            except RemoveValue:
+                raise
             except Exception as e:
-                if False and not isinstance(e, ExpandLateException):
-                    log.debug(f"Failed to get value: "
-                              f"key={key} args={args} kwargs={kwargs}",
-                              exc_info=True)
+                log.debug(
+                    f"Formatter saw exception for"
+                    f"key={key} args={args} kwargs={kwargs}",
+                    exc_info=True)
                 raise
 
         def get_value_(self, key, args, kwargs):
@@ -92,7 +99,7 @@ class StageExpander(ColonExpander):
             if "wc" not in kwargs:
                 raise ExpandLateException()
             wc = kwargs['wc']
-            stack = StageStack.get(stage.wc2path(wc), stage)
+            stack = StageStack.instance(stage.wc2path(wc))
             if hasattr(stack, key):
                 val = getattr(stack, key)
                 if hasattr(val, "__call__"):
@@ -100,11 +107,13 @@ class StageExpander(ColonExpander):
                 if val is not None:
                     return val
 
-            # Lastly, check the project:
+            # Check the project:
             if hasattr(stack.project, key):
                 val = getattr(stack.project, key)
                 if hasattr(val, "__call__"):
                     val = val(args, kwargs)
                 if val is not None:
                     return val
-            return super().get_value(key, args, kwargs)
+
+            # Expand via super
+            return  super().get_value(key, args, kwargs)

@@ -103,6 +103,6 @@ class Pipeline(ConfigStage):
             targets += [stack.name]
         # Now add the target the last part of the pipeline
         # points to.
-        realstack = stack.get(self.get_path(stack))
+        realstack = stack.instance(self.get_path(stack))
         targets.extend(realstack.stage.get_all_targets(realstack))
         return targets
