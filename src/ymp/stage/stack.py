@@ -113,10 +113,15 @@ class StageStack(object):
         self.group = self.stage.get_group(self, project_groups + other_groups, groupby)
 
     def show_info(self):
+        def ellip(text: str) -> str:
+            if len(text) < 40:
+                return text
+            return "..."+text[-37:]
+
         log.info(
             "Stage stack '%s' (output by %s%s)",
-            self,
-            ", ".join(str(g) for g in self.group) or "*ALL*",
+            self.name,
+            ", ".join(ellip(str(g)) for g in self.group) or "*ALL*",
             " + bins" if self.stage.has_checkpoint() else ""
         )
         prevmap = dict()
