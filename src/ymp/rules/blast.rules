@@ -161,13 +161,26 @@ with Stage("annotate_blast") as S:
             db = expand("{{:prev:}}/{{:target:}}.{ext}",
                          ext=BLASTSPLITIDX_SUFFIXES)
 
+    localrules: blastn_split_query_fasta_hack
+    rule blastn_split_query_fasta_hack:
+        message:
+            "Working around Snakemake bug"
+        input:
+            contigs = "{:prev:}/{:target:}.fasta.gz",
+        output:
+            contig_list = "{:this:}/{target}.fasta_files"
+        shell: """
+        echo {input.contigs} > {output.contig_list}
+        """
+
     localrules: blastn_split_query_fasta
     checkpoint blastn_split_query_fasta:
         message:
             "BLASTN: preparing query fasta file(s)"
         input:
             contigs = "{:prev:}/{:target:}.fasta.gz",
-            dbsize = "{:this:}/{target}.blast_db_size"
+            dbsize = "{:this:}/{target}.blast_db_size",
+            contig_list = "{:this:}/{target}.fasta_files"
         output:
             queries = temp(directory(
                 "{:this:}/{target}.split_queries"
@@ -180,11 +193,13 @@ with Stage("annotate_blast") as S:
                 dbsize = int(fd.read())
             nseqs = 3*10**14/dbsize
             nseqs = min(params.nseq_max, max(params.nseq_min, nseqs))
+            with open(input.contig_list, "r") as fd:
+                contigs = fd.read().strip()
 
             os.makedirs(output.queries, exist_ok=True)
             import gzip
             template = os.path.join(output.queries,"{index}.fasta")
-            with gzip.open(input.contigs) as infile:
+            with gzip.open(contigs) as infile:
                 lines = []
                 seq_count = 0
                 file_count = 0
