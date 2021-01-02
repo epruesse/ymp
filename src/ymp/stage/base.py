@@ -158,7 +158,7 @@ class BaseStage(object):
         if groups == match_groups:
             return [match_value]
         # Pass through to project
-        return stack.project.get_ids(stack, groups, match_groups, match_values)
+        return stack.project.do_get_ids(stack, groups, match_groups, match_value)
 
     def has_checkpoint(self) -> bool:
         return False
