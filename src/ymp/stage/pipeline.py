@@ -57,12 +57,11 @@ class Pipeline(ConfigStage):
 
     def _make_outputs(self) -> Dict[str, str]:
         outputs = {}
-        path = ""
-        for stage_name, cfg in self.stages.items():
+        for stage_path, cfg in self.stages.items():
+            stage_name = stage_path.rsplit(".", 1)[-1]
             stage = find_stage(stage_name)
-            path = ".".join((path, stage_name))
             if not cfg.get("hide", self.hide_outputs):
-                outputs.update(stage.get_outputs(path))
+                outputs.update(stage.get_outputs(stage_path))
         return outputs
 
     @property
