@@ -78,14 +78,14 @@ with Stage("extract_seqs") as S:
             "Samtools faidx: getting region list"
         input:
             fasta = "{:prev:}/{:target:}.fasta.gz",
-            blast7 = "{:prev:}/{:target:}.blast7"
+            blast7 = "{:prev:}/{:target:}.blast7.gz"
         output:
             regions = temp("{:this:}/{target}.ids")
         threads:
             1
         shell:
             r"comm {params.match}"
-            r" <(grep -v '^#' {input.blast7} | cut -f1 -d $'\t' | sort | uniq)"
+            r" <(gzip -dc {input.blast7} | grep -v '^#' | cut -f1 -d $'\t' | sort | uniq)"
             r" <(gzip -dc {input.fasta} | grep '^>' | "
             r"   sed -n '/^>/ s/>\([^[:space:]]*\).*/\1/p' | sort)"
             r" >{output.regions}"
