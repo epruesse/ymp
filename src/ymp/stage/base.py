@@ -82,7 +82,6 @@ class BaseStage(object):
             output: path + p
             for output, p in outputs.items()
         }
-        return outputs
 
     def can_provide(self, inputs: Set[str]) -> Dict[str, str]:
         """Determines which of ``inputs`` this stage can provide.
