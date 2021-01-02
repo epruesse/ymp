@@ -447,6 +447,8 @@ class Project(ConfigStage):
         for row in self.data.rows([self.idcol] + read_cols):
             cols = []
             for i, val in enumerate(row[2:]):
+                if val is None:
+                    val = ""
                 if self.RE_FILE.match(val):
                     cols.append(("file", read_cols[i]))
                 elif self.RE_REMOTE.match(val):
