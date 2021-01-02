@@ -101,3 +101,16 @@ class Pipeline(ConfigStage):
         realstack = stack.instance(self.get_path(stack))
         targets.extend(realstack.stage.get_all_targets(realstack))
         return targets
+
+    def get_group(
+            self,
+            stack: "StageStack",
+            default_groups: List[str],
+            override_groups: List[str],
+    ) -> List[str]:
+        realstack = stack.instance(self.get_path(stack))
+        return realstack.group
+
+    def get_ids(self, stack, groups, mygroups=None, target=None):
+        realstack = stack.instance(self.get_path(stack))
+        return realstack.stage.get_ids(realstack, groups, mygroups, target)
