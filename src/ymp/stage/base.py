@@ -77,6 +77,11 @@ class BaseStage(object):
         outputs = self.outputs
         if isinstance(outputs, set):
             return {output: path for output in outputs}
+        path, _, _ = path.rpartition("." + self.name)
+        return {
+            output: path + p
+            for output, p in outputs.items()
+        }
         return outputs
 
     def can_provide(self, inputs: Set[str]) -> Dict[str, str]:
