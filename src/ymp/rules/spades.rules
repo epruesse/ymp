@@ -129,7 +129,8 @@ with Stage("assemble_spades") as S:
            ARGS="$ARGS -o {params.workdir}"
            ARGS="$ARGS --threads {threads}"
            ARGS="$ARGS --tmp-dir {params.tmpdir}"
-           ARGS="$ARGS --memory $(({params.mem}/1024))"
+           # 98% available minus 2GB
+           ARGS="$ARGS --memory $(({params.mem}/1044 - 2))"
            if [ -n "$CONTINUE" ]; then
               ARGS="$ARGS --restart-from last"
            else
