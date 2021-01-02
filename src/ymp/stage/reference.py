@@ -141,7 +141,13 @@ class Reference(ConfigStage):
             self.dir = rsc['url'].rstrip('/')
             #FIXME
             self._group = rsc.get('group', [])
-            for filename in os.listdir(rsc['url']):
+            try:
+                filenames = os.listdir(rsc['url'])
+            except FileNotFoundError:
+                log.error("Directory %s required by %s %s does not exist",
+                          rsc['url'], self.__class__.__name__, self.name)
+                filenames = []
+            for filename in filenames:
                 for regex in rsc.get('match', []):
                     match = re.fullmatch(regex, filename)
                     if not match:
