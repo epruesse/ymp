@@ -584,7 +584,7 @@ with Stage("format_bbmap") as S:
         message:
             "BBMap: reformatting fasta"
         input:
-            fasta = "{:prev:}/{target}.fasta.gz"
+            fasta = "{:prev:}/{:target:}.fasta.gz"
         output:
             fasta = "{:this:}/{target}.fasta.gz"
         log:
@@ -594,13 +594,14 @@ with Stage("format_bbmap") as S:
         conda:
             "bbmap"
         shell:
+            'cat {input.fasta} | '
             'reformat.sh'
-            ' in={input.fasta}'
+            ' in=stdin.fasta.gz'
             ' out={output.fasta}'
-            ' >{log} 2>&1'
             ' bgzip'
             ' fastawrap=0'  # sequence on one line
             ' fastaminlen={params.length}'
+            ' >{log} 2>&1'
 
     rule bbmap_reformat_all:
         message:
