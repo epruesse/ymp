@@ -173,8 +173,8 @@ class StageStack(object):
             provides = stage.satisfy_inputs(prev_stage, inputs)
             for typ, path in provides.items():
                 if path:
-                    path = ".".join(stage_names) + path
-                    prev_stack = self.instance(path)
+                    npath = ".".join(stage_names) + path
+                    prev_stack = self.instance(npath)
                 prevs[typ] = prev_stack
         return prevs
 
