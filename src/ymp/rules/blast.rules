@@ -191,8 +191,8 @@ with Stage("annotate_blast") as S:
         run:
             with open(input.dbsize, "r") as fd:
                 dbsize = int(fd.read())
-            nseqs = 3*10**14/dbsize
-            nseqs = min(params.nseq_max, max(params.nseq_min, nseqs))
+            nseqs = 1*10**14/dbsize
+            nseqs = int(min(params.nseq_max, max(params.nseq_min, nseqs)))
             with open(input.contig_list, "r") as fd:
                 contigs = fd.read().strip()
 
