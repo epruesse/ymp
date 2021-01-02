@@ -504,7 +504,7 @@ with Stage("map_bbmap") as S:
             " trimreaddescriptions" # use header until space like bowtie2
             " -Xmx{params.mem}m"     # set JVM heap size
             " 2>{log}"              # log error
-            " | samtools view -b -o {output.bam} -" # convert to bam
+            " | samtools view --threads 3 -b -o {output.bam} -" # convert to bam
 
     rule bbmap_map_SE: # ymp: extends bbmap_map
         input:
