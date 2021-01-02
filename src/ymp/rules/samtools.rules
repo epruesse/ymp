@@ -151,6 +151,8 @@ with Stage("coverage_samtools") as S:
             "benchmarks/samtools_coverage/{:this:}/{target}.txt"
         conda:
             "samtools"
+        params:
+            mem=icfg.mem("4G")
         threads:
             1
         shell:
