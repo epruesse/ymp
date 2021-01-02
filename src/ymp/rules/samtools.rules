@@ -42,8 +42,8 @@ with Stage("extract_reads") as S:
             "samtools"
         shell:
             "samtools fastq"
-            " -0 /dev/null"
-            " -s /dev/null"
+            #" -0 /dev/null"
+            #" -s /dev/null"
             " -1 {output.pairs[0]}"
             " -2 {output.pairs[1]}"
             " --threads {threads}"
