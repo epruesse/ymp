@@ -241,6 +241,7 @@ with Stage("annotate_blast") as S:
         message:
             "BLASTN: {input.contigs} vs {params.db_name}"
         input:
+            folder = "{:this:}/{target}.split_queries",
             contigs = "{:this:}/{target}.split_queries/{index}.fasta",
             db = expand("{{:prev:}}/{{:target:}}.{ext}",
                         ext=BLASTIDX_SUFFIXES)
@@ -253,7 +254,8 @@ with Stage("annotate_blast") as S:
         params:
             db_name = lambda wc, input: input.db[0][:-4],
             blastfmt = BLASTFMT,
-            tmpdir = "{:dir.tmp:}"
+            tmpdir = "{:dir.tmp:}",
+            mem=icfg.mem("128g")
         threads:
             24
         conda:   "blast"
