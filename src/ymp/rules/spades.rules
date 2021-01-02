@@ -42,19 +42,22 @@ with Stage("assemble_spades") as S:
             r2 = filter_input("r2", also=["r1"], minsize=1)
         output:
             yaml = "{:this:}/{target}.yaml"
-        run:
-            import yaml
-            with open(output.yaml, "w") as cfg:
-                if params.r1:
-                    cfg.write(yaml.safe_dump([{
-                        "left reads": ["../"+r for r in params.r1],
-                        "right reads": ["../"+r for r in params.r2],
-                        "type": "paired-end",
-                        "orientation": "fr"
-                    }]))
-                else:
-                    cfg.write("")
-
+        shell: """
+        if [ -z "{params.r1}" ]; then
+          echo > {output.yaml}
+          exit 0
+        fi
+        echo "- left reads:" >> {output.yaml}
+        for n in {params.r1}; do
+          echo "  - ../$n" >> {output.yaml}
+        done
+        echo "  right reads:" >> {output.yaml}
+        for n in {params.r2}; do
+          echo "  - ../$n" >> {output.yaml}
+        done
+        echo "  type: paired-end" >> {output.yaml}
+        echo "  orientation: fr" >> {output.yaml}
+        """
 
     rule spades:
         """
