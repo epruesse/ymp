@@ -43,21 +43,17 @@ class Pipeline(ConfigStage):
         self.hide_outputs = getattr(cfg, "hide", False)
         #: Dictionary of stages with configuration options for each
         self.stages = OrderedDict()
+        path = ""
         for stage in cfg.stages:
             if isinstance(stage, str):
-                self.stages[stage] = {}
+                path = ".".join((path, stage))
+                self.stages[path] = {}
             else:
                 stage_name = next(iter(stage))
-                self.stages[stage_name] = stage[stage_name]
-
-    @property
-    def stage_names(self):
-        """Names of the stages comprising this pipeline"""
-        return list(self.stages.keys())
-
-    @property
-    def pipeline(self):
-        return "." + ".".join(self.stage_names)
+                path = ".".join((path, stage_name))
+                self.stages[path] = stage[stage_name]
+        #: Path fragment describing this pipeline
+        self.pipeline = path
 
     def _make_outputs(self) -> Dict[str, str]:
         outputs = {}
