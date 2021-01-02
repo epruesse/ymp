@@ -139,20 +139,24 @@ with Stage("assemble_spades") as S:
            if ! spades.py $ARGS >>{log.console} 2>&1; then
               if [ "{params.sufficient_input}" = "False" ]; then
                  make_empty_result "Assuming failure due to low read count; skipping"
+              elif [ ! -e {params.workdir}spades.log ]; then
+                 exit 1  # no log file?
+              elif grep -q "index_.size() != 0' failed." {params.workdir}spades.log; then
+                 make_empty_result "Spades index assertion failure. Usually due to bad input. Skipping"
               else
                  exit 1
               fi
            fi
         fi
 
-        pigz -p {threads} -9 -c {params.workdir}/$OUTPUT > {output.scaffolds}
-        pigz -p {threads} -9 -c {params.workdir}/assembly_graph.fastg > {output.graph}
+        pigz -p {threads} -9 -c {params.workdir}$OUTPUT > {output.scaffolds}
+        pigz -p {threads} -9 -c {params.workdir}assembly_graph.fastg > {output.graph}
         if [ -e {params.workdir}/contigs.fasta ]; then
-          pigz -p {threads} -9 -c {params.workdir}/contigs.fasta > {output.contigs}
+          pigz -p {threads} -9 -c {params.workdir}contigs.fasta > {output.contigs}
         else
           cp {output.scaffolds} {output.contigs}
         fi
-        cat {params.workdir}/{{params.txt,spades.log}} | pigz -p {threads} -9 > {log.spades}
+        cat {params.workdir}{{params.txt,spades.log}} | pigz -p {threads} -9 > {log.spades}
         rm -rf {params.workdir}
         """
 
