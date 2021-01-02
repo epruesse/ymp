@@ -158,10 +158,10 @@ class Fmt7Parser(BlastParser):
     """
     Parses BLAST results in format '7' (CSV with comments)
     """
-    FIELDS = "# Fields: "
-    QUERY = "# Query: "
-    DATABASE = "# Database: "
-    HITSFOUND = " hits found"
+    PAT_FIELDS = "# Fields: "
+    PAT_QUERY = "# Query: "
+    PAT_DATABASE = "# Database: "
+    PAT_HITSFOUND = " hits found"
 
     def __init__(self, fileobj):
         self.fileobj = fileobj
@@ -185,18 +185,18 @@ class Fmt7Parser(BlastParser):
 
     def __iter__(self):
         for line in self.fileobj:
-            if line.startswith(self.FIELDS):
+            if line.startswith(self.PAT_FIELDS):
                 self.fields = [
                     self.FIELD_MAP[field]
                     if field in self.FIELD_MAP else field
-                    for field in line[len(self.FIELDS):].strip().split(", ")
+                    for field in line[len(self.PAT_FIELDS):].strip().split(", ")
                 ]
                 self.Hit = namedtuple("BlastHit", self.fields)
-            elif line.startswith(self.QUERY):
-                self.query = line[len(self.QUERY):].strip()
-            elif line.startswith(self.DATABASE):
-                self.database = line[len(self.DATABASE):].strip()
-            elif line.strip().endswith(self.HITSFOUND):
+            elif line.startswith(self.PAT_QUERY):
+                self.query = line[len(self.PAT_QUERY):].strip()
+            elif line.startswith(self.PAT_DATABASE):
+                self.database = line[len(self.PAT_DATABASE):].strip()
+            elif line.strip().endswith(self.PAT_HITSFOUND):
                 self.hits = int(line.split()[1])
                 self.hit = 0
             elif line[0] == "#":
