@@ -29,43 +29,96 @@ def reader(fileobj, t: int=7) -> 'BlastParser':
     elif t == 6:
         return Fmt6Parser(fileobj)
     else:
-        raise ValueError("other formats not implemented")
+        raise NotImplementedError()
 
 
-class BlastParser(object):
-    "Base class for BLAST parsers"
+def writer(fileobj, t: int=7) -> 'BlastWriter':
+    """
+    Creates a writer for files in BLAST format
+
+    >>> with open(blast_file) as outfile:
+    >>>    writer = blast.writer(outfile)
+    >>>    for hit in hits:
+    >>>       writer.write_hit(hit)
+    """
+    if t == 7:
+        return Fmt7Writer(fileobj)
+    else:
+        raise NotImplementedError()
+
+
+class BlastBase(object):
+    "Base class for BLAST readers and writers"
 
     def tupleofint(text):
+        if text == "N/A":
+            return tuple()
         try:
             return tuple(int(i) for i in text.split(';'))
         except ValueError:
-            log.warning("Error parsing BLAST file")
+            log.warning(f"Error parsing BLAST file at line='{text}'")
             return tuple()
 
-    # Map between field short and long names
+    #: Map between field short and long names
     FIELD_MAP = {
-        "query acc.": "qacc",
-        "subject acc.": "sacc",
-        "% identity": "pident",
-        "alignment length": "length",
-        "mismatches": "mismatch",
-        "gap opens": "gapopen",
-        "q. start": "qstart",
-        "q. end": "qend",
-        "query length": "qlen",
-        "s. start": "sstart",
-        "s. end": "send",
-        "evalue": "evalue",
-        "bit score": "bitscore",
-        "subject strand": "sstrand",
-        "sbjct frame": "sframe",
-        "score": "score",
-        "query frame": "qframe",
-        "subject title": "stitle",
-        "subject tax ids": "staxids"
+        #"": "qseqid",  # Query Seq-id
+        #"": "qgi",  # Query GI
+        "query acc.": "qacc",  # Query accession
+        #"": "qaccver",  # Query accession.version
+        "query length": "qlen",  # Query sequence length
+        #"": "sseqid",  # Subject Seq-id
+        #"": "sallseqid",  # All subject Seq-id(s), separated by ';'
+        #"": "sgi",  # Subject GI
+        #"": "sallgi",  # All subject GIs
+       "subject acc.": "sacc",  # Subject accession
+        #"": "saccver",  # Subject accession.version
+        #"": "sallacc",  # All subject accessions
+        #"": "slen",  # Subject sequence length
+        "q. start": "qstart",  # Start of alignment in query
+        "q. end": "qend",  # End of alignment in query
+        "s. start": "sstart",  # Start of alignment in subject
+        "s. end": "send",  # Start of alignment in query
+        #"": "qseq",  # Aligned part of query sequence
+        #"": "sseq",  # Aligned part of subject sequence
+        "evalue": "evalue",  # Expect value
+        "bit score": "bitscore",  # Bit score
+        "score": "score",  # Raw score
+        "alignment length": "length",  # Alignment length
+        "% identity": "pident",  # Percentage of identical matches
+        "mismatches": "mismatch",  # Number of mismatches
+        #"": "positive", # Number of positive-scoring matches
+        "gap opens": "gapopen", # Number of gap openings
+        #"": "gaps",  # Total number of gaps
+        #"": "ppos",  # Percentage of positive-soring matches
+        #"": "frames",  # Query and subject frames separated by a '/'
+        "query frame": "qframe",  # Query frame
+        "sbjct frame": "sframe",  # Subject frame
+        #"": "btop",  # Blast traceback operations (BTOP)
+        #"": "staxid",  # Subject Taxonomy ID
+        #"": "scciname",  # Subject Scientifi Name
+        #"": "scomname",  # Subject Common Name
+        #"": "sblastname",  # Subject Blast Name
+        #"": "sskingdom",  # Subject Super Kingdom
+        "subject tax ids": "staxids",  # sorted unique ';'-separated Subject Taxonomy ID(s)
+        #"": "sscinames",  # unique Subject Scientific Name(s)
+        #"": "scomnames",  # unique Subject Common Name(s)
+        #"": "sblastnames",  # unique Subject Blast Name(s)
+        #"": "sskingdoms",  # unique Subject Super Kingdom(s)
+        "subject title": "stitle",  # Subject Title
+        #"": "sakktutkes",  # All Subject Title(s) separated by '<>'
+        "subject strand": "sstrand",  # Subject Strand
+        #"": "qcovs",  # Query Coverage per Subject
+        #"": "qcovhsp",  # Query Coverage per HSP
+        #"": "qcovus",  # Query Coverage per Unique Subject (blastn only)
     }
 
-    # Map defining types of fields
+    #: Reversed map from short to long name
+    FIELD_REV_MAP = {
+        value: key
+        for key, value in FIELD_MAP.items()
+    }
+
+    #: Map defining types of fields
     FIELD_TYPE = {
         'pident': float,
         'length': int,
@@ -86,18 +139,35 @@ class BlastParser(object):
     }
 
 
+class BlastParser(BlastBase):
+    """Base class for BLAST readers"""
+    def get_fields(self):
+        raise NotImplementedError()
+
+    def __iter__(self):
+        raise NotImplementedError()
+
+
+class BlastWriter(BlastBase):
+    """Base class for BLAST writers"""
+    def write_hit(self, hit):
+        raise NotImplementedError()
+
+
 class Fmt7Parser(BlastParser):
     """
     Parses BLAST results in format '7' (CSV with comments)
     """
-    FIELDS = "# Fields: "
-    QUERY = "# Query: "
-    DATABASE = "# Database: "
-    HITSFOUND = " hits found"
+    PAT_FIELDS = "# Fields: "
+    PAT_QUERY = "# Query: "
+    PAT_DATABASE = "# Database: "
+    PAT_HITSFOUND = " hits found"
 
     def __init__(self, fileobj):
         self.fileobj = fileobj
         self.fields = None
+        self.query = "undefined"
+        self.database = "undefined"
         if "BLAST" not in fileobj.readline():
             raise ValueError("not a BLAST7 formatted file")
 
@@ -115,18 +185,18 @@ class Fmt7Parser(BlastParser):
 
     def __iter__(self):
         for line in self.fileobj:
-            if line.startswith(self.FIELDS):
+            if line.startswith(self.PAT_FIELDS):
                 self.fields = [
                     self.FIELD_MAP[field]
                     if field in self.FIELD_MAP else field
-                    for field in line[len(self.FIELDS):].strip().split(", ")
+                    for field in line[len(self.PAT_FIELDS):].strip().split(", ")
                 ]
                 self.Hit = namedtuple("BlastHit", self.fields)
-            elif line.startswith(self.QUERY):
-                self.query = line[len(self.QUERY):].strip()
-            elif line.startswith(self.DATABASE):
-                self.query = line[len(self.DATABASE):].strip()
-            elif line.strip().endswith(self.HITSFOUND):
+            elif line.startswith(self.PAT_QUERY):
+                self.query = line[len(self.PAT_QUERY):].strip()
+            elif line.startswith(self.PAT_DATABASE):
+                self.database = line[len(self.PAT_DATABASE):].strip()
+            elif line.strip().endswith(self.PAT_HITSFOUND):
                 self.hits = int(line.split()[1])
                 self.hit = 0
             elif line[0] == "#":
@@ -166,3 +236,38 @@ class Fmt6Parser(BlastParser):
                              for v, t in zip(line.split("\t"),
                                              self.field_types)])
 
+
+class Fmt7Writer(BlastWriter):
+    def __init__(self, fileobj):
+        self.fileobj = fileobj
+        self.toolname = "YMP writer " + ymp.version
+        self.query = None
+        self.database = "undefined"
+        self.fields = "undefined"
+        self.hits = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, ext_value, tb):
+        self.write_hitset()
+
+    def write_header(self):
+        """Writes BLAST7 format header"""
+        self.fileobj.write(
+            f"# {self.toolname}\n"
+            F"# Query: {self.query}\n"
+            f"# Database: {self.database}\n"
+            f"# Fields: {self.fields}\n"
+        )
+
+    def write_hitset(self):
+        self.query = self.hits[0].qacc
+        self.fields = self.hits[0]._fields
+        self.write_header()
+        self.fileobj.write(f"# {len(self.hits)} found")
+
+    def write_hit(self, hit):
+        if self.hits and hit.qacc != self.hits[0].qacc:
+            self.write_hitset()
+        self.hits.append(hit)

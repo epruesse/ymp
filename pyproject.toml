@@ -10,3 +10,15 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools_scm]
 write_to = "src/ymp/_version.py"
 
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+python_files = "tests/test_*.py"
+python_classes = "*Test"
+norecursedirs = "test_failures .git build dist"
+junit_suite_name = "ymp"
+timeout = 300
+addopts = "--capture=fd --cov=./ymp"
+markers = [
+	"runstool",
+]

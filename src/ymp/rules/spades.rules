@@ -42,19 +42,22 @@ with Stage("assemble_spades") as S:
             r2 = filter_input("r2", also=["r1"], minsize=1)
         output:
             yaml = "{:this:}/{target}.yaml"
-        run:
-            import yaml
-            with open(output.yaml, "w") as cfg:
-                if params.r1:
-                    cfg.write(yaml.safe_dump([{
-                        "left reads": ["../"+r for r in params.r1],
-                        "right reads": ["../"+r for r in params.r2],
-                        "type": "paired-end",
-                        "orientation": "fr"
-                    }]))
-                else:
-                    cfg.write("")
-
+        shell: """
+        if [ -z "{params.r1}" ]; then
+          echo > {output.yaml}
+          exit 0
+        fi
+        echo "- left reads:" >> {output.yaml}
+        for n in {params.r1}; do
+          echo "  - ../$n" >> {output.yaml}
+        done
+        echo "  right reads:" >> {output.yaml}
+        for n in {params.r2}; do
+          echo "  - ../$n" >> {output.yaml}
+        done
+        echo "  type: paired-end" >> {output.yaml}
+        echo "  orientation: fr" >> {output.yaml}
+        """
 
     rule spades:
         """
@@ -87,7 +90,7 @@ with Stage("assemble_spades") as S:
             "spades"
         threads:
             24
-        shell: """
+        shell: r"""
         OUTPUT="scaffolds.fasta"
         case {params.task} in
           Normal)  TASK="" ;;
@@ -126,7 +129,8 @@ with Stage("assemble_spades") as S:
            ARGS="$ARGS -o {params.workdir}"
            ARGS="$ARGS --threads {threads}"
            ARGS="$ARGS --tmp-dir {params.tmpdir}"
-           ARGS="$ARGS --memory $(({params.mem}/1024))"
+           # 98% available minus 2GB
+           ARGS="$ARGS --memory $(({params.mem}/1044 - 2))"
            if [ -n "$CONTINUE" ]; then
               ARGS="$ARGS --restart-from last"
            else
@@ -136,20 +140,24 @@ with Stage("assemble_spades") as S:
            if ! spades.py $ARGS >>{log.console} 2>&1; then
               if [ "{params.sufficient_input}" = "False" ]; then
                  make_empty_result "Assuming failure due to low read count; skipping"
+              elif [ ! -e {params.workdir}spades.log ]; then
+                 exit 1  # no log file?
+              elif grep -q "index_.size() != 0' failed." {params.workdir}spades.log; then
+                 make_empty_result "Spades index assertion failure. Usually due to bad input. Skipping"
               else
                  exit 1
               fi
            fi
         fi
 
-        pigz -p {threads} -9 -c {params.workdir}/$OUTPUT > {output.scaffolds}
-        pigz -p {threads} -9 -c {params.workdir}/assembly_graph.fastg > {output.graph}
+        pigz -p {threads} -9 -c {params.workdir}$OUTPUT > {output.scaffolds}
+        pigz -p {threads} -9 -c {params.workdir}assembly_graph.fastg > {output.graph}
         if [ -e {params.workdir}/contigs.fasta ]; then
-          pigz -p {threads} -9 -c {params.workdir}/contigs.fasta > {output.contigs}
+          pigz -p {threads} -9 -c {params.workdir}contigs.fasta > {output.contigs}
         else
           cp {output.scaffolds} {output.contigs}
         fi
-        cat {params.workdir}/{{params.txt,spades.log}} | pigz -p {threads} -9 > {log.spades}
+        cat {params.workdir}{{params.txt,spades.log}} | pigz -p {threads} -9 > {log.spades}
         rm -rf {params.workdir}
         """
 

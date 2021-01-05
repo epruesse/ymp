@@ -76,7 +76,7 @@ class Reference(ConfigStage):
         super().__init__("ref_" + name, cfg)
         self.files = {}
         self.archives = []
-        self._group = []
+        self._id = None
         self._outputs = None
 
         import ymp
@@ -97,7 +97,18 @@ class Reference(ConfigStage):
     ) -> List[str]:
         if override_groups:
             raise YmpStageError("Cannot override reference grouping")
-        return self._group
+        return []
+
+    def get_ids(
+            self,
+            stack: "StageStack",
+            groups: List[str],
+            match_groups: Optional[List[str]] = None,
+            match_value: Optional[str] = None
+    ) -> List[str]:
+        if self._id:
+            return [self._id]
+        return super().get_ids(stack, groups, match_groups, match_value)
 
     @property
     def outputs(self) -> Union[Set[str], Dict[str, str]]:
@@ -139,9 +150,14 @@ class Reference(ConfigStage):
             })
         elif type_name == 'path':
             self.dir = rsc['url'].rstrip('/')
-            #FIXME
-            self._group = rsc.get('group', [])
-            for filename in os.listdir(rsc['url']):
+            self._id = rsc.get('id')
+            try:
+                filenames = os.listdir(rsc['url'])
+            except FileNotFoundError:
+                log.error("Directory %s required by %s %s does not exist",
+                          rsc['url'], self.__class__.__name__, self.name)
+                filenames = []
+            for filename in filenames:
                 for regex in rsc.get('match', []):
                     match = re.fullmatch(regex, filename)
                     if not match:

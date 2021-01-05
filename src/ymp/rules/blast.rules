@@ -161,13 +161,26 @@ with Stage("annotate_blast") as S:
             db = expand("{{:prev:}}/{{:target:}}.{ext}",
                          ext=BLASTSPLITIDX_SUFFIXES)
 
+    localrules: blastn_split_query_fasta_hack
+    rule blastn_split_query_fasta_hack:
+        message:
+            "Working around Snakemake bug"
+        input:
+            contigs = "{:prev:}/{:target:}.fasta.gz",
+        output:
+            contig_list = "{:this:}/{target}.fasta_files"
+        shell: """
+        echo {input.contigs} > {output.contig_list}
+        """
+
     localrules: blastn_split_query_fasta
     checkpoint blastn_split_query_fasta:
         message:
             "BLASTN: preparing query fasta file(s)"
         input:
             contigs = "{:prev:}/{:target:}.fasta.gz",
-            dbsize = "{:this:}/{target}.blast_db_size"
+            dbsize = "{:this:}/{target}.blast_db_size",
+            contig_list = "{:this:}/{target}.fasta_files"
         output:
             queries = temp(directory(
                 "{:this:}/{target}.split_queries"
@@ -178,13 +191,15 @@ with Stage("annotate_blast") as S:
         run:
             with open(input.dbsize, "r") as fd:
                 dbsize = int(fd.read())
-            nseqs = 3*10**14/dbsize
-            nseqs = min(params.nseq_max, max(params.nseq_min, nseqs))
+            nseqs = 1*10**14/dbsize
+            nseqs = int(min(params.nseq_max, max(params.nseq_min, nseqs)))
+            with open(input.contig_list, "r") as fd:
+                contigs = fd.read().strip()
 
             os.makedirs(output.queries, exist_ok=True)
             import gzip
             template = os.path.join(output.queries,"{index}.fasta")
-            with gzip.open(input.contigs) as infile:
+            with gzip.open(contigs) as infile:
                 lines = []
                 seq_count = 0
                 file_count = 0
@@ -226,6 +241,7 @@ with Stage("annotate_blast") as S:
         message:
             "BLASTN: {input.contigs} vs {params.db_name}"
         input:
+            folder = "{:this:}/{target}.split_queries",
             contigs = "{:this:}/{target}.split_queries/{index}.fasta",
             db = expand("{{:prev:}}/{{:target:}}.{ext}",
                         ext=BLASTIDX_SUFFIXES)
@@ -238,7 +254,8 @@ with Stage("annotate_blast") as S:
         params:
             db_name = lambda wc, input: input.db[0][:-4],
             blastfmt = BLASTFMT,
-            tmpdir = "{:dir.tmp:}"
+            tmpdir = "{:dir.tmp:}",
+            mem=icfg.mem("128g")
         threads:
             24
         conda:   "blast"
@@ -248,8 +265,8 @@ with Stage("annotate_blast") as S:
             ' Mega) TASK="megablast";;'
             'esac;'
             ''
-            'tmpout=$(mktemp {params.tmpdir}/blastn_query.XXXXXXXX.blast7.gz);'
-            'trap "{ rm -f $tmpout; }" EXIT;'
+            'tmpout=$(mktemp {params.tmpdir}/blastn_query.blast7.gz.XXXXXXXXXX);'
+            'trap "{{ rm -f $tmpout; }}" EXIT;'
             ''
             'blastn'
             ' -query {input.contigs}'

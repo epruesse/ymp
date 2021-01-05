@@ -42,8 +42,8 @@ with Stage("extract_reads") as S:
             "samtools"
         shell:
             "samtools fastq"
-            " -0 /dev/null"
-            " -s /dev/null"
+            #" -0 /dev/null"
+            #" -s /dev/null"
             " -1 {output.pairs[0]}"
             " -2 {output.pairs[1]}"
             " --threads {threads}"
@@ -78,14 +78,14 @@ with Stage("extract_seqs") as S:
             "Samtools faidx: getting region list"
         input:
             fasta = "{:prev:}/{:target:}.fasta.gz",
-            blast7 = "{:prev:}/{:target:}.blast7"
+            blast7 = "{:prev:}/{:target:}.blast7.gz"
         output:
             regions = temp("{:this:}/{target}.ids")
         threads:
             1
         shell:
             r"comm {params.match}"
-            r" <(grep -v '^#' {input.blast7} | cut -f1 -d $'\t' | sort | uniq)"
+            r" <(gzip -dc {input.blast7} | grep -v '^#' | cut -f1 -d $'\t' | sort | uniq)"
             r" <(gzip -dc {input.fasta} | grep '^>' | "
             r"   sed -n '/^>/ s/>\([^[:space:]]*\).*/\1/p' | sort)"
             r" >{output.regions}"
@@ -151,6 +151,8 @@ with Stage("coverage_samtools") as S:
             "benchmarks/samtools_coverage/{:this:}/{target}.txt"
         conda:
             "samtools"
+        params:
+            mem=icfg.mem("4G")
         threads:
             1
         shell:

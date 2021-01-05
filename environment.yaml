@@ -32,7 +32,7 @@ dependencies:
   #### avoid mkl ~ 700MB ###
   - nomkl
   #### for docs ####
-  - urllib3 =1.22
+  - urllib3 >=1.22
   - cloud_sptheme
   - sphinx
   - sphinxcontrib-fulltoc

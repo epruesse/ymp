@@ -241,7 +241,7 @@ def start_snakemake(kwargs):
             kwargs['targets'] = targets
 
         log.info("Making targets:")
-        for target in targets:
+        for target in kwargs['targets']:
             log.info("  - %s", target)
 
     log.debug("Running snakemake.snakemake with args: %s", kwargs)

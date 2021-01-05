@@ -339,7 +339,6 @@ class Stage(WorkflowObject, BaseStage):
                 if isinstance(group, type(stack)):
                     mygroups.remove(group)
                     mybins[group] = tgt
-                    log.error(f"  mybins = {mybins}")
                 else:
                     target_parts.append(tgt)
             if target_parts:

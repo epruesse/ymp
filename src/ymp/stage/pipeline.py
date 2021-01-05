@@ -43,30 +43,25 @@ class Pipeline(ConfigStage):
         self.hide_outputs = getattr(cfg, "hide", False)
         #: Dictionary of stages with configuration options for each
         self.stages = OrderedDict()
+        path = ""
         for stage in cfg.stages:
             if isinstance(stage, str):
-                self.stages[stage] = {}
+                path = ".".join((path, stage))
+                self.stages[path] = {}
             else:
                 stage_name = next(iter(stage))
-                self.stages[stage_name] = stage[stage_name]
-
-    @property
-    def stage_names(self):
-        """Names of the stages comprising this pipeline"""
-        return list(self.stages.keys())
-
-    @property
-    def pipeline(self):
-        return "." + ".".join(self.stage_names)
+                path = ".".join((path, stage_name))
+                self.stages[path] = stage[stage_name]
+        #: Path fragment describing this pipeline
+        self.pipeline = path
 
     def _make_outputs(self) -> Dict[str, str]:
         outputs = {}
-        path = ""
-        for stage_name, cfg in self.stages.items():
+        for stage_path, cfg in self.stages.items():
+            stage_name = stage_path.rsplit(".", 1)[-1]
             stage = find_stage(stage_name)
-            path = ".".join((path, stage_name))
             if not cfg.get("hide", self.hide_outputs):
-                outputs.update(stage.get_outputs(path))
+                outputs.update(stage.get_outputs(stage_path))
         return outputs
 
     @property
@@ -106,3 +101,16 @@ class Pipeline(ConfigStage):
         realstack = stack.instance(self.get_path(stack))
         targets.extend(realstack.stage.get_all_targets(realstack))
         return targets
+
+    def get_group(
+            self,
+            stack: "StageStack",
+            default_groups: List[str],
+            override_groups: List[str],
+    ) -> List[str]:
+        realstack = stack.instance(self.get_path(stack))
+        return realstack.group
+
+    def get_ids(self, stack, groups, mygroups=None, target=None):
+        realstack = stack.instance(self.get_path(stack))
+        return realstack.stage.get_ids(realstack, groups, mygroups, target)
