@@ -1,7 +1,7 @@
 import logging
 import os
 import re
-from collections import Mapping, Sequence
+from collections.abc import Mapping, Sequence
 import sqlite3
 
 from typing import List, Union, Dict, Set, Optional

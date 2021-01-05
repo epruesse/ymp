@@ -3,7 +3,7 @@ Collection of shared utility classes and methods
 """
 import logging
 import os
-from collections import Iterable
+from collections.abc import Iterable
 
 import ymp
 
