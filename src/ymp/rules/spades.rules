@@ -90,7 +90,7 @@ with Stage("assemble_spades") as S:
             "spades"
         threads:
             24
-        shell: """
+        shell: r"""
         OUTPUT="scaffolds.fasta"
         case {params.task} in
           Normal)  TASK="" ;;
