@@ -290,14 +290,18 @@ class Stage(WorkflowObject, BaseStage):
 
         return groups
 
-    def get_checkpoint_ids(self, stack, target):
+    def get_checkpoint_ids(self, stack, mygroup, target):
         from snakemake.workflow import checkpoints
         if len(self.checkpoints) > 1:
             raise RuntimeError("Multiple checkpoints not implemented")
         checkpoint_name = next(iter(self.checkpoints.keys()))
         checkpoint = getattr(checkpoints, checkpoint_name)
         ymp_dir = stack.path[:-len(stack.stage.name)]
-        job = checkpoint.get(_YMP_DIR=ymp_dir, target=target)
+        mytarget = self.get_ids(stack,
+                                [g for g in stack.group if g != stack],
+                                mygroup, target)
+
+        job = checkpoint.get(_YMP_DIR=ymp_dir, target="__".join(mytarget))
         with open(job.output.bins, "r") as fd:
             bins = [line.strip() for line in fd.readlines()]
         return bins
@@ -351,7 +355,7 @@ class Stage(WorkflowObject, BaseStage):
             ids = [
                 "__".join((target, binid))
                 for target in ids
-                for binid in bin.stage.get_checkpoint_ids(bin, target)
+                for binid in bin.stage.get_checkpoint_ids(bin, groups, target)
                 if bin not in mybins or binid == mybins[bin]
             ]
         return ids

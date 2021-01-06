@@ -324,7 +324,11 @@ class Project(ConfigStage):
         if len(known_groups) < 2:
             minimal_groups = known_groups
         else:
+            # FIXME: dedup should work for arbitrary order!
             minimal_groups = self.data.groupby_dedup(known_groups)
+            minimal_groups.reverse()
+            minimal_groups = self.data.groupby_dedup(minimal_groups)
+            minimal_groups.reverse()
         return minimal_groups, other_groups
 
     def get_group(
@@ -336,6 +340,19 @@ class Project(ConfigStage):
         if override_groups:
             raise YmpStageError("Cannot override project grouping")
         return [self.idcol]
+
+    def get_ids(_stack, groups, match_groups=None, match_values=None):
+        include = set(self.variables)
+        if match_groups is not None:
+            avail_group = []
+            target_parts = []
+            for group, target in zip(match_groups, cur_target.split("__")):
+                if group in prev_stack.group:
+                    avail_group.append(group)
+                    target_parts.append(target)
+            match_groups = avail_group
+            match_values = "__".join(target_parts)
+        super.get_ids(stack, groups, match_groups, match_values)
 
     def do_get_ids(self, _stack, groups, match_groups=None, match_values=None):
         if match_values:
