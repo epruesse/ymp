@@ -227,7 +227,7 @@ class SQLiteProjectData(object):
     ) -> List[List[str]]:
         if isinstance(cols, str):
             cols = [cols]
-        query = "SELECT " + ",".join(f'"{col}"' for col in cols)
+        query = "SELECT DISTINCT " + ",".join(f'"{col}"' for col in cols)
         query += f" FROM {self.name}"
         if idcols is not None:
             if values is None:
