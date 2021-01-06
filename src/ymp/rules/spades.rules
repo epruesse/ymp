@@ -101,7 +101,7 @@ with Stage("assemble_spades") as S:
         esac
         if [ -z "{params.not_careful}" ]; then
           case {params.task} in
-            Meta|Rna|Isolate) break ;;
+            Meta|Rna|Isolate) : ;;
             *) TASK="$TASK --careful" ;;
           esac
         fi
