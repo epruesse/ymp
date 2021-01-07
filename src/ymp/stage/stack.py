@@ -238,4 +238,4 @@ class StageStack(object):
         # Find name of current output target
         cur_target = kwargs['wc'].target
 
-        return  self.stage.get_ids(prev_stack, prev_stack.group, self.group, cur_target)
+        return prev_stack.stage.get_ids(prev_stack, prev_stack.group, self.group, cur_target)
