@@ -1,7 +1,6 @@
 Env(name="metabat2", base="bioconda", packages=[
     "metabat2",
-    "pigz",
-    "libdeflate==1.0"  # pinning in bioconda broken
+    "pigz"
 ])
 
 with Stage("bin_metabat2") as S:
