@@ -91,13 +91,10 @@ class Reference(ConfigStage):
 
     def get_group(
             self,
-            _stack: "StageStack",
-            default_groups: List[str],
-            override_groups: List[str]
+            stack: "StageStack",
+            default_groups: List[str]
     ) -> List[str]:
-        if override_groups:
-            raise YmpStageError("Cannot override reference grouping")
-        return []
+        return super().get_group(stack, [])
 
     def get_ids(
             self,

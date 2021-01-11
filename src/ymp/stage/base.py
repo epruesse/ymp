@@ -3,6 +3,7 @@ import os
 
 from typing import Set, Dict, Union, List, Optional
 
+from ymp.exceptions import YmpStageError
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -115,9 +116,8 @@ class BaseStage(object):
 
     def get_group(
             self,
-            _stack: "StageStack",
+            stack: "StageStack",
             default_groups: List[str],
-            override_groups: Optional[List[str]]
     ) -> List[str]:
         """Determine output grouping for stage
 
@@ -126,16 +126,20 @@ class BaseStage(object):
           default_groups: Grouping determined from stage inputs
           override_groups: Override grouping from GroupBy stage or None.
         """
-        if override_groups:
-            return override_groups
+        if stack.prev_stack is not None:
+            if stack.prev_stack.stage.modify_next_group(stack.prev_stack):
+                raise YmpStageError(f"Cannot override {self} grouping")
         return default_groups
+
+    def modify_next_group(self, _stack: "StageStack"):
+        return None
 
     def get_ids(
             self,
             stack: "StageStack",
             groups: List[str],
             match_groups: Optional[List[str]] = None,
-            match_value: Optional[str] = None
+            match_value: Optional[str] = None,
     ) -> List[str]:
         """Determine the target ID names for a set of active groupings
 

@@ -333,26 +333,23 @@ class Project(ConfigStage):
 
     def get_group(
             self,
-            _stack: "StageStack",
+            stack: "StageStack",
             default_groups: List[str],
-            override_groups: Optional[List[str]]
     ) -> List[str]:
-        if override_groups:
-            raise YmpStageError("Cannot override project grouping")
-        return [self.idcol]
+        return super().get_group(stack, [self.idcol])
 
-    def get_ids(_stack, groups, match_groups=None, match_values=None):
+    def get_ids(self, stack, groups, match_groups=None, match_values=None):
         include = set(self.variables)
         if match_groups is not None:
             avail_group = []
             target_parts = []
-            for group, target in zip(match_groups, cur_target.split("__")):
-                if group in prev_stack.group:
+            for group, target in zip(match_groups, match_values.split("__")):
+                if group in stack.group:
                     avail_group.append(group)
                     target_parts.append(target)
             match_groups = avail_group
             match_values = "__".join(target_parts)
-        super.get_ids(stack, groups, match_groups, match_values)
+        return super().get_ids(stack, groups, match_groups, match_values)
 
     def do_get_ids(self, _stack, groups, match_groups=None, match_values=None):
         if match_values:

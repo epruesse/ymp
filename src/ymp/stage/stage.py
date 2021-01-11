@@ -278,13 +278,18 @@ class Stage(WorkflowObject, BaseStage):
     def get_group(
             self,
             stack: "StageStack",
-            default_groups: List[str],
-            override_groups: List[str],
+            default_groups: List[str]
     ) -> List[str]:
+        override_groups = None
+        if stack.prev_stack is not None:
+            override_groups = stack.prev_stack.stage.modify_next_group(stack.prev_stack)
         if override_groups is None:
             groups = default_groups
         else:
             groups = override_groups
+            if "__bin__" in override_groups:
+                groups = [g for g in groups if g != "__bin__"]
+                groups += [g for g in default_groups if isinstance(g, type(stack))]
         if self.has_checkpoint():
             groups.append(stack)
 

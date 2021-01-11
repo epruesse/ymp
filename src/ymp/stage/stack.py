@@ -85,6 +85,7 @@ class StageStack(object):
         self.stage = self.stages[-1]
         #: Stage below top stage or None if first in stack
         self.prev_stage = self.stages[-2] if len(self.stages) > 1 else None
+        self.prev_stack = self.instance(".".join(self.stage_names[:-1])) if len(self.stages) > 1 else None
 
         cfg = ymp.get_config()
 
@@ -105,12 +106,7 @@ class StageStack(object):
             for group in stack.group
         ))
         project_groups, other_groups = self.project.minimize_variables(groups)
-        # Check for groupby
-        if isinstance(self.prev_stage, GroupBy):
-            groupby = self.prev_stage.get_group(self, [], [])
-        else:
-            groupby = None
-        self.group = self.stage.get_group(self, project_groups + other_groups, groupby)
+        self.group = self.stage.get_group(self, project_groups + other_groups)
 
     def show_info(self):
         def ellip(text: str) -> str:
