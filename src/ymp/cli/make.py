@@ -181,7 +181,7 @@ def start_snakemake(kwargs):
     cur_path = os.path.abspath(os.getcwd())
     if not cur_path.startswith(root_path):
         raise YmpException("internal error - CWD moved out of YMP root?!")
-    cur_path = cur_path[len(root_path):]
+    cur_path = cur_path[len(root_path)+1:]
 
     # translate renamed arguments to snakemake synopsis
     arg_map = {
