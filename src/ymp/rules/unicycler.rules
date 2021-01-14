@@ -35,6 +35,8 @@ with Stage("assemble_unicycler") as S:
             sufficient_input = check_input(["r1", "r2"], minlines=50*4*2),
             # Exclude contigs from the FASTA file which are shorter than this length
             min_fasta_length = 200,
+            # Maximum k size for spades as fraction read length
+            max_kmer_frac = 0.7,
             # Level of file retention (default: 1)
             # 0 = only keep final files: assembly (FASTA, GFA and log),
             # 1 = also save graphs at main checkpoints,
@@ -51,7 +53,7 @@ with Stage("assemble_unicycler") as S:
         shell: """
         short1=({params.r1})
         short2=({params.r2})
-        if [ ${{#short1[*]}} -qt 1 ]; then
+        if [ ${{#short1[*]}} -gt 1 ]; then
           # Unicycler does not support multiple FQ files as input
           # See https://github.com/rrwick/Unicycler/issues/66
           # Create tmpdir, set delete trap on exit, concatenate
