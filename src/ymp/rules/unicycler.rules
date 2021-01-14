@@ -49,7 +49,7 @@ with Stage("assemble_unicycler") as S:
             # bold = longest contigs, higher misassembly rate
             mode = "normal",
             workdir = "{:this:}/{target}.tmp/",
-            verbosity = 1
+            verbosity = 1,
         shell: """
         short1=({params.r1})
         short2=({params.r2})
@@ -87,6 +87,7 @@ with Stage("assemble_unicycler") as S:
            ARGS="$ARGS --mode {params.mode}"
            ARGS="$ARGS --threads {threads}"
            ARGS="$ARGS --verbosity {params.verbosity}"
+           ARGS="$ARGS --max_kmer_frac {params.max_kmer_frac}"
            echo "YMP: Running Unicycler $ARGS" >> {log}
            if ! unicycler $ARGS >>{log} 2>&1; then
              if [ "{params.sufficient_input}" = "False" ]; then
