@@ -589,19 +589,31 @@ with Stage("format_bbmap") as S:
             fasta = "{:this:}/{target}.fasta.gz"
         log:
                     "{:this:}/{target}.log"
+        params:
+            multi = lambda wc, input: isinstance(input.fasta, list)
         threads:
             4
         conda:
             "bbmap"
         shell:
-            'cat {input.fasta} | '
+            'exec >{log} 2>&1; set -x;'
+            '('
+            '  if [ "{params.multi}" == "False" ]; then'
+            '    gzip -dc {input.fasta};'
+            '  else'
+            '    for n in {input.fasta}; do'
+            '      name="$(basename $n)"'
+            '      name="${{name%.fasta.gz}}";'
+            '      gzip -dc "$n" | sed "s/^>/>${{name}}_/";'
+            '    done;'
+            '  fi'
+            ') |'
             'reformat.sh'
-            ' in=stdin.fasta.gz'
+            ' in=stdin.fasta'
             ' out={output.fasta}'
             ' bgzip'
             ' fastawrap=0'  # sequence on one line
             ' fastaminlen={params.length}'
-            ' >{log} 2>&1'
 
     rule bbmap_reformat_all:
         message:
