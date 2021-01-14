@@ -18,8 +18,8 @@ with Stage("assemble_unicycler") as S:
             # FIXME: unicycler does not support multiple input fq
             #        => grouping / co assembly does not work
             #        might be possible to concatenate, not ideal though
-            r1 = "{:prev:}/{target}.{:pairnames[0]:}.fq.gz",
-            r2 = "{:prev:}/{target}.{:pairnames[1]:}.fq.gz"
+            r1 = "{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz",
+            r2 = "{:prev:}/{:target:}.{:pairnames[1]:}.fq.gz"
         output:
             fasta = "{:this:}/{target}.fasta.gz"
         log:
