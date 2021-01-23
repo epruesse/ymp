@@ -217,32 +217,34 @@ def start_snakemake(kwargs):
         kwargs['verbose'] = True
     kwargs['use_conda'] = True
 
+    # expand stack paths
     stage_stack_failure = None
-    if 'targets' in kwargs:
+    targets = []
+    for target in kwargs.get('targets', []):
         if cur_path:
-            kwargs['targets'] = [os.path.join(cur_path, t)
-                                 for t in kwargs['targets']]
-        else:
-            targets = []
-            for t in kwargs['targets']:
-                if '/'in t:
-                    targets.append(t)
-                    continue
-                try:
-                    stack = StageStack.instance(t)
-                    targets.extend(stack.all_targets())
-                except YmpStageError as exc:
-                    stage_stack_failure = exc
-                    targets.append(t)
-                except YmpException as exc:
-                    log.error("Failure assembling stack:")
-                    exc.show()
-                    return False
-            kwargs['targets'] = targets
+            # CWD is inside a stack. Prefix path.
+            target = os.path.join(cur_path, target)
+        stack_path, _, item_path = target.partition('/')
 
+        try:
+            stack = StageStack.instance(stack_path)
+            if item_path:
+                # fixme: check that this output can be built?
+                targets.append(os.path.join(stack.path, item_path))
+            else:
+                targets.extend(stack.all_targets())
+        except YmpStageError as exc:  # Not a stack? Try passing through to snakemake.
+            stage_stack_failure = exc
+            targets.append(target)
+        except YmpException as exc:  # Something else happened. Abort.
+            log.error("Failure assembling stack:")
+            exc.show()
+            return False
+    if targets:
         log.info("Making targets:")
-        for target in kwargs['targets']:
+        for target in targets:
             log.info("  - %s", target)
+        kwargs['targets'] = targets
 
     log.debug("Running snakemake.snakemake with args: %s", kwargs)
 
