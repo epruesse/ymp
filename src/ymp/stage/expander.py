@@ -16,6 +16,8 @@ class StageExpander(ColonExpander):
     """
     - Registers rules with stages when they are created
     """
+    regroup=re.compile("(?<!{){\s*([^{}\s]+)\s*}(?!})")
+
     def expand_ruleinfo(self, rule, item, expand_args, rec):
         if not Stage.active:
             return item
@@ -39,6 +41,8 @@ class StageExpander(ColonExpander):
             Stage.active = rule.ymp_stage
         expand_args['item'] = item
         val = super().expand_str(rule, item, expand_args, rec, cb)
+        if expand_args['field'] == 'message':
+            val = self.regroup.sub("{wildcards.\\1}", val)
         if cb:
             Stage.active = stage
         return val
