@@ -113,7 +113,7 @@ with Stage("count_stringtie"):
         message:
             "Stringtie: finished {output}"
         input:
-            touch("{:this:}/all_{:targets:}")
+            "{:this:}/all_{:targets:}"
         output:
             touch("{:this:}/all_targets.stamp")
 

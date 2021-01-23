@@ -59,7 +59,7 @@ with Stage("index_bbmap") as S:
         output:
             touch("{:this:}/all_targets.stamp")
         input:
-            directory("{:this:}/{:targets:}")
+            "{:this:}/{:targets:}"
 
 
 with Stage("correct_bbmap") as S:
@@ -307,7 +307,7 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
             "BBMap filtering - {input[0]}"
         input:
             fq    = "{:prev:}/{target}.{:pairnames:}.fq.gz",
-            ref   = directory("{:prev:}/{:target:}")
+            ref   = "{:prev:}/{:target:}"
         output:
             clean = "{:this:}/{target}.{:pairnames:}.fq.gz",
             human = "{:that:}/{target}.{:pairnames:}.fq.gz",
