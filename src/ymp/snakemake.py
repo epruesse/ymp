@@ -559,9 +559,8 @@ class BaseExpander(object):
                 raise
 
             def item_wrapped(wc):
-                return self.expand(rule, item,
-                                   expand_args={'wc': wc, 'rule': rule},
-                                   cb=True)
+                expand_args['wc'] = wc
+                return self.expand(rule, item, expand_args, cb=True)
             return item_wrapped
 
     def expand_func(self, rule, item, expand_args, rec, debug):
@@ -570,8 +569,9 @@ class BaseExpander(object):
             if debug:
                 log.debug("{}{} late {} {} ".format(
                     " "*rec*4, type(self).__name__, args, kwargs))
+            expand_args['wc'] = args[0]
             res = self.expand(rule, item(*args, **kwargs),
-                              expand_args={'wc': args[0]}, rec=rec, cb=True)
+                              expand_args, rec=rec, cb=True)
             if debug:
                 log.debug("{}=> '{}'".format(" "*rec*4, res))
             return res
