@@ -263,6 +263,13 @@ class StageStack(object):
         if self.debug:
             log.warning("  ===> %s", repr(ids))
         if ids == []:
-            raise YmpException("Empty list of IDs for input!?!")
+            raise YmpStageError(
+                f"Internal Error: Failed to find inputs\n\n"
+                f"Context:\n"
+                f"  In stack '{self}' rule '{getattr(kwargs.get('rule'), 'name', 'N/A')}'\n"
+                f"  Building '{vals}' (grouped on '{','.join(cols)}')\n"
+                f"  Seeking input from '{prev_stack}' (grouped on '{','.join(prev_stack.group)}')"
+                f"\n"
+            )
 
         return ids
