@@ -172,6 +172,69 @@ class BaseStage(object):
         return False
 
 
+class Activateable(object):
+    #: Currently active stage ("entered")
+    _active: BaseStage = None
+
+    @staticmethod
+    def get_active() -> BaseStage:
+        return Activateable._active
+
+    @staticmethod
+    def set_active(stage: BaseStage) -> None:
+        Activateable._active = stage
+
+    def __init__(self, *args, **kwargs) -> None:
+        #: Rules in this stage
+        self.rules: List[Rule] = []
+        self._last_rules: List[Rule] = []
+        super().__init__(*args, **kwargs)
+
+    def __enter__(self) -> "Activateable":
+        if self.get_active() is not None:
+            raise YmpRuleError(
+                self,
+                f"Failed to enter stage '{self}', "
+                f"already in stage {self.get_active()}'."
+            )
+
+        self.set_active(self)
+        self._last_rules = self.rules.copy()
+        return self
+
+    def __exit__(self, *args) -> None:
+        self.set_active(None)
+
+    def add_rule(self, rule: "Rule", workflow: "Workflow") -> None:
+        rule.ymp_stage = self
+        self.rules.append(rule.name)
+        if self._last_rules:
+            for lastrule in self._last_rules:
+                workflow.ruleorder(rule.name, lastrule)
+
+    def check_active_stage(self, name: str) -> None:
+        if not self.get_active():
+            raise YmpException(
+                f"Use of {{:{name}:}} requires active Stage"
+            )
+        if not self.get_active() == self:
+            raise YmpException(
+                f"Internal error: {self} running but {self.get_active()} active."
+            )
+
+    def register_inout(self, name: str, target: Set, item: str) -> None:
+        self.check_active_stage(name)
+        prefix, _, suffix = item.partition(f"{{:{name}:}}")
+        for n in ("{target}", "{source}", "{:target:}"):
+            suffix = suffix.replace(n, "{sample}")
+        for n in ("{:targets:}", "{:sources:}"):
+            suffix = suffix.replace(n, "{:samples:}")
+        if not prefix:
+            target.add(suffix)
+        # fixme: what if prefix present?
+        return suffix
+
+
 class ConfigStage(BaseStage):
     """Base for stages created via configuration
 

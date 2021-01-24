@@ -7,7 +7,7 @@ from collections.abc import Mapping, Sequence
 
 from ymp.snakemake import make_rule
 from ymp.util import make_local_path
-from ymp.stage.base import ConfigStage
+from ymp.stage import ConfigStage, Activateable, Stage
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -68,13 +68,16 @@ class Archive(object):
         )
 
 
-class Reference(ConfigStage):
+class Reference(Activateable, ConfigStage):
     """
     Represents (remote) reference file/database configuration
     """
     def __init__(self, name, cfg):
         super().__init__("ref_" + name, cfg)
-        self.files = {}
+        #: Files provided by the reference. Keys are the file names
+        #: within ymp ("target.extension"), values are the path to the
+        #: reference file.
+        self.files: Dict[str, str] = {}
         self.archives = []
         self._id = None
         self._outputs = None
@@ -88,6 +91,9 @@ class Reference(ConfigStage):
             if isinstance(rsc, str):
                 rsc = {'url': rsc}
             self.add_files(rsc, make_local_path(cfgmgr, rsc['url']))
+
+        # Copy rules defined in primary references stage
+        self.rules = Stage.get_registry()['references'].rules.copy()
 
     def get_group(
             self,
@@ -169,9 +175,11 @@ class Reference(ConfigStage):
             log.debug("unknown type {} used in reference {}"
                       "".format(type_name, self.name))
 
-
     def get_path(self, _stack):
         return self.dir
+
+    def get_all_targets(self, stack: "StageStack") -> List[str]:
+        return [os.path.join(self.dir, fname) for fname in self.files]
 
     def get_file(self, filename):
         local_path = self.files.get(filename)
@@ -189,3 +197,13 @@ class Reference(ConfigStage):
 
     def __str__(self):
         return os.path.join(self.dir, "ALL")
+
+    def this(self, args=None, kwargs=None):
+        item = kwargs['item']
+        suffix = self.register_inout("this", set(), item).lstrip('/')
+        self.files[suffix] = os.path.join(self.dir, suffix)
+        self._outputs = None
+        return self.dir
+
+    def prev(self, args=None, kwargs=None):
+        return self.dir

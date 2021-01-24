@@ -7,22 +7,14 @@ from typing import Dict, List, Set
 from snakemake.rules import Rule
 
 from ymp.snakemake import WorkflowObject, RemoveValue
-from ymp.stage.base import BaseStage
+from ymp.stage.base import BaseStage, Activateable
 from ymp.exceptions import YmpRuleError, YmpException
 
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-def norm_wildcards(pattern):
-    for n in ("{target}", "{source}", "{:target:}"):
-        pattern = pattern.replace(n, "{sample}")
-    for n in ("{:targets:}", "{:sources:}"):
-        pattern = pattern.replace(n, "{:samples:}")
-    return pattern
-
-
-class Stage(WorkflowObject, BaseStage):
+class Stage(WorkflowObject, Activateable, BaseStage):
     """
     Creates a new stage
 
@@ -34,9 +26,6 @@ class Stage(WorkflowObject, BaseStage):
     * ``{:prev:}`` -- The previous stage's directory
 
     """
-
-    active = None
-    """Currently active stage ("entered")"""
 
     def __init__(self, name: str, altname: str=None,
                  env: str=None, doc: str=None) -> None:
@@ -51,8 +40,6 @@ class Stage(WorkflowObject, BaseStage):
         super().__init__(name)
         self.altname: str = altname
         self.register()
-        #: Rules in this stage
-        self.rules: List[Rule] = []
         #: Checkpoints in this stage
         self.checkpoints: Dict[str, Set[str]] = {}
         # Inputs required by stage
@@ -95,20 +82,6 @@ class Stage(WorkflowObject, BaseStage):
         """
         self.conda_env = name
 
-    def __enter__(self):
-        if Stage.active is not None:
-            raise YmpRuleError(
-                self,
-                f"Failed to enter stage '{self.name}', "
-                f"already in stage {self.active.name}'."
-            )
-
-        Stage.active = self
-        return self
-
-    def __exit__(self, *args):
-        Stage.active = None
-
     def __str__(self):
         if self.altname:
             return "|".join((self.name, self.altname))
@@ -117,10 +90,6 @@ class Stage(WorkflowObject, BaseStage):
     def __repr__(self):
         return (f"{self.__class__.__name__} {self!s} "
                 f"({self.filename}:{self.lineno})")
-
-    def _add_rule(self, rule):
-        rule.ymp_stage = self
-        self.rules.append(rule.name)
 
     def add_param(self, key, typ, name, value=None, default=None):
         """Add parameter to stage
@@ -209,20 +178,6 @@ class Stage(WorkflowObject, BaseStage):
             self._regex = re.compile(pat)
         return self._regex.fullmatch(name) is not None
 
-    def _check_active_stage(self, name: str) -> None:
-        if not Stage.active:
-            raise YmpException(
-                f"Use of {{:{name}:}} requires active Stage"
-            )
-
-    def _register_inout(self, name: str, target, item) -> None:
-        self._check_active_stage(name)
-        prefix, _, suffix = item.partition(f"{{:{name}:}}")
-        norm_suffix = norm_wildcards(suffix)
-        if not prefix:
-            target.add(norm_suffix)
-        return norm_suffix
-
     def _wildcards(self, name, kwargs=None):
         show_constraint = kwargs and kwargs.get('field') != 'input'
         return "".join(["{_YMP_DIR}", name] +
@@ -234,7 +189,7 @@ class Stage(WorkflowObject, BaseStage):
         Here, input requirements for each stage are collected.
         """
         item = kwargs['item']
-        self._register_inout("prev", self._inputs, item)
+        self.register_inout("prev", self._inputs, item)
         return None
 
     def this(self, args=None, kwargs=None):
@@ -243,7 +198,8 @@ class Stage(WorkflowObject, BaseStage):
         Also gathers output capabilities of each stage.
         """
         item = kwargs['item']
-        self._register_inout("this", self._outputs, item)
+        # Fixme: check that this is from outputs
+        self.register_inout("this", self._outputs, item)
         return self._wildcards(self.name, kwargs=kwargs)
 
     def that(self, args=None, kwargs=None):
@@ -252,8 +208,8 @@ class Stage(WorkflowObject, BaseStage):
 
         Used for splitting stages
         """
-        self._check_active_stage("that")
-        if not Stage.active.altname:
+        self.check_active_stage("that")
+        if not self.altname:
             raise YmpException(
                 "Use of {:that:} requires with altname"
             )
@@ -268,7 +224,7 @@ class Stage(WorkflowObject, BaseStage):
             raise YmpStageError("Only checkpoints may use '{:bin:}'")
         item = kwargs['item']
         norm_item = item.replace(".{:bin:}", "")
-        norm_suffix = self._register_inout("this", self._outputs, norm_item)
+        norm_suffix = self.register_inout("this", self._outputs, norm_item)
         self.checkpoints.setdefault(rule.name, set()).add(norm_suffix)
         raise RemoveValue()
 

@@ -19,15 +19,16 @@ class StageExpander(ColonExpander):
     regroup=re.compile("(?<!{){\s*([^{}\s]+)\s*}(?!})")
 
     def expand_ruleinfo(self, rule, item, expand_args, rec):
-        if not Stage.active:
+        stage = Stage.get_active()
+        if not stage:
             return item
-        stage = Stage.active
 
-        stage._add_rule(rule)
+        stage.add_rule(rule, self.workflow)
+
         if not item.conda_env and stage.conda_env:
             item.conda_env = stage.conda_env
 
-        if stage.params:
+        if getattr(stage, "params", None):
             if not item.params:
                 item.params = ((), {})
             for param in stage.params:
@@ -37,14 +38,14 @@ class StageExpander(ColonExpander):
 
     def expand_str(self, rule, item, expand_args, rec, cb):
         if cb:
-            stage = Stage.active
-            Stage.active = rule.ymp_stage
+            old_active = Stage.get_active()
+            Stage.set_active(rule.ymp_stage)
         expand_args['item'] = item
         val = super().expand_str(rule, item, expand_args, rec, cb)
         if expand_args['field'] == 'message':
             val = self.regroup.sub("{wildcards.\\1}", val)
         if cb:
-            Stage.active = stage
+            Stage.set_active(old_active)
         return val
 
     def expands_field(self, field):
@@ -69,7 +70,8 @@ class StageExpander(ColonExpander):
                 raise
 
         def get_value_(self, key, args, kwargs):
-            stage = Stage.active
+            stage = Stage.get_active()
+            # Fixme: Guard against stage==None?
             if "(" in key:
                 args = list(args)
                 if key[-1] != ")":
