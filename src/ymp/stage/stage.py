@@ -236,16 +236,24 @@ class Stage(WorkflowObject, Activateable, BaseStage):
             stack: "StageStack",
             default_groups: List[str]
     ) -> List[str]:
+        # Are we instructed by previous stack to change grouping? (groupby in effect)
         override_groups = None
         if stack.prev_stack is not None:
             override_groups = stack.prev_stack.stage.modify_next_group(stack.prev_stack)
+
         if override_groups is None:
+            # If not, just use the default groups
             groups = default_groups
         else:
+            # Otherwise, use the override groups,
             groups = override_groups
+            # Replace "__bin__" with bins in effect
             if "__bin__" in override_groups:
                 groups = [g for g in groups if g != "__bin__"]
+                # FIXME: Should we just use the latest bin? What if we have multiple?
                 groups += [g for g in default_groups if isinstance(g, type(stack))]
+
+        # If we are a checkpoint ourselves, add self.
         if self.has_checkpoint():
             groups.append(stack)
 
@@ -268,7 +276,8 @@ class Stage(WorkflowObject, Activateable, BaseStage):
         return bins
 
     def get_ids(self, stack, groups, mygroups=None, target=None):
-        groups = list(groups)
+        # Make a copy of the input gorups, we don't want to modify it.
+        groups = groups.copy()
         if mygroups is not None:
             mygroups = list(mygroups)
 

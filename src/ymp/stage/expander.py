@@ -93,7 +93,7 @@ class StageExpander(ColonExpander):
                             raise ExpandLateException()
                         arg = getattr(kwargs['wc'], arg)
                     args += [arg]
-                
+
             # Check Stage variables first. We can do that always:
             if hasattr(stage, key):
                 val = getattr(stage, key)
