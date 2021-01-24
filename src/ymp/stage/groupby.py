@@ -50,8 +50,9 @@ class GroupBy(BaseStage):
 
         group_name = name[len(self.PREFIX):]
         if group_name == "ALL":
-            group = []
-        if group_name == "BIN":
+            if group:
+                raise YmpStageError("Regrouping to ALL means previous group statement has no effect")
+        elif group_name == "BIN":
             group += ["__bin__"]
         else:
             group += [group_name]
