@@ -250,7 +250,7 @@ class StageStack(object):
             log.warning("  from stack %s", prev_stack)
             log.warning("  select %s", repr(prev_stack.group))
             log.warning("  where %s == %s", repr(self.group), cur_target)
-        cols = prev_stack.group
+        cols = self.group
         vals = cur_target
         if cols == [] and vals == 'ALL':
             cols = vals = None
