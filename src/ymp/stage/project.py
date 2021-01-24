@@ -89,7 +89,7 @@ class PandasTableBuilder(object):
                     cfg,
                     "Could not load specified data file."
                     " If this is an Excel file, you might need"
-                    " to install 'xlrd'."
+                    " to install 'openpyxl'."
                 )
         # prefix fq files with name of config file's directory
         rdir = os.path.dirname(cfg)

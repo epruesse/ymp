@@ -54,7 +54,7 @@ setup(
         'ruamel.yaml>0.15',
         'drmaa',
         'pandas>=0.20',
-        'xlrd',  # excel support
+        'openpyxl',  # excel support
         'coloredlogs',
         'xdg',  # user paths
         'tqdm >4.21',
