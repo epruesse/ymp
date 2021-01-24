@@ -7,7 +7,7 @@ from ymp.string import PartialFormatter
 from ymp.stage.stage import Stage
 from ymp.stage.stack import StageStack
 
-from snakemake.exceptions import IncompleteCheckpointException
+from snakemake.exceptions import IncompleteCheckpointException  # type: ignore
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 

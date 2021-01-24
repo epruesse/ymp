@@ -5,9 +5,9 @@ from collections.abc import (
     ItemsView, KeysView, Mapping, MappingView, Sequence, ValuesView
 )
 
-import ruamel.yaml
-from ruamel.yaml import RoundTripRepresenter, YAML
-from ruamel.yaml.comments import CommentedMap
+import ruamel.yaml  # type: ignore
+from ruamel.yaml import RoundTripRepresenter, YAML  # type: ignore
+from ruamel.yaml.comments import CommentedMap  # type: ignore
 
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name

@@ -1,15 +1,18 @@
+"""
+Implements the "Stage"
+
+At it's most basic, a "Stage" is a set of Snakemake rules that share an output folder.
+"""
+
 import copy
 import logging
 import re
 
 from typing import Dict, List, Set
 
-from snakemake.rules import Rule
-
 from ymp.snakemake import WorkflowObject, RemoveValue
 from ymp.stage.base import BaseStage, Activateable
-from ymp.exceptions import YmpRuleError, YmpException
-
+from ymp.exceptions import YmpRuleError, YmpException, YmpStageError
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -24,11 +27,15 @@ class Stage(WorkflowObject, Activateable, BaseStage):
     * ``{:this:}`` -- The current stage directory
     * ``{:that:}`` -- The alternate output stage directory
     * ``{:prev:}`` -- The previous stage's directory
-
     """
 
-    def __init__(self, name: str, altname: str=None,
-                 env: str=None, doc: str=None) -> None:
+    def __init__(
+            self,
+            name: str,
+            altname: str = None,
+            env: str = None,
+            doc: str = None,
+    ) -> None:
         """
         Args:
             name: Name of this stage
@@ -38,18 +45,22 @@ class Stage(WorkflowObject, Activateable, BaseStage):
             env: See `Stage.env`
         """
         super().__init__(name)
+        #: Alternative stage name (deprecated)
         self.altname: str = altname
-        self.register()
         #: Checkpoints in this stage
         self.checkpoints: Dict[str, Set[str]] = {}
+        #: Contains override stage inputs
+        self.requires = None
+        #: Stage Parameters
+        self.params: List[Param] = []
+
         # Inputs required by stage
         self._inputs: Set[str] = set()
         self._outputs: Set[str] = set()
-        # Stage Parameters
-        self.params: List[Param] = []
-        self.requires = None
         # Regex matching self
         self._regex = None
+
+        self.register()
 
         self.doc(doc or "")
         self.env(env)
@@ -136,7 +147,7 @@ class Stage(WorkflowObject, Activateable, BaseStage):
         return copy.copy(self.requires)
 
     def satisfy_inputs(self, other_stage, inputs) -> Dict[str, str]:
-        if not self.requires: # inputs is set
+        if not self.requires:  # inputs is set
             provides = other_stage.can_provide(inputs)
             # warning: `inputs -= provides.keys()` would work, but would
             # create a new object, rather than modify the set we
@@ -183,16 +194,15 @@ class Stage(WorkflowObject, Activateable, BaseStage):
         return "".join(["{_YMP_DIR}", name] +
                        [p.pattern(show_constraint) for p in self.params])
 
-    def prev(self, args, kwargs) -> None:
+    def prev(self, _args, kwargs) -> None:
         """Gathers {:prev:} calls from rules
 
         Here, input requirements for each stage are collected.
         """
         item = kwargs['item']
         self.register_inout("prev", self._inputs, item)
-        return None
 
-    def this(self, args=None, kwargs=None):
+    def this(self, _args=None, kwargs=None):
         """Replaces {:this:} in rules
 
         Also gathers output capabilities of each stage.
@@ -202,7 +212,7 @@ class Stage(WorkflowObject, Activateable, BaseStage):
         self.register_inout("this", self._outputs, item)
         return self._wildcards(self.name, kwargs=kwargs)
 
-    def that(self, args=None, kwargs=None):
+    def that(self, _args=None, kwargs=None):
         """
         Alternate directory of current stage
 
@@ -215,7 +225,7 @@ class Stage(WorkflowObject, Activateable, BaseStage):
             )
         return self._wildcards(self.altname, kwargs=kwargs)
 
-    def bin(self, args=None, kwargs=None):
+    def bin(self, _args=None, kwargs=None):
         """
         Dynamic ID for splitting stages
         """
@@ -233,13 +243,14 @@ class Stage(WorkflowObject, Activateable, BaseStage):
 
     def get_group(
             self,
-            stack: "StageStack",
+            stack,  #: "StageStack"
             default_groups: List[str]
     ) -> List[str]:
-        # Are we instructed by previous stack to change grouping? (groupby in effect)
+        # Are we instructed by previous stack to change grouping?
         override_groups = None
         if stack.prev_stack is not None:
-            override_groups = stack.prev_stack.stage.modify_next_group(stack.prev_stack)
+            prev_stage = stack.prev_stack.stage
+            override_groups = prev_stage.modify_next_group(stack.prev_stack)
 
         if override_groups is None:
             # If not, just use the default groups
@@ -250,8 +261,11 @@ class Stage(WorkflowObject, Activateable, BaseStage):
             # Replace "__bin__" with bins in effect
             if "__bin__" in override_groups:
                 groups = [g for g in groups if g != "__bin__"]
-                # FIXME: Should we just use the latest bin? What if we have multiple?
-                groups += [g for g in default_groups if isinstance(g, type(stack))]
+                # FIXME:
+                # Should we just use the latest bin? What if we have multiple?
+                groups += [
+                    g for g in default_groups if isinstance(g, type(stack))
+                ]
 
         # If we are a checkpoint ourselves, add self.
         if self.has_checkpoint():
@@ -387,7 +401,7 @@ class ParamInt(Param):
                 self.stage,
                 f"Stage Int Parameter must have 'default' set")
 
-        self.regex = f"({self.key}\d+|)"
+        self.regex = f"({self.key}\\d+|)"
 
     def param_func(self):
         """Returns function that will extract parameter value from wildcards"""

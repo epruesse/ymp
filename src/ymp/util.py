@@ -6,8 +6,8 @@ import gzip
 
 from typing import Optional, Sequence, Callable
 
-from snakemake.io import Namedlist
-from snakemake.utils import format as snake_format
+from snakemake.io import Namedlist  # type: ignore
+from snakemake.utils import format as snake_format  # type: ignore
 
 from ymp.exceptions import YmpRuleError
 

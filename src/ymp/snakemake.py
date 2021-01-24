@@ -10,12 +10,12 @@ from copy import copy, deepcopy
 from inspect import Parameter, signature, stack
 from typing import Optional
 
-from snakemake.exceptions import CreateRuleException, RuleException
+from snakemake.exceptions import CreateRuleException, RuleException  # type: ignore
 from snakemake.io import AnnotatedString, apply_wildcards, \
-    strip_wildcard_constraints
-from snakemake.io import Namedlist as _Namedlist
-from snakemake.rules import Rule
-from snakemake.workflow import RuleInfo, Workflow
+    strip_wildcard_constraints  # type: ignore
+from snakemake.io import Namedlist as _Namedlist  # type: ignore
+from snakemake.rules import Rule  # type: ignore
+from snakemake.workflow import RuleInfo, Workflow  # type: ignore
 
 import ymp
 from ymp.common import ensure_list, flatten, is_container

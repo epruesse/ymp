@@ -1,18 +1,25 @@
+"""
+Base classes for all Stage types
+"""
+
 import logging
 import os
 
 from typing import Set, Dict, Union, List, Optional
 
-from ymp.exceptions import YmpStageError
+from ymp.exceptions import YmpStageError, YmpRuleError, YmpException
+
+from snakemake.rules import Rule
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-class BaseStage(object):
+class BaseStage:
     """Base class for stage types"""
     #: The name of the stamp file that is touched to indicate
     #: completion of the stage.
     STAMP_FILENAME = "all_targets.stamp"
+
     def __init__(self, name: str) -> None:
         #: The name of the stage is a string uniquely identifying it
         #: among all stages.
@@ -22,8 +29,8 @@ class BaseStage(object):
         self.altname = None
 
         #: The docstring describing this stage. Visible via ``ymp
-        #:stage list`` and in the generated sphinx documentation.
-        self.docstring: str = None
+        #: stage list`` and in the generated sphinx documentation.
+        self.docstring: Optional[str] = None
 
     def __str__(self) -> str:
         """Cast to string we just emit our name"""
@@ -54,6 +61,7 @@ class BaseStage(object):
         return name == self.name
 
     def get_inputs(self) -> Set[str]:
+        # pylint: disable = no-self-use
         """Returns the set of inputs required by this stage
 
         This function must return a copy, to ensure internal data is
@@ -79,6 +87,7 @@ class BaseStage(object):
         if isinstance(outputs, set):
             return {output: path for output in outputs}
         path, _, _ = path.rpartition("." + self.name)
+        # false positive - pylint: disable=no-member
         return {
             output: path + p
             for output, p in outputs.items()
@@ -99,6 +108,7 @@ class BaseStage(object):
         }
 
     def get_path(self, stack: "StageStack") -> str:
+        # pylint: disable = no-self-use
         """On disk location for this stage given ``stack``.
 
         Called by `StageStack` to determine the real path for
@@ -132,6 +142,7 @@ class BaseStage(object):
         return default_groups
 
     def modify_next_group(self, _stack: "StageStack"):
+        # pylint: disable = no-self-use
         return None
 
     def get_ids(
@@ -141,6 +152,7 @@ class BaseStage(object):
             match_groups: Optional[List[str]] = None,
             match_value: Optional[str] = None,
     ) -> List[str]:
+        # pylint: disable = no-self-use
         """Determine the target ID names for a set of active groupings
 
         Called from `{:target:}` and `{:targets:}`. For `{:targets:}`,
@@ -169,10 +181,14 @@ class BaseStage(object):
         return stack.project.do_get_ids(stack, groups, match_groups, match_value)
 
     def has_checkpoint(self) -> bool:
+        # pylint: disable = no-self-use
         return False
 
 
-class Activateable(object):
+class Activateable:
+    """
+    Mixin for Stages that can be filled with rules from Snakefiles.
+    """
     #: Currently active stage ("entered")
     _active: BaseStage = None
 
