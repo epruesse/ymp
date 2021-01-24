@@ -16,7 +16,6 @@ class StageExpander(ColonExpander):
     """
     - Registers rules with stages when they are created
     """
-    regroup=re.compile("(?<!{){\s*([^{}\s]+)\s*}(?!})")
 
     def expand_ruleinfo(self, rule, item, expand_args, rec):
         stage = Stage.get_active()
@@ -42,8 +41,6 @@ class StageExpander(ColonExpander):
             Stage.set_active(rule.ymp_stage)
         expand_args['item'] = item
         val = super().expand_str(rule, item, expand_args, rec, cb)
-        if expand_args['field'] == 'message':
-            val = self.regroup.sub("{wildcards.\\1}", val)
         if cb:
             Stage.set_active(old_active)
         return val
@@ -52,10 +49,11 @@ class StageExpander(ColonExpander):
         return field not in 'func'
 
     class Formatter(ColonExpander.Formatter, PartialFormatter):
+        regroup=re.compile("(?<!{){\s*([^{}\s]+)\s*}(?!})")
         # Careful here, TypeErrors are caught and hidden
         def get_value(self, key, args, kwargs):
             try:
-                return self.get_value_(key, args, kwargs)
+                val = self.get_value_(key, args, kwargs)
             except ExpandLateException:
                 raise
             except IncompleteCheckpointException:
@@ -68,6 +66,9 @@ class StageExpander(ColonExpander):
                     f"key={key} args={args} kwargs={kwargs}",
                     exc_info=True)
                 raise
+            if kwargs['field'] == 'message':
+                val = self.regroup.sub("{wildcards.\\1}", val)
+            return val
 
         def get_value_(self, key, args, kwargs):
             stage = Stage.get_active()
