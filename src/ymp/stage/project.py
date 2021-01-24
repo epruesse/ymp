@@ -344,7 +344,7 @@ class Project(ConfigStage):
             avail_group = []
             target_parts = []
             for group, target in zip(match_groups, match_values.split("__")):
-                if group in stack.group:
+                if group in include:
                     avail_group.append(group)
                     target_parts.append(target)
             match_groups = avail_group
