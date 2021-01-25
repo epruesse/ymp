@@ -23,6 +23,7 @@ with Stage("split_library") as S:
         threads:
             1
         shell:
+            'mkdir -p {output[0]};'
             'fastq-multx'
             ' -B {input.mapfile}'
             ' {input[0]}'
@@ -43,4 +44,4 @@ with Stage("split_library") as S:
         threads:
             8
         shell: 
-            "pigz -6 -c <{input}{wildcards.sample}.fq >{output}"
+            "mkdir -p $(dirname {output}); pigz -6 -c <{input}/{wildcards.sample}.fq >{output}"
