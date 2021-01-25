@@ -5,11 +5,15 @@ BLASTFMT =  "7 qacc sacc pident length mismatch gapopen qstart qend sstart send 
 # extra output
 BLASTFMT += " sstrand sframe qframe score qlen stitle staxids btop"
 
-BLASTIDX_SUFFIXES = "nin nhr nsi nsd nsq nog".split()
+BLASTIDX_SUFFIXES = "nhd nhi nin nhr nsq nog ndb nos not".split()
 BLASTSPLITIDX_SUFFIXES = "nal ndb nos not ntf nto".split()
-BLASTN_SUFFIXES = "nin nhr nsq".split()
 
 with Stage("index_blast"):
+    S.doc("""
+    Creates `BLAST <bioconda:blast>` index running ``makeblastdb`` on input fasta.gz files.
+
+    >>> ymp make toy.ref_genome.index_blast
+    """)
     rule blast_makedb:
         "Build Blast index"
         message:
@@ -36,6 +40,8 @@ with Stage("index_blast"):
         -parse_seqids \
         -out {params.db} \
         -title {params.title} \
+        -blastdb_version 5 \
+        -hash_index \
         &> {log} 2>&1
         """
         # FIXME: check for "-" in fasta header - blast does not like those
@@ -43,7 +49,6 @@ with Stage("index_blast"):
     rule blast_makedb_all:
         input: expand("{{:this:}}/{{:targets:}}.{ext}", ext=BLASTIDX_SUFFIXES)
         output: touch("{:this:}/all_targets.stamp")
-
 
 
 with Stage("annotate_tblastn") as S:
@@ -119,10 +124,14 @@ with Stage("annotate_blast") as S:
     S.doc("""
     Annotate sequences with BLAST
 
-    Searches a reference database for hits with ``blastn``. Use `E`
+    Searches a reference database for hits with ``blastn``. Use ``E``
     flag to specify exponent to required E-value. Use ``N`` or
     ``Mega`` to specify default. Use ``Best`` to add
     ``-subject_besthit`` flag.
+
+    This stage produces ``blast7.gz`` files as output.
+
+    >>> ymp make toy.ref_genome.index_blast.annotate_blast
     """)
     S.add_param("E", typ="int", name="evalue_exp", default=0)
     S.add_param("", typ="choice", name="task",
@@ -136,6 +145,7 @@ with Stage("annotate_blast") as S:
 
     localrules: blast_db_size, blast_db_size_SPLIT
     rule blast_db_size:
+        """Determines size of BLAST database (for splitting)"""
         message:
             "BLASTDBCMD: Getting database size"
         input:
@@ -156,13 +166,14 @@ with Stage("annotate_blast") as S:
             " >{output}"
 
     rule blast_db_size_SPLIT: # ymp: extends blast_db_size
-        """Variant of blast_db_size for split blast indices"""
+        """Variant of `blast_db_size` for multi-file blast indices"""
         input:
             db = expand("{{:prev:}}/{{:target:}}.{ext}",
                          ext=BLASTSPLITIDX_SUFFIXES)
 
     localrules: blastn_split_query_fasta_hack
     rule blastn_split_query_fasta_hack:
+        """Workaround for a problem with snakemake checkpoints and run: statements"""
         message:
             "Working around Snakemake bug"
         input:
@@ -175,6 +186,7 @@ with Stage("annotate_blast") as S:
 
     localrules: blastn_split_query_fasta
     checkpoint blastn_split_query_fasta:
+        """Split FASTA query file into chunks for individual BLAST runs"""
         message:
             "BLASTN: preparing query fasta file(s)"
         input:
@@ -227,6 +239,7 @@ with Stage("annotate_blast") as S:
 
     localrules: blastn_join_result
     rule blastn_join_result:
+        """Merges BLAST results"""
         message:
             "BLASTN: merging result {output}"
         input:
@@ -238,6 +251,7 @@ with Stage("annotate_blast") as S:
             "cat {input.results} > {output}"
 
     rule blastn_query:
+        """Runs BLAST"""
         message:
             "BLASTN: {input.contigs} vs {params.db_name}"
         input:
@@ -283,11 +297,13 @@ with Stage("annotate_blast") as S:
             'mv $tmpout {output}'
 
     rule blastn_query_SPLIT: # ymp: extends blastn_query
+        """Variant of `blastn_query` for multi-file blast indices"""
         input:
             db = expand("{{:prev:}}/{{:target:}}.{ext}",
                         ext=BLASTSPLITIDX_SUFFIXES)
 
     rule blastn_query_all:
+        """Collector rule for stage"""
         message:
             "Completed {params.this}"
         params:
