@@ -36,8 +36,6 @@ from docutils import nodes
 from docutils.parsers import rst
 from docutils.statemachine import StringList
 
-from snakemake.rules import Rule
-
 from sphinx import addnodes
 from sphinx.application import Sphinx
 from sphinx.directives import ObjectDescription
@@ -330,7 +328,7 @@ class AutoSnakefileDirective(rst.Directive):
         doc = self.parse_doc(stage.docstring, stage.filename, idt+3)
 
         res = StringList(headlines, stage.filename) + doc
-        for rule in sorted(stage.rules, key=lambda s: s.name):
+        for rule in sorted(stage.rules):
             res.extend(self.parse_rule(rule, idt+3))
         return res
 
