@@ -292,7 +292,7 @@ class AutoSnakefileDirective(rst.Directive):
         doclines = [''] + doc.splitlines() + ['']
         return StringList(doclines, source)
 
-    def parse_rule(self, rule: str, idt: int=0) -> StringList:
+    def parse_rule(self, rule_name: str, idt: int=0) -> StringList:
         """Convert Rule to StringList
 
         Args:
@@ -302,7 +302,8 @@ class AutoSnakefileDirective(rst.Directive):
         Retuns:
           StringList containing formatted Rule documentation
         """
-        head = self.tpl_rule.format(name=rule)
+        head = self.tpl_rule.format(name=rule_name)
+        rule = self.workflow.get_rule(rule_name)
         if rule.lineno:
             head += "\n"
             head += self.tpl_source.format(
