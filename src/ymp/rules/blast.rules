@@ -6,6 +6,7 @@ BLASTFMT =  "7 qacc sacc pident length mismatch gapopen qstart qend sstart send 
 BLASTFMT += " sstrand sframe qframe score qlen stitle staxids btop"
 
 BLASTIDX_SUFFIXES = "nhd nhi nin nhr nsq nog ndb nos not".split()
+BLASTIDX_SUFFIXES_V4 = "nhd nhi nin nhr nsq nsi nsd nog".split()
 BLASTSPLITIDX_SUFFIXES = "nal ndb nos not ntf nto".split()
 
 with Stage("index_blast"):
@@ -140,7 +141,7 @@ with Stage("annotate_blast") as S:
                 value="-subject_besthit")
     S.require(
         contigs = [["fasta.gz"]],
-        db = [BLASTIDX_SUFFIXES, BLASTSPLITIDX_SUFFIXES]
+        db = [BLASTIDX_SUFFIXES, BLASTIDX_SUFFIXES_V4, BLASTSPLITIDX_SUFFIXES],
     )
 
     localrules: blast_db_size, blast_db_size_SPLIT
@@ -170,6 +171,12 @@ with Stage("annotate_blast") as S:
         input:
             db = expand("{{:prev:}}/{{:target:}}.{ext}",
                          ext=BLASTSPLITIDX_SUFFIXES)
+
+    rule blast_db_size_V4: # ymp: extends blast_db_size
+        """Variant of `blast_db_size` for V4 blast indices"""
+        input:
+            db = expand("{{:prev:}}/{{:target:}}.{ext}",
+                         ext=BLASTIDX_SUFFIXES_V4)
 
     localrules: blastn_split_query_fasta_hack
     rule blastn_split_query_fasta_hack:
@@ -301,6 +308,12 @@ with Stage("annotate_blast") as S:
         input:
             db = expand("{{:prev:}}/{{:target:}}.{ext}",
                         ext=BLASTSPLITIDX_SUFFIXES)
+
+    rule blastn_query_V4: # ymp: extends blastn_query
+        """Variant of `blastn_query` for V4 blast indices"""
+        input:
+            db = expand("{{:prev:}}/{{:target:}}.{ext}",
+                        ext=BLASTIDX_SUFFIXES_V4)
 
     rule blastn_query_all:
         """Collector rule for stage"""
