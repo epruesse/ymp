@@ -22,6 +22,8 @@ bbduk_stats = "bhist qhist qchist aqhist bqhist lhist gchist".split()
 
 with Stage("index_bbmap") as S:
     S.doc("""
+    Creates `BBMap <bioconda:bbmap>` index
+
     >>> ymp make toy.ref_genome.index_bbmap
     """)
     rule bbmap_makedb:
@@ -123,7 +125,7 @@ with Stage("trim_bbmap") as S:
     S.doc("""
     Trim adapters and low quality bases from reads
 
-    Applies BBMap's "bbduk.sh".
+    Applies `BBMap's <bioconda:bbmap>` "bbduk.sh".
 
     Parameters:
       A: append to enable adapter trimming
@@ -210,7 +212,7 @@ with Stage("dedup_bbmap") as S:
     S.doc("""
     Remove duplicate reads
 
-    Applies BBMap's "dedupe.sh"
+    Applies `BBMap's <bioconda:bbmap>` "dedupe.sh"
 
     >>> ymp make toy.dedup_bbmap
     >>> ymp make mpic.dedup_bbmap
@@ -252,7 +254,7 @@ with Stage("dedup_bbmap") as S:
 
     rule bbmap_dedupe_se:
         """
-        Deduplicate reads using BBMap's dedupe.sh
+        Deduplicate reads using `BBMap's <bioconda:bbmap>` dedupe.sh
         """
         message:
             "BBTools dedupe'ing {input}"
@@ -294,7 +296,7 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
     S.doc("""
     Filter reads by reference
 
-    This stage aligns the reads with a given reference using BBMap in fast mode.
+    This stage aligns the reads with a given reference using `BBMap <bioconda:bbmap>` in fast mode.
     Matching reads are collected in the stage *filter_bbmap* and remaining reads
     are collectec in the stage *remove_bbmap*.
 
@@ -382,7 +384,7 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
 
 with Stage("primermatch_bbmap", "primerfail_bbmap") as S:
     S.doc("""
-    Filters reads by matching reference primer
+    Filters reads by matching reference primer using `BBMap's <bioconda:bbmap>` "bbduk.sh".
 
     >>> ymp make mpic.ref_primers.primermatch_bbmap
     """)
@@ -451,7 +453,7 @@ def ensure_list(x):
 
 with Stage("map_bbmap") as S:
     S.doc("""
-    Map reads using BBMap
+    Map reads using `BBMap <bioconda:bbmap>`
 
     >>> ymp make toy.assemble_megahit.map_bbmap
     >>> ymp make toy.ref_genome.map_bbmap
@@ -523,7 +525,7 @@ with Stage("map_bbmap") as S:
 
 with Stage("dust_bbmap") as S:
     S.doc("""
-    Perform entropy filtering on reads using BBMap's bbduk.sh
+    Perform entropy filtering on reads using `BBMap's <bioconda:bbmap>` bbduk.sh
 
     The parameter ``Enn`` gives the entropy cutoff. Higher values
     filter more sequences.
@@ -573,7 +575,7 @@ with Stage("dust_bbmap") as S:
 
 with Stage("format_bbmap") as S:
     S.doc("""
-    Process sequences with BBMap's format.sh
+    Process sequences with `BBMap's <bioconda:bbmap>` format.sh
 
     Parameter ``Ln`` filters sequences at a minimum length.
 
