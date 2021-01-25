@@ -224,8 +224,8 @@ class MultiSeqProxy(Sequence, MultiProxy, AttrItemAccessMixin):
         return any(value in m for _, m in self._maps)
 
     def __iter__(self):
-        for _, m in self._maps:
-            for item in m:
+        for _, smap in self._maps:
+            for item in smap:
                 yield item
 
     def __len__(self):
@@ -243,13 +243,14 @@ class MultiSeqProxy(Sequence, MultiProxy, AttrItemAccessMixin):
         if isinstance(index, str):
             try:
                 index = int(index)
-            except ValueError:
-                raise KeyError()
-        for _, m in self._maps:
-            if index >= len(m):
-                index -= len(m)
+            except ValueError as exc:
+                raise KeyError() from exc
+        for _, smap in self._maps:
+            if index >= len(smap):
+                index -= len(smap)
             else:
-                return m[index]
+                return smap[index]
+        raise IndexError()
 
     def __radd__(self, other):
         return self.__add__(other)
@@ -270,8 +271,8 @@ class MultiSeqProxy(Sequence, MultiProxy, AttrItemAccessMixin):
         self.extend(item)
 
     def extend(self, item):
-        m = self._maps[0][1]
-        m.extend(item)
+        smap = self._maps[0][1]
+        smap.extend(item)
 
 
 class LayeredConfProxy(MultiMapProxy):
