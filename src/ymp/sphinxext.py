@@ -349,7 +349,7 @@ class AutoSnakefileDirective(rst.Directive):
         rules = self.workflow.rules
         for rule in rules:
             if not getattr(rule, "ymp_stage", False):
-                result.extend(self.parse_rule(rule))
+                result.extend(self.parse_rule(rule.name))
 
         self.state.nested_parse(result, 0, node)
         return [node]
