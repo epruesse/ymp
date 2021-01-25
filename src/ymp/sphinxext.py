@@ -498,10 +498,17 @@ class DomainTocTreeCollector(EnvironmentCollector):
         blist.append(item)
 
 
+class CondaDomain(Domain):
+    name = "conda"
+    object_types = {'package': ObjType('package', 'package')}
+    roles = {'package': XRefRole()}
+
+
 def setup(app: Sphinx):
     """Register the extension with Sphinx"""
-    app.add_lexer('snakemake', SnakemakeLexer())
+    app.add_lexer('snakemake', SnakemakeLexer)
     app.add_domain(SnakemakeDomain)
     app.add_directive('autosnake', AutoSnakefileDirective)
     app.add_env_collector(DomainTocTreeCollector)
     app.connect('html-collect-pages', collect_pages)
+    app.add_domain(CondaDomain)
