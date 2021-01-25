@@ -317,7 +317,9 @@ class AutoSnakefileDirective(rst.Directive):
         return StringList(headlines, rule.snakefile) + doc
 
     def parse_stage(self, stage: Stage, idt: int=0) -> StringList:
-        head = self.tpl_stage.format(name=stage.name)
+        # Import Stage for Projects has empty name
+        name = stage.name or "Import"
+        head = self.tpl_stage.format(name=name)
         if stage.lineno:
             head += "\n"
             head += self.tpl_source.format(
