@@ -41,8 +41,8 @@ class Stage(WorkflowObject, Activateable, BaseStage):
             name: Name of this stage
             altname: Alternate name of this stage (used for stages with
                 multiple output variants, e.g. filter_x and remove_x.
-            doc: See `Stage.doc`
-            env: See `Stage.env`
+            doc: See `doc()`
+            env: See `env()`
         """
         super().__init__(name)
         #: Alternative stage name (deprecated)

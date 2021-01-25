@@ -5,9 +5,12 @@ from hashlib import sha1
 from typing import Dict, Optional, Union, Set, List
 from collections.abc import Mapping, Sequence
 
+from snakemake.rules import Rule
+
 from ymp.snakemake import make_rule
 from ymp.util import make_local_path
 from ymp.stage import ConfigStage, Activateable, Stage
+
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 

@@ -5,9 +5,9 @@ with Stage("extract_reads") as S:
     Extract reads from BAM file using ``samtools fastq``.
 
     Parameters ``fn``, ``Fn`` and ``Gn`` are passed through to
-    ``samtools view``. Reads are output *only* if all bits in `f` are
-    set, *none* of the bits in `F` are set, and *any* of the bits in
-    `G` is *unset*.
+    ``samtools view``. Reads are output *only* if all bits in ``f`` are
+    set, *none* of the bits in ``F`` are set, and *any* of the bits in
+    ``G`` is *unset*.
 
     1: paired
     2: proper pair (both aligned in right orientation)

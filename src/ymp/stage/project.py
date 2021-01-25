@@ -1,3 +1,7 @@
+"""This module defines "Project", a Stage type defined by a project
+matrix file giving units and meta data for input files.
+"""
+
 import logging
 import os
 import re
@@ -7,15 +11,14 @@ import sqlite3
 from typing import List, Union, Dict, Set, Optional
 
 import ymp
-from ymp.common import ensure_list
-from ymp.exceptions import YmpConfigError, YmpStageError
+from ymp.exceptions import YmpConfigError
 from ymp.stage.base import ConfigStage
 from ymp.util import is_fq, make_local_path
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-class PandasTableBuilder(object):
+class PandasTableBuilder:
     """Builds the data table describing each sample in a project
 
     This class implements loading and combining tabular data files
@@ -50,9 +53,9 @@ class PandasTableBuilder(object):
         - fq2: s1.2.fq, s2.2.fq, s3.2.fq
 
     """
-    """Constructs the project data table from the yaml definition
-    """
     def __init__(self):
+        # Importing Pandas here to avoid long load time if we don't need it.
+        # pylint: disable=import-outside-toplevel
         import pandas
         from pandas.core.reshape.merge import MergeError
         self.pd = pandas
@@ -171,12 +174,9 @@ class SQLiteProjectData(object):
     def query(self, *args):
         try:
             return self.conn.execute(*args)
-        except:
+        except:  # noqa: E722
             log.error(f"Failed to query project {self.name} data: {args}")
-            import pdb; pdb.set_trace()
             raise
-        return ids
-
 
     @property
     def nrows(self):
@@ -333,7 +333,7 @@ class Project(ConfigStage):
 
     def get_group(
             self,
-            stack: "StageStack",
+            stack: "StageStack",  # noqa: F821
             default_groups: List[str],
     ) -> List[str]:
         return super().get_group(stack, [self.idcol])

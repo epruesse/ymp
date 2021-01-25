@@ -9,7 +9,10 @@ from typing import Set, Dict, Union, List, Optional
 
 from ymp.exceptions import YmpStageError, YmpRuleError, YmpException
 
+from ymp.yaml import MultiProxy
 from snakemake.rules import Rule
+from snakemake.workflow import Workflow
+
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -147,7 +150,7 @@ class BaseStage:
 
     def get_ids(
             self,
-            stack: "StageStack",
+            stack: "ymp.stage.StageStack",
             groups: List[str],
             match_groups: Optional[List[str]] = None,
             match_value: Optional[str] = None,
@@ -155,9 +158,9 @@ class BaseStage:
         # pylint: disable = no-self-use
         """Determine the target ID names for a set of active groupings
 
-        Called from `{:target:}` and `{:targets:}`. For `{:targets:}`,
-        `groups` is the set of active groupings for the stage
-        stack. For `{:target:}`, it's the same set for the source of
+        Called from ``{:target:}`` and ``{:targets:}``. For ``{:targets:}``,
+        ``groups`` is the set of active groupings for the stage
+        stack. For ``{:target:}``, it's the same set for the source of
         the file type, the current grouping and the current target.
 
         Args:

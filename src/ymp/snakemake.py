@@ -118,12 +118,10 @@ class NamedList(_Namedlist):
     - Adds `update_tuple` method:
       Updates values in ``(args,kwargs)`` tuples as present in
       :class:`ruleinfo` structures.
-    """
-    def get_names(self, *args, **kwargs):
-        """Export ``get_names`` as public func"""
-        return self._get_names(*args, *kwargs)
 
+    """
     def __init__(self, fromtuple=None, **kwargs):
+        """"""  # blank out docstring in super class w different formatting
         super().__init__(**kwargs)
         self._fromtuple = fromtuple
         if fromtuple:
@@ -147,8 +145,14 @@ class NamedList(_Namedlist):
             if idx >= i and (j is None or idx < j):
                 self._set_name(name, i, j)
 
+    def get_names(self, *args, **kwargs):
+        """Export ``get_names`` as public func"""
+        return self._get_names(*args, *kwargs)
+
+
     def update_tuple(self, totuple):
         """Update values in ``(args, kwargs)`` tuple.
+
         The tuple must be the same as used in the constructor and
         must not have been modified.
         """
@@ -1001,7 +1005,7 @@ class WorkflowObject(object):
     """
     Base for extension classes defined from snakefiles
 
-    This currently encompasses `ymp.env.Env` and `ymp.stage.Stage`.
+    This currently encompasses `ymp.env.Env` and `ymp.stage.stage.Stage`.
 
     This mixin sets the properties ``filename`` and ``lineno`` according
     to the definition source in the rules file. It also maintains a registry
