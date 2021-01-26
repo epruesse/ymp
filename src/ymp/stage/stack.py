@@ -13,6 +13,7 @@ from ymp.stage.groupby import GroupBy
 from ymp.exceptions import YmpStageError
 from ymp.snakemake import ExpandLateException
 
+from snakemake.exceptions import IncompleteCheckpointException  # type: ignore
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -236,18 +237,32 @@ class StageStack:
 
         return self.prevs[suffix]
 
+
+    def get_ids(self, select_cols, where_cols=None, where_vals=None):
+        if not self.debug:
+            return self.stage.get_ids(self, select_cols, where_cols, where_vals)
+
+        log.warning("  select %s", repr(prev_stack.group))
+        log.warning("  where %s == %s", repr(self.group), cur_target)
+        try:
+            ids = self.stage.get_ids(self, select_cols, where_cols, where_vals)
+        except IncompleteCheckpointException as exc:
+            log.warning(" ===> checkpoint deferred (%s)", type(exc), exc.targetfile)
+            raise
+        except Exception as exc:
+            raise YmpStageError("Error getting ids") from exc
+        log.warning("  ===> %s", repr(ids))
+
     @property
     def targets(self):
         """
         Determines the IDs to be built by this Stage Stack
         (replaces "{:targets:}").
         """
-        ids = self.stage.get_ids(self, self.group)
         if self.debug:
             log.error("output ids for %s", self)
             log.warning("  select %s", repr(self.group))
-            log.warning("  ===> %s", repr(ids))
-        return ids
+        return self.get_ids(self.group)
 
     def target(self, args, kwargs):
         """
@@ -265,21 +280,13 @@ class StageStack:
             log.error("input ids for %s", self)
             log.warning("  rule %s", rulename)
             log.warning("  from stack %s", prev_stack)
-            log.warning("  select %s", repr(prev_stack.group))
-            log.warning("  where %s == %s", repr(self.group), cur_target)
         cols = self.group
         vals = cur_target
         if cols == [] and vals == 'ALL':
             cols = vals = None
-        try:
-            ids = prev_stack.stage.get_ids(prev_stack, prev_stack.group,
-                                           cols, vals)
-        except Exception as exc:
-            if self.debug:
-                log.warning(" ===> %s", type(exc))
-            raise
-        if self.debug:
-            log.warning("  ===> %s", repr(ids))
+
+        ids = prev_stack.get_ids(prev_stack.group, cols, vals)
+
         if ids == []:
             rulename = getattr(kwargs.get('rule'), 'name', 'N/A')
             raise YmpStageError(
