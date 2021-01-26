@@ -280,14 +280,15 @@ class Stage(WorkflowObject, Activateable, BaseStage):
         checkpoint_name = next(iter(self.checkpoints.keys()))
         checkpoint = getattr(checkpoints, checkpoint_name)
         ymp_dir = stack.path[:-len(stack.stage.name)]
-        mytarget = self.get_ids(stack,
+        mytargets = self.get_ids(stack,
                                 [g for g in stack.group if g != stack],
                                 mygroup, target)
-
-        job = checkpoint.get(_YMP_DIR=ymp_dir, target="__".join(mytarget))
-        with open(job.output.bins, "r") as fd:
-            bins = [line.strip() for line in fd.readlines()]
-        return bins
+        bins = set()
+        for mytarget in mytargets:
+            job = checkpoint.get(_YMP_DIR=ymp_dir, target=mytarget)
+            with open(job.output.bins, "r") as fd:
+                bins.update(line.strip() for line in fd.readlines())
+        return list(bins)
 
     def get_ids(self, stack, groups, mygroups=None, target=None):
         # Make a copy of the input gorups, we don't want to modify it.
@@ -342,6 +343,9 @@ class Stage(WorkflowObject, Activateable, BaseStage):
                 for binid in bin.stage.get_checkpoint_ids(bin, groups, target)
                 if bin not in mybins or binid == mybins[bin]
             ]
+        if groups == []:
+            ids = [id_[len('ALL__'):] if id_.startswith('ALL__') else id_
+                   for id_ in ids]
         return ids
 
 
