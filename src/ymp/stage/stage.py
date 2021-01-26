@@ -333,6 +333,9 @@ class Stage(WorkflowObject, Activateable, BaseStage):
             if target_parts:
                 mygroups = mygroups[0:len(target_parts)]
                 target = "__".join(target_parts)
+            else:
+                target = None
+                mygroups = None
 
         # Pass to standard
         ids = super().get_ids(stack, groups, mygroups, target)
