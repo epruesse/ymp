@@ -206,7 +206,16 @@ class StageStack:
     @property
     def path(self):
         """On disk location of files provided by this stack"""
-        return self.stage.get_path(self)
+        path = self.stage.get_path(self)
+        while True:
+            try:
+                stack = self.instance(path)
+            except YmpStageError:
+                return path
+            newpath = stack.stage.get_path(stack)
+            if path == newpath:
+                return path
+            path = newpath
 
     def all_targets(self):
         return self.stage.get_all_targets(self)
