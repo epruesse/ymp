@@ -66,7 +66,7 @@ class StageExpander(ColonExpander):
                     f"key={key} args={args} kwargs={kwargs}",
                     exc_info=True)
                 raise
-            if kwargs['field'] == 'message':
+            if kwargs['field'] in ("message", "shellcmd"):
                 val = self.regroup.sub("{wildcards.\\1}", val)
             return val
 

@@ -562,12 +562,14 @@ class BaseExpander(object):
             if cb:
                 raise
 
+            expand_args = expand_args.copy()
             def item_wrapped(wc):
                 expand_args['wc'] = wc
                 return self.expand(rule, item, expand_args, cb=True)
             return item_wrapped
 
     def expand_func(self, rule, item, expand_args, rec, debug):
+        expand_args = expand_args.copy()
         @functools.wraps(item)
         def late_expand(*args, **kwargs):
             if debug:
