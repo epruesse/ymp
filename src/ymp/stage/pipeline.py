@@ -45,6 +45,8 @@ class Pipeline(ConfigStage):
         self.stages = OrderedDict()
         path = ""
         for stage in cfg.stages:
+            if stage is None:
+                raise YmpConfigError(self, f"Empty stage name in pipeline '{name}'")
             if isinstance(stage, str):
                 path = ".".join((path, stage))
                 self.stages[path] = {}
