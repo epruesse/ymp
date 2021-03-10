@@ -125,15 +125,15 @@ class StageStack:
                 return text
             return "..."+text[-37:]
 
+        prevmap = dict()
+        for typ, stack in self.prevs.items():
+            prevmap.setdefault(str(stack), []).append(typ)
         log.info(
             "Stage stack '%s' (output by %s%s)",
             self.name,
             ", ".join(ellip(str(g)) for g in self.group) or "*ALL*",
             " + bins" if self.stage.has_checkpoint() else ""
         )
-        prevmap = dict()
-        for typ, stack in self.prevs.items():
-            prevmap.setdefault(str(stack), []).append(typ)
         for stack, typ in prevmap.items():
             ftypes = ", ".join(typ).replace("/{sample}", "*")
             title = stack.split(".")[-1]
