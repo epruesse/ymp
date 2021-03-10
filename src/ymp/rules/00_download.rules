@@ -63,6 +63,8 @@ with Stage("references") as S:
             files = lambda wc: icfg.ref[wc.refname].get_file(wc.path)
         output:
             "{:dir.references:}/{refname}/{path}"
+        wildcard_constraints:
+            path = "(?!_unpacked_).*"
         run:
             if isinstance(input.files, str):
                 infile = input.files
