@@ -242,16 +242,18 @@ class StageStack:
         if not self.debug:
             return self.stage.get_ids(self, select_cols, where_cols, where_vals)
 
-        log.warning("  select %s", repr(prev_stack.group))
-        log.warning("  where %s == %s", repr(self.group), cur_target)
+        log.warning("  select %s", select_cols)
+        log.warning("  where %s == %s", repr(where_cols), where_vals)
         try:
             ids = self.stage.get_ids(self, select_cols, where_cols, where_vals)
         except IncompleteCheckpointException as exc:
-            log.warning(" ===> checkpoint deferred (%s)", type(exc), exc.targetfile)
+            log.warning(" ===> checkpoint deferred (%s)", exc.targetfile)
             raise
         except Exception as exc:
-            raise YmpStageError("Error getting ids") from exc
+            #raise YmpStageError("Error getting ids") from exc
+            raise exc
         log.warning("  ===> %s", repr(ids))
+        return ids
 
     @property
     def targets(self):
