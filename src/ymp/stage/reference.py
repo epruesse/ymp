@@ -78,22 +78,22 @@ class Reference(Activateable, ConfigStage):
     def __init__(self, name, cfg):
         super().__init__("ref_" + name, cfg)
         #: Files provided by the reference. Keys are the file names
-        #: within ymp ("target.extension"), values are the path to the
-        #: reference file.
+        #: within ymp ("target.extension"), symlinked into dir.ref/ref_name/ and
+        #: values are the path to the reference file from workspace root.
         self.files: Dict[str, str] = {}
         self.archives = []
-        self._id = None
+        self._ids: Set[str] = set()
         self._outputs = None
 
         import ymp
         cfgmgr = ymp.get_config()
-
         self.dir = os.path.join(cfgmgr.dir.references, name)
 
         for rsc in cfg:
             if isinstance(rsc, str):
                 rsc = {'url': rsc}
-            self.add_files(rsc, make_local_path(cfgmgr, rsc['url']))
+            local_path = make_local_path(cfgmgr, rsc['url'])
+            self.add_resource(rsc, local_path)
 
         # Copy rules defined in primary references stage
         self.rules = Stage.get_registry()['references'].rules.copy()
@@ -103,7 +103,11 @@ class Reference(Activateable, ConfigStage):
             stack: "StageStack",
             default_groups: List[str]
     ) -> List[str]:
-        return super().get_group(stack, [])
+        if len(self._ids) > 1:
+            groups = [self.name]
+        else:
+            groups = []
+        return super().get_group(stack, groups)
 
     def get_ids(
             self,
@@ -112,41 +116,38 @@ class Reference(Activateable, ConfigStage):
             match_groups: Optional[List[str]] = None,
             match_value: Optional[str] = None
     ) -> List[str]:
-        if self._id:
-            return [self._id]
+        if self._ids:
+            return list(self._ids)
         return super().get_ids(stack, groups, match_groups, match_value)
 
     @property
     def outputs(self) -> Union[Set[str], Dict[str, str]]:
         if self._outputs is None:
+            keys = self._ids if self._ids else ["ALL"]
             self._outputs = {
-                "/" + f.replace("ALL", "{sample}"): ""
-                for f in self.files
+                "/" + re.sub(f"(^|.)({'|'.join(keys)})\.", r"\1{sample}.", fname) : ""
+                for fname in self.files
             }
         return self._outputs
 
-    def add_files(self, rsc, local_path):
+    def add_resource(self, rsc, local_path):
         type_name = rsc.get('type', 'fasta').lower()
+        if 'id' in rsc:
+            self._ids.add(rsc['id'])
 
-        if type_name == 'fasta':
-            self.files['ALL.fasta.gz'] = local_path
-        elif type_name == 'fastp':
-            self.files['ALL.fastp.gz'] = local_path
-        elif type_name == 'gtf':
-            self.files['ALL.gtf'] = local_path
-        elif type_name == 'snp':
-            self.files['ALL.snp'] = local_path
-        elif type_name == 'tsv':
-            self.files['ALL.tsv'] = local_path
-        elif type_name == 'csv':
-            self.files['ALL.csv'] = local_path
+        if type_name in ("fasta", "fastp"):
+            self.files[f"ALL.{type_name}.gz"] = local_path
+        elif type_name in  ("gtf", "snp", "tsv", "csv"):
+            self.files[f"ALL.{type_name}"] = local_path
         elif type_name == 'dir':
-            archive = Archive(name=self.name,
-                              dirname=self.dir,
-                              tar=local_path,
-                              url=rsc['url'],
-                              files=rsc['files'],
-                              strip=rsc.get('strip_components', 0))
+            archive = Archive(
+                name=self.name,
+                dirname=self.dir,
+                tar=local_path,
+                url=rsc['url'],
+                files=rsc['files'],
+                strip=rsc.get('strip_components', 0)
+            )
             self.files.update(archive.get_files())
             self.archives.append(archive)
         elif type_name == 'dirx':
@@ -156,7 +157,6 @@ class Reference(Activateable, ConfigStage):
             })
         elif type_name == 'path':
             self.dir = rsc['url'].rstrip('/')
-            self._id = rsc.get('id')
             try:
                 filenames = os.listdir(rsc['url'])
             except FileNotFoundError:
@@ -188,7 +188,7 @@ class Reference(Activateable, ConfigStage):
         local_path = self.files.get(filename)
         if local_path:
             return local_path
-        log.error(f"{self.name}: Failed to find {filename}")
+        log.error(f"{self!r}: Failed to find {filename}")
         log.warning(f"  Available: {self.files}")
         return ("YMP_FILE_NOT_FOUND__" +
                 "No file {} in Reference {}"
@@ -205,7 +205,7 @@ class Reference(Activateable, ConfigStage):
         item = kwargs['item']
         suffix = self.register_inout("this", set(), item).lstrip('/')
         self.files[suffix] = os.path.join(self.dir, suffix)
-        self._outputs = None
+        self._outputs = None  # will need refresh
         return self.dir
 
     def prev(self, args=None, kwargs=None):
