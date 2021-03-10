@@ -3,17 +3,17 @@ Env(name="sambamba", base="bioconda", packages="sambamba")
 with Stage("sort_bam") as S:
     rule sambamba_sort:
         message:
-            "Sambamba: Sorting BAM file {input}"
+            "Sorting BAM with Sambamba: {output.bam}"
         input:
-            "{:prev:}/{target}.bam"
+            bam = "{:prev:}/{target}.bam",
         output:
-            "{:this:}/{target}.sorted.bam",
-            "{:this:}/{target}.sorted.bam.bai"
+            bam = "{:this:}/{target}.sorted.bam",
+            bai = "{:this:}/{target}.sorted.bam.bai",
         log:
             "{:this:}/{target}.sorted.bam.log"
         params:
-            mem=icfg.mem("32g"),
-            compress=6
+            mem = icfg.mem("32g"),
+            compress = 6,
         threads:
             8
         conda:
@@ -23,13 +23,54 @@ with Stage("sort_bam") as S:
             " --memory-limit={params.mem}MB"
             " --compression-level={params.compress}"
             " --nthreads={threads}"
-            " --out={output[0]}"
-            " {input}"
+            " --out={output.bam}"
+            " {input.bam}"
             " >{log} 2>&1"
 
     rule sambamba_sort_all:
         message:
             "Sambamba: done sorting"
+        input:
+            "{:this:}/{:targets:}.sorted.bam"
+        output:
+            touch("{:this:}/all_targets.stamp")
+
+
+with Stage("markdup_sambamba") as S:
+    S.add_param("RM", typ="flag", name = "remove_dups", value="--remove-duplicates")
+    rule sambamba_markdup:
+        message:
+            "Marking PCR duplicates with Sambamba: {output.bam} {params.remove_dups}"
+        input:
+            bam = "{:prev:}/{target}.sorted.bam",
+        output:
+            bam = "{:this:}/{target}.sorted.bam",
+            bai = "{:this:}/{target}.sorted.bai",
+        log:
+            "{:this:}/{target}.sorted.bam.log"
+        params:
+            mem = icfg.mem("32g"),
+            compress = 6,
+        threads:
+            8
+        conda:
+            "sambamba"
+        shell:
+            "exec >{log} 2>&1;"
+            "sambamba markdup"
+            " --compression-level={params.compress}"
+            " --nthreads={threads}"
+            " {params.remove_dups}"
+            " {input.bam}"
+            " {output.bam};"
+            ""
+            "sambamba index"
+            " --nthreads={threads}"
+            "  {output.bam} {output.bai};"
+
+    rule sambamba_markdup_all:
+        message:
+            "Sambamba: done deduplicating"
         input:
             "{:this:}/{:targets:}.sorted.bam"
         output:
