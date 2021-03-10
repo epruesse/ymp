@@ -5,9 +5,9 @@ BLASTFMT =  "7 qacc sacc pident length mismatch gapopen qstart qend sstart send 
 # extra output
 BLASTFMT += " sstrand sframe qframe score qlen stitle staxids btop"
 
-BLASTIDX_SUFFIXES = "nhd nhi nin nhr nsq nog ndb nos not".split()
-BLASTIDX_SUFFIXES_V4 = "nhd nhi nin nhr nsq nsi nsd nog".split()
-BLASTSPLITIDX_SUFFIXES = "nal ndb nos not ntf nto".split()
+BLASTIDX_SUFFIXES =  "    nhr nin nog nsq   ntf nto nos not ndb".split()
+BLASTIDX_SUFFIXES_V4 = "  nhr nin nog nsq   nsi".split()
+BLASTSPLITIDX_SUFFIXES = "                  ntf nto not nos ndb   nal".split()  # + the 00.nxx files
 
 with Stage("index_blast"):
     S.doc("""
