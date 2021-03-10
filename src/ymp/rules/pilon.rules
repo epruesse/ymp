@@ -1,0 +1,54 @@
+Env(name="pilon", base="bioconda", packages=["pilon", "pigz"])
+
+with Stage("polish_pilon") as S:
+    S.doc("""
+    Polish genomes with Pilon
+
+    Requires fasta.gz and sorted.bam files as input.
+    """)
+
+    rule pilon_polish:
+        message:
+            "Polishing with Pilon: {output.fasta}"
+        input:
+            bam = "{:prev:}/{:target:}.sorted.bam",
+            bai = "{:prev:}/{:target:}.sorted.bai",
+            fasta = "{:prev:}/{:target:}.fasta.gz",
+        output:
+            fasta = "{:this:}/{target}.fasta.gz",
+        log:
+            "{:this:}/{target}.log"
+        threads:
+            1  # multithreading is experimental
+        params:
+            thistarget = "{:this:}/{target}",
+            bamopts = lambda wc, input: " ".join("--bam {}".format(bam) for bam in ensure_list(input.bam)),
+            extraopts = "--iupac",
+            nonempty = check_input(['fasta'], minlines=2)
+        conda:
+            "pilon"
+        shell:
+            "exec >{log} 2>&1;"
+            "if [ '{params.nonempty}' = 'False' ]; then"
+            "  echo 'YMP: {input.fasta} empty - creating empty output'"
+            "  echo | gzip -c > {output};"
+            "  exit 0;"
+            "fi;"
+            "pilon"
+            " --threads {threads}"
+            " --genome {input.fasta}"
+            " --output {params.thistarget}"
+            " {params.bamopts}"
+            " --iupac"
+            ";"
+            "pigz "
+            " --processes {threads} "
+            " {params.thistarget}.fasta"
+
+    rule pilon_polish_all:
+        message:
+            "Done polishing with pilon"
+        input:
+            "{:this:}/{:targets:}.fasta.gz"
+        output:
+            touch("{:this:}/all_targets.stamp")
