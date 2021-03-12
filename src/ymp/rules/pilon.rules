@@ -24,7 +24,8 @@ with Stage("polish_pilon") as S:
             thistarget = "{:this:}/{target}",
             bamopts = lambda wc, input: " ".join("--bam {}".format(bam) for bam in ensure_list(input.bam)),
             extraopts = "--iupac",
-            nonempty = check_input(['fasta'], minlines=2)
+            nonempty = check_input(['fasta'], minlines=2),
+            mem = icfg.mem("8G"),
         conda:
             "pilon"
         shell:
@@ -35,6 +36,7 @@ with Stage("polish_pilon") as S:
             "  exit 0;"
             "fi;"
             "pilon"
+            " -Xmx{params.mem}m"
             " --threads {threads}"
             " --genome {input.fasta}"
             " --output {params.thistarget}"
