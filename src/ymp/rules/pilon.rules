@@ -37,6 +37,7 @@ with Stage("polish_pilon") as S:
             "fi;"
             "pilon"
             " -Xmx{params.mem}m"
+            " -Xms{params.mem}m"
             " --threads {threads}"
             " --genome {input.fasta}"
             " --output {params.thistarget}"
