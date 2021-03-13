@@ -98,6 +98,32 @@ def ensure_list(obj):
 
 class Cache(object):
     def __init__(self, root):
+        self.caches = {}
+        pass
+
+    def close(self):
+        pass
+
+    def get_cache(self, name, clean=False, *args, **kwargs):
+        if name not in self.caches:
+            self.caches[name] = CacheDict(self, name, *args, **kwargs)
+        return self.caches[name]
+
+    def store(self, cache, key, obj):
+        pass
+
+    def commit(self):
+        pass
+
+    def load(self, _cache, _key):
+        return None
+
+    def load_all(self, _cache):
+        return ()
+
+
+class SqlCache(object):
+    def __init__(self, root):
         import sqlite3
         os.makedirs(os.path.join(root), exist_ok=True)
         db_fname = os.path.join(root, "ymp.db")
