@@ -168,12 +168,8 @@ class Reference(Activateable, ConfigStage):
                     match = re.fullmatch(regex, filename)
                     if not match:
                         continue
-                    name = ''.join((
-                        filename[:match.start('sample')],
-                        'ALL',
-                        filename[match.end('sample'):]
-                    ))
-                    self.files[name] = rsc['url'] + filename
+                    self._ids.add(match.group('sample'))
+                    self.files[filename] = rsc['url'] + filename
         else:
             log.debug("unknown type {} used in reference {}"
                       "".format(type_name, self.name))
