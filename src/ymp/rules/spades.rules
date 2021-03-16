@@ -154,6 +154,12 @@ with Stage("assemble_spades") as S:
               fi
            fi
         fi
+        if [ ! -e {params.workdir}$OUTPUT ]; then
+          if [ -e {params.workdir}contigs.fasta ]; then
+            echo "YMP: WARNING Spades produced no $OUTPUT file, using contigs.fasta instead!" >> {log.console}
+            OUTPUT=contigs.fasta
+          fi
+        fi
 
         pigz -p {threads} -9 -c {params.workdir}$OUTPUT > {output.scaffolds}
         pigz -p {threads} -9 -c {params.workdir}assembly_graph.fastg > {output.graph}
