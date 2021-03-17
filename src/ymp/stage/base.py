@@ -4,6 +4,7 @@ Base classes for all Stage types
 
 import logging
 import os
+import re
 
 from typing import Set, Dict, Union, List, Optional
 
@@ -244,6 +245,7 @@ class Activateable:
     def register_inout(self, name: str, target: Set, item: str) -> None:
         self.check_active_stage(name)
         prefix, _, suffix = item.partition(f"{{:{name}:}}")
+        suffix = re.sub(r"\{:\s*target(\(.*\))?\s*:\}", "{sample}", suffix)
         for n in ("{target}", "{source}", "{:target:}"):
             suffix = suffix.replace(n, "{sample}")
         for n in ("{:targets:}", "{:sources:}"):

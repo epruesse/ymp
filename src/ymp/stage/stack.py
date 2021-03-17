@@ -4,6 +4,7 @@ Implements the StageStack
 
 import logging
 import copy
+import re
 
 from typing import List
 
@@ -19,6 +20,7 @@ log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 def norm_wildcards(pattern):
+    pattern = re.sub(r"\{:\s*target(\(.*\))?\s*:\}", "{sample}", pattern)
     for pat in ("{target}", "{source}", "{:target:}"):
         pattern = pattern.replace(pat, "{sample}")
     for pat in ("{:targets:}", "{:sources:}"):
