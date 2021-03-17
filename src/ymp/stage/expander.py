@@ -81,18 +81,27 @@ class StageExpander(ColonExpander):
                         f"Malformed YMP expansion string:'{key}'")
                 key, _, args_str = key[:-1].partition("(")
                 for arg_str in args_str.split(","):
+                    argname = None
+                    if '=' in arg_str:
+                        argname, arg_str = arg_str.split("=")
                     try:
                         arg = int(arg_str)
                     except ValueError:
                         try:
                             arg = float(arg_str)
                         except ValueError:
-                            arg = arg_str
+                            try:
+                                arg = bool(arg_str)
+                            except ValueError:
+                                arg = arg_str
                     if isinstance(arg, str) and arg[0] not in ('"', '"'):
                         if "wc" not in kwargs:
                             raise ExpandLateException()
                         arg = getattr(kwargs['wc'], arg)
-                    args += [arg]
+                    if not argname:
+                        args += [arg]
+                    else:
+                        kwargs[argname] = arg
 
             # Check Stage variables first. We can do that always:
             if hasattr(stage, key):
