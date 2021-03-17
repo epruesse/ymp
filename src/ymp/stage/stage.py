@@ -190,7 +190,7 @@ class Stage(WorkflowObject, Activateable, BaseStage):
         return self._regex.fullmatch(name) is not None
 
     def _wildcards(self, name, kwargs=None):
-        show_constraint = kwargs and kwargs.get('field') != 'input'
+        show_constraint = kwargs and kwargs.get('field') not in ('input', 'message')
         return "".join(["{_YMP_DIR}", name] +
                        [p.pattern(show_constraint) for p in self.params])
 
