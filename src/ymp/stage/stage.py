@@ -301,31 +301,18 @@ class Stage(WorkflowObject, Activateable, BaseStage):
 
         bins = []
         mybins = {}
-        if mygroups is None and target is None:
-            # If we are getting IDs for {:targets:} of binning stage,
-            # don't return self
-            if stack in groups:
-                groups.remove(stack)
-            # If we are getting IDs for {:targets:} of subsequent stage,
-            # find all generated ids from binning stage.
-            # Multiply binned ids
-            for group in list(groups):
-                if not isinstance(group, type(stack)):
-                    continue
-                groups.remove(group)
-                bins.append(group)
-        elif mygroups is None:
+        for group in list(groups):
+            if not isinstance(group, type(stack)):
+                continue
+            groups.remove(group)
+            bins.append(group)
+
+        if mygroups is None and target is not None:
             raise RuntimeError("Mygroups none but target not?")
-        else:
+        if target is not None:
             # If we are getting IDs for {:target:} of subsequent stage,
             # find all generated ids from binning stage.
             # Multiply binned ids
-            for group in list(groups):
-                if not isinstance(group, type(stack)):
-                    continue
-                groups.remove(group)
-                bins.append(group)
-
             target_parts = []
             for group, tgt in zip(list(mygroups), target.split("__")):
                 if isinstance(group, type(stack)):

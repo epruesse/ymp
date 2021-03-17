@@ -266,7 +266,12 @@ class StageStack:
         if self.debug:
             log.error("output ids for %s", self)
             log.warning("  select %s", repr(self.group))
-        return self.get_ids(self.group)
+        if self in self.group:
+            group = self.group.copy()
+            group.remove(self)
+        else:
+            group = self.group
+        return self.get_ids(group, debug=self.debug)
 
     def target(self, args, kwargs):
         """
