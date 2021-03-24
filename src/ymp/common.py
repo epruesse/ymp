@@ -96,7 +96,7 @@ def ensure_list(obj):
     return list(obj)
 
 
-class Cache(object):
+class NoCache(object):
     def __init__(self, root):
         self.caches = {}
         pass
@@ -122,7 +122,7 @@ class Cache(object):
         return ()
 
 
-class SqlCache(object):
+class Cache(object):
     def __init__(self, root):
         import sqlite3
         os.makedirs(os.path.join(root), exist_ok=True)
