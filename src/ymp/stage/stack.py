@@ -271,7 +271,7 @@ class StageStack:
             group.remove(self)
         else:
             group = self.group
-        return self.get_ids(group, debug=self.debug)
+        return self.get_ids(group)
 
     def target(self, args, kwargs):
         """
