@@ -168,7 +168,7 @@ class NamedList(_Namedlist):
                     if kwargs[key][k] != self[j]:
                         kwargs[key][k] = self[j]
             else:
-                if kwargs[key] != self[start]:
+                if len(self) and kwargs[key] != self[start]:
                     kwargs[key] = self[start]
 
 
@@ -351,7 +351,14 @@ class ExpandableWorkflow(Workflow):
         import snakemake.workflow
         snakemake.workflow.workflow = None
 
-    def add_rule(self, name=None, lineno=None, snakefile=None, checkpoint=False):
+    def add_rule(
+            self,
+            name=None,
+            lineno=None,
+            snakefile=None,
+            checkpoint=False,
+            allow_overwrite=False
+    ):
         """Add a rule.
 
         Arguments:
@@ -361,7 +368,13 @@ class ExpandableWorkflow(Workflow):
         """
         # super().add_rule() dynamically creates a name if `name` is None
         # stash the name so we can access it from `get_rule`
-        self._last_rule_name = super().add_rule(name, lineno, snakefile)
+        self._last_rule_name = super().add_rule(
+            name,
+            lineno,
+            snakefile,
+            checkpoint,
+            allow_overwrite
+        )
         return self._last_rule_name
 
     def get_rule(self, name=None):
@@ -382,7 +395,7 @@ class ExpandableWorkflow(Workflow):
         decorator = super().rule(name, lineno, snakefile, checkpoint)
         rule = self.get_rule(name)
 
-        def decorate(ruleinfo):
+        def apply_expanders(rule, ruleinfo):
             if ymp.print_rule == 1:
                 log.error("#### BEGIN expansion")
                 print_ruleinfo(rule, ruleinfo, log.error)
@@ -399,6 +412,13 @@ class ExpandableWorkflow(Workflow):
             # Conditionaly dump rule after YMP formatting
             if ymp.print_rule == 1:
                 ymp.print_rule = 0
+
+        def decorate(ruleinfo):
+            if self.modifier and self.modifier.ruleinfo_overwrite:
+                # In snakemake inheritance, expand the new piece only
+                apply_expanders(rule, self.modifier.ruleinfo_overwrite)
+            else:
+                apply_expanders(rule, ruleinfo)
 
             # register rule with snakemake
             try:
@@ -940,26 +960,20 @@ class InheritanceExpander(BaseExpander):
         if super_ruleinfo is None:
             return
 
-        base_ruleinfo = deepcopy(super_ruleinfo)
-
-        if not ruleinfo.norun:  # deriving rule is runnable, clear out base
-            base_ruleinfo.shellcmd = None
-            base_ruleinfo.wrapper = None
-            base_ruleinfo.script = None
-            base_ruleinfo.func = None
-        elif not base_ruleinfo.norun:  # base is runnable, clear our deriving
-            ruleinfo.norun = False
-            ruleinfo.shellcmd = None
-            ruleinfo.wrapper = None
-            ruleinfo.script = None
-            ruleinfo.func = None
-
         for field in dir(ruleinfo):
             if field.startswith("__") or field == "parent":
                 continue
 
-            base_attr = getattr(base_ruleinfo, field)
+            base_attr = getattr(super_ruleinfo, field)
+            if field not in ("path_modifier", "apply_modifier"):
+                base_attr = deepcopy(base_attr)
             override_attr = getattr(ruleinfo, field)
+
+            if field in ("shellcmd", "wrapper", "script", "func"):
+                if not ruleinfo.norun:  # child rule is runnable, clear out base
+                    base_attr = None
+                elif not super_ruleinfo.norun:  # base is runnable, child not, clear out child
+                    override_attr = None
 
             if isinstance(override_attr, tuple):
                 if base_attr is None:
