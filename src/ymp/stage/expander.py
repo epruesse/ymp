@@ -90,14 +90,14 @@ class StageExpander(ColonExpander):
                         try:
                             arg = float(arg_str)
                         except ValueError:
-                            try:
-                                arg = bool(arg_str)
-                            except ValueError:
-                                arg = arg_str
-                    if isinstance(arg, str) and arg[0] not in ('"', '"'):
-                        if "wc" not in kwargs:
-                            raise ExpandLateException()
-                        arg = getattr(kwargs['wc'], arg)
+                            arg = arg_str
+                    if isinstance(arg, str):
+                        if arg in ("True", "False"):
+                            arg = bool(arg)
+                        if arg[0] not in ('"', '"'):
+                            if "wc" not in kwargs:
+                                raise ExpandLateException()
+                            arg = getattr(kwargs['wc'], arg)
                     if not argname:
                         args += [arg]
                     else:
