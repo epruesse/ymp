@@ -217,7 +217,7 @@ class StageStack:
                 return path
             newpath = stack.stage.get_path(stack)
             if path == newpath:
-                return path
+                return newpath
             path = newpath
 
     def all_targets(self):
@@ -251,9 +251,6 @@ class StageStack:
         except IncompleteCheckpointException as exc:
             log.warning(" ===> checkpoint deferred (%s)", exc.targetfile)
             raise
-        except Exception as exc:
-            #raise YmpStageError("Error getting ids") from exc
-            raise exc
         log.warning("  ===> %s", repr(ids))
         return ids
 

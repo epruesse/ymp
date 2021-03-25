@@ -99,10 +99,9 @@ def ensure_list(obj):
 class NoCache(object):
     def __init__(self, root):
         self.caches = {}
-        pass
 
     def close(self):
-        pass
+        pass  # NoCache doesn't close anything
 
     def get_cache(self, name, clean=False, *args, **kwargs):
         if name not in self.caches:
@@ -110,10 +109,10 @@ class NoCache(object):
         return self.caches[name]
 
     def store(self, cache, key, obj):
-        pass
+        pass  # NoCache doesnt store anything
 
     def commit(self):
-        pass
+        pass # NoCache doesnt commit anything
 
     def load(self, _cache, _key):
         return None

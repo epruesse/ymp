@@ -194,14 +194,14 @@ class Activateable:
     Mixin for Stages that can be filled with rules from Snakefiles.
     """
     #: Currently active stage ("entered")
-    _active: BaseStage = None
+    _active: Optional[BaseStage] = None
 
     @staticmethod
     def get_active() -> BaseStage:
         return Activateable._active
 
     @staticmethod
-    def set_active(stage: BaseStage) -> None:
+    def set_active(stage: Optional[BaseStage]) -> None:
         Activateable._active = stage
 
     def __init__(self, *args, **kwargs) -> None:
