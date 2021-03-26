@@ -3,15 +3,15 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
-  - python >=3.6
-  - snakemake-minimal =5.26.1
+  - python >=3.7
+  - snakemake-minimal >=6.0.5
   - conda !=4.6.11
   - click
   - click-completion
   - ruamel.yaml >0.15 # new api
   - drmaa
   - pandas >=0.20  # need dtype support in python csv engine
-  - xlrd         # excel support
+  - openpyxl       # excel support
   - coloredlogs
   - setuptools_scm >=3.4 # versioning
   - setuptools >=42

@@ -1,17 +1,29 @@
+"""
+Base classes for all Stage types
+"""
+
 import logging
 import os
+import re
 
 from typing import Set, Dict, Union, List, Optional
+
+from ymp.exceptions import YmpStageError, YmpRuleError, YmpException
+
+from ymp.yaml import MultiProxy
+from snakemake.rules import Rule
+from snakemake.workflow import Workflow
 
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-class BaseStage(object):
+class BaseStage:
     """Base class for stage types"""
     #: The name of the stamp file that is touched to indicate
     #: completion of the stage.
     STAMP_FILENAME = "all_targets.stamp"
+
     def __init__(self, name: str) -> None:
         #: The name of the stage is a string uniquely identifying it
         #: among all stages.
@@ -21,8 +33,8 @@ class BaseStage(object):
         self.altname = None
 
         #: The docstring describing this stage. Visible via ``ymp
-        #:stage list`` and in the generated sphinx documentation.
-        self.docstring: str = None
+        #: stage list`` and in the generated sphinx documentation.
+        self.docstring: Optional[str] = None
 
     def __str__(self) -> str:
         """Cast to string we just emit our name"""
@@ -53,6 +65,7 @@ class BaseStage(object):
         return name == self.name
 
     def get_inputs(self) -> Set[str]:
+        # pylint: disable = no-self-use
         """Returns the set of inputs required by this stage
 
         This function must return a copy, to ensure internal data is
@@ -78,6 +91,7 @@ class BaseStage(object):
         if isinstance(outputs, set):
             return {output: path for output in outputs}
         path, _, _ = path.rpartition("." + self.name)
+        # false positive - pylint: disable=no-member
         return {
             output: path + p
             for output, p in outputs.items()
@@ -98,6 +112,7 @@ class BaseStage(object):
         }
 
     def get_path(self, stack: "StageStack") -> str:
+        # pylint: disable = no-self-use
         """On disk location for this stage given ``stack``.
 
         Called by `StageStack` to determine the real path for
@@ -115,9 +130,8 @@ class BaseStage(object):
 
     def get_group(
             self,
-            _stack: "StageStack",
+            stack: "StageStack",
             default_groups: List[str],
-            override_groups: Optional[List[str]]
     ) -> List[str]:
         """Determine output grouping for stage
 
@@ -126,22 +140,28 @@ class BaseStage(object):
           default_groups: Grouping determined from stage inputs
           override_groups: Override grouping from GroupBy stage or None.
         """
-        if override_groups:
-            return override_groups
+        if stack.prev_stack is not None:
+            if stack.prev_stack.stage.modify_next_group(stack.prev_stack):
+                raise YmpStageError(f"Cannot override {self} grouping")
         return default_groups
+
+    def modify_next_group(self, _stack: "StageStack"):
+        # pylint: disable = no-self-use
+        return None
 
     def get_ids(
             self,
-            stack: "StageStack",
+            stack: "ymp.stage.StageStack",
             groups: List[str],
             match_groups: Optional[List[str]] = None,
-            match_value: Optional[str] = None
+            match_value: Optional[str] = None,
     ) -> List[str]:
+        # pylint: disable = no-self-use
         """Determine the target ID names for a set of active groupings
 
-        Called from `{:target:}` and `{:targets:}`. For `{:targets:}`,
-        `groups` is the set of active groupings for the stage
-        stack. For `{:target:}`, it's the same set for the source of
+        Called from ``{:target:}`` and ``{:targets:}``. For ``{:targets:}``,
+        ``groups`` is the set of active groupings for the stage
+        stack. For ``{:target:}``, it's the same set for the source of
         the file type, the current grouping and the current target.
 
         Args:
@@ -165,7 +185,75 @@ class BaseStage(object):
         return stack.project.do_get_ids(stack, groups, match_groups, match_value)
 
     def has_checkpoint(self) -> bool:
+        # pylint: disable = no-self-use
         return False
+
+
+class Activateable:
+    """
+    Mixin for Stages that can be filled with rules from Snakefiles.
+    """
+    #: Currently active stage ("entered")
+    _active: Optional[BaseStage] = None
+
+    @staticmethod
+    def get_active() -> BaseStage:
+        return Activateable._active
+
+    @staticmethod
+    def set_active(stage: Optional[BaseStage]) -> None:
+        Activateable._active = stage
+
+    def __init__(self, *args, **kwargs) -> None:
+        #: Rules in this stage
+        self.rules: List[Rule] = []
+        self._last_rules: List[Rule] = []
+        super().__init__(*args, **kwargs)
+
+    def __enter__(self) -> "Activateable":
+        if self.get_active() is not None:
+            raise YmpRuleError(
+                self,
+                f"Failed to enter stage '{self}', "
+                f"already in stage {self.get_active()}'."
+            )
+
+        self.set_active(self)
+        self._last_rules = self.rules.copy()
+        return self
+
+    def __exit__(self, *args) -> None:
+        self.set_active(None)
+
+    def add_rule(self, rule: "Rule", workflow: "Workflow") -> None:
+        rule.ymp_stage = self
+        self.rules.append(rule.name)
+        if self._last_rules:
+            for lastrule in self._last_rules:
+                workflow.ruleorder(rule.name, lastrule)
+
+    def check_active_stage(self, name: str) -> None:
+        if not self.get_active():
+            raise YmpException(
+                f"Use of {{:{name}:}} requires active Stage"
+            )
+        if not self.get_active() == self:
+            raise YmpException(
+                f"Internal error: {self} running but {self.get_active()} active."
+            )
+
+    def register_inout(self, name: str, target: Set, item: str) -> None:
+        self.check_active_stage(name)
+        prefix, _, suffix = item.partition(f"{{:{name}:}}")
+        suffix = re.sub(r"\{:\s*target(\(.*\))?\s*:\}", "{sample}", suffix)
+        for n in ("{target}", "{source}", "{:target:}"):
+            suffix = suffix.replace(n, "{sample}")
+        for n in ("{:targets:}", "{:sources:}"):
+            suffix = suffix.replace(n, "{:samples:}")
+        if not prefix:
+            target.add(suffix)
+        # fixme: what if prefix present?
+        return suffix
 
 
 class ConfigStage(BaseStage):

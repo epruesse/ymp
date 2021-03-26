@@ -1,0 +1,46 @@
+Env(name="bedtools", base="bioconda", packages=["bedtools", "samtools"])
+
+with Stage("basecov_bedtools") as S:
+    S.doc("""
+    Compute per base coverage depth using bedtools genomecov
+    """)
+    S.add_param("f", typ="int", name="f", default=0)
+    S.add_param("F", typ="int", name="F", default=0x900)
+    S.add_param("G", typ="int", name="G", default=0)
+
+    rule bedtools_genomecov:
+        message:
+            """Bedtools Genomecov: {output.bedgraph}"""
+        input:
+            bam = "{:prev:}/{:target:}.sorted.bam"
+        output:
+            bedgraph = "{:this:}/{target}.basecov.bg"
+        log:
+            "{:this:}/{target}.log"
+        threads:
+            1
+        conda:
+            "bedtools"
+        shell:
+            # Redirect all log output
+            "exec >{log} 2>&1;"
+            # Filter read flags with samtools view first
+            "samtools view {input.bam}"
+            " -u "
+            " -f {params.f}"
+            " -F {params.F}"
+            " -G {params.G}"
+            " | "
+            # Run bedtools
+            "bedtools genomecov"
+            " -ibam -"
+            " -bg"  # bedgraph format
+            " >{output.bedgraph}"
+
+    rule bedtools_genomecov_all:
+        message:
+            "Bedtools Genomecov finished"
+        input:
+            "{:this:}/{:targets:}.basecov.bg"
+        output:
+            touch("{:this:}/all_targets.stamp")

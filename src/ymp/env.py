@@ -67,16 +67,19 @@ class Env(WorkflowObject, snakemake_conda.Env):
                     return env
         return super().__new__(cls)
 
-    def __init__(self, env_file: Optional[str] = None,
-                 dag: Optional[object] = None,
-                 singularity_img=None,
-                 container_img=None,
-                 cleanup=None,
-                 name: Optional[str] = None,
-                 packages: Optional[Union[list, str]] = None,
-                 base: str = "none",
-                 channels: Optional[Union[list, str]] = None,
-                 rule: Optional[Rule] = None) -> None:
+    def __init__(
+            self,
+            env_file: Optional[str] = None,
+            workflow = None,
+            env_dir = None,
+            container_img=None,
+            cleanup=None,
+            name: Optional[str] = None,
+            packages: Optional[Union[list, str]] = None,
+            base: str = "none",
+            channels: Optional[Union[list, str]] = None,
+            rule: Optional[Rule] = None
+    ) -> None:
         """Creates an inline defined conda environment
 
         Args:
@@ -93,15 +96,16 @@ class Env(WorkflowObject, snakemake_conda.Env):
             return
         cfg = ymp.get_config()
 
-        pseudo_dag = AttrDict({
-            'workflow': {
-                'persistence': {
-                    'conda_env_path': cfg.ensuredir.conda_prefix,
-                    'conda_env_archive_path': cfg.ensuredir.conda_archive_prefix
-                },
-                'conda_frontend': 'conda',
-                'singularity_args': '',
-            }
+        # Unlike within snakemake, we create these objects before the workflow is fully
+        # initialized, which means we need to create a fake one:
+        if not workflow:
+            workflow = AttrDict({
+            'persistence': {
+                'conda_env_path': cfg.ensuredir.conda_prefix,
+                'conda_env_archive_path': cfg.ensuredir.conda_archive_prefix
+            },
+            'conda_frontend': 'conda',
+            'singularity_args': '',
         })
 
         # must have either name or env_file:
@@ -144,9 +148,25 @@ class Env(WorkflowObject, snakemake_conda.Env):
                 with open(env_file, "w") as out:
                     out.write(contents)
 
-        super().__init__(env_file, pseudo_dag, singularity_img or container_img,
-                         cleanup)
+        super().__init__(
+            env_file,
+            workflow or pseudo_workflow,
+            env_dir if env_dir else cfg.ensuredir.conda_prefix,
+            container_img,
+            cleanup)
         self.register()
+
+    @property
+    def _env_archive_dir(self):
+        cfg = ymp.get_config()
+        return cfg.ensuredir.conda_archive_prefix
+
+    def _get_content(self):
+        cfg = ymp.get_config()
+        if cfg._workflow:
+            return super()._get_content(self)
+        return open(self.file, "rb").read()
+
 
     def set_prefix(self, prefix):
         self._env_dir = op.abspath(prefix)

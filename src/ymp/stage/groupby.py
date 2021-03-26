@@ -18,9 +18,15 @@ their input data.
 
 """
 
+import logging
 from typing import List
 
 from ymp.stage.base import BaseStage
+from ymp.exceptions import YmpStageError
+
+
+log = logging.getLogger(__name__)  # pylint: disable=invalid-name
+
 
 class GroupBy(BaseStage):
     """Virtual stage for grouping"""
@@ -28,18 +34,36 @@ class GroupBy(BaseStage):
     def __init__(self, name: str) -> None:
         super().__init__(name)
 
+    def modify_next_group(
+            self,
+            stack: "StageStack",
+    ) -> List[str]:
+        name = stack.stage_names[-1]
+        if not self.match(name):
+            raise YmpStageError(f"Internal Error: {name} not a group?")
+
+        # fetch directly previous grouoing
+        if stack.prev_stack is not None:
+            group = stack.prev_stack.stage.modify_next_group(stack.prev_stack) or []
+        else:
+            group = []
+
+        group_name = name[len(self.PREFIX):]
+        if group_name == "ALL":
+            if group:
+                raise YmpStageError("Regrouping to ALL means previous group statement has no effect")
+        elif group_name == "BIN":
+            group += ["__bin__"]
+        else:
+            group += [group_name]
+        return group
+
     def get_group(
             self,
             stack: "StageStack",
-            _default_groups: List[str],
-            _override_groups: List[str],
+            default_groups: List[str],
     ) -> List[str]:
-        for name in reversed(stack.stage_names):
-            if self.match(name):
-                group = name[len(self.PREFIX):]
-                if group == "ALL":
-                    return []
-                return [group]
+        return []
 
     def match(self, name: str) -> bool:
         return name.startswith(self.PREFIX)

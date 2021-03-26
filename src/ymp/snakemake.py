@@ -10,12 +10,12 @@ from copy import copy, deepcopy
 from inspect import Parameter, signature, stack
 from typing import Optional
 
-from snakemake.exceptions import CreateRuleException, RuleException
+from snakemake.exceptions import CreateRuleException, RuleException  # type: ignore
 from snakemake.io import AnnotatedString, apply_wildcards, \
-    strip_wildcard_constraints
-from snakemake.io import Namedlist as _Namedlist
-from snakemake.rules import Rule
-from snakemake.workflow import RuleInfo, Workflow
+    strip_wildcard_constraints  # type: ignore
+from snakemake.io import Namedlist as _Namedlist  # type: ignore
+from snakemake.rules import Rule  # type: ignore
+from snakemake.workflow import RuleInfo, Workflow  # type: ignore
 
 import ymp
 from ymp.common import ensure_list, flatten, is_container
@@ -118,12 +118,10 @@ class NamedList(_Namedlist):
     - Adds `update_tuple` method:
       Updates values in ``(args,kwargs)`` tuples as present in
       :class:`ruleinfo` structures.
-    """
-    def get_names(self, *args, **kwargs):
-        """Export ``get_names`` as public func"""
-        return self._get_names(*args, *kwargs)
 
+    """
     def __init__(self, fromtuple=None, **kwargs):
+        """"""  # blank out docstring in super class w different formatting
         super().__init__(**kwargs)
         self._fromtuple = fromtuple
         if fromtuple:
@@ -147,8 +145,14 @@ class NamedList(_Namedlist):
             if idx >= i and (j is None or idx < j):
                 self._set_name(name, i, j)
 
+    def get_names(self, *args, **kwargs):
+        """Export ``get_names`` as public func"""
+        return self._get_names(*args, *kwargs)
+
+
     def update_tuple(self, totuple):
         """Update values in ``(args, kwargs)`` tuple.
+
         The tuple must be the same as used in the constructor and
         must not have been modified.
         """
@@ -164,7 +168,7 @@ class NamedList(_Namedlist):
                     if kwargs[key][k] != self[j]:
                         kwargs[key][k] = self[j]
             else:
-                if kwargs[key] != self[start]:
+                if len(self) and kwargs[key] != self[start]:
                     kwargs[key] = self[start]
 
 
@@ -347,7 +351,14 @@ class ExpandableWorkflow(Workflow):
         import snakemake.workflow
         snakemake.workflow.workflow = None
 
-    def add_rule(self, name=None, lineno=None, snakefile=None, checkpoint=False):
+    def add_rule(
+            self,
+            name=None,
+            lineno=None,
+            snakefile=None,
+            checkpoint=False,
+            allow_overwrite=False
+    ):
         """Add a rule.
 
         Arguments:
@@ -357,7 +368,13 @@ class ExpandableWorkflow(Workflow):
         """
         # super().add_rule() dynamically creates a name if `name` is None
         # stash the name so we can access it from `get_rule`
-        self._last_rule_name = super().add_rule(name, lineno, snakefile)
+        self._last_rule_name = super().add_rule(
+            name,
+            lineno,
+            snakefile,
+            checkpoint,
+            allow_overwrite
+        )
         return self._last_rule_name
 
     def get_rule(self, name=None):
@@ -378,7 +395,7 @@ class ExpandableWorkflow(Workflow):
         decorator = super().rule(name, lineno, snakefile, checkpoint)
         rule = self.get_rule(name)
 
-        def decorate(ruleinfo):
+        def apply_expanders(rule, ruleinfo):
             if ymp.print_rule == 1:
                 log.error("#### BEGIN expansion")
                 print_ruleinfo(rule, ruleinfo, log.error)
@@ -395,6 +412,13 @@ class ExpandableWorkflow(Workflow):
             # Conditionaly dump rule after YMP formatting
             if ymp.print_rule == 1:
                 ymp.print_rule = 0
+
+        def decorate(ruleinfo):
+            if self.modifier and self.modifier.ruleinfo_overwrite:
+                # In snakemake inheritance, expand the new piece only
+                apply_expanders(rule, self.modifier.ruleinfo_overwrite)
+            else:
+                apply_expanders(rule, ruleinfo)
 
             # register rule with snakemake
             try:
@@ -558,20 +582,22 @@ class BaseExpander(object):
             if cb:
                 raise
 
+            expand_args = expand_args.copy()
             def item_wrapped(wc):
-                return self.expand(rule, item,
-                                   expand_args={'wc': wc, 'rule': rule},
-                                   cb=True)
+                expand_args['wc'] = wc
+                return self.expand(rule, item, expand_args, cb=True)
             return item_wrapped
 
     def expand_func(self, rule, item, expand_args, rec, debug):
+        expand_args = expand_args.copy()
         @functools.wraps(item)
         def late_expand(*args, **kwargs):
             if debug:
                 log.debug("{}{} late {} {} ".format(
                     " "*rec*4, type(self).__name__, args, kwargs))
+            expand_args['wc'] = args[0]
             res = self.expand(rule, item(*args, **kwargs),
-                              expand_args={'wc': args[0]}, rec=rec, cb=True)
+                              expand_args, rec=rec, cb=True)
             if debug:
                 log.debug("{}=> '{}'".format(" "*rec*4, res))
             return res
@@ -934,26 +960,20 @@ class InheritanceExpander(BaseExpander):
         if super_ruleinfo is None:
             return
 
-        base_ruleinfo = deepcopy(super_ruleinfo)
-
-        if not ruleinfo.norun:  # deriving rule is runnable, clear out base
-            base_ruleinfo.shellcmd = None
-            base_ruleinfo.wrapper = None
-            base_ruleinfo.script = None
-            base_ruleinfo.func = None
-        elif not base_ruleinfo.norun:  # base is runnable, clear our deriving
-            ruleinfo.norun = False
-            ruleinfo.shellcmd = None
-            ruleinfo.wrapper = None
-            ruleinfo.script = None
-            ruleinfo.func = None
-
         for field in dir(ruleinfo):
             if field.startswith("__") or field == "parent":
                 continue
 
-            base_attr = getattr(base_ruleinfo, field)
+            base_attr = getattr(super_ruleinfo, field)
+            if field not in ("path_modifier", "apply_modifier"):
+                base_attr = deepcopy(base_attr)
             override_attr = getattr(ruleinfo, field)
+
+            if field in ("shellcmd", "wrapper", "script", "func"):
+                if not ruleinfo.norun:  # child rule is runnable, clear out base
+                    base_attr = None
+                elif not super_ruleinfo.norun:  # base is runnable, child not, clear out child
+                    override_attr = None
 
             if isinstance(override_attr, tuple):
                 if base_attr is None:
@@ -1001,7 +1021,7 @@ class WorkflowObject(object):
     """
     Base for extension classes defined from snakefiles
 
-    This currently encompasses `ymp.env.Env` and `ymp.stage.Stage`.
+    This currently encompasses `ymp.env.Env` and `ymp.stage.stage.Stage`.
 
     This mixin sets the properties ``filename`` and ``lineno`` according
     to the definition source in the rules file. It also maintains a registry

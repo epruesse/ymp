@@ -45,6 +45,8 @@ class Pipeline(ConfigStage):
         self.stages = OrderedDict()
         path = ""
         for stage in cfg.stages:
+            if stage is None:
+                raise YmpConfigError(self, f"Empty stage name in pipeline '{name}'")
             if isinstance(stage, str):
                 path = ".".join((path, stage))
                 self.stages[path] = {}
@@ -105,11 +107,10 @@ class Pipeline(ConfigStage):
     def get_group(
             self,
             stack: "StageStack",
-            default_groups: List[str],
-            override_groups: List[str],
+            default_groups: List[str]
     ) -> List[str]:
         realstack = stack.instance(self.get_path(stack))
-        return realstack.group
+        return realstack.stage.get_group(realstack, default_groups)
 
     def get_ids(self, stack, groups, mygroups=None, target=None):
         realstack = stack.instance(self.get_path(stack))

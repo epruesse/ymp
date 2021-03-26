@@ -4,6 +4,9 @@ Implements the StageStack
 
 import logging
 import copy
+import re
+
+from typing import List
 
 import ymp
 from ymp.stage.stage import Stage
@@ -11,14 +14,17 @@ from ymp.stage.groupby import GroupBy
 from ymp.exceptions import YmpStageError
 from ymp.snakemake import ExpandLateException
 
+from snakemake.exceptions import IncompleteCheckpointException  # type: ignore
+
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 def norm_wildcards(pattern):
-    for n in ("{target}", "{source}", "{:target:}"):
-        pattern = pattern.replace(n, "{sample}")
-    for n in ("{:targets:}", "{:sources:}"):
-        pattern = pattern.replace(n, "{:samples:}")
+    pattern = re.sub(r"\{:\s*target(\(.*\))?\s*:\}", "{sample}", pattern)
+    for pat in ("{target}", "{source}", "{:target:}"):
+        pattern = pattern.replace(pat, "{sample}")
+    for pat in ("{:targets:}", "{:sources:}"):
+        pattern = pattern.replace(pat, "{:samples:}")
     return pattern
 
 
@@ -32,8 +38,7 @@ def find_stage(name):
         refname = name[4:]
         if refname in cfg.ref:
             return cfg.ref[refname]
-        else:
-            raise YmpStageError(f"Unknown reference '{cfg.ref[refname]}'")
+        raise YmpStageError(f"Unknown reference '{cfg.ref[refname]}'")
     if name in cfg.projects:
         return cfg.projects[name]
     if name in cfg.pipelines:
@@ -44,11 +49,14 @@ def find_stage(name):
     raise YmpStageError(f"Unknown stage '{name}'")
 
 
-class StageStack(object):
+class StageStack:
     """The "head" of a processing chain - a stack of stages
     """
 
     used_stacks = set()
+
+    #: Set to true to enable additional Stack debug logging
+    debug = False
 
     @classmethod
     def instance(cls, path):
@@ -85,6 +93,9 @@ class StageStack(object):
         self.stage = self.stages[-1]
         #: Stage below top stage or None if first in stack
         self.prev_stage = self.stages[-2] if len(self.stages) > 1 else None
+        self.prev_stack = None
+        if len(self.stages) > 1:
+            self.prev_stack = self.instance(".".join(self.stage_names[:-1]))
 
         cfg = ymp.get_config()
 
@@ -105,12 +116,10 @@ class StageStack(object):
             for group in stack.group
         ))
         project_groups, other_groups = self.project.minimize_variables(groups)
-        # Check for groupby
-        if isinstance(self.prev_stage, GroupBy):
-            groupby = self.prev_stage.get_group(self, [], [])
-        else:
-            groupby = None
-        self.group = self.stage.get_group(self, project_groups + other_groups, groupby)
+        #: Grouping in effect for this StageStack. And empty list groups into
+        #: one pseudo target, 'ALL'.
+        self.group: List[str] = \
+            self.stage.get_group(self, project_groups + other_groups)
 
     def show_info(self):
         def ellip(text: str) -> str:
@@ -118,21 +127,21 @@ class StageStack(object):
                 return text
             return "..."+text[-37:]
 
+        prevmap = dict()
+        for typ, stack in self.prevs.items():
+            prevmap.setdefault(str(stack), []).append(typ)
         log.info(
             "Stage stack '%s' (output by %s%s)",
             self.name,
             ", ".join(ellip(str(g)) for g in self.group) or "*ALL*",
             " + bins" if self.stage.has_checkpoint() else ""
         )
-        prevmap = dict()
-        for typ, stack in self.prevs.items():
-            prevmap.setdefault(str(stack), []).append(typ)
         for stack, typ in prevmap.items():
             ftypes = ", ".join(typ).replace("/{sample}", "*")
             title = stack.split(".")[-1]
-            if self.stage_names.count(title)  != 1:
+            if self.stage_names.count(title) != 1:
                 title = stack
-            log.info(f"  input from {title}: {ftypes}")
+            log.info("  input from %s: %s", title, ftypes)
 
     def resolve_prevs(self):
         inputs = self.stage.get_inputs()
@@ -200,7 +209,16 @@ class StageStack(object):
     @property
     def path(self):
         """On disk location of files provided by this stack"""
-        return self.stage.get_path(self)
+        path = self.stage.get_path(self)
+        while True:
+            try:
+                stack = self.instance(path)
+            except YmpStageError:
+                return path
+            newpath = stack.stage.get_path(stack)
+            if path == newpath:
+                return newpath
+            path = newpath
 
     def all_targets(self):
         return self.stage.get_all_targets(self)
@@ -209,33 +227,82 @@ class StageStack(object):
     def defined_in(self):
         return None
 
-    def prev(self, args=None, kwargs=None):
+    def prev(self, _args=None, kwargs=None) -> "StageStack":
         """
         Directory of previous stage
         """
         if not kwargs or "wc" not in kwargs:
             raise ExpandLateException()
 
-        item = kwargs.get('item')
         _, _, suffix = kwargs['item'].partition("{:prev:}")
         suffix = norm_wildcards(suffix)
 
         return self.prevs[suffix]
 
+
+    def get_ids(self, select_cols, where_cols=None, where_vals=None):
+        if not self.debug:
+            return self.stage.get_ids(self, select_cols, where_cols, where_vals)
+
+        log.warning("  select %s", select_cols)
+        log.warning("  where %s == %s", repr(where_cols), where_vals)
+        try:
+            ids = self.stage.get_ids(self, select_cols, where_cols, where_vals)
+        except IncompleteCheckpointException as exc:
+            log.warning(" ===> checkpoint deferred (%s)", exc.targetfile)
+            raise
+        log.warning("  ===> %s", repr(ids))
+        return ids
+
     @property
     def targets(self):
         """
-        ID names of output files to be generated by current stage.
+        Determines the IDs to be built by this Stage Stack
+        (replaces "{:targets:}").
         """
-        return self.stage.get_ids(self, self.group)
+        if self.debug:
+            log.error("output ids for %s", self)
+            log.warning("  select %s", repr(self.group))
+        if self in self.group:
+            group = self.group.copy()
+            group.remove(self)
+        else:
+            group = self.group
+        return self.get_ids(group)
 
     def target(self, args, kwargs):
         """
-        ID names of input files for a specific input of the current stage
+        Determines the IDs for a given input data type and output ID
+        (replaces "{:target:}").
         """
-        # Find stage stack from which input was generated
-        prev_stack = self.prev(args, kwargs)
+        # Find stage stack from which input should be requested.
+        # (not sure why the below causes a false positive in pylint)
+        prev_stack = self.prev(args, kwargs)  # pylint: disable=not-callable
         # Find name of current output target
         cur_target = kwargs['wc'].target
 
-        return  self.stage.get_ids(prev_stack, prev_stack.group, self.group, cur_target)
+        if self.debug:
+            rulename = getattr(kwargs.get('rule'), 'name', 'N/A')
+            log.error("input ids for %s", self)
+            log.warning("  rule %s", rulename)
+            log.warning("  from stack %s", prev_stack)
+        cols = self.group
+        vals = cur_target
+        if cols == [] and vals == 'ALL':
+            cols = vals = None
+
+        ids = prev_stack.get_ids(prev_stack.group, cols, vals)
+
+        if ids == []:
+            rulename = getattr(kwargs.get('rule'), 'name', 'N/A')
+            raise YmpStageError(
+                f"Internal Error: Failed to find inputs\n\n"
+                f"Context:\n"
+                f"  In stack '{self}' rule '{rulename}'\n"
+                f"  Building '{vals}' (grouped on '{','.join(cols)}')\n"
+                f"  Seeking input from '{prev_stack}' "
+                f"(grouped on '{','.join(prev_stack.group)}')"
+                f"\n"
+            )
+
+        return ids

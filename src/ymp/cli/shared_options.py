@@ -204,18 +204,26 @@ logfile_option = click.option(
 )
 
 
-def enable_debug(ctx, param, val):
+def enable_debug(_ctx, param, val):
+    import pdb  # pylint: disable=import-outside-toplevel
+    import signal  # pylint: disable=import-outside-toplevel
     if not val:
         return
 
-    def excepthook(typ, val, tb):
-        import traceback
-        traceback.print_exception(typ, val, tb)
-        import pdb
+    def excepthook(typ, val, trace):
+        import traceback  # pylint: disable=import-outside-toplevel
+        traceback.print_exception(typ, val, trace)
         pdb.pm()
 
     sys.excepthook = excepthook
     log.error("Dropping into PDB on uncaught exception...")
+
+    def handle_sigusr1(_sig, frame):
+        pdb.Pdb().set_trace(frame)
+
+    signal.signal(signal.SIGUSR1, handle_sigusr1)
+    log.error("To trigger debugger immediately, call 'kill -s SIGUSR1 %i'",
+              os.getpid())
 
 
 debug_option = click.option(

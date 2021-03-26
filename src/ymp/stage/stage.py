@@ -1,28 +1,23 @@
+"""
+Implements the "Stage"
+
+At it's most basic, a "Stage" is a set of Snakemake rules that share an output folder.
+"""
+
 import copy
 import logging
 import re
 
 from typing import Dict, List, Set
 
-from snakemake.rules import Rule
-
 from ymp.snakemake import WorkflowObject, RemoveValue
-from ymp.stage.base import BaseStage
-from ymp.exceptions import YmpRuleError, YmpException
-
+from ymp.stage.base import BaseStage, Activateable
+from ymp.exceptions import YmpRuleError, YmpException, YmpStageError
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-def norm_wildcards(pattern):
-    for n in ("{target}", "{source}", "{:target:}"):
-        pattern = pattern.replace(n, "{sample}")
-    for n in ("{:targets:}", "{:sources:}"):
-        pattern = pattern.replace(n, "{:samples:}")
-    return pattern
-
-
-class Stage(WorkflowObject, BaseStage):
+class Stage(WorkflowObject, Activateable, BaseStage):
     """
     Creates a new stage
 
@@ -32,37 +27,40 @@ class Stage(WorkflowObject, BaseStage):
     * ``{:this:}`` -- The current stage directory
     * ``{:that:}`` -- The alternate output stage directory
     * ``{:prev:}`` -- The previous stage's directory
-
     """
 
-    active = None
-    """Currently active stage ("entered")"""
-
-    def __init__(self, name: str, altname: str=None,
-                 env: str=None, doc: str=None) -> None:
+    def __init__(
+            self,
+            name: str,
+            altname: str = None,
+            env: str = None,
+            doc: str = None,
+    ) -> None:
         """
         Args:
             name: Name of this stage
             altname: Alternate name of this stage (used for stages with
                 multiple output variants, e.g. filter_x and remove_x.
-            doc: See `Stage.doc`
-            env: See `Stage.env`
+            doc: See `doc()`
+            env: See `env()`
         """
         super().__init__(name)
+        #: Alternative stage name (deprecated)
         self.altname: str = altname
-        self.register()
-        #: Rules in this stage
-        self.rules: List[Rule] = []
         #: Checkpoints in this stage
         self.checkpoints: Dict[str, Set[str]] = {}
+        #: Contains override stage inputs
+        self.requires = None
+        #: Stage Parameters
+        self.params: List[Param] = []
+
         # Inputs required by stage
         self._inputs: Set[str] = set()
         self._outputs: Set[str] = set()
-        # Stage Parameters
-        self.params: List[Param] = []
-        self.requires = None
         # Regex matching self
         self._regex = None
+
+        self.register()
 
         self.doc(doc or "")
         self.env(env)
@@ -95,20 +93,6 @@ class Stage(WorkflowObject, BaseStage):
         """
         self.conda_env = name
 
-    def __enter__(self):
-        if Stage.active is not None:
-            raise YmpRuleError(
-                self,
-                f"Failed to enter stage '{self.name}', "
-                f"already in stage {self.active.name}'."
-            )
-
-        Stage.active = self
-        return self
-
-    def __exit__(self, *args):
-        Stage.active = None
-
     def __str__(self):
         if self.altname:
             return "|".join((self.name, self.altname))
@@ -117,10 +101,6 @@ class Stage(WorkflowObject, BaseStage):
     def __repr__(self):
         return (f"{self.__class__.__name__} {self!s} "
                 f"({self.filename}:{self.lineno})")
-
-    def _add_rule(self, rule):
-        rule.ymp_stage = self
-        self.rules.append(rule.name)
 
     def add_param(self, key, typ, name, value=None, default=None):
         """Add parameter to stage
@@ -167,7 +147,7 @@ class Stage(WorkflowObject, BaseStage):
         return copy.copy(self.requires)
 
     def satisfy_inputs(self, other_stage, inputs) -> Dict[str, str]:
-        if not self.requires: # inputs is set
+        if not self.requires:  # inputs is set
             provides = other_stage.can_provide(inputs)
             # warning: `inputs -= provides.keys()` would work, but would
             # create a new object, rather than modify the set we
@@ -209,57 +189,43 @@ class Stage(WorkflowObject, BaseStage):
             self._regex = re.compile(pat)
         return self._regex.fullmatch(name) is not None
 
-    def _check_active_stage(self, name: str) -> None:
-        if not Stage.active:
-            raise YmpException(
-                f"Use of {{:{name}:}} requires active Stage"
-            )
-
-    def _register_inout(self, name: str, target, item) -> None:
-        self._check_active_stage(name)
-        prefix, _, suffix = item.partition(f"{{:{name}:}}")
-        norm_suffix = norm_wildcards(suffix)
-        if not prefix:
-            target.add(norm_suffix)
-        return norm_suffix
-
     def _wildcards(self, name, kwargs=None):
-        show_constraint = kwargs and kwargs.get('field') != 'input'
+        show_constraint = kwargs and kwargs.get('field') not in ('input', 'message')
         return "".join(["{_YMP_DIR}", name] +
                        [p.pattern(show_constraint) for p in self.params])
 
-    def prev(self, args, kwargs) -> None:
+    def prev(self, _args, kwargs) -> None:
         """Gathers {:prev:} calls from rules
 
         Here, input requirements for each stage are collected.
         """
         item = kwargs['item']
-        self._register_inout("prev", self._inputs, item)
-        return None
+        self.register_inout("prev", self._inputs, item)
 
-    def this(self, args=None, kwargs=None):
+    def this(self, _args=None, kwargs=None):
         """Replaces {:this:} in rules
 
         Also gathers output capabilities of each stage.
         """
         item = kwargs['item']
-        self._register_inout("this", self._outputs, item)
+        # Fixme: check that this is from outputs
+        self.register_inout("this", self._outputs, item)
         return self._wildcards(self.name, kwargs=kwargs)
 
-    def that(self, args=None, kwargs=None):
+    def that(self, _args=None, kwargs=None):
         """
         Alternate directory of current stage
 
         Used for splitting stages
         """
-        self._check_active_stage("that")
-        if not Stage.active.altname:
+        self.check_active_stage("that")
+        if not self.altname:
             raise YmpException(
                 "Use of {:that:} requires with altname"
             )
         return self._wildcards(self.altname, kwargs=kwargs)
 
-    def bin(self, args=None, kwargs=None):
+    def bin(self, _args=None, kwargs=None):
         """
         Dynamic ID for splitting stages
         """
@@ -268,7 +234,7 @@ class Stage(WorkflowObject, BaseStage):
             raise YmpStageError("Only checkpoints may use '{:bin:}'")
         item = kwargs['item']
         norm_item = item.replace(".{:bin:}", "")
-        norm_suffix = self._register_inout("this", self._outputs, norm_item)
+        norm_suffix = self.register_inout("this", self._outputs, norm_item)
         self.checkpoints.setdefault(rule.name, set()).add(norm_suffix)
         raise RemoveValue()
 
@@ -277,67 +243,76 @@ class Stage(WorkflowObject, BaseStage):
 
     def get_group(
             self,
-            stack: "StageStack",
-            default_groups: List[str],
-            override_groups: List[str],
+            stack,  #: "StageStack"
+            default_groups: List[str]
     ) -> List[str]:
+        # Are we instructed by previous stack to change grouping?
+        override_groups = None
+        if stack.prev_stack is not None:
+            prev_stage = stack.prev_stack.stage
+            override_groups = prev_stage.modify_next_group(stack.prev_stack)
+
         if override_groups is None:
+            # If not, just use the default groups
             groups = default_groups
         else:
+            # Otherwise, use the override groups,
             groups = override_groups
+            # Replace "__bin__" with bins in effect
+            if "__bin__" in override_groups:
+                groups = [g for g in groups if g != "__bin__"]
+                # FIXME:
+                # Should we just use the latest bin? What if we have multiple?
+                groups += [
+                    g for g in default_groups if isinstance(g, type(stack))
+                ]
+
+        # If we are a checkpoint ourselves, add self.
         if self.has_checkpoint():
             groups.append(stack)
 
         return groups
 
     def get_checkpoint_ids(self, stack, mygroup, target):
-        from snakemake.workflow import checkpoints
         if len(self.checkpoints) > 1:
             raise RuntimeError("Multiple checkpoints not implemented")
+        from snakemake.workflow import checkpoints
+        from snakemake.io import regex
+        wildcards = re.match(regex(self._wildcards(self.name, {'field': 'output'})),
+                             stack.path).groupdict()
         checkpoint_name = next(iter(self.checkpoints.keys()))
         checkpoint = getattr(checkpoints, checkpoint_name)
-        ymp_dir = stack.path[:-len(stack.stage.name)]
-        mytarget = self.get_ids(stack,
+        mytargets = self.get_ids(stack,
                                 [g for g in stack.group if g != stack],
                                 mygroup, target)
-
-        job = checkpoint.get(_YMP_DIR=ymp_dir, target="__".join(mytarget))
-        with open(job.output.bins, "r") as fd:
-            bins = [line.strip() for line in fd.readlines()]
-        return bins
+        bins = set()
+        for mytarget in mytargets:
+            wildcards['target'] = mytarget
+            job = checkpoint.get(**wildcards)
+            with open(job.output.bins, "r") as fd:
+                bins.update(line.strip() for line in fd.readlines())
+        return list(bins)
 
     def get_ids(self, stack, groups, mygroups=None, target=None):
-        groups = list(groups)
+        # Make a copy of the input gorups, we don't want to modify it.
+        groups = groups.copy()
         if mygroups is not None:
             mygroups = list(mygroups)
 
         bins = []
         mybins = {}
-        if mygroups is None and target is None:
-            # If we are getting IDs for {:targets:} of binning stage,
-            # don't return self
-            if stack in groups:
-                groups.remove(stack)
-            # If we are getting IDs for {:targets:} of subsequent stage,
-            # find all generated ids from binning stage.
-            # Multiply binned ids
-            for group in list(groups):
-                if not isinstance(group, type(stack)):
-                    continue
-                groups.remove(group)
-                bins.append(group)
-        elif mygroups is None:
+        for group in list(groups):
+            if not isinstance(group, type(stack)):
+                continue
+            groups.remove(group)
+            bins.append(group)
+
+        if mygroups is None and target is not None:
             raise RuntimeError("Mygroups none but target not?")
-        else:
+        if target is not None:
             # If we are getting IDs for {:target:} of subsequent stage,
             # find all generated ids from binning stage.
             # Multiply binned ids
-            for group in list(groups):
-                if not isinstance(group, type(stack)):
-                    continue
-                groups.remove(group)
-                bins.append(group)
-
             target_parts = []
             for group, tgt in zip(list(mygroups), target.split("__")):
                 if isinstance(group, type(stack)):
@@ -348,6 +323,9 @@ class Stage(WorkflowObject, BaseStage):
             if target_parts:
                 mygroups = mygroups[0:len(target_parts)]
                 target = "__".join(target_parts)
+            else:
+                target = None
+                mygroups = None
 
         # Pass to standard
         ids = super().get_ids(stack, groups, mygroups, target)
@@ -358,6 +336,9 @@ class Stage(WorkflowObject, BaseStage):
                 for binid in bin.stage.get_checkpoint_ids(bin, groups, target)
                 if bin not in mybins or binid == mybins[bin]
             ]
+        if groups == []:
+            ids = [id_[len('ALL__'):] if id_.startswith('ALL__') else id_
+                   for id_ in ids]
         return ids
 
 
@@ -417,7 +398,7 @@ class ParamInt(Param):
                 self.stage,
                 f"Stage Int Parameter must have 'default' set")
 
-        self.regex = f"({self.key}\d+|)"
+        self.regex = f"({self.key}\\d+|)"
 
     def param_func(self):
         """Returns function that will extract parameter value from wildcards"""

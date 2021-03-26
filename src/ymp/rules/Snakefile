@@ -2,7 +2,7 @@ import os
 
 import ymp
 from ymp.env import Env
-from ymp.stage import Stage
+from ymp.stage import Stage, Reference
 
 icfg = ymp.get_config()
 icfg.activate()

@@ -1,3 +1,7 @@
+"""This module defines "Project", a Stage type defined by a project
+matrix file giving units and meta data for input files.
+"""
+
 import logging
 import os
 import re
@@ -7,15 +11,14 @@ import sqlite3
 from typing import List, Union, Dict, Set, Optional
 
 import ymp
-from ymp.common import ensure_list
-from ymp.exceptions import YmpConfigError, YmpStageError
+from ymp.exceptions import YmpConfigError
 from ymp.stage.base import ConfigStage
 from ymp.util import is_fq, make_local_path
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-class PandasTableBuilder(object):
+class PandasTableBuilder:
     """Builds the data table describing each sample in a project
 
     This class implements loading and combining tabular data files
@@ -50,9 +53,9 @@ class PandasTableBuilder(object):
         - fq2: s1.2.fq, s2.2.fq, s3.2.fq
 
     """
-    """Constructs the project data table from the yaml definition
-    """
     def __init__(self):
+        # Importing Pandas here to avoid long load time if we don't need it.
+        # pylint: disable=import-outside-toplevel
         import pandas
         from pandas.core.reshape.merge import MergeError
         self.pd = pandas
@@ -89,7 +92,7 @@ class PandasTableBuilder(object):
                     cfg,
                     "Could not load specified data file."
                     " If this is an Excel file, you might need"
-                    " to install 'xlrd'."
+                    " to install 'openpyxl'."
                 )
         # prefix fq files with name of config file's directory
         rdir = os.path.dirname(cfg)
@@ -171,12 +174,9 @@ class SQLiteProjectData(object):
     def query(self, *args):
         try:
             return self.conn.execute(*args)
-        except:
+        except:  # noqa: E722
             log.error(f"Failed to query project {self.name} data: {args}")
-            import pdb; pdb.set_trace()
             raise
-        return ids
-
 
     @property
     def nrows(self):
@@ -333,26 +333,23 @@ class Project(ConfigStage):
 
     def get_group(
             self,
-            _stack: "StageStack",
+            stack: "StageStack",  # noqa: F821
             default_groups: List[str],
-            override_groups: Optional[List[str]]
     ) -> List[str]:
-        if override_groups:
-            raise YmpStageError("Cannot override project grouping")
-        return [self.idcol]
+        return super().get_group(stack, [self.idcol])
 
-    def get_ids(_stack, groups, match_groups=None, match_values=None):
+    def get_ids(self, stack, groups, match_groups=None, match_values=None):
         include = set(self.variables)
         if match_groups is not None:
             avail_group = []
             target_parts = []
-            for group, target in zip(match_groups, cur_target.split("__")):
-                if group in prev_stack.group:
+            for group, target in zip(match_groups, match_values.split("__")):
+                if group in include:
                     avail_group.append(group)
                     target_parts.append(target)
             match_groups = avail_group
             match_values = "__".join(target_parts)
-        super.get_ids(stack, groups, match_groups, match_values)
+        return super().get_ids(stack, groups, match_groups, match_values)
 
     def do_get_ids(self, _stack, groups, match_groups=None, match_values=None):
         if match_values:

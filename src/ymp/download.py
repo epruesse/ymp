@@ -8,7 +8,7 @@ import threading
 from typing import List, Optional, Union
 from urllib.parse import urlsplit
 
-import aiohttp
+import aiohttp  # type: ignore
 
 from tqdm import tqdm
 

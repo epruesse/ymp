@@ -1,10 +1,10 @@
 import re
 
-from itertools import product
+from itertools import product as iter_product
 from string import Formatter
 from typing import List, Dict, Tuple, Union, Any, Set
 
-import snakemake.utils
+import snakemake.utils  # type: ignore
 
 
 class FormattingError(AttributeError):
@@ -29,13 +29,16 @@ class OverrideJoinFormatter(Formatter):
     overridden by a derived class.
     """
 
-    def _vformat(self,
-                 format_string: str,
-                 args: List,
-                 kwargs: Dict,
-                 used_args,
-                 recursion_depth: int,
-                 auto_arg_index: int=0) -> Tuple[Union[List[str], str], int]:
+    def _vformat(
+            self,
+            format_string: str,
+            args: List,
+            kwargs: Dict,
+            used_args,
+            recursion_depth: int,
+            auto_arg_index: int = 0,
+    ) -> Tuple[Union[List[str], str], int]:
+        # pylint: disable=too-many-arguments
         if recursion_depth < 0:
             raise ValueError('Max string recursion exceeded')
         result = []
@@ -86,7 +89,8 @@ class OverrideJoinFormatter(Formatter):
 
         return self.join(result), auto_arg_index
 
-    def join(self, args: List[str]) -> Union[List[str],str]:
+    def join(self, args: List[str]) -> Union[List[str], str]:
+        # pylint: disable=no-self-use
         """
         Joins the expanded pieces of the template string to form the output.
 
@@ -117,7 +121,7 @@ class ProductFormatter(OverrideJoinFormatter):
         args = [[item] if isinstance(item, str) else list(item)
                 for item in args]
         # combine items into list corresponding to cartesian product
-        res = [''.join(flat_args) for flat_args in product(*args)]
+        res = [''.join(flat_args) for flat_args in iter_product(*args)]
 
         if len(res) > 1:
             return res
@@ -140,7 +144,7 @@ class RegexFormatter(Formatter):
     """
     def __init__(self, regex: Union[str, Any]) -> None:
         super().__init__()
-        if (isinstance(regex, str)):
+        if isinstance(regex, str):
             self.regex = re.compile(regex)
         else:
             self.regex = regex
@@ -195,7 +199,12 @@ class PartialFormatter(Formatter):
             return getattr(self, "spec", "{{{}}}").format(field_name), None
 
 
-def make_formatter(product=None, regex=None, partial=None, quoted=None):
+def make_formatter(
+        product=None,
+        regex=None,
+        partial=None,
+        quoted=None
+) -> Formatter:
     formatter = 1
     types: 'List[type]' = []
     class_name = ""

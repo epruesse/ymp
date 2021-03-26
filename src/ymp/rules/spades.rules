@@ -17,7 +17,8 @@ with Stage("assemble_spades") as S:
     >>> ymp make toy.assemble_spadesMetaNC
     """)
     S.add_param("", typ="choice", name="task",
-                value=['Normal', 'Meta', 'Sc', 'Rna', 'Isolate'],
+                value=['Normal', 'Meta', 'Sc', 'Rna', 'Isolate',
+                       'Plasmid', 'Metaviral', 'Metaplasmid', 'Rnaviral'],
                 default="Normal")
     S.add_param("NC", typ="flag", name="not_careful")
 
@@ -98,10 +99,14 @@ with Stage("assemble_spades") as S:
           Sc)      TASK="--sc" ;;
           Rna)     TASK="--rna"; OUTPUT=transcripts.fasta ;;
           Isolate) TASK="--isolate" ;;
+          Plasmid) TASK="--plasmid" ;;
+          Metaviral) TASK="--metaviral" ;;
+          Metaplasmid) TASK="--metaplasmid" ;;
+          Rnaviral) TASK="--rnaviral" ;;
         esac
         if [ -z "{params.not_careful}" ]; then
           case {params.task} in
-            Meta|Rna|Isolate) : ;;
+            Meta|Rna|Isolate|MetaViral|Metaplasmid|Rnaviral) : ;;
             *) TASK="$TASK --careful" ;;
           esac
         fi
@@ -148,6 +153,12 @@ with Stage("assemble_spades") as S:
                  exit 1
               fi
            fi
+        fi
+        if [ ! -e {params.workdir}$OUTPUT ]; then
+          if [ -e {params.workdir}contigs.fasta ]; then
+            echo "YMP: WARNING Spades produced no $OUTPUT file, using contigs.fasta instead!" >> {log.console}
+            OUTPUT=contigs.fasta
+          fi
         fi
 
         pigz -p {threads} -9 -c {params.workdir}$OUTPUT > {output.scaffolds}

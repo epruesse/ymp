@@ -36,8 +36,6 @@ from docutils import nodes
 from docutils.parsers import rst
 from docutils.statemachine import StringList
 
-from snakemake.rules import Rule
-
 from sphinx import addnodes
 from sphinx.application import Sphinx
 from sphinx.directives import ObjectDescription
@@ -294,7 +292,7 @@ class AutoSnakefileDirective(rst.Directive):
         doclines = [''] + doc.splitlines() + ['']
         return StringList(doclines, source)
 
-    def parse_rule(self, rule: str, idt: int=0) -> StringList:
+    def parse_rule(self, rule_name: str, idt: int=0) -> StringList:
         """Convert Rule to StringList
 
         Args:
@@ -304,7 +302,8 @@ class AutoSnakefileDirective(rst.Directive):
         Retuns:
           StringList containing formatted Rule documentation
         """
-        head = self.tpl_rule.format(name=rule)
+        head = self.tpl_rule.format(name=rule_name)
+        rule = self.workflow.get_rule(rule_name)
         if rule.lineno:
             head += "\n"
             head += self.tpl_source.format(
@@ -318,7 +317,9 @@ class AutoSnakefileDirective(rst.Directive):
         return StringList(headlines, rule.snakefile) + doc
 
     def parse_stage(self, stage: Stage, idt: int=0) -> StringList:
-        head = self.tpl_stage.format(name=stage.name)
+        # Import Stage for Projects has empty name
+        name = stage.name or "Import"
+        head = self.tpl_stage.format(name=name)
         if stage.lineno:
             head += "\n"
             head += self.tpl_source.format(
@@ -330,7 +331,7 @@ class AutoSnakefileDirective(rst.Directive):
         doc = self.parse_doc(stage.docstring, stage.filename, idt+3)
 
         res = StringList(headlines, stage.filename) + doc
-        for rule in sorted(stage.rules, key=lambda s: s.name):
+        for rule in sorted(stage.rules):
             res.extend(self.parse_rule(rule, idt+3))
         return res
 
@@ -350,7 +351,7 @@ class AutoSnakefileDirective(rst.Directive):
         rules = self.workflow.rules
         for rule in rules:
             if not getattr(rule, "ymp_stage", False):
-                result.extend(self.parse_rule(rule))
+                result.extend(self.parse_rule(rule.name))
 
         self.state.nested_parse(result, 0, node)
         return [node]
@@ -499,10 +500,17 @@ class DomainTocTreeCollector(EnvironmentCollector):
         blist.append(item)
 
 
+class CondaDomain(Domain):
+    name = "conda"
+    object_types = {'package': ObjType('package', 'package')}
+    roles = {'package': XRefRole()}
+
+
 def setup(app: Sphinx):
     """Register the extension with Sphinx"""
-    app.add_lexer('snakemake', SnakemakeLexer())
+    app.add_lexer('snakemake', SnakemakeLexer)
     app.add_domain(SnakemakeDomain)
     app.add_directive('autosnake', AutoSnakefileDirective)
     app.add_env_collector(DomainTocTreeCollector)
     app.connect('html-collect-pages', collect_pages)
+    app.add_domain(CondaDomain)

@@ -3,7 +3,7 @@ import glob
 import logging
 import os
 
-from xdg import XDG_CACHE_HOME
+from xdg import XDG_CACHE_HOME  # type: ignore
 
 import ymp.yaml
 from ymp.common import AttrDict, Cache, MkdirDict, parse_number

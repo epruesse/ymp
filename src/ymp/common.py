@@ -96,6 +96,31 @@ def ensure_list(obj):
     return list(obj)
 
 
+class NoCache(object):
+    def __init__(self, root):
+        self.caches = {}
+
+    def close(self):
+        pass  # NoCache doesn't close anything
+
+    def get_cache(self, name, clean=False, *args, **kwargs):
+        if name not in self.caches:
+            self.caches[name] = CacheDict(self, name, *args, **kwargs)
+        return self.caches[name]
+
+    def store(self, cache, key, obj):
+        pass  # NoCache doesnt store anything
+
+    def commit(self):
+        pass # NoCache doesnt commit anything
+
+    def load(self, _cache, _key):
+        return None
+
+    def load_all(self, _cache):
+        return ()
+
+
 class Cache(object):
     def __init__(self, root):
         import sqlite3
