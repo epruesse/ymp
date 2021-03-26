@@ -18,8 +18,6 @@ rule download_file_ftp:
     shell: """
     wget  "{params.url}" -O "{output[0]}" > {log} 2>&1
     """
-ruleorder: download_file_ftp > gunzip
-ruleorder: download_file_ftp > fq2fa
 
 rule download_file_http:
     """
@@ -39,8 +37,6 @@ rule download_file_http:
     run:
         from ymp.download import FileDownloader
         FileDownloader(loglevel=0).get(params.url, output[0])
-ruleorder: download_file_http > gunzip
-ruleorder: download_file_http > fq2fa
 
 
 with Stage("references") as S:
@@ -109,7 +105,6 @@ with Stage("references") as S:
         tar -xf '{input.tar}' --strip-components {params.strip} -C '{params.prefix}'
         """
     ruleorder: unpack_archive > prepare_reference
-    ruleorder: unpack_archive > gunzip
 
     for ref in icfg.ref:
         for unpack_rule in icfg.ref[ref].make_unpack_rules(workflow._rules['unpack_archive']):

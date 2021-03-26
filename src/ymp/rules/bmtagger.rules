@@ -81,7 +81,6 @@ with Stage("filter_bmtagger", "remove_bmtagger") as S:
     >>> ymp make mpic.ref_phiX.index_bmtagger.remove_bmtagger
     """)
 
-    ruleorder: gunzip > bmtagger_find
     rule bmtagger_find:
         "Match paired end reads against reference"
         message:
