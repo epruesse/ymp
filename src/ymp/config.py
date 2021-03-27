@@ -5,10 +5,12 @@ import os
 
 from xdg import XDG_CACHE_HOME  # type: ignore
 
+from typing import Mapping, Sequence
+
 import ymp.yaml
 from ymp.common import AttrDict, Cache, MkdirDict, parse_number
 from ymp.env import CondaPathExpander
-from ymp.exceptions import YmpSystemError
+from ymp.exceptions import YmpSystemError, YmpConfigError
 from ymp.stage import Pipeline, Project, Reference
 from ymp.snakemake import \
     BaseExpander, \
@@ -44,7 +46,7 @@ class ConfigExpander(ColonExpander):
 
 class OverrideExpander(BaseExpander):
     """
-    Apply rule attribute overrides from ymp.yml config
+    Override rule parameters, resources and threads using config values
 
     Example:
         Set the ``wordsize`` parameter in the `bmtagger_bitmask` rule to
@@ -58,21 +60,53 @@ class OverrideExpander(BaseExpander):
                bmtagger_bitmask:
                  params:
                    wordsize: 12
+                 resources:
+                   memory: 15G
+                 threads: 12
     """
+
+    types = {
+        "threads": int,
+        "params": Mapping,
+        "resources": Mapping,
+    }
+
     def __init__(self, cfgmgr):
-        if 'overrides' not in cfgmgr._config:
+        if "overrides" not in cfgmgr._config:
             return
-        self.rule_overrides = cfgmgr._config['overrides'].get('rules', {})
+        self.rule_overrides = cfgmgr._config["overrides"].get("rules", {})
         super().__init__()
 
     def expand(self, rule, ruleinfo, **kwargs):
         overrides = self.rule_overrides.get(rule.name, {})
         for attr_name, values in overrides.items():
-            attr = getattr(ruleinfo, attr_name)[1]
-            for val_name, value in values.items():
-                log.debug("Overriding {}.{}={} in {} with {}".format(
-                    attr_name, val_name, attr[val_name], rule.name, value))
-                attr[val_name] = value
+            if attr_name not in self.types:
+                raise YmpConfigError(
+                    overrides, f'Cannot override "{attr_name}" field', key=attr_name
+                )
+            attr = getattr(ruleinfo, attr_name)
+            if not isinstance(values, self.types[attr_name]):
+                raise YmpConfigError(
+                    overrides,
+                    f'Overrides for "{attr_name}" must be of type "{self.types[attr_name].__name__}"'
+                    f' (found type "{type(values).__name__}").',
+                    key=attr_name,
+                )
+            if isinstance(values, Mapping):
+                for val_name, value in values.items():
+                    log.debug(
+                        "Overriding {}.{}={} in {} with {}".format(
+                            attr_name, val_name, attr[1][val_name], rule.name, value
+                        )
+                    )
+                    attr[1][val_name] = value
+            if isinstance(values, int):
+                log.debug(
+                    "Overriding {}={} in {} with {}".format(
+                        attr_name, attr, rule.name, values
+                    )
+                )
+                setattr(ruleinfo, attr_name, values)
 
 
 class ConfigMgr(object):
