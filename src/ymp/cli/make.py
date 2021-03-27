@@ -158,13 +158,6 @@ def snake_params(func):
     return decorated
 
 
-class YmpConfigNotFound(YmpException):
-    """
-    Exception raised by YMP if no config was found in current path
-    """
-    pass
-
-
 def start_snakemake(kwargs):
     """Execute Snakemake with given parameters and targets
 
@@ -237,9 +230,11 @@ def start_snakemake(kwargs):
             stage_stack_failure = exc
             targets.append(target)
         except YmpException as exc:  # Something else happened. Abort.
+            if kwargs.get("debug"):
+                import pdb; pdb.post_mortem()
             log.error("Failure assembling stack:")
-            exc.show()
-            return False
+            raise
+
     if targets:
         log.info("Making targets:")
         for target in targets:
