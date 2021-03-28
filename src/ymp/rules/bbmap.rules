@@ -266,7 +266,7 @@ with Stage("dedup_bbmap") as S:
             "{:this:}/{target}.{:pairnames[0]:}.fq.gz"
         log:
             "{:this:}/{target}.log"
-        params:
+        resources:
             mem = "80g",
         threads: 4
         conda:

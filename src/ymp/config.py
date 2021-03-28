@@ -145,7 +145,6 @@ class ResourceLimitsExpander(BaseExpander):
     def parse_config(self, cfg):
         """Parses limits config"""
         limits = OrderedDict()
-        opts = ("default", "scale", "min", "max")
         for name, params in cfg.items():
             lconf = {}
             format_name = params.get("format")
@@ -169,7 +168,7 @@ class ResourceLimitsExpander(BaseExpander):
             for opt in params:
                 if opt in ("format", "unit", "from"):
                     continue
-                if opt not in opts:
+                if opt not in ("default", "scale", "min", "max"):
                     raise YmpConfigError(
                         params,
                         f'Unknown parameter "{opt}" in "{name}" resource_limits',
