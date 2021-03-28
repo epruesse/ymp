@@ -81,17 +81,6 @@ rule gunzip:
     """
 
 
-localrules: mkdir
-rule mkdir:
-    """
-    Auto-create directories listed in ymp config.
-
-    Use these as input:
-    >>> input: tmpdir = ancient(icfg.dir.tmp)
-    """
-    message: "Creating directory '{output}'"
-    output: directory("{{x,({})}}".format("|".join(list(icfg.dir))))
-    shell: "mkdir -p {output}"
 
 
 rule fq2fa:
