@@ -18,7 +18,7 @@ python_classes = "*Test"
 norecursedirs = "test_failures .git build dist"
 junit_suite_name = "ymp"
 timeout = 300
-addopts = "--capture=fd --cov=./src/ymp"
+addopts = "--capture=fd --cov=./src/ymp  --cov-report=xml --cov-report=term"
 markers = [
 	"runstool",
 ]

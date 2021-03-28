@@ -47,11 +47,11 @@ jobs:
       - name: Testing Core
         if: matrix.section == 'Core'
         run: |
-          pytest -vv -n 2 --cov --junit-xml junit/report.xml --cov-report=xml
+          pytest -vv -n auto --junit-xml junit/report.xml --durations=0
       - name: Testing Tools
         if: matrix.section == 'Tools'
         run: |
-          pytest -vvvs --cov --junit-xml junit-tools/report.xml --cov-report=xml -n1 --run-tools -m runs_tool --timeout=600
+          pytest -vvvs -n 1 --junit-xml junit-tools/report.xml --run-tools -m runs_tool --timeout=600 --durations=0
       - name: Upload logs
         if: failure()
         uses: actions/upload-artifact@v1
