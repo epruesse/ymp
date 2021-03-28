@@ -58,3 +58,8 @@ jobs:
         with:
           name: Test Failure Logs ${{matrix.os}} ${{matrix.section}}
           path: test_failures
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          env_vars: OS,PYTHON
+          verbose: true
