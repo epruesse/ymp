@@ -83,10 +83,11 @@ with Stage("map_bowtie2") as S:
             "benchmarks/bowtie2_map/{:this:}/{target}.txt"
         params:
             bt2_base = lambda wc, input: input.index[0][:-len(BT2IDX_SUFFIXES[0])-1],
-            mem    = icfg.mem("80g"),
             r1 = filter_input("r1", also="r2", join=","),
             r2 = filter_input("r2", also="r1", join=","),
             index_nonempty = check_input(["index"], minbytes=1)
+        resources:
+            mem = "80g",
         threads:
             12
         conda:

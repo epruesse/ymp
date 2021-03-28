@@ -84,13 +84,14 @@ with Stage("assemble_spades") as S:
             workdir = "{:this:}/{target}.tmp/",
             tmpdir  = "{:dir.tmp:}",
             #low_read_count = 50,
-            mem     = icfg.mem("1000g"),
             # Allow failure if we have <50 sequences
             sufficient_input = check_input(["r1", "r2"], minlines=50*4*2)
+        resources:
+            mem = "1T",
         conda:
             "spades"
         threads:
-            24
+            128
         shell: r"""
         OUTPUT="scaffolds.fasta"
         case {params.task} in
@@ -135,7 +136,7 @@ with Stage("assemble_spades") as S:
            ARGS="$ARGS --threads {threads}"
            ARGS="$ARGS --tmp-dir {params.tmpdir}"
            # 98% available minus 2GB
-           ARGS="$ARGS --memory $(({params.mem}/1044 - 2))"
+           ARGS="$ARGS --memory $(({resources.mem_gb} * 98 / 100 - 2))"
            if [ -n "$CONTINUE" ]; then
               ARGS="$ARGS --restart-from last"
            else

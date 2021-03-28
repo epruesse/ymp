@@ -276,7 +276,8 @@ with Stage("annotate_blast") as S:
             db_name = lambda wc, input: input.db[0][:-4],
             blastfmt = BLASTFMT,
             tmpdir = "{:ensuredir.tmp:}",
-            mem=icfg.mem("128g")
+        resources:
+            mem = "128g",
         threads:
             24
         conda:   "blast"

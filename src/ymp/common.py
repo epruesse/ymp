@@ -2,6 +2,7 @@
 Collection of shared utility classes and methods
 """
 import logging
+import re
 import os
 from collections.abc import Iterable
 
@@ -52,7 +53,7 @@ def parse_number(s=""):
     - accepts "1kib", "1kb" or "1k"
     """
     multiplier = 1
-    s = s.strip().upper().rstrip("BI")
+    s = str(s).strip().upper().rstrip("BI")
 
     if s.endswith("K"):
         multiplier = 1024
@@ -69,6 +70,57 @@ def parse_number(s=""):
         return float(s)*multiplier
     else:
         return int(s)*multiplier
+
+
+def format_number(num: int, unit="") -> int:
+    div = parse_number("1"+unit) if unit else 1
+    return round(num / div)
+
+
+TIME_RE = re.compile(
+    r"""
+    (?P<days>\d+(?=-))?-?
+    (?P<hours>(?<=-)\d{1,2}|\d{1,2}(?=:\d{1,2}:)|):?
+    (?P<minutes>\d{1,2})?:?
+    (?P<seconds>\d{1,2})?
+    """,
+    re.VERBOSE
+)
+
+def parse_time(timestr: str) -> int:
+    """Parses time in "SLURM" format
+
+    <minutes>
+    <minutes>:<seconds>
+    <hours>:<minutes>:<seconds>
+    <days>-<hours>
+    <days>-<hours>:<minutes>
+    <days>-<hours>:<minutes>:<seconds>
+    """
+    match = TIME_RE.match(str(timestr))
+    if not match:
+        raise ValueError()
+    data = match.groupdict()
+    return (
+        int(data.get("days") or 0) * 86400
+        + int(data.get("hours") or 0) * 3600
+        + int(data.get("minutes") or 0) * 60
+        + int(data.get("seconds") or 0)
+    )
+
+def format_time(seconds: int, unit=None) -> str:
+    """Prints time in SLURM format"""
+    if unit in ("s", "seconds"):
+        return str(seconds)
+    if unit in ("m", "minutes"):
+        return str(round(seconds/60))
+    days = seconds // 86400
+    seconds = seconds % 86400
+    hours = seconds // 3600
+    seconds = seconds % 3600
+    minutes = seconds // 60
+    seconds = seconds % 60
+    return f"{days}-{hours}:{minutes}:{seconds}"
 
 
 def flatten(item):

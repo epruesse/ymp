@@ -38,7 +38,8 @@ with Stage("assemble_megahit") as S:
             sufficient_input = check_input(["r1", "r2"], minlines=50*4*2),
             workdir = "{:this:}/{target}.tmp",
             preset  = "meta-sensitive",
-            mem = icfg.mem("500g")
+        resources:
+            mem = "500g",
         threads:
             32
         conda:

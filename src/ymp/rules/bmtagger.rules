@@ -23,7 +23,8 @@ with Stage("index_bmtagger") as S:
         params:
             tmp = "{:this:}/{target}.tmp.fa",
             wordsize = 18, # 18->8g, 17->2g, 16->512MB
-            mem = icfg.mem("16g")
+        resources:
+            mem = "16g",
         conda:
             "bmtagger"
         shell: """
@@ -47,16 +48,15 @@ with Stage("index_bmtagger") as S:
         log:
             "{:this:}/{target}.srprism.log"
         threads: 1
-        params:
-            mem = icfg.mem("16g"),
-            memarg = icfg.mem("15g")
+        resources:
+            mem = "16g",
         conda:
             "bmtagger"
         shell: """
         srprism mkindex \
         --input {input} \
         --output {output} \
-        --memory {params.memarg} \
+        --memory $(({resources.mem_mb} / 16 * 15)) \
         > {log} 2>&1
         touch {output}
         """
@@ -98,8 +98,9 @@ with Stage("filter_bmtagger", "remove_bmtagger") as S:
         threads:
             1
         params:
-            mem = icfg.mem("16g"),
             matearg = "-2 <(gunzip -c {input.fq[1]})"
+        resources:
+            mem = "16g",
         conda:
             "bmtagger"
         shell: """
@@ -138,7 +139,8 @@ with Stage("filter_bmtagger", "remove_bmtagger") as S:
         params:
             mate = 1,
             action = "-keep",
-            mem    = icfg.mem("8g")
+        resources:
+            mem = "8g",
         conda:
             "bmtagger"
         shell: """

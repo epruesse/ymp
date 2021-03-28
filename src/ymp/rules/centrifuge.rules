@@ -23,8 +23,8 @@ with Stage("profile_centrifuge") as S:
             16
         conda:
             "centrifuge"
-        params:
-            mem = icfg.mem("32G")
+        resources:
+            mem = "32g",
         shell:
             "centrifuge"
             " -x {params.dbbase}"

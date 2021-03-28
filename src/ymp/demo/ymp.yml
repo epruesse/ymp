@@ -55,14 +55,36 @@ overrides:
       params:
         min_cls_size: 2000
 
-limits:
-  # Set resource limits. These act as minimum/maximum for build in
-  # memory requirements. Set this to the minimum and maximum memory
-  # any job may try to request. E.g. the maximum memory on any of your
-  # compute nodes, or the maximum you want to use on your local
-  # machine.
-  min_mem: '20M'
-  max_mem: '4G'
+resource_limits:
+  # This section allows capping and scaling resources (including the
+  # special resource threads). For each resource, the mininum and
+  # maximum to which rule settings should be bounded can be specified, a
+  # default for rules not setting a value, and a scale factor that will
+  # be applied to values set in rules. The format parameter allows
+  # parsing and formatting k/m/g/t style numbers (number) and time
+  # values (time).
+  #
+  # The resource modifications will be applied after overrides.
+  mem:
+    # Use "mem" in "resources:" to specify how much RAM a rule will need
+    # for execution. Suffixes k, m, g and t will be parsed and the value
+    # in MB and GB made available via "{resources.mem_mb}" and
+    # "{resources.mem_gb}", respectively.
+    default: 20M
+    scale: 1
+    min: 20M
+    max: 4G
+  walltime:
+    # Use "walltime" to specify maximum execution times for submitting
+    # jobs to a cluster. The time is parsed and formatted in SLURM
+    # syntax by default.
+    default: 59:59
+  threads:
+    # This allows capping and rescaling job thread counts, which is
+    # mostly useful for cluster execution where job thread count is
+    # otherwise unbounded. Set the max to the maximum thread count
+    # submitted jobs should have.
+    max: 128
 
 pipelines:
   # Pipelines are sequential combinations of stages. Once your workflow

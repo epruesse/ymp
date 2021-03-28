@@ -54,7 +54,8 @@ rule fastq_dump:
     params:
         outdir = icfg.dir.scratch + "/SRR",
         p      = lambda wc, threads: int(threads/2+.5),
-        mem    = icfg.mem("200M")
+    resources:
+        mem = "200M",
     conda:
         "sratools.yml"
     threads:

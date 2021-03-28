@@ -30,7 +30,8 @@ with Stage("metaphlan2") as S:
             16
         params:
             bt2_base = metaphlan_db,
-            mem = icfg.mem("128G")
+        resources:
+            mem = "128g",
         shell: """
         bowtie2 \
         --threads {threads} \

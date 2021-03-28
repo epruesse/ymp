@@ -55,10 +55,11 @@ with Stage("cluster_cdhit") as S:
         threads:
             32
         params:
-            mem=icfg.mem("32G"),
             slow=1,
             print_overlap=1,
             description_length=0
+        resources:
+            mem = "32g",
         conda:
             "cdhit"
         shell: """
