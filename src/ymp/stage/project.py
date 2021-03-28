@@ -422,8 +422,8 @@ class Project(ConfigStage):
                 ))
         else:
             idcol = unique_columns[0]
-            log.warn("Project '%s' using column '%s' to identify units",
-                     self.name, idcol)
+            log.warning("Project '%s' using column '%s' to identify units",
+                        self.name, idcol)
 
         return idcol
 
