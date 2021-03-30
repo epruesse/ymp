@@ -241,8 +241,8 @@ cluster:
         log:      "-j oe -o {:ensuredir.log:}/"
         name:     "-N ymp.{rule}"
         threads:  "-l nodes=1:ppn={threads}"
-        walltime: "-l walltime={params.walltime}"
-        memory:   "-l mem={params.mem}"
+        walltime: "-l walltime={resources.walltime}"
+        memory:   "-l mem={resources.mem_mb}"
     # Profile for Gridengine
     gridengine:
       command:    "qsub"
@@ -257,24 +257,17 @@ cluster:
       args:
         log:      "--output={:ensuredir.log:}/%x_%J.log"
         threads:  "--cpus-per-task={threads} --nodes=1 --ntasks=1"
-        memory:   "--mem={params.mem}"
-        walltime: "--time={params.walltime}"
+        memory:   "--mem={resources.mem_mb}"
+        walltime: "--time={resources.walltime}"
       cluster_status: "python -m ymp.cluster slurm status"
     lsf:
       command:    "python -m ymp.cluster lsf submit"
       args:
         log:      "-o {:ensuredir.log:}/%J.log"
         threads:  "-R 'span[hosts=1]' -n {threads}"
-        memory:   "-R 'select[mem>{params.mem}] rusage[mem={params.mem}]'"
-#        walltime: "-W {params.walltime}"  # [hours:]minutes - fixme check format
+        memory:   "-R 'select[mem>{resources.mem_mb}] rusage[mem={resources.mem_mb}]'"
+#       walltime: "-W {resources.walltime}"  # [hours:]minutes - fixme check format
       cluster_status: "python -m ymp.cluster lsf status"
-
-  rule_params:
-    default:
-      nodes: 1
-      walltime: 23:59:00
-      mem: 63G
-
 
 # Internal:
 pairnames:
