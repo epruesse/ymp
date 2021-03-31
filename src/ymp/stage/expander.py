@@ -55,10 +55,27 @@ class StageExpander(ColonExpander):
             try:
                 val = self.get_value_(key, args, kwargs)
             except ExpandLateException:
+                if kwargs['field'] in ("message", "shellcmd"):
+                    # shellcmd and message don't get functions
+                    # expanded. Place the function in params instead and
+                    # replace with a snakemake format for that param.
+                    ruleinfo = kwargs['ruleinfo']
+                    if not ruleinfo.params:
+                        ruleinfo.params = ((), [])
+                    saved_args = kwargs.copy()
+                    stage = Stage.get_active()
+                    def redirect_wrapper(wc):
+                        saved_args['wc'] = wc
+                        backup_stage = Stage.get_active()
+                        Stage.set_active(stage)
+                        val = self.get_value_(key, args, saved_args)
+                        Stage.set_active(backup_stage)
+                        return val
+                    funcname = "_ymp_wrapped_{}".format(hex(hash(redirect_wrapper)))
+                    ruleinfo.params[1][funcname] = redirect_wrapper
+                    return "{{params.{}}}".format(funcname)
                 raise
-            except IncompleteCheckpointException:
-                raise
-            except RemoveValue:
+            except (ExpandLateException, IncompleteCheckpointException, RemoveValue, KeyError):
                 raise
             except Exception as e:
                 log.debug(
