@@ -581,7 +581,6 @@ class BaseExpander(object):
             # avoid recursion:
             if cb:
                 raise
-
             expand_args = expand_args.copy()
             def item_wrapped(wc):
                 expand_args['wc'] = wc

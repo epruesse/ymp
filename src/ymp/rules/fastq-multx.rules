@@ -12,7 +12,7 @@ with Stage("split_library") as S:
         message:
             "FastQ-MultiX: Splitting library {input[1]}"
         input:
-            lambda wc: icfg.projects[wc.project].unsplit_path(wc.barcodes, wc.pairname),
+            lambda wc: ymp.get_config().projects[wc.project].unsplit_path(wc.barcodes, wc.pairname),
             mapfile = "{project}/qiime_mapping.tsv"
         output:
             temp(directory("{project}.split_libraries/{barcodes}/{pairname}/"))

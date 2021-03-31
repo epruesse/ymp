@@ -56,11 +56,12 @@ with Stage("references") as S:
         message:
             "Preparing {output}"
         input:
-            files = lambda wc: icfg.ref[wc.refname].get_file(wc.path)
+            files = lambda wc: ymp.get_config().ref[wc.refname].get_file(wc.path)
         output:
             "{:dir.references:}/{refname}/{path}"
         wildcard_constraints:
-            path = "(?!_unpacked_).*"
+            path = "(?!_unpacked_).*",
+            refname = str("({})".format("|".join(ymp.get_config().ref)))
         run:
             if isinstance(input.files, str):
                 infile = input.files
@@ -106,13 +107,13 @@ with Stage("references") as S:
         """
     ruleorder: unpack_archive > prepare_reference
 
-    for ref in icfg.ref:
-        for unpack_rule in icfg.ref[ref].make_unpack_rules(workflow._rules['unpack_archive']):
+    for ref in ymp.get_config().ref.values():
+        for unpack_rule in ref.make_unpack_rules(workflow._rules['unpack_archive']):
             unpack_rule
 
-if (icfg.pipelines):
+if (ymp.get_config().pipelines):
     pipeline_pattern = "{{pipeline_stack_link,[^/]*.({})}}".format(
-        "|".join(icfg.pipelines)
+        "|".join(ymp.get_config().pipelines)
     )
 
     def _get_pipeline_realpath(wc):
