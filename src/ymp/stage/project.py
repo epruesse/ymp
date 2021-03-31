@@ -372,7 +372,7 @@ class Project(ConfigStage):
 
         Lazy loading property, first call may take a while.
         """
-        return self.data.fetch(self.idcol)[0]
+        return [run[0] for run in self.data.fetch(self.idcol)]
 
     @property
     def idcol(self):
