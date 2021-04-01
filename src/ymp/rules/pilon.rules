@@ -16,6 +16,8 @@ with Stage("polish_pilon") as S:
             fasta = "{:prev:}/{:target:}.fasta.gz",
         output:
             fasta = "{:this:}/{target}.fasta.gz",
+            vcf   = "{:this:}/{target}.vcf.gz",
+            changes = "{:this:}/{target}.pilon.changes.txt",
         log:
             "{:this:}/{target}.log"
         threads:
@@ -42,12 +44,24 @@ with Stage("polish_pilon") as S:
             " --threads {threads}"
             " --genome {input.fasta}"
             " --output {params.thistarget}"
+            " --changes"
+            " --vcf"
             " {params.bamopts}"
             " --iupac"
             ";"
+
             "pigz "
             " --processes {threads} "
             " {params.thistarget}.fasta"
+            ";"
+
+            "pigz "
+            " --processes {threads} "
+            " {params.thistarget}.vcf"
+            ";"
+
+            "mv {params.thistarget}.changes {output.changes}"
+            ";"
 
     rule pilon_polish_all:
         message:
