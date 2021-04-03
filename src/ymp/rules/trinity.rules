@@ -20,12 +20,12 @@ with Stage("assemble_trinity") as S:
             r2 = filter_input("r2", also=["r1"], minsize=1, join=","),
             # Allow failure if we have <50 sequences
             sufficient_input = check_input(["r1", "r2"], minlines=50*4*2),
-            mem = icfg.mem("32g"),
-            mem_gb = icfg.mem("32g", unit="g"),
             min_contig_length = 200,
             lib_type = "FR",
             # outdir must contain word "trinity"
             outdir = "{:this:}/{target}.trinity.tmp"
+        resources:
+            mem = "32g",
         threads:
             24
         conda:
@@ -44,7 +44,7 @@ with Stage("assemble_trinity") as S:
            ARGS=
            ARGS="$ARGS --seqType fq"
            ARGS="$ARGS --SS_lib_type {params.lib_type}"
-           ARGS="$ARGS --max_memory {params.mem_gb}G"
+           ARGS="$ARGS --max_memory {resources.mem_gb}G"
            ARGS="$ARGS --left {params.r1} --right {params.r2}"
            ARGS="$ARGS --CPU {threads}"
            ARGS="$ARGS --min_contig_length {params.min_contig_length}"

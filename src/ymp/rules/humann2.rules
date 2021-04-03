@@ -24,7 +24,6 @@ with stage.references:
         shell: """
         humann2_databases --download {wildcards.database} {wildcards.build} {output} >{log} 2>&1
         """
-    ruleorder: human_db_download > gunzip
 
 
 with Stage("humann2") as S:
@@ -52,7 +51,8 @@ with Stage("humann2") as S:
             chocophlan = "full",
             uniref     = "uniref90_diamond",
             outpath    = "{:this:}",
-            mem        = icfg.mem("128G")
+        resources:
+            mem        = "128g",
         log:
             stderr     = "{:this:}/{sample}.log",
             trace      = "{:this:}/{sample}.trace",

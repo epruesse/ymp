@@ -3,12 +3,15 @@ import glob
 import logging
 import os
 
+from collections import OrderedDict
 from xdg import XDG_CACHE_HOME  # type: ignore
 
+from typing import Mapping, Sequence, Optional
+
 import ymp.yaml
-from ymp.common import AttrDict, Cache, MkdirDict, parse_number
+from ymp.common import AttrDict, Cache, MkdirDict, parse_number, format_number, parse_time, format_time
 from ymp.env import CondaPathExpander
-from ymp.exceptions import YmpSystemError
+from ymp.exceptions import YmpSystemError, YmpConfigError
 from ymp.stage import Pipeline, Project, Reference
 from ymp.snakemake import \
     BaseExpander, \
@@ -44,7 +47,7 @@ class ConfigExpander(ColonExpander):
 
 class OverrideExpander(BaseExpander):
     """
-    Apply rule attribute overrides from ymp.yml config
+    Override rule parameters, resources and threads using config values
 
     Example:
         Set the ``wordsize`` parameter in the `bmtagger_bitmask` rule to
@@ -58,21 +61,183 @@ class OverrideExpander(BaseExpander):
                bmtagger_bitmask:
                  params:
                    wordsize: 12
+                 resources:
+                   memory: 15G
+                 threads: 12
     """
+
+    types = {
+        "threads": int,
+        "params": Mapping,
+        "resources": Mapping,
+    }
+
     def __init__(self, cfgmgr):
-        if 'overrides' not in cfgmgr._config:
+        if "overrides" not in cfgmgr._config:
             return
-        self.rule_overrides = cfgmgr._config['overrides'].get('rules', {})
+        self.rule_overrides = cfgmgr._config["overrides"].get("rules", {})
         super().__init__()
 
     def expand(self, rule, ruleinfo, **kwargs):
         overrides = self.rule_overrides.get(rule.name, {})
         for attr_name, values in overrides.items():
-            attr = getattr(ruleinfo, attr_name)[1]
-            for val_name, value in values.items():
-                log.debug("Overriding {}.{}={} in {} with {}".format(
-                    attr_name, val_name, attr[val_name], rule.name, value))
-                attr[val_name] = value
+            if attr_name not in self.types:
+                raise YmpConfigError(
+                    overrides, f'Cannot override "{attr_name}" field', key=attr_name
+                )
+            attr = getattr(ruleinfo, attr_name)
+            if not isinstance(values, self.types[attr_name]):
+                raise YmpConfigError(
+                    overrides,
+                    f'Overrides for "{attr_name}" must be of type "{self.types[attr_name].__name__}"'
+                    f' (found type "{type(values).__name__}").',
+                    key=attr_name,
+                )
+            if isinstance(values, Mapping):
+                for val_name, value in values.items():
+                    log.debug(
+                        "Overriding {}.{}={} in {} with {}".format(
+                            attr_name, val_name, attr[1][val_name], rule.name, value
+                        )
+                    )
+                    attr[1][val_name] = value
+            if isinstance(values, int):
+                log.debug(
+                    "Overriding {}={} in {} with {}".format(
+                        attr_name, attr, rule.name, values
+                    )
+                )
+                setattr(ruleinfo, attr_name, values)
+
+
+class ResourceLimitsExpander(BaseExpander):
+    """Allows adjusting resources to local compute environment
+
+    Each config item defines processing for an item in ``resources:``
+    or the special resource``threads``. Each item may have a
+    ``default`` value filled in for rules not defining the resource,
+    ``min`` and ``max`` defining the lower and uppeer bounds, and a
+    ``scale`` value applied to the ``default`` to adjust resources up
+    or down globally. Values in time or "human readable" format mabe
+    parsed specially by passing the ``format`` values ``time`` or
+    ``number``, respectively. These values will also be reformatted,
+    with the optional paramter ``unit`` defining the output format
+    (k/g/m/t for numbers and minutes/seconds for time). Additional
+    resource values may be generated from configured onces using the
+    ``from`` keyword (e.g. to provide both ``mem_mb`` and ``mem_gb``
+    from a generic ``mem`` value.
+    """
+
+    parsers = {
+        "number": parse_number,
+        "time": parse_time,
+    }
+    formatters = {
+        "number": format_number,
+        "time": format_time,
+    }
+
+    def __init__(self, cfg: Optional[Mapping]) -> None:
+        if not isinstance(cfg, Mapping):
+            raise YmpConfigError(cfg, "Limits section must be a map (key: value)")
+        self.limits = self.parse_config(cfg)
+
+    def parse_config(self, cfg):
+        """Parses limits config"""
+        limits = OrderedDict()
+        for name, params in cfg.items():
+            lconf = {}
+            format_name = params.get("format")
+            lconf["parser"] = self.parsers.get(format_name) or (lambda x, unit=None: x)
+            lconf["formatter"] = self.formatters.get(format_name) or (lambda x, unit=None: x)
+            unit = params.get("unit")
+            if unit:
+                if not format:
+                    raise YmpConfigError(cfg, 'Resource "unit" only valid with formatter', key=name)
+                lconf["unit"] = unit
+            source = params.get("from")
+            if source:
+                if source not in cfg:
+                    raise YmpConfigError(
+                        cfg,
+                        f'Resource "from" ({source}) must reference'
+                        f' previously defined resource (have {", ".join(cfg.keys())})',
+                        key=name
+                    )
+                lconf["from"] = source
+            for opt in params:
+                if opt in ("format", "unit", "from"):
+                    continue
+                if opt not in ("default", "scale", "min", "max"):
+                    raise YmpConfigError(
+                        params,
+                        f'Unknown parameter "{opt}" in "{name}" resource_limits',
+                        opt
+                    )
+                try:
+                    lconf[opt] = lconf['parser'](params.get(opt))
+                except ValueError:
+                    raise YmpConfigError(
+                        params,
+                        f'Failed to parse "{params.get(opt)}"',
+                        key=opt
+                    ) from None
+            limits[name] = lconf
+        for key in list(limits.keys()):
+            if limits[key].get("from"):
+                limits.move_to_end(key)
+        return limits
+
+    def expands_field(self, field: str) -> bool:
+        return field in ("threads", "resources")
+
+    def expand(self, rule, ruleinfo, **kwargs) -> None:
+        if ruleinfo.resources is None:
+            ruleinfo.resources = ([], {})
+        for rsrc, config in self.limits.items():
+            if "from" in config:
+                value = ruleinfo.resources[1][config["from"]]
+            elif rsrc == "threads":
+                value = ruleinfo.threads
+            else:
+                value = ruleinfo.resources[1].get(rsrc)
+
+            if value is not None:
+                value = config['parser'](value)
+            value = self.adjust_value(
+                value,
+                config.get("default"),
+                config.get("scale"),
+                config.get("min"),
+                config.get("max")
+            )
+            if value is not None:
+                value = config['formatter'](value, unit = config.get("unit"))
+                if rsrc == "threads":
+                    ruleinfo.threads = value
+                else:
+                    ruleinfo.resources[1][rsrc] = value
+
+    @staticmethod
+    def adjust_value(
+            value: Optional[int],
+            default: Optional[int],
+            scale: Optional[int],
+            minimum: Optional[int],
+            maximum: Optional[int],
+    ) -> Optional[int]:
+        """Applies default, scale, minimum and maximum to a numeric value)"""
+        if value is None:
+            if default is None:
+                return None
+            value = default
+        elif scale is not None:
+            value *= scale
+        if minimum is not None and value < minimum:
+            value = minimum
+        if maximum is not None and value > maximum:
+            value = maximum
+        return value
 
 
 class ConfigMgr(object):
@@ -90,6 +255,7 @@ class ConfigMgr(object):
     KEY_PROJECTS = 'projects'
     KEY_REFERENCES = 'references'
     KEY_PIPELINES = 'pipelines'
+    KEY_LIMITS = "resource_limits"
     CONF_FNAME = 'ymp.yml'
     CONF_DEFAULT_FNAME = ymp._defaults_file
     CONF_USER_FNAME = os.path.expanduser("~/.ymp/ymp.yml")
@@ -211,11 +377,8 @@ class ConfigMgr(object):
             CondaPathExpander(self),
             StageExpander(),
             ConfigExpander(self),
+            ResourceLimitsExpander(self._config.get(self.KEY_LIMITS)),
             OverrideExpander(self),
-            DefaultExpander(params=([], {
-                'mem': self.mem(),
-                'walltime': self.limits.default_walltime
-            })),
             InheritanceExpander(),
         )
 
@@ -304,26 +467,6 @@ class ConfigMgr(object):
         expander = ConfigExpander(self)
         res = expander.expand(None, item, kwargs)
         return res
-
-    def mem(self, base="0", per_thread=None, unit="m"):
-        """Clamp memory to configuration limits
-
-        Params:
-           base:       base memory requested
-           per_thread: additional mem required per allocated thread
-           unit:       output unit (b, k, m, g, t)
-        """
-        mem = parse_number(base)
-        max_mem = parse_number(self.limits.max_mem)
-        if mem > max_mem:
-            mem = max_mem
-        min_mem = parse_number(self.limits.min_mem)
-        if mem < min_mem:
-            mem = min_mem
-
-        div = parse_number("1"+unit)
-
-        return int(mem / div)
 
     @property
     def shell(self):

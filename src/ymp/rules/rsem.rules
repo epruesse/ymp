@@ -15,7 +15,8 @@ rule rsem_index:
         "{params.index}.log"
     params:
         index   = "{path}.index/{source}.rsem",
-        mem     = icfg.mem("20G")
+    resources:
+        mem = "20g",
     threads:
         1
     conda:
@@ -44,8 +45,8 @@ with Stage("quant_rsem") as S:
             index = "{:reference.dir:}.index/{target}.rsem",
             outprefix = "{:this:}/{target}.{source}",
             forward_prob = 0, # P of having fwd read
-            mem = icfg.mem("16G"),
-            ci_mem = icfg.mem("10G")
+        resources:
+            mem = "16G",
         threads:
             16
         conda:
@@ -57,7 +58,7 @@ with Stage("quant_rsem") as S:
             " --no-bam-output "
             " --estimate-rspd " # estimate read start position
             " --calc-ci" # calculate 95% credibility intervals and posterior mean estimates
-            " --ci-memory {params.ci_mem} "
+            " --ci-memory $(({resources.mem_mb} / 16 * 10)) "
             " --forward-prob {params.forward_prob} "
             " --paired-end "
             " {input.bam} "

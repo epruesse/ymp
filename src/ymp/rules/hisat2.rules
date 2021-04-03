@@ -22,8 +22,8 @@ with Stage("map_hisat2") as S:
                            "{:this:}/{target}.log"
         benchmark:
             "benchmarks/hisat2_map/{:this:}/{target}.txt"
-        params:
-            mem   = icfg.mem("32G")
+        resources:
+            mem = "32g",
         threads:
             16
         conda:

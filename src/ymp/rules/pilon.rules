@@ -16,6 +16,8 @@ with Stage("polish_pilon") as S:
             fasta = "{:prev:}/{:target:}.fasta.gz",
         output:
             fasta = "{:this:}/{target}.fasta.gz",
+            vcf   = "{:this:}/{target}.vcf.gz",
+            changes = "{:this:}/{target}.pilon.changes.txt",
         log:
             "{:this:}/{target}.log"
         threads:
@@ -25,7 +27,8 @@ with Stage("polish_pilon") as S:
             bamopts = lambda wc, input: " ".join("--bam {}".format(bam) for bam in ensure_list(input.bam)),
             extraopts = "--iupac",
             nonempty = check_input(['fasta'], minlines=2),
-            mem = icfg.mem("8G"),
+        resources:
+            mem = "16g",
         conda:
             "pilon"
         shell:
@@ -36,17 +39,29 @@ with Stage("polish_pilon") as S:
             "  exit 0;"
             "fi;"
             "pilon"
-            " -Xmx{params.mem}m"
-            " -Xms{params.mem}m"
+            " -Xmx{resources.mem_mb}m"
+            " -Xms{resources.mem_mb}m"
             " --threads {threads}"
             " --genome {input.fasta}"
             " --output {params.thistarget}"
+            " --changes"
+            " --vcf"
             " {params.bamopts}"
             " --iupac"
             ";"
+
             "pigz "
             " --processes {threads} "
             " {params.thistarget}.fasta"
+            ";"
+
+            "pigz "
+            " --processes {threads} "
+            " {params.thistarget}.vcf"
+            ";"
+
+            "mv {params.thistarget}.changes {output.changes}"
+            ";"
 
     rule pilon_polish_all:
         message:

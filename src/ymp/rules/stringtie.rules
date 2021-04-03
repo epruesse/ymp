@@ -16,8 +16,8 @@ with Stage("count_stringtie"):
                   "{:this:}/{target}.{source}.log"
         threads:
             16
-        params:
-            mem = icfg.mem("16G")
+        resources:
+            mem = "16g",
         conda:
             "stringtie"
         shell:
@@ -42,8 +42,8 @@ with Stage("count_stringtie"):
                   "{:this:}/{target}.log"
         threads:
             16
-        params:
-            mem = icfg.mem("16G")
+        resources:
+            mem = "16g",
         conda:
             "stringtie"
         shell:
@@ -68,8 +68,8 @@ with Stage("count_stringtie"):
                   "{:this:}/{target}.{source}.abundance.log"
         threads:
             16
-        params:
-            mem = icfg.mem("16G")
+        resources:
+            mem = "16g",
         conda:
             "stringtie"
         shell:
@@ -93,8 +93,9 @@ with Stage("count_stringtie"):
         threads:
             1
         params:
-            mem = icfg.mem("32G"), # needs lots!
             rscript = srcdir("../R/ballgown_collect.R")
+        resources:
+            mem = "32g",
         conda:
             "ballgown"
         shell:

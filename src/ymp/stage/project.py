@@ -372,7 +372,7 @@ class Project(ConfigStage):
 
         Lazy loading property, first call may take a while.
         """
-        return self.data.fetch(self.idcol)[0]
+        return [run[0] for run in self.data.fetch(self.idcol)]
 
     @property
     def idcol(self):
@@ -422,8 +422,8 @@ class Project(ConfigStage):
                 ))
         else:
             idcol = unique_columns[0]
-            log.warn("Project '%s' using column '%s' to identify units",
-                     self.name, idcol)
+            log.warning("Project '%s' using column '%s' to identify units",
+                        self.name, idcol)
 
         return idcol
 

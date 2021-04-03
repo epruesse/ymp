@@ -23,7 +23,8 @@ with Stage("qc_fastqc") as S:
             1  # fastqc cannot use more than 1 thread per file
         params:
             k=7,
-            mem=icfg.mem("4g")
+        resources:
+            mem = "4g",
         conda:
             "fastqc"
         shell: """

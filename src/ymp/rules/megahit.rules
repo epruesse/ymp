@@ -24,7 +24,6 @@ with Stage("assemble_megahit") as S:
         input:
             r1 = "{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz",
             r2 = "{:prev:}/{:target:}.{:pairnames[1]:}.fq.gz",
-            tmpdir = ancient(icfg.dir.tmp)
         output:
             fasta = "{:this:}/{target}.fasta.gz",
             fastg = "{:this:}/{target}.fastg.gz"
@@ -38,7 +37,9 @@ with Stage("assemble_megahit") as S:
             sufficient_input = check_input(["r1", "r2"], minlines=50*4*2),
             workdir = "{:this:}/{target}.tmp",
             preset  = "meta-sensitive",
-            mem = icfg.mem("500g")
+            tmpdir = "{:ensuredir.tmp:}",
+        resources:
+            mem = "500g",
         threads:
             32
         conda:
@@ -71,7 +72,7 @@ with Stage("assemble_megahit") as S:
           ARGS="$ARGS --presets {params.preset}"
           ARGS="$ARGS --num-cpu-threads {threads}"
           ARGS="$ARGS --out-dir {params.workdir}"
-          ARGS="$ARGS --tmp-dir {input.tmpdir}"
+          ARGS="$ARGS --tmp-dir {params.tmpdir}"
           ARGS="$ARGS $CONTINUE"
           echo "YMP: Running megahit $ARGS" >>{log.log}
           res=0

@@ -150,21 +150,64 @@ references:
     - url: ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_trembl.fasta.gz
       type: fastp
 
-# Default limits
-limits:
-  max_mem: 1T
-  min_mem: 10M
-  max_mem_per_thread: 1T
-  min_mem_per_thread: 10M
-  default_walltime: 23:59:59
-
 # Default projects (none)
 projects: {}
 
 # Default overrides (none)
 overrides: {}
 
-# Default cluster config
+# Default resource limits
+#
+# This section allows capping and scaling resources (including the
+# special resource threads). For each resource, the mininum and
+# maximum to which rule settings should be bounded can be specified, a
+# default for rules not setting a value, and a scale factor that will
+# be applied to values set in rules. The format parameter allows
+# parsing and formatting k/m/g/t style numbers (number) and time
+# values (time).
+#
+# The resource modifications will be applied after overrides.
+resource_limits:
+  # Use "mem" in "resources:" to specify how much RAM a rule will need
+  # for execution. Suffixes k, m, g and t will be parsed and the value
+  # in MB and GB made available via "{resources.mem_mb}" and
+  # "{resources.mem_gb}", respectively.
+  mem:
+    format: number
+    default: 50M
+    scale: 1
+    min: 10M
+    max: 1T
+  # Do not remove mem_mb or mem_gb as these are used by the built-in
+  # stages.
+  mem_mb:
+    format: number
+    unit: "m"
+    from: "mem"
+  mem_gb:
+    format: number
+    unit: "g"
+    from: "mem"
+  # Use "walltime" to specify maximum execution times for submitting
+  # jobs to a cluster. The time is parsed and formatted in SLURM
+  # syntax by default.
+  walltime:
+    format: time
+    default: 23:59:59
+    scale: 1
+    min: 1:00
+    max: 365-0
+  # This allows capping and rescaling job thread counts, which is
+  # mostly useful for cluster execution where job thread count is
+  # otherwise unbounded. Set the max to the maximum thread count
+  # submitted jobs should have.
+  threads:
+    default: 1
+    scale: 1
+    min: 1
+    max: 1024
+
+# Default cluster configs
 cluster:
   profile:                     # add this profile (from profiles:)
   profiles:
@@ -198,8 +241,8 @@ cluster:
         log:      "-j oe -o {:ensuredir.log:}/"
         name:     "-N ymp.{rule}"
         threads:  "-l nodes=1:ppn={threads}"
-        walltime: "-l walltime={params.walltime}"
-        memory:   "-l mem={params.mem}"
+        walltime: "-l walltime={resources.walltime}"
+        memory:   "-l mem={resources.mem_mb}"
     # Profile for Gridengine
     gridengine:
       command:    "qsub"
@@ -214,24 +257,17 @@ cluster:
       args:
         log:      "--output={:ensuredir.log:}/%x_%J.log"
         threads:  "--cpus-per-task={threads} --nodes=1 --ntasks=1"
-        memory:   "--mem={params.mem}"
-        walltime: "--time={params.walltime}"
+        memory:   "--mem={resources.mem_mb}"
+        walltime: "--time={resources.walltime}"
       cluster_status: "python -m ymp.cluster slurm status"
     lsf:
       command:    "python -m ymp.cluster lsf submit"
       args:
         log:      "-o {:ensuredir.log:}/%J.log"
         threads:  "-R 'span[hosts=1]' -n {threads}"
-        memory:   "-R 'select[mem>{params.mem}] rusage[mem={params.mem}]'"
-#        walltime: "-W {params.walltime}"  # [hours:]minutes - fixme check format
+        memory:   "-R 'select[mem>{resources.mem_mb}] rusage[mem={resources.mem_mb}]'"
+#       walltime: "-W {resources.walltime}"  # [hours:]minutes - fixme check format
       cluster_status: "python -m ymp.cluster lsf status"
-
-  rule_params:
-    default:
-      nodes: 1
-      walltime: 23:59:00
-      mem: 63G
-
 
 # Internal:
 pairnames:

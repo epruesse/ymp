@@ -54,11 +54,7 @@ class StageExpander(ColonExpander):
         def get_value(self, key, args, kwargs):
             try:
                 val = self.get_value_(key, args, kwargs)
-            except ExpandLateException:
-                raise
-            except IncompleteCheckpointException:
-                raise
-            except RemoveValue:
+            except (ExpandLateException, IncompleteCheckpointException, RemoveValue, KeyError):
                 raise
             except Exception as e:
                 log.debug(

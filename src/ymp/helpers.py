@@ -4,7 +4,8 @@ This module contains helper functions.
 Not all of these are currently in use
 """
 
-from collections import Mapping, OrderedDict
+from collections.abc import Mapping
+from collections import OrderedDict
 
 
 class OrderedDictMaker(object):

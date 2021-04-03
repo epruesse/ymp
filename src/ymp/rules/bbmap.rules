@@ -38,8 +38,8 @@ with Stage("index_bbmap") as S:
             directory("{:this:}/{target}")
         log:
             "{:this:}/{target}.log"
-        params:
-            mem=icfg.mem("80g")
+        resources:
+            mem = "80g",
         benchmark:
             "benchmarks/bbmap_makedb/{:this:}/{target}.txt"
         threads: 8
@@ -51,7 +51,7 @@ with Stage("index_bbmap") as S:
             ref={input} \
             threads={threads} \
             pigz unpigz \
-            -Xmx{params.mem}m \
+            -Xmx{resources.mem_mb}m \
             >{log} 2>&1
         """
 
@@ -92,14 +92,15 @@ with Stage("correct_bbmap") as S:
         params:
             inout  = "in={input[0]} out={output[0]}",
             inout2 = "in2={input[1]} out2={output[1]}",
-            mem    = icfg.mem("80g")
+        resources:
+            mem = "80g",
         conda:
             "bbmap"
         shell: """
         bbmerge.sh {params.inout} {params.inout2} \
                    outadapter={output.adapter} \
                    ecco ecctadpole mix vstrict\
-                   threads={threads} -Xmx{params.mem}m \
+                   threads={threads} -Xmx{resources.mem_mb}m \
                    > {log} 2>&1
         """
 
@@ -158,12 +159,13 @@ with Stage("trim_bbmap") as S:
             k      = 23,
             mink   = 11,
             hdist  = 1,
-            mem    = icfg.mem("80g"),
             entropy_window = 50,
             entropy_k = 5,
             flags  = "pigz unpigz",
             inout  = "in={input[0]} out={output[0]}",
             inout2 = "in2={input[1]} out2={output[1]}" # overriden by child rule
+        resources:
+            mem = "80g",
         threads: 16
         conda:
             "bbmap"
@@ -187,7 +189,7 @@ with Stage("trim_bbmap") as S:
             ' entropyk={params.entropy_k}'
             ' {params.flags}'                      # processing settings
             ' threads={threads}'
-            ' -Xmx{params.mem}m'
+            ' -Xmx{resources.mem_mb}m'
             ' >{log} 2>&1'
 
     rule bbmap_trim_se:  # ymp: extends bbmap_trim
@@ -231,8 +233,8 @@ with Stage("dedup_bbmap") as S:
             "{:this:}/{target}.log"
         benchmark:
             "benchmarks/bbmap_dedupe/{:this:}/{target}.txt"
-        params:
-            mem = icfg.mem("80g")
+        resources:
+            mem = "80g",
         threads: 4
         conda:
             "bbmap"
@@ -243,7 +245,7 @@ with Stage("dedup_bbmap") as S:
             " in={input[0]}"
             " in2={input[1]}"
             " out=stdout"
-            " -Xmx{params.mem}m "
+            " -Xmx{resources.mem_mb}m"
             " 2>{log}"
             " |"
             " paste - - - -  - - - - | "
@@ -264,8 +266,8 @@ with Stage("dedup_bbmap") as S:
             "{:this:}/{target}.{:pairnames[0]:}.fq.gz"
         log:
             "{:this:}/{target}.log"
-        params:
-            mem = icfg.mem("80g")
+        resources:
+            mem = "80g",
         threads: 4
         conda:
             "bbmap"
@@ -275,7 +277,7 @@ with Stage("dedup_bbmap") as S:
             " threads={threads}"
             " in={input[0]}"
             " out=stdout"
-            " -Xmx{params.mem}m "
+            " -Xmx{resources.mem_mb}m"
             " 2>{log}"
             " |"
             " pigz -p {threads} > {output[0]}"
@@ -326,8 +328,9 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
             qtrim    = "rl",
             flags    = "quickmatch fast untrim machineout",
             minhits  = 2,
-            mem      = icfg.mem("23g"),
-            inout2   = "in2={input.fq[1]} outu2={output.clean[1]} outm2={output.human[1]}"
+            inout2   = "in2={input.fq[1]} outu2={output.clean[1]} outm2={output.human[1]}",
+        resources:
+            mem = "80g",
         threads:
             16
         conda:
@@ -343,7 +346,7 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
             " path={input.ref} "
             " qtrim={params.qtrim} "
             " trimq={params.trimq} "
-            " -Xmx{params.mem}m "
+            " -Xmx{resources.mem_mb}m "
             " in={input.fq[0]} "
             " outu={output.clean[0]} "
             " outm={output.human[0]} "
@@ -407,10 +410,11 @@ with Stage("primermatch_bbmap", "primerfail_bbmap") as S:
         threads: 8
         params:
             stats   = lambda wc, output: ["{}={}".format(x,y) for x,y in zip(bbstats, output.stats)],
-            mem     = icfg.mem("80g"),
             k       = 12,
             rl      = 12,
             inout2  = "in2={input.fq[1]} outm2={output.match[1]} outu2={output.fail[1]}"
+        resources:
+            mem     = "80g",
         conda: "bbmap"
         shell:
             'bbduk.sh'
@@ -425,7 +429,7 @@ with Stage("primermatch_bbmap", "primerfail_bbmap") as S:
             ' removeifeitherbad=f'        # "bad" is "match", we want both to match
             ' pigz unpigz'
             ' {params.stats}'
-            ' -Xmx{params.mem}m'
+            ' -Xmx{resources.mem_mb}m'
             ' >{log} 2>&1'
 
     rule bbduk_primer_se:  # ymp: extends bbduk_primer
@@ -478,9 +482,10 @@ with Stage("map_bbmap") as S:
         benchmark:
             "benchmarks/bbmap_map/{:this:}/{target}.txt"
         params:
-            mem = icfg.mem("80g"),
             in1 = lambda wc, input: "in="+",".join(ensure_list(input.fq1)),
             in2 = lambda wc, input: "in2="+",".join(ensure_list(input.fq2))
+        resources:
+            mem = "80g",
         threads:
             8
         conda:
@@ -504,7 +509,7 @@ with Stage("map_bbmap") as S:
             " ambiguous=all"        # output all matches
             " mdtag"                # make source recoverable in sam
             " trimreaddescriptions" # use header until space like bowtie2
-            " -Xmx{params.mem}m"     # set JVM heap size
+            " -Xmx{resources.mem_mb}m"     # set JVM heap size
             " 2>{log}"              # log error
             " | samtools view --threads 3 -b -o {output.bam} -" # convert to bam
 
@@ -552,7 +557,8 @@ with Stage("dust_bbmap") as S:
             entropy_window = 50,
             entropy_k = 5,
             inout2 = "in2={input.fq[1]} out2={output.fq[1]}",
-            mem = icfg.mem("80g")
+        resources:
+            mem = "80g",
         shell:
             'bbduk.sh'
             ' in={input.fq[0]} out={output.fq[0]}'
@@ -561,7 +567,7 @@ with Stage("dust_bbmap") as S:
             ' entropywindow={params.entropy_window}'
             ' entropyk={params.entropy_k}'
             ' pigz unpigz'
-            ' -Xmx{params.mem}m'
+            ' -Xmx{resources.mem_mb}m'
             ' >{log} 2>&1'
 
     rule bbmap_dust_all:

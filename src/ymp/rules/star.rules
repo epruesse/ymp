@@ -16,8 +16,9 @@ rule star_index:
     threads:
         16
     params:
-        mem = icfg.mem("32G"),
         overhang = 100
+    resources:
+        mem = "32g",
     shadow:
         "shallow"
     conda:
@@ -25,7 +26,7 @@ rule star_index:
     shell: """
     STAR \
       --runThreadN {threads} \
-      --limitGenomeGenerateRAM $(({params.mem}-1000))000000 \
+      --limitGenomeGenerateRAM $(({resources.mem_mb}-1000))000000 \
       --runMode genomeGenerate \
       --genomeDir {output.gdir} \
       --genomeFastaFiles {input.contigs} \
@@ -57,10 +58,11 @@ with Stage("map_star") as S:
             fin = "{:this:}/{target}.{source}.Log.final.out"
         params:
             outprefix = "{:this:}/{target}.{source}.",
-            mem = icfg.mem("32G"),
             multimap_nmax = 10,
             quantmode = "TranscriptomeSAM",
             tmpdir = "{params.outprefix}_STAR_tmp"
+        resources:
+            mem = "32g",
         threads:
             16
         conda:

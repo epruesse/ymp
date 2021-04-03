@@ -2,6 +2,24 @@
 This file contains the rules dealing with FQ file provisioning and preparation. 
 """
 
+###
+###  Create configured directories if requested
+###
+
+localrules: mkdir
+rule mkdir:
+    """
+    Auto-create directories listed in ymp config.
+
+    Use these as input:
+    >>> input: tmpdir = ancient(ymp.get_config().dir.tmp)
+    Or as param:
+    >>> param: tmpdir = "{:ensuredir.tmp:}"
+
+    """
+    message: "Creating directory '{output}'"
+    output: directory("{{x,({})}}".format("|".join(list(ymp.get_config().dir))))
+    shell: "mkdir -p {output}"
 
 ###
 ###  SRA access 
@@ -20,6 +38,8 @@ rule prefetch:
         "Pre-Fetching {wildcards.SRR}"
     output:
         "{:dir.sra:}/{SRR}.sra"
+    wildcard_constraints:
+        SRR = r"[EDS]RR[0-9]+",
     conda:
         "sratools.yml"
     shell: """
@@ -36,10 +56,13 @@ rule fastq_dump:
     output:
         "{:dir.scratch:}/SRR/{SRR}_1.fastq.gz",
         "{:dir.scratch:}/SRR/{SRR}_2.fastq.gz"
+    wildcard_constraints:
+        SRR = r"[EDS]RR[0-9]+",
     params:
-        outdir = icfg.dir.scratch + "/SRR",
+        outdir = "{:ensuredir.scratch:}/SRR",
         p      = lambda wc, threads: int(threads/2+.5),
-        mem    = icfg.mem("200M")
+    resources:
+        mem = "200M",
     conda:
         "sratools.yml"
     threads:
@@ -69,7 +92,7 @@ with Stage("") as S:
     >>> ymp make mpic
     """)
     S.add_param(typ="choice", name="project",
-                value=list(icfg.projects.keys()),key="")
+                value=list(ymp.get_config().projects.keys()), key="")
 
     _ymp_stage_import = S
     localrules: symlink_raw_reads
@@ -110,7 +133,7 @@ with Stage("") as S:
             #       it would be the last assigned value of S, so likely
             #       some other stage.
             import csv
-            project = icfg.projects[params.project]
+            project = ymp.get_config().projects[params.project]
             cols = params.variables
             if "Description" in cols:
                 desc_idx = cols.index("Description")

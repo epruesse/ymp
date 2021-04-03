@@ -1,8 +1,0 @@
-channels:
- - conda-forge
- - bioconda
-dependencies:
- - python =2.*
- - qiime
- - scipy =1.*  # scipy 0.16 missing libgfortran1 installed otherwise
- - pyqi  # needed by split_libraries->biom_format but not installed otherwise

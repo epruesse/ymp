@@ -15,8 +15,8 @@ with Stage("index_diamond"):
                   "{:this:}/{target}.log"
         conda:
             "diamond"
-        params:
-            mem = icfg.mem("32g")
+        resources:
+            mem = "32g",
         threads:
             16
         shell: """
@@ -50,8 +50,8 @@ with Stage("annotate_diamond") as S:
             "{:this:}/{target}.daa"
         log:
             "{:this:}/{target}.log"
-        params:
-            mem = icfg.mem("32g")
+        resources:
+            mem = "32g",
         threads:
             16
         conda:
@@ -94,8 +94,8 @@ with Stage("map_diamond") as S:
             "{:this:}/{target}.{:pairnames[0]:}.daa"
         log:
             "{:this:}/{target}.{:pairnames[0]:}.log"
-        params:
-            mem = icfg.mem("32g")
+        resources:
+            mem = "32g",
         threads:
             16
         conda:
