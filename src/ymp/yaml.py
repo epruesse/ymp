@@ -35,6 +35,11 @@ class LayeredConfError(YmpConfigError):
                     return self.obj
         return None, None
 
+class Entry:
+    def __init__(self, filename, yaml, index):
+        self.filename = filename
+        self.lineno = yaml._yaml_line_col.data[index][0] + 1
+
 
 class MixedTypeError(LayeredConfError):
     """Mixed types in proxy collection"""
@@ -102,7 +107,7 @@ class MultiProxy(object):
             for fname, layer in self._maps:
                 if key in layer:
                     return fname, layer._yaml_line_col.data[key][0] + 1
-        return ";".join(self.get_files), next(iter(self.get_linenos()), None)
+        return ";".join(self.get_files()), next(iter(self.get_linenos()), None)
 
     def to_yaml(self, show_source=False):
         buf = io.StringIO()
@@ -194,9 +199,12 @@ class MultiMapProxy(Mapping, MultiProxy, AttrItemAccessMixin):
             raise KeyError(f"key '{key}' not found in any map")
         typs = set(type(m[1]) for m in items if m[1])
         if len(typs) > 1:
+            stack = [Entry(fn, m, key) for fn, m in self._maps if key in m]
             raise MixedTypeError(
-                f"while trying to obtain '{key}' from {items!r},"
-                f"types differ: {typs}"
+                self,
+                f"Mixed data types for key '{key}'s in present in files",
+                key = key,
+                stack=stack
             )
         if isinstance(items[0][1], Mapping):
             return self.make_map_proxy(key, items)
@@ -347,10 +355,6 @@ def load(files):
 
     Files listed later will override parts of earlier included files
     """
-    class Entry:
-        def __init__(self, filename, yaml, index):
-            self.filename = filename
-            self.lineno = yaml._yaml_line_col.data[index][0] + 1
 
     def load_one(fname, stack):
         if any(fname == entry.filename for entry in stack):
@@ -388,5 +392,5 @@ def load(files):
 
     layers = []
     for fname in reversed(files):
-        layers.extend(load_one(fname, []))
+        layers.extend(load_one(str(fname), []))
     return LayeredConfProxy(layers)
