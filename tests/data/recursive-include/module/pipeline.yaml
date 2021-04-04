@@ -1,0 +1,3 @@
+module_pipeline_loaded: True
+include:
+  - pipeline2.yaml

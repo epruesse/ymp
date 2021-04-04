@@ -5,20 +5,39 @@ from collections.abc import (
     ItemsView, KeysView, Mapping, MappingView, Sequence, ValuesView
 )
 
+from typing import Union, List, Optional
+
 import ruamel.yaml  # type: ignore
 from ruamel.yaml import RoundTripRepresenter, YAML  # type: ignore
 from ruamel.yaml.comments import CommentedMap  # type: ignore
+
+from ymp.exceptions import YmpConfigError
 
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-class MixedTypeError(Exception):
-    """Mixed types in proxy collection"""
-
-
-class LayeredConfError(Exception):
+class LayeredConfError(YmpConfigError):
     """Error in LayeredConf"""
+    def __init__(self, obj: object, msg: str, key: Optional[object]=None, stack = None):
+        super().__init__(obj, msg, key)
+        if stack:
+            self.stack = stack
+
+    def get_fileline(self):
+        if self.obj:
+            if hasattr(self.obj, "get_fileline"):
+                return self.obj.get_fileline(self.key)
+            if isinstance(self.obj, Sequence) and len(self.obj) == 2:
+                if hasattr(self.obj[1], "_yaml_line_col"):
+                    return self.obj[0], self.obj[1]._yaml_line_col.line
+                else:
+                    return self.obj
+        return None, None
+
+
+class MixedTypeError(LayeredConfError):
+    """Mixed types in proxy collection"""
 
 
 class LayeredConfWriteError(LayeredConfError):
@@ -109,7 +128,7 @@ class MultiProxy(object):
         if map_name == name:
             self._maps.pop(0)
         else:
-            raise LayeredConfError(f"in remove_layer: {map_name} != {name}")
+            raise LayeredConfError(self, f"in remove_layer: {map_name} != {name}")
 
 
 class MultiMapProxyMappingView(MappingView):
@@ -325,14 +344,49 @@ def load(files):
 
     Creates a `LayeredConfProxy` configuration object from a set of
     YAML files.
+
+    Files listed later will override parts of earlier included files
     """
+    class Entry:
+        def __init__(self, filename, yaml, index):
+            self.filename = filename
+            self.lineno = yaml._yaml_line_col.data[index][0] + 1
+
+    def load_one(fname, stack):
+        if any(fname == entry.filename for entry in stack):
+            raise LayeredConfError((fname, None), "Recursion in includes", stack=stack)
+        try:
+            with open(fname, "r") as fdes:
+                yaml = rt_yaml.load(fdes)
+        except IOError as exc:
+            raise LayeredConfError((fname, None), "Failed to read file", stack=stack) from exc
+        if not isinstance(yaml, Mapping):
+            raise LayeredConfError((fname, 1), "Config must have mapping as toplevel", stack=stack)
+        layers = [(fname, yaml)]
+
+        includes = yaml.get("include", [])
+        if not includes:
+            return layers
+
+        basedir = os.path.dirname(fname)
+        if isinstance(includes, str):
+            path = os.path.join(basedir, includes)
+            stack.append(Entry(fname, yaml, "include"))
+            layers.extend(load_one(path, stack))
+            stack.pop()
+            return layers
+
+        if not isinstance(includes, Sequence):
+            raise LayeredConfError((fname, includes), 'Statement "include" must be a list', stack=stack)
+
+        for num, include in enumerate(reversed(includes)):
+            path = os.path.join(basedir, include)
+            stack.append(Entry(fname, includes, num))
+            layers.extend(load_one(path, stack))
+            stack.pop()
+        return layers
+
     layers = []
-    for fn in reversed(files):
-        with open(fn, "r") as f:
-            yaml = rt_yaml.load(f)
-            if not isinstance(yaml, Mapping):
-                raise LayeredConfError(
-                    f"Malformed config file '{fn}'."
-                )
-            layers.append((fn, yaml))
+    for fname in reversed(files):
+        layers.extend(load_one(fname, []))
     return LayeredConfProxy(layers)

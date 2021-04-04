@@ -58,12 +58,11 @@ class YmpLocateableError(YmpPrettyException):
     def show(self, file=None) -> None:
         super().show(file)
         fname, line = self.get_fileline()
-        if not fname:
-            fname = "unknown file"
-        if line is None:
-            echo(f"Problem occurred in {fname}:", file=file)
-        else:
-            echo(f"Problem occurred in line {line} of {fname}:", file=file)
+        if fname:
+            if line is None:
+                echo(f"Problem occurred in {fname}:", file=file)
+            else:
+                echo(f"Problem occurred in line {line} of {fname}:", file=file)
         for entry in self.stack:
             if not entry.filename.endswith(".py") and not entry.filename.endswith("/ymp"):
                 echo(f"  while processing {entry.filename}:{entry.lineno}", file=file)

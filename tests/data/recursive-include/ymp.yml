@@ -1,0 +1,6 @@
+include:
+  - local_before_module.yaml
+  - module/pipeline.yaml
+  - local_after_module.yaml
+main_loaded: True
+defaults_overridden: True
