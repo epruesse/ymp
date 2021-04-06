@@ -987,6 +987,9 @@ class InheritanceExpander(BaseExpander):
 
             setattr(ruleinfo, field, base_attr)
 
+        if not ruleinfo.norun or not super_ruleinfo.norun:
+            ruleinfo.norun = False
+
         if not super_ruleinfo.norun:
             if super_name in self.ruleinfos:
                 self.workflow.ruleorder(super_name, rule.name)
