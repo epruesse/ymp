@@ -75,3 +75,26 @@ def test_recursive_include(project_dir):
         "ymp.yml"
     ]
     assert fnames == expected_fnames
+
+
+@pytest.mark.parametrize("project", ["recursive-include"], indirect=True)
+def test_relative_path(project_dir):
+    config = yaml.load([
+        project_dir / "defaults.yml",
+        project_dir / "ymp.yml",
+    ])
+    assert config.get_path("local_path") == "local_file"
+    assert config.local_path_list.get_path(0) == "local_file_1"
+    assert config.local_path_list.get_path(1) == "local_file_2"
+    assert config.local_path_list.get_paths() == ["local_file_1", "local_file_2"]
+
+    assert config.get_path("module_path") == "module/module_file"
+    assert config.module_path_list.get_path(0) == "module/module_file_1"
+    assert config.module_path_list.get_path(1) == "module/module_file_2"
+    assert config.module_path_list.get_paths() == ["module/module_file_1", "module/module_file_2"]
+    assert config.module_path_dict.get_paths() == {"path1": "module/module_file_3", "path2": "module/module_file_4"}
+
+    assert config.get_path("absolute_path") == "/tmp/test"
+
+    assert config.get_path("path_overridden_by_main") == "overridden_path"
+    assert config.get_path("path_overridden_by_module") == "module/overridden_path"

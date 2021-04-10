@@ -135,6 +135,26 @@ class MultiProxy(object):
         else:
             raise LayeredConfError(self, f"in remove_layer: {map_name} != {name}")
 
+    def _get_root(self):
+        node = self
+        while node._parent:
+            node = node._parent
+        return node
+
+    def get_path(self, key=None):
+        for fn, layer in self._maps:
+            try:
+                path = layer[key]
+            except KeyError:
+                continue
+            if os.path.isabs(path):
+                return path
+            basepath = os.path.dirname(fn)
+            filepath = os.path.join(basepath, path)
+            rootpath = os.path.dirname(self._get_root()._maps[0][0])
+            return os.path.relpath(filepath, rootpath)
+        return None
+
 
 class MultiMapProxyMappingView(MappingView):
     """MappingView for MultiMapProxy"""
@@ -251,6 +271,9 @@ class MultiMapProxy(Mapping, MultiProxy, AttrItemAccessMixin):
     def values(self):
         return MultiMapProxyValuesView(self)
 
+    def get_paths(self):
+        return {key: self.get_path(key) for key in self.keys()}
+
 
 class MultiSeqProxy(Sequence, MultiProxy, AttrItemAccessMixin):
     """Sequence Proxy for layered containers"""
@@ -307,6 +330,9 @@ class MultiSeqProxy(Sequence, MultiProxy, AttrItemAccessMixin):
     def extend(self, item):
         smap = self._maps[0][1]
         smap.extend(item)
+
+    def get_paths(self):
+        return [self.get_path(i) for i in range(len(self))]
 
 
 class LayeredConfProxy(MultiMapProxy):

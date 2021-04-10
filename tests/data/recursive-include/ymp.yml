@@ -4,3 +4,10 @@ include:
   - local_after_module.yaml
 main_loaded: True
 defaults_overridden: True
+
+local_path: local_file
+local_path_list:
+  - local_file_1
+  - local_file_2
+absolute_path: /tmp/test
+path_overridden_by_main: overridden_path
