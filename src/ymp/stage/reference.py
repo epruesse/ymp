@@ -10,6 +10,7 @@ from snakemake.rules import Rule
 from ymp.snakemake import make_rule
 from ymp.util import make_local_path
 from ymp.stage import ConfigStage, Activateable, Stage
+from ymp.exceptions import YmpConfigError
 
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -86,14 +87,15 @@ class Reference(Activateable, ConfigStage):
         self._outputs = None
 
         import ymp
-        cfgmgr = ymp.get_config()
-        self.dir = os.path.join(cfgmgr.dir.references, name)
+        self.dir = os.path.join(ymp.get_config().dir.references, name)
 
-        for rsc in cfg:
-            if isinstance(rsc, str):
-                rsc = {'url': rsc}
-            local_path = make_local_path(cfgmgr, rsc['url'])
-            self.add_resource(rsc, local_path)
+        if isinstance(cfg, Mapping):
+            self.add_resource(cfg)
+        elif isinstance(cfg, Sequence) and not isinstance(cfg, str):
+            for item in cfg:
+                self.add_resource(item)
+        else:
+            raise YmpConfigError(cfg, "Reference config must list or key-value mapping")
 
         # Copy rules defined in primary references stage
         self.rules = Stage.get_registry()['references'].rules.copy()
@@ -130,7 +132,19 @@ class Reference(Activateable, ConfigStage):
             }
         return self._outputs
 
-    def add_resource(self, rsc, local_path):
+    def add_resource(self, rsc):
+        if not isinstance(rsc, Mapping):
+            raise YmpConfigError(rsc, "Reference resource config must be a key-value mapping")
+
+        if not "url" in rsc:
+            raise YmpConfigError(rsc, "Reference resource must have 'url' field")
+        maybeurl = rsc["url"]
+        import ymp
+        local_path = make_local_path(ymp.get_config(), maybeurl)
+        isurl = local_path != maybeurl
+        if not isurl:
+            local_path = rsc.get_path("url")
+
         type_name = rsc.get('type', 'fasta').lower()
         if 'id' in rsc:
             self._ids.add(rsc['id'])
@@ -156,7 +170,7 @@ class Reference(Activateable, ConfigStage):
                 for key, val in rsc.get('files', {}).items()
             })
         elif type_name == 'path':
-            self.dir = rsc['url'].rstrip('/')
+            self.dir = local_path.rstrip("/")
             try:
                 filenames = os.listdir(rsc['url'])
             except FileNotFoundError:
@@ -171,8 +185,7 @@ class Reference(Activateable, ConfigStage):
                     self._ids.add(match.group('sample'))
                     self.files[filename] = rsc['url'] + filename
         else:
-            log.debug("unknown type {} used in reference {}"
-                      "".format(type_name, self.name))
+            raise YmpConfigError(cfg, f"Unknown type {type_name}", key="type")
 
     def get_path(self, _stack):
         return self.dir

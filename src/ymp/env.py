@@ -275,7 +275,7 @@ class Env(WorkflowObject, snakemake_conda.Env):
           md5s: list of md5 sums
         """
         cfg = ymp.get_config()
-        for spec_path in cfg.conda.env_specs:
+        for spec_path in cfg.conda.env_specs.get_paths():
             if spec_path.startswith("BUILTIN:"):
                 spec_path = spec_path.replace("BUILTIN:", "")
                 spec_path = op.join(ymp._env_dir, spec_path)

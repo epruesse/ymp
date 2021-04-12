@@ -6,12 +6,13 @@ from typing import Optional, Tuple
 
 from click import ClickException, echo
 
+from snakemake.exceptions import WorkflowError, RuleException
 
 class YmpException(Exception):
     """Base class of all YMP Exceptions"""
 
 
-class YmpPrettyException(YmpException, ClickException):
+class YmpPrettyException(YmpException, ClickException, WorkflowError):
     """Exception that does not lead to stack trace on CLI
 
     Inheriting from ClickException makes ``click`` print only the

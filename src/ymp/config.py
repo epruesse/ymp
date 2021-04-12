@@ -411,7 +411,7 @@ class ConfigMgr(object):
 
         The directory paths are relative to the YMP root workdir.
         """
-        return self._config.directories
+        return self._config.directories.get_paths()
 
     @property
     def absdir(self):

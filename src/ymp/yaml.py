@@ -8,10 +8,11 @@ from collections.abc import (
 from typing import Union, List, Optional
 
 import ruamel.yaml  # type: ignore
-from ruamel.yaml import RoundTripRepresenter, YAML  # type: ignore
+from ruamel.yaml import RoundTripRepresenter, YAML, yaml_object, RoundTripConstructor  # type: ignore
 from ruamel.yaml.comments import CommentedMap  # type: ignore
 
 from ymp.exceptions import YmpConfigError
+from ymp.common import AttrDict
 
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -147,6 +148,9 @@ class MultiProxy(object):
                 path = layer[key]
             except KeyError:
                 continue
+            if isinstance(path, WorkdirTag):
+                return str(path)
+            path = os.path.expanduser(path)
             if os.path.isabs(path):
                 return path
             basepath = os.path.dirname(fn)
@@ -272,7 +276,7 @@ class MultiMapProxy(Mapping, MultiProxy, AttrItemAccessMixin):
         return MultiMapProxyValuesView(self)
 
     def get_paths(self):
-        return {key: self.get_path(key) for key in self.keys()}
+        return AttrDict((key, self.get_path(key)) for key in self.keys())
 
 
 class MultiSeqProxy(Sequence, MultiProxy, AttrItemAccessMixin):
@@ -280,10 +284,21 @@ class MultiSeqProxy(Sequence, MultiProxy, AttrItemAccessMixin):
     def __contains__(self, value):
         return any(value in m for _, m in self._maps)
 
+    def _make_proxy(self, index, fn, item):
+        if isinstance(item, Mapping):
+            return self.make_map_proxy(index, [(fn, item)])
+        if isinstance(item, str):
+            return item
+        if isinstance(item, Sequence):
+            return self.make_seq_proxy(index, [(fn, item)])
+        return item
+
     def __iter__(self):
-        for _, smap in self._maps:
+        index = 0
+        for fn, smap in self._maps:
             for item in smap:
-                yield item
+                yield self._make_proxy(index, fn, item)
+                index += 1
 
     def __len__(self):
         return sum(len(m) for _, m in self._maps)
@@ -302,12 +317,14 @@ class MultiSeqProxy(Sequence, MultiProxy, AttrItemAccessMixin):
                 index = int(index)
             except ValueError as exc:
                 raise KeyError() from exc
-        for _, smap in self._maps:
-            if index >= len(smap):
-                index -= len(smap)
+        relindex = index
+        for fn, smap in self._maps:
+            if relindex >= len(smap):
+                relindex -= len(smap)
             else:
-                return smap[index]
-        raise IndexError()
+                return self._make_proxy(index, fn, smap[relindex])
+        else:
+            raise IndexError()
 
     def __radd__(self, other):
         return self.__add__(other)
@@ -370,7 +387,29 @@ RoundTripRepresenter.add_representer(MultiMapProxy,
 RoundTripRepresenter.add_representer(MultiSeqProxy,
                                      RoundTripRepresenter.represent_list)
 
+
 rt_yaml = YAML(typ="rt")
+
+@yaml_object(rt_yaml)
+class WorkdirTag:
+    yaml_tag = u"!workdir"
+
+    def __init__(self, path) -> None:
+        self.path = path
+
+    def __repr__(self):
+        return f"!workdir {self.path}"
+
+    def __str__(self):
+        return self.path
+
+    @classmethod
+    def from_yaml(cls, _constructor, node):
+        return cls(node.value)
+
+    @classmethod
+    def to_yaml(cls, representer, data):
+        import pdb;pdb.set_trace()
 
 
 def load(files):

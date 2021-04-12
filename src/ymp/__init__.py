@@ -29,7 +29,6 @@ _rule_dir = os.path.join(_rsc_dir, "rules")
 _etc_dir = os.path.join(_rsc_dir, "etc")
 _snakefile = os.path.join(_rule_dir, "Snakefile")
 _defaults_file = os.path.join(_etc_dir, "defaults.yml")
-_env_dir = os.path.join(_rsc_dir, "conda_envs")
 
 # import ymp.config for type hints below
 # (this import will eventually access the path variables above, so moving
