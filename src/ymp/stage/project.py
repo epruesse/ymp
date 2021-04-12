@@ -62,40 +62,47 @@ class PandasTableBuilder:
         self.MergeError = MergeError
         self.files: List[str] = []
 
-    def load_data(self, cfg):
+    def load_data(self, cfg, key):
+        if not (key in cfg or isinstance(cfg, Sequence)):
+            raise YmpConfigError(cfg, f"Missing key '{key}' in project data config", key=key)
+        value = cfg[key]
+        if isinstance(value, str):
+            return self._load_file(cfg, key)
+        if isinstance(value, Sequence):
+            return self._rowbind(cfg, key)
+        if isinstance(value, Mapping):
+            command = next(iter(value), None)
+            if len(value) != 1 or command not in ("join", "paste", "table"):
+                raise YmpConfigError(cfg, "Expecting exactly one of join, paste or table", key=key)
+            if command == "join":
+                return self._join(value["join"])
+            if command == "paste":
+                return self._paste(value["paste"])
+            if command == "table":
+                return self._table(value["table"])
+        raise YmpConfigError(cfg, "Unrecognized statement in data config", key=key)
 
-        if isinstance(cfg, str):
-            return self._load_file(cfg)
-        if isinstance(cfg, Sequence):
-            return self._rowbind(cfg)
-        if isinstance(cfg, Mapping):
-            if 'join' in cfg:
-                return self._join(cfg['join'])
-            if 'paste' in cfg:
-                return self._paste(cfg['paste'])
-            if 'table' in cfg:
-                return self._table(cfg['table'])
-        raise YmpConfigError(cfg, "Unrecognized statement in data config")
-
-    def _load_file(self, cfg):
+    def _load_file(self, cfg, key):
+        fname = cfg.get_path(key)
         try:
             data = self.pd.read_csv(
-                cfg, sep=None, engine='python', dtype='str'
+                fname, sep=None, engine='python', dtype='str'
             )
         except FileNotFoundError:
-            parts = cfg.split('%', maxsplit=1)
+            parts = fname.split('%', maxsplit=1)
             try:
                 data = self.pd.read_excel(
                     parts[0], parts[1] if len(parts) > 1 else 0)
-            except ImportError:
+            except ImportError as exc:
                 raise YmpConfigError(
                     cfg,
                     "Could not load specified data file."
                     " If this is an Excel file, you might need"
-                    " to install 'openpyxl'."
-                )
+                    " to install 'openpyxl'.",
+                    key=key
+                ) from exc
         # prefix fq files with name of config file's directory
-        rdir = os.path.dirname(cfg)
+        rdir = os.path.dirname(fname)
         data = data.applymap(
             lambda s: os.path.join(rdir, s)
             if is_fq(s) and os.path.exists(os.path.join(rdir, s))
@@ -104,12 +111,13 @@ class PandasTableBuilder:
         self.files.append(cfg)
         return data
 
-    def _rowbind(self, cfg):
-        tables = list(map(self.load_data, cfg))
+    def _rowbind(self, cfg, key):
+        sequence = cfg[key]
+        tables = list(map(self.load_data, [sequence]*len(sequence), range(len(sequence))))
         return self.pd.concat(tables, ignore_index=True)
 
     def _join(self, cfg):
-        tables = list(map(self.load_data, cfg))
+        tables = list(map(self.load_data, [cfg]*len(cfg), range(len(cfg))))
         try:
             return self.pd.merge(*tables)
         except self.MergeError as e:
@@ -118,11 +126,11 @@ class PandasTableBuilder:
                 "Failed to `join` configured data.\n"
                 "Joined table indices:\n{}\n\n"
                 "".format("\n".join(", ".join(table.columns.tolist())
-                                    for table in tables)),
-                exc=e)
+                                    for table in tables))
+            )
 
     def _paste(self, cfg):
-        tables = list(map(self.load_data, cfg))
+        tables = list(map(self.load_data, [cfg]*len(cfg), range(len(cfg))))
         manyrow = [table for table in tables if len(table) > 1]
         if manyrow:
             nrows = len(manyrow[0])
@@ -150,11 +158,11 @@ class PandasTableBuilder:
 
 
 class SQLiteProjectData(object):
-    def __init__(self, cfg, name="data"):
+    def __init__(self, cfg, key, name="data"):
         self.name = name
         self.conn = self._connect()
         table_builder = PandasTableBuilder()
-        table_builder.load_data(cfg).to_sql(name, self.conn, index=False)
+        table_builder.load_data(cfg, key).to_sql(name, self.conn, index=False)
 
     @property
     def db_url(self):
@@ -307,7 +315,7 @@ class Project(ConfigStage):
         Lazy loading property, first call may take a while.
         """
         if self._data is None:
-            self._data = SQLiteProjectData(self.cfg[self.KEY_DATA])
+            self._data = SQLiteProjectData(self.cfg, self.KEY_DATA)
 
         return self._data
 
