@@ -440,13 +440,6 @@ class ConfigMgr(object):
         return self._config.cluster
 
     @property
-    def limits(self):
-        """
-        The YMP limits configuration.
-        """
-        return self._config.limits
-
-    @property
     def snakefiles(self):
         """
         Snakefiles used under this config in parsing order
