@@ -7,7 +7,9 @@ directories:
     reports: !workdir 'reports'
     sra: !workdir 'sra'
     log: !workdir 'log'
-    rules: !workdir 'rules'
+    rules:
+      builtin: ../rules
+      workdir: !workdir 'rules'
     downloads: !workdir 'downloads'
     dynamic_envs: &dynamic_envs !workdir '.ymp/envs'
     conda_envs: &conda_envs !workdir 'conda_envs'

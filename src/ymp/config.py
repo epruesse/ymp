@@ -344,7 +344,7 @@ class ConfigMgr(object):
         else:
             self.cachedir = os.path.join(XDG_CACHE_HOME, "ymp")
 
-        self._config = ymp.yaml.load(conffiles)
+        self._config = ymp.yaml.load(conffiles, root)
         self.cache = cache = Cache(self.cachedir)
 
         # lazy filled by accessors
@@ -418,10 +418,7 @@ class ConfigMgr(object):
         """
         Dictionary of absolute paths of named YMP directories
         """
-        return AttrDict({
-            name: os.path.normpath(os.path.join(self.root, os.path.expanduser(value)))
-            for name, value in self.dir.items()
-        })
+        return self._config.directories.get_paths(absolute=True)
 
     @property
     def ensuredir(self):
@@ -446,13 +443,13 @@ class ConfigMgr(object):
         """
         if not self._snakefiles:
             self._snakefiles = [
-                fn
-                for dn in (os.path.dirname(self.RULE_MAIN_FNAME),
-                           self.absdir.rules)
-                for fn in sorted(glob.glob(os.path.join(dn, "**", "*.rules"),
-                                           recursive=True),
-                                 key=lambda v: v.lower())
-                if os.path.basename(fn)[0] != "."
+                filename
+                for _name, dirname in reversed(self.absdir.rules.items())
+                for filename in sorted(
+                        glob.glob(os.path.join(dirname, "**", "*.rules"), recursive=True),
+                        key=lambda v: v.lower()
+                )
+                if os.path.basename(filename)[0] != "."
             ]
         return self._snakefiles
 

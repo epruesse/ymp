@@ -85,10 +85,11 @@ class AttrItemAccessMixin(object):
 
 class MultiProxy(object):
     """Base class for layered container structure"""
-    def __init__(self, maps, parent=None, key=None):
+    def __init__(self, maps, root=None, parent=None, key=None):
         self._maps = list(maps)
         self._parent = parent
         self._key = key
+        self._root = root
 
     def make_map_proxy(self, key, items):
         return MultiMapProxy(items, parent=self, key=key)
@@ -142,22 +143,32 @@ class MultiProxy(object):
             node = node._parent
         return node
 
-    def get_path(self, key=None):
+    def get_path(self, key=None, absolute=False):
+        if isinstance(self.get(key), MultiProxy):
+            return self[key].get_paths(absolute)
+
         for fn, layer in self._maps:
             try:
                 path = layer[key]
             except KeyError:
                 continue
-            if isinstance(path, WorkdirTag):
-                return str(path)
+            break
+        else:
+            return None
+
+        rootpath = self._get_root()._root
+        if isinstance(path, WorkdirTag):
+            path = str(path)
+            basepath = rootpath
+        else:
             path = os.path.expanduser(path)
-            if os.path.isabs(path):
-                return path
             basepath = os.path.dirname(fn)
-            filepath = os.path.join(basepath, path)
-            rootpath = os.path.dirname(self._get_root()._maps[0][0])
-            return os.path.relpath(filepath, rootpath)
-        return None
+        if os.path.isabs(path):
+            return path
+        filepath = os.path.join(basepath, path)
+        if absolute:
+            return os.path.normpath(filepath)
+        return os.path.relpath(filepath, rootpath)
 
 
 class MultiMapProxyMappingView(MappingView):
@@ -275,8 +286,11 @@ class MultiMapProxy(Mapping, MultiProxy, AttrItemAccessMixin):
     def values(self):
         return MultiMapProxyValuesView(self)
 
-    def get_paths(self):
-        return AttrDict((key, self.get_path(key)) for key in self.keys())
+    def get_paths(self, absolute=False):
+        return AttrDict(
+            (key, self.get_path(key, absolute) )
+            for key in self.keys()
+        )
 
 
 class MultiSeqProxy(Sequence, MultiProxy, AttrItemAccessMixin):
@@ -348,8 +362,8 @@ class MultiSeqProxy(Sequence, MultiProxy, AttrItemAccessMixin):
         smap = self._maps[0][1]
         smap.extend(item)
 
-    def get_paths(self):
-        return [self.get_path(i) for i in range(len(self))]
+    def get_paths(self, absolute=False):
+        return [self.get_path(i, absolute) for i in range(len(self))]
 
 
 class LayeredConfProxy(MultiMapProxy):
@@ -408,11 +422,12 @@ class WorkdirTag:
         return cls(node.value)
 
     @classmethod
-    def to_yaml(cls, representer, data):
-        import pdb;pdb.set_trace()
+    def to_yaml(cls, representer, instance):
+        return representer.represent_scalar(
+            cls.yaml_tag, instance.path
+        )
 
-
-def load(files):
+def load(files, root=None):
     """Load configuration files
 
     Creates a `LayeredConfProxy` configuration object from a set of
@@ -458,4 +473,4 @@ def load(files):
     layers = []
     for fname in reversed(files):
         layers.extend(load_one(str(fname), []))
-    return LayeredConfProxy(layers)
+    return LayeredConfProxy(layers, root=root)
