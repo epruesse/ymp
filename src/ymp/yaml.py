@@ -257,7 +257,7 @@ class MultiMapProxy(Mapping, MultiProxy, AttrItemAccessMixin):
         raise NotImplementedError()
 
     def __iter__(self):
-        for key in set(k for _, m in self._maps for k in m):
+        for key in dict.fromkeys(k for _, m in self._maps for k in m):
             yield key
 
     def get(self, value, default=None):
