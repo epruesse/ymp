@@ -470,6 +470,9 @@ def load(files, root=None):
             stack.pop()
         return layers
 
+    if not root:
+        root = os.path.dirname(files[0])
+
     layers = []
     for fname in reversed(files):
         layers.extend(load_one(str(fname), []))
