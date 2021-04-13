@@ -198,7 +198,7 @@ class Cache(object):
                 DROP TABLE stamps;
                 """)
         else:
-            log.error("Dropping cache: version changed")
+            log.info("No cache, loading...")
             update = True
 
         if update:
