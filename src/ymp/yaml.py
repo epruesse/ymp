@@ -67,8 +67,8 @@ class AttrItemAccessMixin(object):
                 return self.__getattribute__(key)
             else:
                 return self[key]
-        except (IndexError, KeyError) as e:
-            raise AttributeError(e)
+        except (IndexError, KeyError) as exc:
+            raise AttributeError() from exc
 
     def __setattr__(self, key, value):
         try:
@@ -76,8 +76,8 @@ class AttrItemAccessMixin(object):
                 object.__setattr__(self, key, value)
             else:
                 self[key] = value
-        except (IndexError, KeyError) as e:
-            raise AttributeError(e)
+        except (IndexError, KeyError) as exc:
+            raise AttributeError() from exc
 
     def __delattr__(self, key):
         raise NotImplementedError()
@@ -144,7 +144,7 @@ class MultiProxy(object):
         return node
 
     def get_path(self, key=None, absolute=False):
-        if isinstance(self.get(key), MultiProxy):
+        if isinstance(self[key], MultiProxy):
             return self[key].get_paths(absolute)
 
         for fn, layer in self._maps:
