@@ -138,7 +138,7 @@ class Reference(Activateable, ConfigStage):
 
         if not "url" in rsc:
             raise YmpConfigError(rsc, "Reference resource must have 'url' field")
-        maybeurl = rsc["url"]
+        maybeurl = str(rsc["url"])
         import ymp
         local_path = make_local_path(ymp.get_config(), maybeurl)
         isurl = local_path != maybeurl
@@ -158,7 +158,7 @@ class Reference(Activateable, ConfigStage):
                 name=self.name,
                 dirname=self.dir,
                 tar=local_path,
-                url=rsc['url'],
+                url=maybeurl,
                 files=rsc['files'],
                 strip=rsc.get('strip_components', 0)
             )
@@ -166,16 +166,16 @@ class Reference(Activateable, ConfigStage):
             self.archives.append(archive)
         elif type_name == 'dirx':
             self.files.update({
-                key: local_path + val
+                key: os.path.join(local_path, val)
                 for key, val in rsc.get('files', {}).items()
             })
         elif type_name == 'path':
             self.dir = local_path.rstrip("/")
             try:
-                filenames = os.listdir(rsc['url'])
+                filenames = os.listdir(local_path)
             except FileNotFoundError:
                 log.error("Directory %s required by %s %s does not exist",
-                          rsc['url'], self.__class__.__name__, self.name)
+                          local_path, self.__class__.__name__, self.name)
                 filenames = []
             for filename in filenames:
                 for regex in rsc.get('match', []):
@@ -183,9 +183,9 @@ class Reference(Activateable, ConfigStage):
                     if not match:
                         continue
                     self._ids.add(match.group('sample'))
-                    self.files[filename] = rsc['url'] + filename
+                    self.files[filename] = os.path.join(local_path, filename)
         else:
-            raise YmpConfigError(cfg, f"Unknown type {type_name}", key="type")
+            raise YmpConfigError(rsc, f"Unknown type {type_name}", key="type")
 
     def get_path(self, _stack):
         return self.dir
