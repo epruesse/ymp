@@ -98,7 +98,13 @@ class Reference(Activateable, ConfigStage):
             raise YmpConfigError(cfg, "Reference config must list or key-value mapping")
 
         # Copy rules defined in primary references stage
-        self.rules = Stage.get_registry()['references'].rules.copy()
+        stage_references = Stage.get_registry().get("references")
+        if not stage_references:
+            raise YmpConfigError(
+                cfg,
+                "Reference base stage not found. Main rules not loaded?"
+            )
+        self.rules = stage_references.rules.copy()
 
     def get_group(
             self,

@@ -442,15 +442,19 @@ class ConfigMgr(object):
         Snakefiles used under this config in parsing order
         """
         if not self._snakefiles:
-            self._snakefiles = [
-                filename
-                for _name, dirname in reversed(self.absdir.rules.items())
-                for filename in sorted(
-                        glob.glob(os.path.join(dirname, "**", "*.rules"), recursive=True),
-                        key=lambda v: v.lower()
-                )
-                if os.path.basename(filename)[0] != "."
-            ]
+            def find_files(dirname):
+                if dirname is None:
+                    return []
+                listfiles =  glob.glob(os.path.join(dirname, "**", "*.rules"), recursive=True)
+                listfiles.sort(key = lambda v: v.lower())
+                listfiles = filter(lambda fname: os.path.basename(fname)[0] != ".", listfiles)
+                return listfiles
+            rule_dirs = self.absdir.rules.copy()
+            snakefiles = []
+            snakefiles.extend(find_files(rule_dirs.pop('builtin', None)))
+            for dirname in rule_dirs:
+                snakefiles.extend(find_files(rule_dirs[dirname]))
+            self._snakefiles = snakefiles
         return self._snakefiles
 
     def expand(self, item, **kwargs):
