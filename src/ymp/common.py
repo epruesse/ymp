@@ -17,16 +17,12 @@ class AttrDict(dict):
     """
     def __getattr__(self, attr):
         try:
-            return super().__getattr__(attr)
-        except AttributeError:
-            try:
-                val = self[attr]
-            except KeyError as e:
-                raise AttributeError(e)
-            if isinstance(val, dict):
-                return AttrDict(val)
-            else:
-                return val
+            val = self[attr]
+        except KeyError as e:
+            raise AttributeError(f'{self} has no attribute {attr}') from None
+        if isinstance(val, dict):
+            return AttrDict(val)
+        return val
 
     def __setattr__(self, attr, value):
         if attr.startswith("_"):
