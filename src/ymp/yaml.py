@@ -91,11 +91,21 @@ class MultiProxy(object):
         self._key = key
         self._root = root
 
-    def make_map_proxy(self, key, items):
-        return MultiMapProxy(items, parent=self, key=key)
+    def _make_proxy(self, key, items):
+        item = items[0][1]
+        if isinstance(item, Mapping):
+            return MultiMapProxy(items, parent=self, key=key)
+        if isinstance(item, str):
+            return item
+        if isinstance(item, Sequence):
+            return MultiSeqProxy(items, parent=self, key=key)
+        return item
 
-    def make_seq_proxy(self, key, items):
-        return MultiSeqProxy(items, parent=self, key=key)
+    def _finditem(self, key):
+        raise NotImplementedError()
+
+    def __getitem__(self, key):
+        return self._make_proxy(key, self._finditem(key))
 
     def get_files(self):
         return [fn for fn, layer in self._maps]
@@ -144,25 +154,21 @@ class MultiProxy(object):
         return node
 
     def get_path(self, key=None, absolute=False):
-        if isinstance(self[key], MultiProxy):
-            return self[key].get_paths(absolute)
-
-        for fn, layer in self._maps:
-            try:
-                path = layer[key]
-            except KeyError:
-                continue
-            break
-        else:
+        items = self._finditem(key)
+        value = self._make_proxy(key, items)
+        if isinstance(value, MultiProxy):
+            return value.get_paths(absolute)
+        if value is None:
             return None
+        fname = items[0][0]
 
         rootpath = self._get_root()._root
-        if isinstance(path, WorkdirTag):
-            path = str(path)
+        if isinstance(value, WorkdirTag):
+            path = str(value)
             basepath = rootpath
         else:
-            path = os.path.expanduser(path)
-            basepath = os.path.dirname(fn)
+            path = os.path.expanduser(value)
+            basepath = os.path.dirname(fname)
         if os.path.isabs(path):
             return path
         filepath = os.path.join(basepath, path)
@@ -220,7 +226,7 @@ class MultiMapProxyValuesView(MultiMapProxyMappingView, ValuesView):
             yield self._mapping[key]
 
 
-class MultiMapProxy(Mapping, MultiProxy, AttrItemAccessMixin):
+class MultiMapProxy(MultiProxy, AttrItemAccessMixin, Mapping):
     """Mapping Proxy for layered containers"""
     def __contains__(self, key):
         return any(key in m for _, m in self._maps)
@@ -228,7 +234,7 @@ class MultiMapProxy(Mapping, MultiProxy, AttrItemAccessMixin):
     def __len__(self):
         return len(set(k for _, m in self._maps for k in m))
 
-    def __getitem__(self, key):
+    def _finditem(self, key):
         items = [(fn, m[key]) for fn, m in self._maps if key in m]
         if not items:
             raise KeyError(f"key '{key}' not found in any map")
@@ -241,13 +247,7 @@ class MultiMapProxy(Mapping, MultiProxy, AttrItemAccessMixin):
                 key = key,
                 stack=stack
             )
-        if isinstance(items[0][1], Mapping):
-            return self.make_map_proxy(key, items)
-        if isinstance(items[0][1], str):
-            return items[0][1]
-        if isinstance(items[0][1], Sequence):
-            return self.make_seq_proxy(key, items)
-        return items[0][1]
+        return items
 
     def __setitem__(self, key, value):
         # we want to set to the top layer, so get that first
@@ -294,25 +294,16 @@ class MultiMapProxy(Mapping, MultiProxy, AttrItemAccessMixin):
         )
 
 
-class MultiSeqProxy(Sequence, MultiProxy, AttrItemAccessMixin):
+class MultiSeqProxy(MultiProxy, AttrItemAccessMixin, Sequence):
     """Sequence Proxy for layered containers"""
     def __contains__(self, value):
         return any(value in m for _, m in self._maps)
-
-    def _make_proxy(self, index, fn, item):
-        if isinstance(item, Mapping):
-            return self.make_map_proxy(index, [(fn, item)])
-        if isinstance(item, str):
-            return item
-        if isinstance(item, Sequence):
-            return self.make_seq_proxy(index, [(fn, item)])
-        return item
 
     def __iter__(self):
         index = 0
         for fn, smap in self._maps:
             for item in smap:
-                yield self._make_proxy(index, fn, item)
+                yield self._make_proxy(index, [(fn, item)])
                 index += 1
 
     def __len__(self):
@@ -324,7 +315,7 @@ class MultiSeqProxy(Sequence, MultiProxy, AttrItemAccessMixin):
     def __str__(self):
         return "+".join(f"{m}" for _, m in self._maps)
 
-    def __getitem__(self, index):
+    def _finditem(self, index):
         if isinstance(index, slice):
             raise NotImplementedError()
         if isinstance(index, str):
@@ -332,12 +323,11 @@ class MultiSeqProxy(Sequence, MultiProxy, AttrItemAccessMixin):
                 index = int(index)
             except ValueError as exc:
                 raise KeyError() from exc
-        relindex = index
         for fn, smap in self._maps:
-            if relindex >= len(smap):
-                relindex -= len(smap)
+            if index >= len(smap):
+                index -= len(smap)
             else:
-                return self._make_proxy(index, fn, smap[relindex])
+                return [(fn, smap[index])]
         else:
             raise IndexError()
 
