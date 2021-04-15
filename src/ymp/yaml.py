@@ -290,6 +290,7 @@ class MultiMapProxy(Mapping, MultiProxy, AttrItemAccessMixin):
         return AttrDict(
             (key, self.get_path(key, absolute) )
             for key in self.keys()
+            if self.get(key) is not None
         )
 
 
