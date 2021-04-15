@@ -126,13 +126,16 @@ if (ymp.get_config().pipelines):
                    if tgt != link]
         return depends
 
+    from ymp.stage import StageStack
     localrules: pipeline_link
     rule pipeline_link:
-        output: directory(pipeline_pattern)
-        input: _get_pipeline_realpath
+        message:
+            "Making Symlink: {output} -> {params.target}"
+        output:
+            directory(pipeline_pattern)
+        input:
+            _get_pipeline_realpath
+        params:
+            target = lambda wc, output: StageStack.instance(output[0]).path,
         run:
-            from ymp.stage import StageStack
-            os.symlink(
-                StageStack.instance(output[0]).path,
-                output[0]
-            )
+            os.symlink(params.target, output[0])
