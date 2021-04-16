@@ -38,7 +38,7 @@ def find_stage(name):
         refname = name[4:]
         if refname in cfg.ref:
             return cfg.ref[refname]
-        raise YmpStageError(f"Unknown reference '{cfg.ref[refname]}'")
+        raise YmpStageError(f"Unknown reference '{refname}'")
     if name in cfg.projects:
         return cfg.projects[name]
     if name in cfg.pipelines:
