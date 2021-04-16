@@ -12,12 +12,13 @@ from typing import Dict, List, Set
 
 from ymp.snakemake import WorkflowObject, RemoveValue
 from ymp.stage.base import BaseStage, Activateable
+from ymp.stage.params import Parametrizable
 from ymp.exceptions import YmpRuleError, YmpException, YmpStageError
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-class Stage(WorkflowObject, Activateable, BaseStage):
+class Stage(WorkflowObject, Parametrizable, Activateable, BaseStage):
     """
     Creates a new stage
 
@@ -51,8 +52,6 @@ class Stage(WorkflowObject, Activateable, BaseStage):
         self.checkpoints: Dict[str, Set[str]] = {}
         #: Contains override stage inputs
         self.requires = None
-        #: Stage Parameters
-        self.params: List[Param] = []
 
         # Inputs required by stage
         self._inputs: Set[str] = set()
@@ -101,34 +100,6 @@ class Stage(WorkflowObject, Activateable, BaseStage):
     def __repr__(self):
         return (f"{self.__class__.__name__} {self!s} "
                 f"({self.filename}:{self.lineno})")
-
-    def add_param(self, key, typ, name, value=None, default=None):
-        """Add parameter to stage
-
-        Example:
-            >>> with Stage("test") as S
-            >>>   S.add_param("N", "int", "nval", default=50)
-            >>>   rule:
-            >>>      shell: "echo {param.nval}"
-
-            This would add a stage "test", optionally callable as "testN123",
-            printing "50" or in the case of "testN123" printing "123".
-
-        Args:
-          char: The character to use in the Stage name
-          typ:  The type of the parameter (int, flag)
-          param: Name of parameter in params
-          value: value ``{param.xyz}`` should be set to if param given
-          default: default value for ``{{param.xyz}}`` if no param given
-        """
-        if typ == 'flag':
-            self.params.append(ParamFlag(self, key, name, value, default))
-        elif typ == 'int':
-            self.params.append(ParamInt(self, key, name, value, default))
-        elif typ == 'choice':
-            self.params.append(ParamChoice(self, key, name, value, default))
-        else:
-            raise YmpRuleError(self, f"Unknown Stage Parameter type '{typ}'")
 
     def require(self, **kwargs):
         """Override inferred stage inputs
@@ -340,91 +311,3 @@ class Stage(WorkflowObject, Activateable, BaseStage):
             ids = [id_[len('ALL__'):] if id_.startswith('ALL__') else id_
                    for id_ in ids]
         return ids
-
-
-class Param(object):
-    """Stage Parameter (base class)"""
-    def __init__(self, stage, key, name, value=None, default=None):
-        self.stage = stage
-        self.key = key
-        self.name = name
-        self.value = value
-        self.default = default
-
-        self.wildcard = f"_yp_{self.name}"
-
-    @property
-    def constraint(self):
-        if self.regex:
-            return "," + self.regex
-        return ""
-
-    def pattern(self, show_constraint=True):
-        """String to add to filenames passed to Snakemake
-
-        I.e. a pattern of the form ``{wildcard,constraint}``
-        """
-        if show_constraint:
-            return f"{{{self.wildcard}{self.constraint}}}"
-        else:
-            return f"{{{self.wildcard}}}"
-
-
-class ParamFlag(Param):
-    """Stage Flag Parameter"""
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if not self.value:
-            self.value = self.key
-
-        self.regex = f"((?:{self.key})?)"
-
-    def param_func(self):
-        """Returns function that will extract parameter value from wildcards"""
-        def name2param(wildcards):
-            if getattr(wildcards, self.wildcard, None):
-                return self.value
-            else:
-                return self.default or ""
-        return name2param
-
-
-class ParamInt(Param):
-    """Stage Int Parameter"""
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if self.default is None:
-            raise YmpRuleError(
-                self.stage,
-                f"Stage Int Parameter must have 'default' set")
-
-        self.regex = f"({self.key}\\d+|)"
-
-    def param_func(self):
-        """Returns function that will extract parameter value from wildcards"""
-        def name2param(wildcards):
-            val = getattr(wildcards, self.wildcard, None)
-            if val:
-                return val[len(self.key):]
-            else:
-                return self.default
-        return name2param
-
-
-class ParamChoice(Param):
-    """Stage Choice Parameter"""
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if self.default is not None:
-            self.value += [""]
-        self.regex = f"({self.key}({'|'.join(self.value)}))"
-
-    def param_func(self):
-        """Returns function that will extract parameter value from wildcards"""
-        def name2param(wildcards):
-            val = getattr(wildcards, self.wildcard, None)
-            if val:
-                return val[len(self.key):]
-            else:
-                return self.default
-        return name2param

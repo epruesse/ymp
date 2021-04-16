@@ -15,6 +15,7 @@ YMP processes data in stages, each of which is contained in its own directory.
 from ymp.stage.stack import StageStack, find_stage
 
 from ymp.stage.base import BaseStage, ConfigStage, Activateable
+from ymp.stage.params import Param
 from ymp.stage.stage import Stage
 from ymp.stage.pipeline import Pipeline
 from ymp.stage.reference import Reference
