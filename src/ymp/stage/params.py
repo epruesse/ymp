@@ -63,7 +63,7 @@ class Param(abc.ABC):
         def name2param(wildcards):
             # The part that matched our self.constraint will be in the
             # wildcard's field self.wildcard the parameter was matched
-            val = getattr(wildcards, self.wildcard, None)
+            val = wildcards.get(self.wildcard)
             if val:
                 # Remove they key and return the matched portion
                 return val[len(self.key):]
