@@ -114,11 +114,14 @@ class Pipeline(Parametrizable, ConfigStage):
         }
         return res
 
-    def get_path(self, stack):
+    def get_path(self, stack, typ=None):
         prefix = stack.name.rsplit('.',1)[0]
+        if typ is None:
+            suffix = self.pipeline
+        else:
+            suffix = self.outputs[typ]
         params = self.parse(stack.stage_name)
-        pipeline = self.pipeline.format(**params)
-        return prefix + pipeline
+        return prefix + suffix.format(**params)
 
     def get_all_targets(self, stack):
         targets = []

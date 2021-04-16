@@ -180,14 +180,15 @@ class StageStack:
         prevs = {}
         while stage_names and inputs:
             path = ".".join(stage_names)
-            prev_stage = find_stage(stage_names.pop())
             prev_stack = self.instance(path)
+            prev_stage = find_stage(stage_names.pop())
             provides = stage.satisfy_inputs(prev_stage, inputs)
-            for typ, path in provides.items():
-                if path:
-                    npath = ".".join(stage_names) + path
-                    prev_stack = self.instance(npath)
-                prevs[typ] = prev_stack
+            for typ, ppath in provides.items():
+                if ppath:
+                    npath = prev_stage.get_path(prev_stack, typ)
+                    prevs[typ] = self.instance(npath)
+                else:
+                    prevs[typ] = prev_stack
         return prevs
 
     def complete(self, incomplete):
