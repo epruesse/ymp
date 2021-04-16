@@ -160,4 +160,4 @@ class ParamRef(Param):
     def regex(self):
         import ymp
         cfg = ymp.get_config()
-        return f"({self.key}({'|'.join(cfg.project.keys())})"
+        return f"({self.key}({'|'.join(cfg.references.keys())}))?"
