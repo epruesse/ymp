@@ -84,10 +84,12 @@ class Pipeline(Parametrizable, ConfigStage):
     def _make_outputs(self) -> Dict[str, str]:
         outputs = {}
         for stage_path, cfg in self.stages.items():
+            if cfg.get("hide", self.hide_outputs):
+                continue
             stage_name = stage_path.rsplit(".", 1)[-1]
             stage = find_stage(stage_name)
-            if not cfg.get("hide", self.hide_outputs):
-                outputs.update(stage.get_outputs(stage_path))
+            new_outputs = stage.get_outputs(stage_path)
+            outputs.update(new_outputs)
         return outputs
 
     @property
