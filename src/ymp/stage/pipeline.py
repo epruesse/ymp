@@ -8,17 +8,19 @@ import logging
 import os
 
 from collections import OrderedDict
-from typing import Dict, List, Set
+from collections.abc import Mapping
+from typing import Dict, List, Set, Optional
 
 from ymp.stage import StageStack, find_stage
 from ymp.stage.base import ConfigStage
+from ymp.stage.params import Parametrizable
 from ymp.exceptions import YmpConfigError
 
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-class Pipeline(ConfigStage):
+class Pipeline(Parametrizable, ConfigStage):
     """
     A virtual stage aggregating a sequence of stages, i.e. a pipeline
     or sub-workflow.
@@ -29,18 +31,39 @@ class Pipeline(ConfigStage):
         pipelines:
           my_pipeline:
             hide: false
+            params:
+              length:
+                key: L
+                type: int
+                default: 20
             stages:
-              - stage_1:
+              - stage_1{length}:
                   hide: true
               - stage_2
               - stage_3
     """
-    def __init__(self, name: str, cfg: List[str]) -> None:
+    def __init__(self, name: str, cfg) -> None:
         super().__init__(name, cfg)
-        self._outputs: Dict[str, str] = None
+        self._outputs: Optional[Dict[str, str]] = None
 
         #: If true, outputs of stages are hidden by default
         self.hide_outputs = getattr(cfg, "hide", False)
+
+        if 'params' in cfg:
+            if not isinstance(cfg.params, Mapping):
+                raise YmpConfigError(cfg, "Params must contain a mapping", key="params")
+            for param, data in cfg.params.items():
+                if not isinstance(data, Mapping):
+                    raise YmpConfigError(data, "Param must contain a mapping", key=param)
+                try:
+                    key = data['key']
+                    typ = data['type']
+                except KeyError as exc:
+                    raise YmpConfigError(data, "Param must have at least key and type defined") from exc
+                self.add_param(
+                    key, typ, param, data.get("value"), data.get("default")
+                )
+
         #: Dictionary of stages with configuration options for each
         self.stages = OrderedDict()
         path = ""
@@ -54,6 +77,7 @@ class Pipeline(ConfigStage):
                 stage_name = next(iter(stage))
                 path = ".".join((path, stage_name))
                 self.stages[path] = stage[stage_name]
+
         #: Path fragment describing this pipeline
         self.pipeline = path
 
@@ -90,7 +114,9 @@ class Pipeline(ConfigStage):
 
     def get_path(self, stack):
         prefix = stack.name.rsplit('.',1)[0]
-        return prefix + self.pipeline
+        params = self.parse(stack.stage_name)
+        pipeline = self.pipeline.format(**params)
+        return prefix + pipeline
 
     def get_all_targets(self, stack):
         targets = []

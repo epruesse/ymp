@@ -41,8 +41,9 @@ def find_stage(name):
         raise YmpStageError(f"Unknown reference '{refname}'")
     if name in cfg.projects:
         return cfg.projects[name]
-    if name in cfg.pipelines:
-        return cfg.pipelines[name]
+    for pipeline in cfg.pipelines.values():
+        if pipeline.match(name):
+            return pipeline
     for stage in registry.values():
         if stage.match(name):
             return stage
@@ -91,6 +92,8 @@ class StageStack:
                        for name in self.stage_names]
         #: Top Stage
         self.stage = self.stages[-1]
+        #: Top Stage Name
+        self.stage_name = self.stage_names[-1]
         #: Stage below top stage or None if first in stack
         self.prev_stage = self.stages[-2] if len(self.stages) > 1 else None
         self.prev_stack = None

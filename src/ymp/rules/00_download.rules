@@ -113,7 +113,7 @@ with Stage("references") as S:
 
 if (ymp.get_config().pipelines):
     pipeline_pattern = "{{pipeline_stack_link,[^/]*.({})}}".format(
-        "|".join(ymp.get_config().pipelines)
+        "|".join(pipeline.regex for pipeline in ymp.get_config().pipelines.values())
     )
 
     def _get_pipeline_realpath(wc):

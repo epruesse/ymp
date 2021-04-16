@@ -76,7 +76,7 @@ class Parametrizable(BaseStage):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.params: List[Param] = []
-        self.__regex = None
+        self.__regex_ = None
 
     def add_param(self, key, typ, name, value=None, default=None) -> None:
         """Add parameter to stage
@@ -99,11 +99,27 @@ class Parametrizable(BaseStage):
         """
         self.params.append(Param.make(self, typ, key, name, value, default))
 
+    @property
+    def __regex(self):
+        if not self.__regex_:
+            regex = self.name + "".join(f"(?P<{param.wildcard}>{param.regex})" for param in self.params)
+            self.__regex_ = re.compile(regex)
+        return self.__regex_
+
+    @property
+    def regex(self):
+        return self.name + "".join(param.regex for param in self.params)
+
+    def parse(self, name: str) -> bool:
+        match = self.__regex.fullmatch(name)
+        groupdict = match.groupdict() if match else {}
+        return {
+            param.name: param.param_func()(groupdict)
+            for param in self.params
+        }
+
     def match(self, name: str) -> bool:
-        if not self.__regex:
-            regex = self.name + "".join(param.regex for param in self.params)
-            self.__regex = re.compile(regex)
-        return self.__regex.fullmatch(name)
+        return bool(self.__regex.fullmatch(name))
 
 
 class ParamFlag(Param):
