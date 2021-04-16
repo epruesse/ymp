@@ -32,6 +32,8 @@ class YmpPrettyException(YmpException, ClickException, WorkflowError):
         the snakemake workflow as snakemake.snakemake catches and
         reformats exceptions.
     """
+    rule = None
+    snakefile = None
 
 class YmpLocateableError(YmpPrettyException):
     """Errors that have a file location to be shown
