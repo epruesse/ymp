@@ -9,5 +9,5 @@ local_path: local_file
 local_path_list:
   - local_file_1
   - local_file_2
-absolute_path: /tmp/test
+absolute_path: /etc
 path_overridden_by_main: overridden_path
