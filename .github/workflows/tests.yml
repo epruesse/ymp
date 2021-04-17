@@ -41,6 +41,7 @@ jobs:
           activate-environment: ymp
           channel-priority: strict
           use-only-tar-bz2: true  # needed for caching
+          mamba-version: "*"
       - name: Install
         run: |
           pip install --no-deps .
