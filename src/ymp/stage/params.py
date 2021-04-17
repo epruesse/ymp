@@ -23,6 +23,19 @@ class Param(abc.ABC):
         self.value = value
         self.default = default
 
+    def __eq__(self, other):
+        return (
+            self.type_name == other.type_name and
+            self.key == other.key and
+            self.name == other.name and
+            self.value == other.value and
+            self.default == other.default
+        )
+
+    def __str__(self):
+        return (f"StageParameter(key='{self.key}', typ='{self.type_name}', "
+                f"name='{self.name}', value='{self.value}', default='{self.default}')")
+
     def __init_subclass__(cls, **kwargs) -> None:
         super().__init_subclass__(**kwargs)
         if cls.type_name == NotImplemented:
@@ -71,14 +84,19 @@ class Param(abc.ABC):
             return self.default
         return name2param
 
+    def format(self, groupdict):
+        value = groupdict.get(self.name)
+        if value is not None and value != self.default:
+            return self.key + value
+        return ""
 
 class Parametrizable(BaseStage):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.params: List[Param] = []
+        self.__params: List[Param] = []
         self.__regex_ = None
 
-    def add_param(self, key, typ, name, value=None, default=None) -> None:
+    def add_param(self, key, typ, name, value=None, default=None) -> bool:
         """Add parameter to stage
 
         Example:
@@ -97,7 +115,30 @@ class Parametrizable(BaseStage):
           value: value ``{param.xyz}`` should be set to if param given
           default: default value for ``{{param.xyz}}`` if no param given
         """
-        self.params.append(Param.make(self, typ, key, name, value, default))
+        if self.__regex_:
+            raise RuntimeError("?")
+        new_param = Param.make(self, typ, key, name, value, default)
+        for param in self.__params:
+            if param == new_param:
+                return False
+            if key and param.key == key:
+                raise YmpRuleError(
+                    self,
+                    f"Keys must be uninque. Key '{key}' already used by {param}.\n"
+                    f"  while trying to add {new_param}"
+                )
+            if param.name == name:
+                raise YmpRuleError(
+                    self,
+                    f"Names must be uninque. Name '{name}' already used by {param}.\n"
+                    f"  while trying to add {new_param}"
+                )
+        self.__params.append(new_param)
+        return True
+
+    @property
+    def params(self):
+        return self.__params
 
     @property
     def __regex(self):
@@ -118,8 +159,13 @@ class Parametrizable(BaseStage):
             for param in self.params
         }
 
+    def format(self, groupdict):
+        return self.name + "".join(param.format(groupdict) for param in self.params)
+
     def match(self, name: str) -> bool:
-        return bool(self.__regex.fullmatch(name))
+        if name.startswith(self.name):
+            return bool(self.__regex.fullmatch(name))
+        return False
 
 
 class ParamFlag(Param):
@@ -130,17 +176,24 @@ class ParamFlag(Param):
         super().__init__(*args, **kwargs)
         if not self.value:
             self.value = self.key
+        if self.default is None:
+            self.default = ""
 
         self.regex = f"((?:{self.key})?)"
 
     def param_func(self):
         """Returns function that will extract parameter value from wildcards"""
         def name2param(wildcards):
-            if getattr(wildcards, self.wildcard, None):
+            if wildcards.get(self.wildcard):
                 return self.value
-            return self.default or ""
+            return self.default
         return name2param
 
+    def format(self, groupdict):
+        value = groupdict.get(self.name)
+        if value is not None and value != self.default:
+            return self.key
+        return ""
 
 class ParamInt(Param):
     """Stage Int Parameter"""

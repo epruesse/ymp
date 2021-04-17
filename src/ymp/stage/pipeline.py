@@ -14,7 +14,7 @@ from typing import Dict, List, Set, Optional
 from ymp.stage import StageStack, find_stage
 from ymp.stage.base import ConfigStage
 from ymp.stage.params import Parametrizable
-from ymp.exceptions import YmpConfigError
+from ymp.exceptions import YmpConfigError, YmpRuleError
 
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -44,6 +44,7 @@ class Pipeline(Parametrizable, ConfigStage):
     """
     def __init__(self, name: str, cfg) -> None:
         super().__init__(name, cfg)
+        self._params = None
         self._outputs: Optional[Dict[str, str]] = None
 
         #: If true, outputs of stages are hidden by default
@@ -71,15 +72,62 @@ class Pipeline(Parametrizable, ConfigStage):
             if stage is None:
                 raise YmpConfigError(self, f"Empty stage name in pipeline '{name}'")
             if isinstance(stage, str):
-                path = ".".join((path, stage))
-                self.stages[path] = {}
+                stage_name = stage
+                stage_cfg = {}
             else:
                 stage_name = next(iter(stage))
-                path = ".".join((path, stage_name))
-                self.stages[path] = stage[stage_name]
+                stage_cfg = stage[stage_name]
+            path = ".".join((path, stage_name))
+            self.stages[path] = stage_cfg
 
         #: Path fragment describing this pipeline
         self.pipeline = path
+
+    @property
+    def params(self):
+        if self._params is None:
+            params = {}
+            for stage_path in self.stages:
+                stage_name = stage_path.rsplit(".", 1)[-1]
+                if "{" in stage_name:
+                    # Cannot inherit params from stages with param wildcard in name
+                    continue
+                stage = find_stage(stage_name)
+                if isinstance(stage, Parametrizable):
+                    for param in stage.params:
+                        try:
+                            self.add_param(param.key, param.type_name, param.name, param.value, param.default)
+                            params.setdefault(stage_path, []).append(param.name)
+                        except YmpRuleError:
+                            pass
+            self._params = params
+        return super().params
+
+    def get_path(self, stack, typ=None):
+        prefix = stack.name.rsplit(".", 1)[0]
+        if typ is None:
+            suffix = self.pipeline
+        else:
+            suffix = self.outputs[typ]
+        params = self.parse(stack.stage_name)
+        suffix = suffix.format(**params)
+        stages = []
+        path = ""
+        for stage_name in suffix.lstrip(".").split("."):
+            path = ".".join((path, stage_name))
+            takes_params = self._params.get(path)
+            if not takes_params:
+                stages.append(stage_name)
+                continue
+            stage = find_stage(stage_name)
+            if not isinstance(stage, Parametrizable):
+                raise RuntimeError("!!")
+            stage_params = stage.parse(stage_name)
+            for param in takes_params:
+                if param in params:
+                    stage_params[param] = params[param]
+            stages.append(stage.format(stage_params))
+        return ".".join([prefix]+stages)
 
     def _make_outputs(self) -> Dict[str, str]:
         outputs = {}
@@ -113,15 +161,6 @@ class Pipeline(Parametrizable, ConfigStage):
             if output in inputs
         }
         return res
-
-    def get_path(self, stack, typ=None):
-        prefix = stack.name.rsplit('.',1)[0]
-        if typ is None:
-            suffix = self.pipeline
-        else:
-            suffix = self.outputs[typ]
-        params = self.parse(stack.stage_name)
-        return prefix + suffix.format(**params)
 
     def get_all_targets(self, stack):
         targets = []

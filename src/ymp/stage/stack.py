@@ -41,12 +41,12 @@ def find_stage(name):
         raise YmpStageError(f"Unknown reference '{refname}'")
     if name in cfg.projects:
         return cfg.projects[name]
-    for pipeline in cfg.pipelines.values():
-        if pipeline.match(name):
-            return pipeline
     for stage in registry.values():
         if stage.match(name):
             return stage
+    for pipeline in cfg.pipelines.values():
+        if pipeline.match(name):
+            return pipeline
     raise YmpStageError(f"Unknown stage '{name}'")
 
 
