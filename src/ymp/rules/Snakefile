@@ -19,3 +19,32 @@ with Stage.new_registry() as stage, Env.new_registry() as env:
     for snakefile in ymp.get_config().snakefiles:
         include: snakefile
 
+
+if (ymp.get_config().pipelines):
+    pipeline_pattern = "{{pipeline_stack_link,[^/]*.({})}}".format(
+        "|".join(pipeline.regex for pipeline in ymp.get_config().pipelines.values())
+    )
+
+    def _get_pipeline_realpath(wc):
+        from ymp.stage import StageStack, Pipeline
+        link = wc.pipeline_stack_link
+        stack = StageStack.instance(link)
+        if not isinstance(stack.stage, Pipeline):
+            raise IndexError
+        depends = [tgt for tgt in stack.all_targets()
+                   if tgt != link]
+        return depends
+
+    from ymp.stage import StageStack
+    localrules: pipeline_link
+    rule pipeline_link:
+        message:
+            "Making Symlink: {output} -> {params.target}"
+        output:
+            directory(pipeline_pattern)
+        input:
+            _get_pipeline_realpath
+        params:
+            target = lambda wc, output: StageStack.instance(output[0]).path,
+        run:
+            os.symlink(params.target, output[0])
