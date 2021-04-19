@@ -18,7 +18,7 @@ class AttrDict(dict):
     def __getattr__(self, attr):
         try:
             val = self[attr]
-        except KeyError as e:
+        except KeyError:
             raise AttributeError(f'{self} has no attribute {attr}') from None
         if isinstance(val, dict):
             return AttrDict(val)
@@ -252,8 +252,8 @@ class Cache(object):
         import sqlite3
         try:
             self.conn.commit()
-        except sqlite3.OperationalError as e:
-            log.warning("Cache write failed: %s", e.what())
+        except sqlite3.OperationalError as exc:
+            log.warning("Cache write failed: %s", exc.what())
 
     def load(self, cache, key):
         import pickle
