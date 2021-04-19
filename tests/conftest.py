@@ -291,7 +291,7 @@ class Invoker(object):
 def invoker(saved_cwd):
     # Snakemake 4.7 waits 10 seconds during shutdown of cluster submitted
     # worklows -- unless this is set:
-    os.environ['CIRCLECI'] = "true"
+    os.environ['CI'] = "true"
 
     invoker = Invoker()
     yield invoker
