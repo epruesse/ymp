@@ -9,8 +9,15 @@ import pytest
 
 import ymp
 import ymp.config
+import ymp.snakemake
 
 log = logging.getLogger(__name__)
+
+
+# Disable Snakemake Version Check
+# ===============================
+
+ymp.snakemake.check_snakemake.result = True
 
 
 # Add pytest options
