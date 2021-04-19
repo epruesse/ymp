@@ -30,7 +30,7 @@ get_names = partial_formatter.get_names
 
 
 def check_snakemake() -> bool:
-    prev_result = getattr("check_snakemake", "result", None)
+    prev_result = getattr(check_snakemake, "result", None)
     if prev_result is not None:
         return prev_result
     import snakemake
