@@ -151,7 +151,7 @@ class Parametrizable(BaseStage):
     def regex(self):
         return self.name + "".join(param.regex for param in self.params)
 
-    def parse(self, name: str) -> bool:
+    def parse(self, name: str) -> Dict[str, str]:
         match = self.__regex.fullmatch(name)
         groupdict = match.groupdict() if match else {}
         return {
