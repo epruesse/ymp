@@ -5,10 +5,9 @@ import pygraphviz as pgv
 import networkx as nx
 
 
-def test_pipeline_hide(invoker):
+def test_pipeline_hide(invoker, demo_dir):
     """Checks that hiding of pipeline intermediary outputs works"""
     
-    invoker.call("init", "demo")
     res = invoker.call("make", "toy.mypipeline", "--dag", "-qq")
     
     # This line will segfault if there is any extra data in res!

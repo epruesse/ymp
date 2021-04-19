@@ -199,8 +199,26 @@ def project(request):
 
 
 @pytest.fixture()
-def demo_dir(invoker, saved_cwd):
+def demo_dir_fresh(invoker, saved_cwd):
     invoker.call("init", "demo")
+    return saved_cwd
+
+
+@pytest.fixture(scope="session")
+def demo_dir_cached(tmpdir_factory):
+    dirname = tmpdir_factory.mktemp("demo_base")
+    invoker = Invoker()
+
+    with dirname.as_cwd():
+        invoker.call("init", "demo")
+        invoker.call("stage", "list")
+    invoker.clean()
+    return dirname
+
+
+@pytest.fixture()
+def demo_dir(saved_cwd, demo_dir_cached):
+    demo_dir_cached.copy(saved_cwd)
     return saved_cwd
 
 

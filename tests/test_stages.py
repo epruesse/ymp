@@ -26,13 +26,11 @@ targets = get_targets()
 
 
 @pytest.mark.parametrize("targetx", targets)
-def test_stage_dryrun(invoker, targetx):
-    invoker.call("init", "demo")
+def test_stage_dryrun(invoker, demo_dir, targetx):
     invoker.call("make", "-n", targetx)
 
 
 @pytest.mark.runs_tool
 @pytest.mark.parametrize("targetx", targets)
-def test_stage_run(invoker, targetx):
-    invoker.call("init", "demo")
+def test_stage_run(invoker, demo_dir, targetx):
     invoker.call("make", targetx)
