@@ -133,7 +133,7 @@ class Reference(Activateable, ConfigStage):
         if self._outputs is None:
             keys = self._ids if self._ids else ["ALL"]
             self._outputs = {
-                "/" + re.sub(f"(^|.)({'|'.join(keys)})\.", r"\1{sample}.", fname) : ""
+                "/" + re.sub(f"(^|.)({'|'.join(keys)})\.", r"\1{sample}.", fname) : "."+self.name
                 for fname in self.files
             }
         return self._outputs

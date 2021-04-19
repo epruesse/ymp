@@ -49,25 +49,16 @@ class Pipeline(Parametrizable, ConfigStage):
 
         #: If true, outputs of stages are hidden by default
         self.hide_outputs = getattr(cfg, "hide", False)
-
-        if 'params' in cfg:
+        if 'params' in cfg and cfg.params is not None:
             if not isinstance(cfg.params, Mapping):
                 raise YmpConfigError(cfg, "Params must contain a mapping", key="params")
-            for param, data in cfg.params.items():
-                if not isinstance(data, Mapping):
-                    raise YmpConfigError(data, "Param must contain a mapping", key=param)
-                try:
-                    key = data['key']
-                    typ = data['type']
-                except KeyError as exc:
-                    raise YmpConfigError(data, "Param must have at least key and type defined") from exc
-                self.add_param(
-                    key, typ, param, data.get("value"), data.get("default")
-                )
+            self._init_params(cfg.params)
 
         #: Dictionary of stages with configuration options for each
         self.stages = OrderedDict()
         path = ""
+        if not "stages" in cfg:
+            raise YmpConfigError(cfg, "Pipeline must have stages entry")
         for stage in cfg.stages:
             if stage is None:
                 raise YmpConfigError(self, f"Empty stage name in pipeline '{name}'")
@@ -83,6 +74,19 @@ class Pipeline(Parametrizable, ConfigStage):
         #: Path fragment describing this pipeline
         self.pipeline = path
 
+    def _init_params(self, params):
+        for param, data in params.items():
+            if not isinstance(data, Mapping):
+                raise YmpConfigError(data, "Param must contain a mapping", key=param)
+            try:
+                key = data['key']
+                typ = data['type']
+            except KeyError as exc:
+                raise YmpConfigError(data, "Param must have at least key and type defined") from exc
+            self.add_param(
+                key, typ, param, data.get("value"), data.get("default")
+            )
+
     @property
     def params(self):
         if self._params is None:
@@ -93,13 +97,14 @@ class Pipeline(Parametrizable, ConfigStage):
                     # Cannot inherit params from stages with param wildcard in name
                     continue
                 stage = find_stage(stage_name)
-                if isinstance(stage, Parametrizable):
-                    for param in stage.params:
-                        try:
-                            self.add_param(param.key, param.type_name, param.name, param.value, param.default)
-                            params.setdefault(stage_path, []).append(param.name)
-                        except YmpRuleError:
-                            pass
+                if not isinstance(stage, Parametrizable):
+                    continue
+                for param in stage.params:
+                    try:
+                        self.add_param(param.key, param.type_name, param.name, param.value, param.default)
+                        params.setdefault(stage_path, []).append(param.name)
+                    except YmpRuleError:
+                        pass
             self._params = params
         return super().params
 
@@ -120,8 +125,6 @@ class Pipeline(Parametrizable, ConfigStage):
                 stages.append(stage_name)
                 continue
             stage = find_stage(stage_name)
-            if not isinstance(stage, Parametrizable):
-                raise RuntimeError("!!")
             stage_params = stage.parse(stage_name)
             for param in takes_params:
                 if param in params:

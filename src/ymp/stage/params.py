@@ -217,7 +217,7 @@ class ParamChoice(Param):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.default is not None:
-            self.value += [""]
+            self.value = list(self.value) + [""]
         self.regex = f"({self.key}({'|'.join(self.value)}))"
 
 
