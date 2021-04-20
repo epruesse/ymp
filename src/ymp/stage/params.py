@@ -87,7 +87,7 @@ class Param(abc.ABC):
     def format(self, groupdict):
         value = groupdict.get(self.name)
         if value is not None and value != self.default:
-            return self.key + value
+            return self.key + str(value)
         return ""
 
 class Parametrizable(BaseStage):
