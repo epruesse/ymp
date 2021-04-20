@@ -34,8 +34,10 @@ with Stage("polish_pilon") as S:
         shell:
             "exec >{log} 2>&1;"
             "if [ '{params.nonempty}' = 'False' ]; then"
-            "  echo 'YMP: {input.fasta} empty - creating empty output'"
-            "  echo | gzip -c > {output};"
+            "  echo 'YMP: {input.fasta} empty - creating empty output';"
+            "  echo | gzip -c > {output.fasta};"
+            "  echo | gzip -c > {output.vcf};"
+            "  echo > {output.changes};"
             "  exit 0;"
             "fi;"
             "pilon"
