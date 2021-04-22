@@ -1,16 +1,18 @@
 # Default directory structure
 directories:
-    tmp: 'tmp'
-    references: 'references'
-    dbs: 'dbs'
-    scratch: 'scratch'
-    reports: 'reports'
-    sra: 'sra'
-    log: 'log'
-    rules: 'rules'
-    downloads: 'downloads'
-    dynamic_envs: &dynamic_envs '.ymp/envs'
-    conda_envs: &conda_envs 'conda_envs'
+    tmp: !workdir 'tmp'
+    references: !workdir 'references'
+    dbs: !workdir 'dbs'
+    scratch: !workdir 'scratch'
+    reports: !workdir 'reports'
+    sra: !workdir 'sra'
+    log: !workdir 'log'
+    rules:
+      builtin: ../rules
+      workdir: !workdir 'rules'
+    downloads: !workdir 'downloads'
+    dynamic_envs: &dynamic_envs !workdir '.ymp/envs'
+    conda_envs: &conda_envs !workdir 'conda_envs'
     conda_prefix: '~/.ymp/conda'
     conda_archive_prefix: "~/.ymp/conda_archive"
 
@@ -18,7 +20,7 @@ conda:
   # If set, use frozen environments from this set
   env_specs:
     - *conda_envs
-    - BUILTIN:latest
+    - ../conda_envs/latest
 
   # Search path for <envname>.yml files:
   env_path:

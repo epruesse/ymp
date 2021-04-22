@@ -1,0 +1,15 @@
+module_pipeline_loaded: True
+include:
+  - pipeline2.yaml
+
+module_path: module_file
+module_path_list:
+  - module_file_1
+  - module_file_2
+module_path_dict:
+  path1: module_file_3
+  path2: module_file_4
+path_overridden_by_main: not_overridden_path
+path_overridden_by_module: overridden_path
+
+

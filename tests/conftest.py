@@ -9,8 +9,15 @@ import pytest
 
 import ymp
 import ymp.config
+import ymp.snakemake
 
 log = logging.getLogger(__name__)
+
+
+# Disable Snakemake Version Check
+# ===============================
+
+ymp.snakemake.check_snakemake.result = True
 
 
 # Add pytest options
@@ -192,8 +199,26 @@ def project(request):
 
 
 @pytest.fixture()
-def demo_dir(invoker, saved_cwd):
+def demo_dir_fresh(invoker, saved_cwd):
     invoker.call("init", "demo")
+    return saved_cwd
+
+
+@pytest.fixture(scope="session")
+def demo_dir_cached(tmpdir_factory):
+    dirname = tmpdir_factory.mktemp("demo_base")
+    invoker = Invoker()
+
+    with dirname.as_cwd():
+        invoker.call("init", "demo")
+        invoker.call("stage", "list")
+    invoker.clean()
+    return dirname
+
+
+@pytest.fixture()
+def demo_dir(saved_cwd, demo_dir_cached):
+    demo_dir_cached.copy(saved_cwd)
     return saved_cwd
 
 
@@ -284,7 +309,7 @@ class Invoker(object):
 def invoker(saved_cwd):
     # Snakemake 4.7 waits 10 seconds during shutdown of cluster submitted
     # worklows -- unless this is set:
-    os.environ['CIRCLECI'] = "true"
+    os.environ['CI'] = "true"
 
     invoker = Invoker()
     yield invoker
@@ -293,9 +318,9 @@ def invoker(saved_cwd):
 
 @pytest.fixture()
 def invoker_nodir():
-    # Snakemake 4.7 waits 10 seconds during shutdown of cluster submitted
+    # Snakemake 6 waits 10 seconds during shutdown of cluster submitted
     # worklows -- unless this is set:
-    os.environ['CIRCLECI'] = "true"
+    os.environ['CI'] = "true"
 
     invoker = Invoker()
     yield invoker

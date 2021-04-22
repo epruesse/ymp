@@ -7,9 +7,9 @@ from ymp.stage.project import SQLiteProjectData
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-def pickled_sqlite_pd(cfg):
+def pickled_sqlite_pd(cfg, key):
     import pickle
-    obj = SQLiteProjectData(cfg)
+    obj = SQLiteProjectData(cfg, key)
     pkl = pickle.dumps(obj)
     return pickle.loads(pkl)
 
@@ -18,7 +18,7 @@ def pickled_sqlite_pd(cfg):
 def project_data(request, project_dir, saved_cwd):
     ymp.get_config().unload()
     cfg = ymp.get_config()
-    return [request.param(prj.cfg.data) for prj in cfg.projects.values()]
+    return [request.param(prj.cfg, "data") for prj in cfg.projects.values()]
 
 
 @pytest.mark.parametrize("project", ["complex_data"], indirect=True)

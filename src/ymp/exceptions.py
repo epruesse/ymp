@@ -6,12 +6,13 @@ from typing import Optional, Tuple
 
 from click import ClickException, echo
 
+from snakemake.exceptions import WorkflowError, RuleException
 
 class YmpException(Exception):
     """Base class of all YMP Exceptions"""
 
 
-class YmpPrettyException(YmpException, ClickException):
+class YmpPrettyException(YmpException, ClickException, WorkflowError):
     """Exception that does not lead to stack trace on CLI
 
     Inheriting from ClickException makes ``click`` print only the
@@ -31,6 +32,8 @@ class YmpPrettyException(YmpException, ClickException):
         the snakemake workflow as snakemake.snakemake catches and
         reformats exceptions.
     """
+    rule = None
+    snakefile = None
 
 class YmpLocateableError(YmpPrettyException):
     """Errors that have a file location to be shown
@@ -58,12 +61,11 @@ class YmpLocateableError(YmpPrettyException):
     def show(self, file=None) -> None:
         super().show(file)
         fname, line = self.get_fileline()
-        if not fname:
-            fname = "unknown file"
-        if line is None:
-            echo(f"Problem occurred in {fname}:", file=file)
-        else:
-            echo(f"Problem occurred in line {line} of {fname}:", file=file)
+        if fname:
+            if line is None:
+                echo(f"Problem occurred in {fname}:", file=file)
+            else:
+                echo(f"Problem occurred in line {line} of {fname}:", file=file)
         for entry in self.stack:
             if not entry.filename.endswith(".py") and not entry.filename.endswith("/ymp"):
                 echo(f"  while processing {entry.filename}:{entry.lineno}", file=file)

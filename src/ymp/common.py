@@ -17,16 +17,12 @@ class AttrDict(dict):
     """
     def __getattr__(self, attr):
         try:
-            return super().__getattr__(attr)
-        except AttributeError:
-            try:
-                val = self[attr]
-            except KeyError as e:
-                raise AttributeError(e)
-            if isinstance(val, dict):
-                return AttrDict(val)
-            else:
-                return val
+            val = self[attr]
+        except KeyError:
+            raise AttributeError(f'{self} has no attribute {attr}') from None
+        if isinstance(val, dict):
+            return AttrDict(val)
+        return val
 
     def __setattr__(self, attr, value):
         if attr.startswith("_"):
@@ -198,7 +194,7 @@ class Cache(object):
                 DROP TABLE stamps;
                 """)
         else:
-            log.error("Dropping cache: version changed")
+            log.info("No cache, loading...")
             update = True
 
         if update:
@@ -256,8 +252,8 @@ class Cache(object):
         import sqlite3
         try:
             self.conn.commit()
-        except sqlite3.OperationalError as e:
-            log.warning("Cache write failed: %s", e.what())
+        except sqlite3.OperationalError as exc:
+            log.warning("Cache write failed: %s", exc.what())
 
     def load(self, cache, key):
         import pickle

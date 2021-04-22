@@ -38,14 +38,15 @@ def find_stage(name):
         refname = name[4:]
         if refname in cfg.ref:
             return cfg.ref[refname]
-        raise YmpStageError(f"Unknown reference '{cfg.ref[refname]}'")
+        raise YmpStageError(f"Unknown reference '{refname}'")
     if name in cfg.projects:
         return cfg.projects[name]
-    if name in cfg.pipelines:
-        return cfg.pipelines[name]
     for stage in registry.values():
         if stage.match(name):
             return stage
+    for pipeline in cfg.pipelines.values():
+        if pipeline.match(name):
+            return pipeline
     raise YmpStageError(f"Unknown stage '{name}'")
 
 
@@ -91,6 +92,8 @@ class StageStack:
                        for name in self.stage_names]
         #: Top Stage
         self.stage = self.stages[-1]
+        #: Top Stage Name
+        self.stage_name = self.stage_names[-1]
         #: Stage below top stage or None if first in stack
         self.prev_stage = self.stages[-2] if len(self.stages) > 1 else None
         self.prev_stack = None
@@ -177,14 +180,15 @@ class StageStack:
         prevs = {}
         while stage_names and inputs:
             path = ".".join(stage_names)
-            prev_stage = find_stage(stage_names.pop())
             prev_stack = self.instance(path)
+            prev_stage = find_stage(stage_names.pop())
             provides = stage.satisfy_inputs(prev_stage, inputs)
-            for typ, path in provides.items():
-                if path:
-                    npath = ".".join(stage_names) + path
-                    prev_stack = self.instance(npath)
-                prevs[typ] = prev_stack
+            for typ, ppath in provides.items():
+                if ppath:
+                    npath = prev_stage.get_path(prev_stack, typ)
+                    prevs[typ] = self.instance(npath)
+                else:
+                    prevs[typ] = prev_stack
         return prevs
 
     def complete(self, incomplete):

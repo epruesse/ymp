@@ -26,7 +26,7 @@ jobs:
           fetch-depth: 0  # full history for setuptools_scm
       - uses: actions/cache@v1
         env:
-          CACHE_VERS: 0  # bump to manually reset cache
+          CACHE_VERS: 1  # bump to manually reset cache
         with:
           path: ~/conda_pkgs_dir
           key: ${{runner.os}}-conda-${{env.CACHE_VERS}}-${{hashFiles('environment.yaml')}}
@@ -41,6 +41,7 @@ jobs:
           activate-environment: ymp
           channel-priority: strict
           use-only-tar-bz2: true  # needed for caching
+          mamba-version: "*"
       - name: Install
         run: |
           pip install --no-deps .

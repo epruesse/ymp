@@ -344,7 +344,7 @@ class ConfigMgr(object):
         else:
             self.cachedir = os.path.join(XDG_CACHE_HOME, "ymp")
 
-        self._config = ymp.yaml.load(conffiles)
+        self._config = ymp.yaml.load(conffiles, root)
         self.cache = cache = Cache(self.cachedir)
 
         # lazy filled by accessors
@@ -411,17 +411,14 @@ class ConfigMgr(object):
 
         The directory paths are relative to the YMP root workdir.
         """
-        return self._config.directories
+        return self._config.directories.get_paths()
 
     @property
     def absdir(self):
         """
         Dictionary of absolute paths of named YMP directories
         """
-        return AttrDict({
-            name: os.path.normpath(os.path.join(self.root, os.path.expanduser(value)))
-            for name, value in self.dir.items()
-        })
+        return self._config.directories.get_paths(absolute=True)
 
     @property
     def ensuredir(self):
@@ -440,27 +437,24 @@ class ConfigMgr(object):
         return self._config.cluster
 
     @property
-    def limits(self):
-        """
-        The YMP limits configuration.
-        """
-        return self._config.limits
-
-    @property
     def snakefiles(self):
         """
         Snakefiles used under this config in parsing order
         """
         if not self._snakefiles:
-            self._snakefiles = [
-                fn
-                for dn in (os.path.dirname(self.RULE_MAIN_FNAME),
-                           self.absdir.rules)
-                for fn in sorted(glob.glob(os.path.join(dn, "**", "*.rules"),
-                                           recursive=True),
-                                 key=lambda v: v.lower())
-                if os.path.basename(fn)[0] != "."
-            ]
+            def find_files(dirname):
+                if dirname is None:
+                    return []
+                listfiles =  glob.glob(os.path.join(dirname, "**", "*.rules"), recursive=True)
+                listfiles.sort(key = lambda v: v.lower())
+                listfiles = filter(lambda fname: os.path.basename(fname)[0] != ".", listfiles)
+                return listfiles
+            rule_dirs = self.absdir.rules.copy()
+            snakefiles = []
+            snakefiles.extend(find_files(rule_dirs.pop('builtin', None)))
+            for dirname in rule_dirs:
+                snakefiles.extend(find_files(rule_dirs[dirname]))
+            self._snakefiles = snakefiles
         return self._snakefiles
 
     def expand(self, item, **kwargs):

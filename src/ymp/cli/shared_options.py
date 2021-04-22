@@ -125,7 +125,7 @@ class LogFormatter(ColoredFormatter):
         return super().format(record)
 
 
-class Log(object):
+class Log:
     """
     Set up Logging
     """
@@ -144,10 +144,11 @@ class Log(object):
         self.root_logger = logging.getLogger()
         self.log = logging.getLogger("ymp")
         self.log.setLevel(logging.WARNING)
-        self.console_handler = TqdmHandler()
-        self.console_handler.setLevel(logging.DEBUG)  # no filtering
-        self.console_handler.setFormatter(LogFormatter())
-        self.root_logger.addHandler(self.console_handler)
+        if not any(isinstance(handler, TqdmHandler) for handler in self.root_logger.handlers):
+            self.console_handler = TqdmHandler()
+            self.console_handler.setLevel(logging.DEBUG)  # no filtering
+            self.console_handler.setFormatter(LogFormatter())
+            self.root_logger.addHandler(self.console_handler)
 
     def mod_level(self, n):
         new_level = self.log.getEffectiveLevel() + n*10
