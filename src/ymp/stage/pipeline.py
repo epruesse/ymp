@@ -111,27 +111,29 @@ class Pipeline(Parametrizable, ConfigStage):
         return super().params
 
     def get_path(self, stack, typ=None):
-        prefix = stack.name.rsplit(".", 1)[0]
+        pipeline_parameters = self.parse(stack.stage_name)
         if typ is None:
-            suffix = self.pipeline
+            pipeline = self.pipeline
         else:
-            suffix = self.outputs[typ]
-        params = self.parse(stack.stage_name)
-        suffix = suffix.format(**params)
+            pipeline = self.outputs[typ]
+        pipeline = pipeline.format(**pipeline_parameters)
         stages = []
         path = ""
-        for stage_name in suffix.lstrip(".").split("."):
+        for stage_name in pipeline.lstrip(".").split("."):
             path = ".".join((path, stage_name))
             takes_params = self._params.get(path)
             if not takes_params:
                 stages.append(stage_name)
                 continue
+
             stage = find_stage(stage_name)
-            stage_params = stage.parse(stage_name)
+            stage_parameters = stage.parse(stage_name)
             for param in takes_params:
-                if param in params:
-                    stage_params[param] = params[param]
-            stages.append(stage.format(stage_params))
+                if param in pipeline_parameters:
+                    stage_parameters[param] = pipeline_parameters[param]
+            stages.append(stage.format(stage_parameters))
+
+        prefix = stack.name.rsplit(".", 1)[0]
         return ".".join([prefix]+stages)
 
     def _make_outputs(self) -> Dict[str, str]:
