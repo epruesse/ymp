@@ -99,9 +99,11 @@ class Pipeline(Parametrizable, ConfigStage):
                 stage = find_stage(stage_name)
                 if not isinstance(stage, Parametrizable):
                     continue
+                stage_params = stage.parse(stage_name)
                 for param in stage.params:
                     try:
-                        self.add_param(param.key, param.type_name, param.name, param.value, param.default)
+                        default = stage_params.get(param.name, param.default)
+                        self.add_param(param.key, param.type_name, param.name, param.value, default)
                         params.setdefault(stage_path, []).append(param.name)
                     except YmpRuleError:
                         pass
