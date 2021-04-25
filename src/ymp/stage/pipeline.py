@@ -112,6 +112,10 @@ class Pipeline(Parametrizable, ConfigStage):
 
     def get_path(self, stack, typ=None):
         pipeline_parameters = self.parse(stack.stage_name)
+        param_map = {
+            key.format(**pipeline_parameters): value
+            for key, value in self._params.items()
+        }
         if typ is None:
             pipeline = self.pipeline
         else:
@@ -121,7 +125,7 @@ class Pipeline(Parametrizable, ConfigStage):
         path = ""
         for stage_name in pipeline.lstrip(".").split("."):
             path = ".".join((path, stage_name))
-            takes_params = self._params.get(path)
+            takes_params = param_map.get(path)
             if not takes_params:
                 stages.append(stage_name)
                 continue
