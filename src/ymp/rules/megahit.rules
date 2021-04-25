@@ -106,13 +106,3 @@ with Stage("assemble_megahit") as S:
         # remove intermediate contigs
         rm -rf {params.workdir}
         """
-
-    rule megahit_all:
-        message:
-            "Completed Megahit assemblies"
-        input:
-            "{:this:}/{:targets:}.fasta.gz"
-        output:
-            "{:this:}/all_targets.stamp"
-        shell:
-            "touch {output}"

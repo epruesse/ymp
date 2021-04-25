@@ -55,14 +55,6 @@ with Stage("index_bbmap") as S:
             >{log} 2>&1
         """
 
-    rule bbmap_makedb_all:
-        message:
-            "BBMap: indexing done"
-        output:
-            touch("{:this:}/all_targets.stamp")
-        input:
-            "{:this:}/{:targets:}"
-
 
 with Stage("correct_bbmap") as S:
     S.doc("""
@@ -519,14 +511,6 @@ with Stage("map_bbmap") as S:
         params:
             in2 = ""
 
-    rule bbmap_map_all:
-        message:
-            "BBMap: mapping done"
-        output:
-            touch("{:this:}/all_targets.stamp")
-        input:
-            "{:this:}/{:targets:}.bam"
-
 
 with Stage("dust_bbmap") as S:
     S.doc("""
@@ -569,14 +553,6 @@ with Stage("dust_bbmap") as S:
             ' pigz unpigz'
             ' -Xmx{resources.mem_mb}m'
             ' >{log} 2>&1'
-
-    rule bbmap_dust_all:
-        message:
-            "BBMap: fishished removing low entropy reads"
-        output:
-            touch("{:this:}/all_targets.stamp")
-        input:
-            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
 
 
 with Stage("format_bbmap") as S:
@@ -622,12 +598,4 @@ with Stage("format_bbmap") as S:
             ' bgzip'
             ' fastawrap=0'  # sequence on one line
             ' fastaminlen={params.length}'
-
-    rule bbmap_reformat_all:
-        message:
-            "BBMap: completed {output}"
-        input:
-            "{:this:}/{:targets:}.fasta.gz"
-        output:
-            touch("{:this:}/all_targets.stamp")
 

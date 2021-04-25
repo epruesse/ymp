@@ -172,13 +172,3 @@ with Stage("assemble_spades") as S:
         cat {params.workdir}{{params.txt,spades.log}} | pigz -p {threads} -9 > {log.spades}
         rm -rf {params.workdir}
         """
-
-    rule spades_all:
-        message:
-            "Completed Spades assemblies"
-        input:
-            "{:this:}/{:targets:}.fasta.gz"
-        output:
-            "{:this:}/all_targets.stamp"
-        shell:
-            "touch {output}"

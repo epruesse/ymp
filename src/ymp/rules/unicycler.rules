@@ -101,11 +101,3 @@ with Stage("assemble_unicycler") as S:
         mv {params.workdir}assembly.fasta.gz {output.fasta}
         rm -rf {params.workdir}
         """
-
-    rule unicycler_all:
-        message:
-            "Completed Unicycler assemblies"
-        input:
-            "{:this:}/{:targets:}.fasta.gz"
-        output:
-            touch("{:this:}/all_targets.stamp")

@@ -64,11 +64,3 @@ with Stage("polish_pilon") as S:
 
             "mv {params.thistarget}.changes {output.changes}"
             ";"
-
-    rule pilon_polish_all:
-        message:
-            "Done polishing with pilon"
-        input:
-            "{:this:}/{:targets:}.fasta.gz"
-        output:
-            touch("{:this:}/all_targets.stamp")

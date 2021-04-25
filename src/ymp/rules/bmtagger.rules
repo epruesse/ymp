@@ -61,15 +61,6 @@ with Stage("index_bmtagger") as S:
         touch {output}
         """
 
-    rule bmtagger_index_all:
-        message:
-            "BMTagger: indexing done"
-        input:
-            "{:this:}/{:targets:}.srprism",
-            "{:this:}/{:targets:}.bitmask"
-        output:
-            touch("{:this:}/all_targets.stamp")
-
 
 with Stage("filter_bmtagger", "remove_bmtagger") as S:
     S.doc("""

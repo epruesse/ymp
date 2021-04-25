@@ -73,7 +73,7 @@ with Stage("qc_quast") as S:
         input:
             "{:this:}/{:targets:}/combined_reference/report.tsv"
         output:
-            "reports/{:this:}.html"
+            "{:this:}/reports.html"
         log:
             "{:this:}/multiqc.log"
         params:

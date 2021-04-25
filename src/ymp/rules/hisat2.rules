@@ -43,10 +43,3 @@ with Stage("map_hisat2") as S:
             " -p {threads} "
             " 2>{log}"
             " | samtools view -b -o {output.bam} -"
-
-    rule hisat2_all:
-        message: "Hisat2: Mapped all in {output}"
-        input:        "{:this:}/{:targets:}.bam"
-        output: touch("{:this:}/all_targets.stamp")
-
-

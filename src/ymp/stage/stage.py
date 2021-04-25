@@ -170,17 +170,16 @@ class Stage(WorkflowObject, Parametrizable, Activateable, BaseStage):
 
         Here, input requirements for each stage are collected.
         """
-        item = kwargs['item']
-        self.register_inout("prev", self._inputs, item)
+        self.register_inout("prev", self._inputs, kwargs['item'])
 
-    def this(self, _args=None, kwargs=None):
+    def this(self, args=None, kwargs=None):
         """Replaces {:this:} in rules
 
         Also gathers output capabilities of each stage.
         """
         item = kwargs['item']
-        # Fixme: check that this is from outputs
-        self.register_inout("this", self._outputs, item)
+        if kwargs.get('field') == 'output' and not "{:bin:}" in item:
+            self.register_inout("this", self._outputs, item)
         return self._wildcards(self.name, kwargs=kwargs)
 
     def that(self, _args=None, kwargs=None):
@@ -211,6 +210,15 @@ class Stage(WorkflowObject, Parametrizable, Activateable, BaseStage):
 
     def has_checkpoint(self) -> bool:
         return bool(self.checkpoints)
+
+    def get_all_targets(self, stack):
+        if "/all_targets.stamp" in self.outputs:
+            return [stack.name + "/all_targets.stamp"]
+        outputs = None
+        if self.has_checkpoint():
+            checkpoint_outputs = set().union(*self.checkpoints.values())
+            outputs = {output for output in self.outputs if output not in checkpoint_outputs}
+        return super().get_all_targets(stack, outputs)
 
     def get_group(
             self,

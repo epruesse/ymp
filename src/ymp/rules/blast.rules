@@ -47,10 +47,6 @@ with Stage("index_blast"):
         """
         # FIXME: check for "-" in fasta header - blast does not like those
 
-    rule blast_makedb_all:
-        input: expand("{{:this:}}/{{:targets:}}.{ext}", ext=BLASTIDX_SUFFIXES)
-        output: touch("{:this:}/all_targets.stamp")
-
 
 with Stage("annotate_tblastn") as S:
     S.doc("""
@@ -86,12 +82,6 @@ with Stage("annotate_tblastn") as S:
           -num_threads {threads} \
           &> {log} 2>&1
         """
-
-    rule tblastn_all:
-        output:
-            touch("{:this:}/all_targets.stamp")
-        input:
-            "{:this:}/{:targets:}.gtf"
 
     rule blast7_to_gtf:
         """Convert from Blast Format 7 to GFF/GTF format"""
@@ -315,15 +305,3 @@ with Stage("annotate_blast") as S:
         input:
             db = expand("{{:prev:}}/{{:target:}}.{ext}",
                         ext=BLASTIDX_SUFFIXES_V4)
-
-    rule blastn_query_all:
-        """Collector rule for stage"""
-        message:
-            "Completed {params.this}"
-        params:
-            this = lambda wc, output: os.path.dirname(output[0])
-        input:
-            "{:this:}/{:targets:}.blast7.gz",
-            "{:this:}/ALL.blast_db_size"
-        output:
-            touch("{:this:}/all_targets.stamp")

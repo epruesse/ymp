@@ -155,12 +155,3 @@ with Stage("") as S:
                 #       Make first/index column be called "#SampleID"
 
 
-    rule import_all:
-        message:
-            "Created project data directory"
-        output:
-            touch("{:this:}/all_targets.stamp")
-        input:
-            "{:this:}/{:fq_names:}.fq.gz"
-
-

@@ -94,12 +94,3 @@ with Stage("bin_metabat2") as S:
             "  mv $bin {params.prefix}__$binid.fasta.gz;"
             "  echo $binid >> {output.bins};"
             "done;"
-
-    rule metabat2_all:
-        message:
-            "Completed Metabat binning"
-        input:
-            "{:this:}/{:targets:}.bins"
-        output:
-            touch("{:this:}/all_targets.stamp")
-        

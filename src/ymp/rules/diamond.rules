@@ -27,14 +27,6 @@ with Stage("index_diamond"):
         >{log} 2>&1
         """
 
-    rule diamond_makedb_all:
-        message:
-            "Diamond: makedb done"
-        input:
-            "{:this:}/{:targets:}.dmnd"
-        output:
-            touch("{:this:}/all_targets.stamp")
-
 
 with Stage("annotate_diamond") as S:
     S.doc("""
@@ -79,11 +71,6 @@ with Stage("annotate_diamond") as S:
         diamond view --daa {input} > {output}
         """
 
-    rule diamond_blastx_fasta_all:
-        message:
-            "Diamond: blastx done"
-        input:
-            "{:this:}/{:targets:}.daa"
 
 with Stage("map_diamond") as S:
     rule diamond_blastx_fastq: 
@@ -134,23 +121,8 @@ with Stage("map_diamond") as S:
         diamond view -a {input[1]} -f 6  > {output[1]}
         """
 
-    rule diamond_blastx_fastq_all:
-        message:
-            "Diamond: done"
-        input:
-            "{:this:}/{:targets:}.{:pairnames:}.daa"
-        output:
-            touch("{:this:}/all_targets.stamp")
              
 with Stage("count_diamond"):
-    rule diamond_count_all:
-        message:
-            "Diamond: done counting"
-        input:
-            "{:this:}/{:targets:}.counts.tsv"
-        output:
-            touch("{:this:}/all_targets.stamp")
-
     rule diamond_count:
         message:
             "Calculating hits per reference"

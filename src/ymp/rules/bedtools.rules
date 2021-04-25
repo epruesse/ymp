@@ -37,10 +37,3 @@ with Stage("basecov_bedtools") as S:
             " -bg"  # bedgraph format
             " >{output.bedgraph}"
 
-    rule bedtools_genomecov_all:
-        message:
-            "Bedtools Genomecov finished"
-        input:
-            "{:this:}/{:targets:}.basecov.bg"
-        output:
-            touch("{:this:}/all_targets.stamp")

@@ -53,14 +53,6 @@ with Stage("extract_reads") as S:
             " {input}"
             " 2>&1 >{log}"
 
-    rule samtools_fastq_all:
-        message:
-            "Samtools fastq: finished"
-        input:
-            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
-        output:
-            touch("{:this:}/all_targets.stamp")
-
 
 with Stage("extract_seqs") as S:
     S.doc("""
@@ -125,15 +117,6 @@ with Stage("extract_seqs") as S:
             ' >{output.fasta}'
 
 
-    rule samtools_faidx_all:
-        message:
-            "Finished {output}"
-        input:
-            "{:this:}/{:targets:}.fasta.gz"
-        output:
-            touch("{:this:}/all_targets.stamp")
-
-
 with Stage("coverage_samtools") as S:
     S.doc("""
     Computes coverage from a sorted bam file using ``samtools coverage``
@@ -160,13 +143,4 @@ with Stage("coverage_samtools") as S:
             ' {input}'
             ' -o {output}'
             ' >{log} 2>&1'
-
-    localrules: samtools_coverage_all
-    rule samtools_coverage_all:
-        message:
-            "Finished {output}"
-        input:
-            "{:this:}/{:targets:}.coverage"
-        output:
-            touch("{:this:}/all_targets.stamp")
 

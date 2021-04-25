@@ -8,11 +8,12 @@ import re
 
 from typing import Set, Dict, Union, List, Optional
 
-from ymp.exceptions import YmpStageError, YmpRuleError, YmpException
-
-from ymp.yaml import MultiProxy
 from snakemake.rules import Rule
 from snakemake.workflow import Workflow
+
+from ymp.exceptions import YmpStageError, YmpRuleError, YmpException
+from ymp.string import ProductFormatter
+from ymp.yaml import MultiProxy
 
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -20,9 +21,6 @@ log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class BaseStage:
     """Base class for stage types"""
-    #: The name of the stamp file that is touched to indicate
-    #: completion of the stage.
-    STAMP_FILENAME = "all_targets.stamp"
 
     def __init__(self, name: str) -> None:
         #: The name of the stage is a string uniquely identifying it
@@ -120,13 +118,26 @@ class BaseStage:
         """
         return stack.name
 
-    def get_all_targets(self, stack: "StageStack") -> List[str]:
+    def get_all_targets(self, stack: "StageStack", output_types=None) -> List[str]:
         """Targets to build to complete this stage given ``stack``.
 
         Typically, this is the StageStack's path appended with the
         stamp name.
         """
-        return [os.path.join(stack.path, self.STAMP_FILENAME)]
+        if output_types is None:
+            output_types = [
+                output for output in self.outputs
+                if "{sample}" in output
+                and not "{:bin:}" in output
+            ]
+        targets = stack.targets
+        path = stack.path
+        output_files = [
+            path + output_type.format(sample=target)
+            for output_type in output_types
+            for target in targets
+        ]
+        return output_files
 
     def get_group(
             self,
@@ -188,7 +199,6 @@ class BaseStage:
         # pylint: disable = no-self-use
         return False
 
-
 class Activateable:
     """
     Mixin for Stages that can be filled with rules from Snakefiles.
@@ -243,17 +253,42 @@ class Activateable:
             )
 
     def register_inout(self, name: str, target: Set, item: str) -> None:
+        """Determine stage input/output file type from prev/this filename
+
+        Detects patterns like "PREFIX{: NAME :}/INFIX{TARGET}.EXT".
+        Also checks if there is an active stage.
+
+        Args:
+           name: The NAME
+           target: Set to which to add the type
+           item: The filename
+        Returns:
+           Normalized output pattern
+        """
         self.check_active_stage(name)
-        prefix, _, suffix = item.partition(f"{{:{name}:}}")
-        suffix = re.sub(r"\{:\s*target(\(.*\))?\s*:\}", "{sample}", suffix)
-        for n in ("{target}", "{source}", "{:target:}"):
-            suffix = suffix.replace(n, "{sample}")
-        for n in ("{:targets:}", "{:sources:}"):
-            suffix = suffix.replace(n, "{:samples:}")
-        if not prefix:
-            target.add(suffix)
-        # fixme: what if prefix present?
-        return suffix
+        match = re.fullmatch(r"""
+        (?P<prefix>.*)\{{:\s*{name}\s*:\}}
+        (?P<infix>/?.*?)
+        (?P<target>\{{:?\s*(?:target|sample|source)(?:|\([^)]*\))\s*:?}})?
+        (?P<suffix>.*)
+        """.format(name=name), item, re.VERBOSE)
+        if not match:
+            raise YmpRuleError(self, f"Malformed '{{:{name}:}}' string: '{item}'")
+        parts = match.groupdict()
+        prefix = parts["prefix"]
+        if parts.get("prefix"):
+            raise YmpRuleError(self, f"Stage prefix '{prefix}' in '{item}' not supported")
+        infix = parts["infix"]
+        if infix and infix != "/":
+            raise YmpRuleError(self, f"Filename prefix '{infix}' in '{item}' not supported")
+        suffix = parts["suffix"]
+        if parts["target"]:
+            normtype = "/{sample}" + suffix
+        else:
+            normtype = "/" + suffix
+        if not "{" in suffix:
+            target.add(normtype)
+        return normtype
 
 
 class ConfigStage(BaseStage):

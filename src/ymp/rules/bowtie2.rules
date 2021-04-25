@@ -37,14 +37,6 @@ with Stage("index_bowtie2") as S:
             " --threads {threads}"
             " >& {log}"
 
-    rule bowtie2_index_all:
-        message:
-            "Bowtie2: Indexing done"
-        output:
-            touch("{:this:}/all_targets.stamp")
-        input:
-            expand("{{:this:}}/{{:targets:}}.{ext}", ext=BT2IDX_SUFFIXES)
-
 
 with Stage("map_bowtie2") as S:
     S.doc("""
@@ -128,12 +120,4 @@ with Stage("map_bowtie2") as S:
         params:
             r1 = filter_input("r1", join=","),
             r2 = ""
-
-    rule bowtie2_all:
-        message:
-            "Bowtie2: Completed"
-        output:
-            touch("{:this:}/all_targets.stamp")
-        input:
-            "{:this:}/{:targets:}.bam"
 

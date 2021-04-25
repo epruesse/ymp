@@ -76,11 +76,3 @@ with Stage("assemble_trinity") as S:
             "trinity"
         shell:
             "TrinityStats.pl {input} > {output}"
-
-    rule trinity_all:
-        message:
-            "Trinity: finished"
-        input:
-            "{:this:}/{:targets:}.fasta.gz"
-        output:
-            touch("{:this:}/all_targets.stamp")

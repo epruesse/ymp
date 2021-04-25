@@ -28,14 +28,6 @@ with Stage("sort_bam") as S:
             " {input.bam}"
             " >{log} 2>&1"
 
-    rule sambamba_sort_all:
-        message:
-            "Sambamba: done sorting"
-        input:
-            "{:this:}/{:targets:}.sorted.bam"
-        output:
-            touch("{:this:}/all_targets.stamp")
-
 
 with Stage("markdup_sambamba") as S:
     S.add_param("RM", typ="flag", name = "remove_dups", value="--remove-duplicates")
@@ -69,11 +61,3 @@ with Stage("markdup_sambamba") as S:
             "sambamba index"
             " --nthreads={threads}"
             "  {output.bam} {output.bai};"
-
-    rule sambamba_markdup_all:
-        message:
-            "Sambamba: done deduplicating"
-        input:
-            "{:this:}/{:targets:}.sorted.bam"
-        output:
-            touch("{:this:}/all_targets.stamp")
