@@ -69,6 +69,7 @@ with Stage("bin_metabat2") as S:
         conda:
             "metabat2"
         shell:
+            "exec >{log} 2>&1;"
             "metabat2"
             " --inFile {input.fasta}"
             " --abdFile {input.depth}"
@@ -81,13 +82,12 @@ with Stage("bin_metabat2") as S:
             " --numThreads {threads}"
             " --seed {params.seed}"
             " --saveCls"
-            " > {log} 2>&1;"
-            ""
+            ";"
             "mv {params.prefix} {params.prefix}.metabat.txt;"
             ""
             "touch {output.bins};"
             "if compgen -G '{params.prefix}*.fa' >/dev/null; then"
-            "  echo '{params.prefix}*.fa' | xargs -P4 pigz;"
+            "  echo '{params.prefix}'*.fa | xargs -P4 pigz;"
             "  for bin in {params.prefix}.*.fa.gz; do"
             "    base=${{bin#{params.prefix}.}};"
             "    binid=bin_${{base%.fa.gz}};"
