@@ -1,6 +1,8 @@
 "Implements subcommands for ``ymp show``"
 
 import logging
+from collections.abc import Mapping, Sequence
+from pprint import pformat
 
 import click
 
@@ -119,9 +121,15 @@ def show(ctx, prop, source):
             except ValueError:
                 obj = obj[subslice_str]
 
-    try:
+    if hasattr(obj, "to_yaml"):
         output = obj.to_yaml(source)
-    except AttributeError:
+    elif isinstance(obj, str):
+        output = obj
+    elif isinstance(obj, Sequence):
+        output = pformat([str(x) for x in obj], width=200)
+    elif isinstance(obj, Mapping):
+        output = pformat({k: pformat(v) for k,v in obj.items()})
+    else:
         output = str(obj)
 
     click.echo(output)
