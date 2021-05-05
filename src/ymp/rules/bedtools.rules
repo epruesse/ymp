@@ -10,13 +10,15 @@ with Stage("basecov_bedtools") as S:
 
     rule bedtools_genomecov:
         message:
-            """Bedtools Genomecov: {output.bedgraph}"""
+            """{:name:}: {output.bedgraph}"""
         input:
             bam = "{:prev:}/{:target:}.sorted.bam"
         output:
             bedgraph = "{:this:}/{target}.basecov.bg"
         log:
             "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
         threads:
             1
         conda:

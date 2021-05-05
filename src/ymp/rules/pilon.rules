@@ -9,7 +9,7 @@ with Stage("polish_pilon") as S:
 
     rule pilon_polish:
         message:
-            "Polishing with Pilon: {output.fasta}"
+            "{:name:}: {output.fasta}"
         input:
             bam = "{:prev:}/{:target:}.sorted.bam",
             bai = "{:prev:}/{:target:}.sorted.bai",
@@ -20,6 +20,8 @@ with Stage("polish_pilon") as S:
             changes = "{:this:}/{target}.pilon.changes.txt",
         log:
             "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
         threads:
             1  # multithreading is experimental
         params:

@@ -11,7 +11,7 @@ with Stage("map_hisat2") as S:
         For hisat we always assume a pre-build index as providing SNPs and haplotypes
         etc is beyond this pipelines scope.
         """
-        message: "Hisat2: mapping "
+        message: "{:name:}: {output.bam}"
         input:
             pairs =        "{:prev:}/{:target:}.{: pairnames :}.fq.gz",
             index = expand("{{:prev:}}/{{:target:}}.{ext}", ext=HT2IDX_SUFFIXES)
@@ -21,7 +21,7 @@ with Stage("map_hisat2") as S:
         log:
                            "{:this:}/{target}.log"
         benchmark:
-            "benchmarks/hisat2_map/{:this:}/{target}.txt"
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
         resources:
             mem = "32g",
         threads:

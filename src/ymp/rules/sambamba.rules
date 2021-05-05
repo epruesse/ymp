@@ -1,9 +1,10 @@
 Env(name="sambamba", base="bioconda", packages="sambamba")
 
+
 with Stage("sort_bam") as S:
     rule sambamba_sort:
         message:
-            "Sorting BAM with Sambamba: {output.bam}"
+            "{:name:}: (Sambamba) {output.bam}"
         input:
             bam = "{:prev:}/{target}.bam",
         output:
@@ -11,6 +12,8 @@ with Stage("sort_bam") as S:
             bai = "{:this:}/{target}.sorted.bam.bai",
         log:
             "{:this:}/{target}.sorted.bam.log"
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
         params:
             compress = 6,
         resources:
@@ -33,7 +36,7 @@ with Stage("markdup_sambamba") as S:
     S.add_param("RM", typ="flag", name = "remove_dups", value="--remove-duplicates")
     rule sambamba_markdup:
         message:
-            "Marking PCR duplicates with Sambamba: {output.bam} {params.remove_dups}"
+            "{:name:}: {params.remove_dups} {output.bam}"
         input:
             bam = "{:prev:}/{target}.sorted.bam",
         output:
@@ -41,6 +44,8 @@ with Stage("markdup_sambamba") as S:
             bai = "{:this:}/{target}.sorted.bai",
         log:
             "{:this:}/{target}.sorted.bam.log"
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
         params:
             compress = 6,
         resources:

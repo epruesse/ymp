@@ -34,7 +34,7 @@ with Stage("assemble_spades") as S:
         using conda environments.
         """
         message:
-            "Preparing Config YAML for Spades: {output}"
+            "{:name:}: {output}"
         input:
             r1 = "{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz",
             r2 = "{:prev:}/{:target:}.{:pairnames[1]:}.fq.gz"
@@ -66,7 +66,7 @@ with Stage("assemble_spades") as S:
         by group co-assembly.
         """
         message:
-            "(Co-)Assembling {wildcards.target} with Spades"
+            "{:name:}: {output.scaffolds}"
         input:
             conf    = "{:this:}/{target}.yaml",
             r1      = "{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz",

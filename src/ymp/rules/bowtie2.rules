@@ -10,7 +10,7 @@ with Stage("index_bowtie2") as S:
     """)
     rule bowtie2_index:
         message:
-            "Bowtie2: Indexing {input}"
+            "{:name:}: {output[0]}"
         input:
             fasta = "{:prev:}/{target}.fasta.gz"
         output:
@@ -23,7 +23,7 @@ with Stage("index_bowtie2") as S:
         log:
             "{:this:}/{target}.btbuild.log"
         benchmark:
-            "benchmarks/bowtie2_index/{:this:}/{target}.txt"
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
         conda:
             "bowtie2"
         shell:
@@ -62,7 +62,7 @@ with Stage("map_bowtie2") as S:
 
     rule bowtie2_map:
         message:
-            "Bowtie2: Mapping {input.r1} to {params.bt2_base}"
+            "{:name:}: Mapping {input.r1}... to {params.bt2_base}"
         input:
             r1 = "{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz",
             r2 = "{:prev:}/{:target:}.{:pairnames[1]:}.fq.gz",
@@ -72,7 +72,7 @@ with Stage("map_bowtie2") as S:
         log:
                            "{:this:}/{target}.log"
         benchmark:
-            "benchmarks/bowtie2_map/{:this:}/{target}.txt"
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
         params:
             bt2_base = lambda wc, input: input.index[0][:-len(BT2IDX_SUFFIXES[0])-1],
             r1 = filter_input("r1", also="r2", join=","),
