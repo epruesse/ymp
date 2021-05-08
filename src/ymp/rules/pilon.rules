@@ -9,7 +9,7 @@ with Stage("polish_pilon") as S:
 
     rule pilon_polish:
         message:
-            "Polishing with Pilon: {output.fasta}"
+            "{:name:}: {output.fasta}"
         input:
             bam = "{:prev:}/{:target:}.sorted.bam",
             bai = "{:prev:}/{:target:}.sorted.bai",
@@ -20,6 +20,8 @@ with Stage("polish_pilon") as S:
             changes = "{:this:}/{target}.pilon.changes.txt",
         log:
             "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
         threads:
             1  # multithreading is experimental
         params:
@@ -34,8 +36,10 @@ with Stage("polish_pilon") as S:
         shell:
             "exec >{log} 2>&1;"
             "if [ '{params.nonempty}' = 'False' ]; then"
-            "  echo 'YMP: {input.fasta} empty - creating empty output'"
-            "  echo | gzip -c > {output};"
+            "  echo 'YMP: {input.fasta} empty - creating empty output';"
+            "  echo | gzip -c > {output.fasta};"
+            "  echo | gzip -c > {output.vcf};"
+            "  echo > {output.changes};"
             "  exit 0;"
             "fi;"
             "pilon"
@@ -62,11 +66,3 @@ with Stage("polish_pilon") as S:
 
             "mv {params.thistarget}.changes {output.changes}"
             ";"
-
-    rule pilon_polish_all:
-        message:
-            "Done polishing with pilon"
-        input:
-            "{:this:}/{:targets:}.fasta.gz"
-        output:
-            touch("{:this:}/all_targets.stamp")

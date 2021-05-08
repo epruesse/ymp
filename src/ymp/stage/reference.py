@@ -218,9 +218,10 @@ class Reference(Activateable, ConfigStage):
 
     def this(self, args=None, kwargs=None):
         item = kwargs['item']
-        suffix = self.register_inout("this", set(), item).lstrip('/')
-        self.files[suffix] = os.path.join(self.dir, suffix)
-        self._outputs = None  # will need refresh
+        if kwargs.get('field') == 'output':
+            suffix = self.register_inout("this", set(), item).lstrip('/')
+            self.files[suffix] = os.path.join(self.dir, suffix)
+            self._outputs = None  # will need refresh
         return self.dir
 
     def prev(self, args=None, kwargs=None):

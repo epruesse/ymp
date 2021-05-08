@@ -49,7 +49,7 @@ print_rule = 0
 
 #: List of versions this version of YMP has been verified to work with
 snakemake_versions = [
-    '6.0.5', '6.1.0', '6.1.1'
+    '6.0.5', '6.1.0', '6.1.1', '6.2.1'
 ]
 
 

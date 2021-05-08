@@ -31,7 +31,7 @@ class StageExpander(ColonExpander):
             if not item.params:
                 item.params = ((), {})
             for param in stage.params:
-                item.params[1][param.name] = param.param_func()
+                item.params[1][param.name] = param.parse
 
         return super().expand_ruleinfo(rule, item, expand_args, rec)
 

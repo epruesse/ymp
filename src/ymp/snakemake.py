@@ -471,7 +471,7 @@ class BaseExpander(object):
         self.workflow = workflow
 
     def format(self, item, *args, **kwargs):
-        """Format *item* using *\*args* and *\*\*kwargs*"""
+        r"""Format *item* using *\*args* and *\*\*kwargs*"""
         return item
 
     def format_annotated(self, item, expand_args):
@@ -761,7 +761,7 @@ class RecursiveExpander(BaseExpander):
 
     def expand(self, rule, ruleinfo):
         """Recursively expand wildcards within :class:`RuleInfo` object"""
-        fields = list(filter(None.__ne__,
+        fields = list(filter(lambda x: x is not None,
                              filter(self.expands_field, ruleinfo_fields)))
         # normalize field values and create namedlist dictionary
         args = {}

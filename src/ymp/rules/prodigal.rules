@@ -31,11 +31,3 @@ with Stage("annotate_prodigal") as S:
         """
         #-d >(gzip -c9 > {output.fna}) \
         #-a >(gzip -c9 > {output.faa}) \
-
-    rule prodigal_all:
-        message:
-            "Prodigal: finished ({output})"
-        input:
-            "{:this:}/{:targets:}.gtf"
-        output:
-            touch("{:this:}/all_targets.stamp")

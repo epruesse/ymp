@@ -37,12 +37,3 @@ with Stage("profile_centrifuge") as S:
             " --mm" # use mmap so that multiple instances share idx
             " >{log} 2>&1"
 
-    rule centrifuge_all:
-        message:
-            "Centrifuge: completed {params.basedir}"
-        input:
-            "{:this:}/{:runs:}.hits.tsv"
-        params:
-            basedir = "{:this:}"
-        output:
-            touch("{:this:}/all_targets.stamp")

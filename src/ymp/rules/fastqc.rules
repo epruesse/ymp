@@ -11,7 +11,7 @@ with Stage("qc_fastqc") as S:
     rule qc_fastqc:
         """Run FastQC on read files"""
         message:
-            "Creating QC report for {input}"
+            "{:name:}: Creating QC report for {input}"
         input:
             "{:prev:}/{:target:}.{:pairnames:}.fq.gz"
         output:
@@ -19,8 +19,10 @@ with Stage("qc_fastqc") as S:
             "{:this:}/{target}.{:pairnames:}_fastqc.zip"
         log:
             "{:this:}/{target}_fastqc.log"
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
         threads:
-            1  # fastqc cannot use more than 1 thread per file
+            2  # fastqc cannot use more than 1 thread per file
         params:
             k=7,
         resources:
@@ -35,11 +37,3 @@ with Stage("qc_fastqc") as S:
          -k {params.k} \
          >{log} 2>&1
         """
-
-    rule all_fastqc:
-        message:
-            "Finished {output}"
-        input:
-            "{:this:}/{:targets:}.{:pairnames:}_fastqc.zip"
-        output:
-            touch("{:this:}/all_targets.stamp")

@@ -18,7 +18,7 @@ with Stage("index_blast"):
     rule blast_makedb:
         "Build Blast index"
         message:
-            "BLAST: indexing {params.db}"
+            "{:name:}: indexing {params.db}"
         input:
             ref   = "{:prev:}/{:target:}.fasta.gz"
         output:
@@ -47,10 +47,6 @@ with Stage("index_blast"):
         """
         # FIXME: check for "-" in fasta header - blast does not like those
 
-    rule blast_makedb_all:
-        input: expand("{{:this:}}/{{:targets:}}.{ext}", ext=BLASTIDX_SUFFIXES)
-        output: touch("{:this:}/all_targets.stamp")
-
 
 with Stage("annotate_tblastn") as S:
     S.doc("""
@@ -61,7 +57,7 @@ with Stage("annotate_tblastn") as S:
         Runs a TBLASTN search against an assembly.
         """
         message:
-            "TBLASTN: searching {params.db_name} for {input.query}"
+            "{:name:}: searching {params.db_name} for {input.query}"
         output:
             "{:this:}/{target}.blast7"
         input:
@@ -86,12 +82,6 @@ with Stage("annotate_tblastn") as S:
           -num_threads {threads} \
           &> {log} 2>&1
         """
-
-    rule tblastn_all:
-        output:
-            touch("{:this:}/all_targets.stamp")
-        input:
-            "{:this:}/{:targets:}.gtf"
 
     rule blast7_to_gtf:
         """Convert from Blast Format 7 to GFF/GTF format"""
@@ -148,7 +138,7 @@ with Stage("annotate_blast") as S:
     rule blast_db_size:
         """Determines size of BLAST database (for splitting)"""
         message:
-            "BLASTDBCMD: Getting database size"
+            "{:name:}: Getting database size for {input.db[0]}"
         input:
             db = expand("{{:prev:}}/{{:target:}}.{ext}",
                         ext=BLASTIDX_SUFFIXES)
@@ -195,7 +185,7 @@ with Stage("annotate_blast") as S:
     checkpoint blastn_split_query_fasta:
         """Split FASTA query file into chunks for individual BLAST runs"""
         message:
-            "BLASTN: preparing query fasta file(s)"
+            "{:name:}: preparing query fasta file(s)"
         input:
             contigs = "{:prev:}/{:target:}.fasta.gz",
             dbsize = "{:this:}/{target}.blast_db_size",
@@ -248,7 +238,7 @@ with Stage("annotate_blast") as S:
     rule blastn_join_result:
         """Merges BLAST results"""
         message:
-            "BLASTN: merging result {output}"
+            "{:name:}: merging result {output}"
         input:
             results = blastn_join_input,
             folder = "{:this:}/{target}.split_queries"
@@ -260,7 +250,7 @@ with Stage("annotate_blast") as S:
     rule blastn_query:
         """Runs BLAST"""
         message:
-            "BLASTN: {input.contigs} vs {params.db_name}"
+            "{:name:}: {input.contigs} vs {params.db_name}"
         input:
             folder = "{:this:}/{target}.split_queries",
             contigs = "{:this:}/{target}.split_queries/{index}.fasta",
@@ -271,7 +261,7 @@ with Stage("annotate_blast") as S:
         log:
             "{:this:}/{target}.split_queries.{index}.log"
         benchmark:
-            "benchmarks/blastn_query/{:this:}/{target}.{index}.txt"
+            "benchmarks/{:name:}/{:this:}/{target}.{index}.txt"
         params:
             db_name = lambda wc, input: input.db[0][:-4],
             blastfmt = BLASTFMT,
@@ -315,15 +305,3 @@ with Stage("annotate_blast") as S:
         input:
             db = expand("{{:prev:}}/{{:target:}}.{ext}",
                         ext=BLASTIDX_SUFFIXES_V4)
-
-    rule blastn_query_all:
-        """Collector rule for stage"""
-        message:
-            "Completed {params.this}"
-        params:
-            this = lambda wc, output: os.path.dirname(output[0])
-        input:
-            "{:this:}/{:targets:}.blast7.gz",
-            "{:this:}/ALL.blast_db_size"
-        output:
-            touch("{:this:}/all_targets.stamp")

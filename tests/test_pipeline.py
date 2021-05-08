@@ -148,7 +148,6 @@ def test_stage_not_parametrizable(saved_cwd):
     assert pipe.params == [] 
 
 
-
 class mock:
     pass
 
@@ -165,6 +164,20 @@ def test_pipeline_path(saved_cwd):
     assert pipe.get_path(stack) == "stack.trim_bbmap.ref_phiX"
     assert pipe.get_path(stack, "/{sample}.R1.fq.gz") == "stack.trim_bbmap"
     assert pipe.get_path(stack, "/{sample}.fasta.gz") == "stack.trim_bbmap.ref_phiX"
+
+
+def test_pipeline_path_with_param(saved_cwd):
+    stack = mock()
+    stack.name = "stack.test_pipe"
+    stack.stage_name = "test_pipe"
+    pipe = Pipeline("test_pipe", make_cfg(
+        "stages:\n"
+        " - trim_bbmapQ10\n"
+        " - ref_phiX"
+    ))
+    assert pipe.get_path(stack) == "stack.trim_bbmapQ10.ref_phiX"
+    assert pipe.get_path(stack, "/{sample}.R1.fq.gz") == "stack.trim_bbmapQ10"
+    assert pipe.get_path(stack, "/{sample}.fasta.gz") == "stack.trim_bbmapQ10.ref_phiX"
 
 
 def test_pipeline_can_provide(saved_cwd):

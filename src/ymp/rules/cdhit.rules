@@ -7,16 +7,6 @@ with Stage("cluster_cdhit") as S:
     >>> ymp make toy.ref_query.cluster_cdhit
     """)
 
-    rule cluster_cdhit_all:
-        message:
-            "CD-HIT: done"
-        output:
-            touch("{:this:}/all_targets.stamp")
-        input:
-            "{:this:}/{:targets:}.clstr",
-            "{:this:}/{:targets:}.clstr.csv",
-            "{:this:}/{:targets:}.fastp.gz"
-
     rule cdhit_prepare_input:
         """Prepares input data for CD-HIT
 

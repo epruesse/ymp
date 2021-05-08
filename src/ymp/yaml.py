@@ -418,6 +418,19 @@ class WorkdirTag:
             cls.yaml_tag, instance.path
         )
 
+def resolve_installed_package(fname, stack):
+    basename = os.path.basename(fname)
+    if basename.startswith("<") and basename.endswith(">"):
+        package = basename[1:-1]
+        from pkg_resources import iter_entry_points
+        for entry in iter_entry_points("ymp.pipelines"):
+            if entry.name == package:
+                func = entry.load()
+                real_include = func()
+                return real_include
+        raise LayeredConfError((fname, None), f"Extension package '{package}' not found", stack=stack)
+    return fname
+
 def load(files, root=None):
     """Load configuration files
 
@@ -428,6 +441,7 @@ def load(files, root=None):
     """
 
     def load_one(fname, stack):
+        fname = resolve_installed_package(fname, stack)
         if any(fname == entry.filename for entry in stack):
             raise LayeredConfError((fname, None), "Recursion in includes", stack=stack)
         try:

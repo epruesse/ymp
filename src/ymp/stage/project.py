@@ -568,6 +568,11 @@ class Project(ConfigStage):
         source = self.source_path(run, pair, nosplit=True)
         return [barcode_file, source]
 
+    def get_all_targets(self, stack: "StageStack", output_types=None) -> List[str]:
+        path = stack.path
+        return [os.path.join(path, "{}.fq.gz".format(base))
+                for base in self.get_fq_names()]
+
     def get_fq_names(self,
                      only_fwd=False, only_rev=False,
                      only_pe=False, only_se=False):

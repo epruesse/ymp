@@ -11,8 +11,6 @@ Env(name="bbmap", base="bioconda", packages=[
     "coreutils"  # for readlink -f
 ])
 
-# TODO: find way to enable JNI
-
 bbstats  = "bhist qhist aqhist bqhist lhist ihist ehist qahist "
 bbstats += "indelhist mhist gchist idhist statsfile"
 bbstats  = bbstats.split()
@@ -31,7 +29,7 @@ with Stage("index_bbmap") as S:
         Precomputes BBMap index
         """
         message:
-            "BBMap: Indexing {input}"
+            "{:name:}: Indexing {input}"
         input:
             "{:prev:}/{target}.fasta.gz"
         output:
@@ -41,7 +39,7 @@ with Stage("index_bbmap") as S:
         resources:
             mem = "80g",
         benchmark:
-            "benchmarks/bbmap_makedb/{:this:}/{target}.txt"
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
         threads: 8
         conda:
             "bbmap"
@@ -54,14 +52,6 @@ with Stage("index_bbmap") as S:
             -Xmx{resources.mem_mb}m \
             >{log} 2>&1
         """
-
-    rule bbmap_makedb_all:
-        message:
-            "BBMap: indexing done"
-        output:
-            touch("{:this:}/all_targets.stamp")
-        input:
-            "{:this:}/{:targets:}"
 
 
 with Stage("correct_bbmap") as S:
@@ -78,7 +68,7 @@ with Stage("correct_bbmap") as S:
     """)
     rule bbmap_error_correction:
         """Error correction with BBMerge overlapping"""
-        message: "BBMap: applying error correction to {input[0]}"
+        message: "{:name:}: applying error correction to {input[0]}"
         input:
             "{:prev:}/{:target:}.{:pairnames:}.fq.gz"
         output:
@@ -88,7 +78,7 @@ with Stage("correct_bbmap") as S:
             "{:this:}/{target}.log"
         threads: 16
         benchmark:
-            "benchmarks/bbmap_ecco/{:this:}/{target}.txt"
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
         params:
             inout  = "in={input[0]} out={output[0]}",
             inout2 = "in2={input[1]} out2={output[1]}",
@@ -145,7 +135,7 @@ with Stage("trim_bbmap") as S:
     rule bbmap_trim:
         """Trimming and Adapter Removal using BBTools BBDuk"""
         message:
-            "BBMap: Trimming {input[0]} "
+            "{:name:}: Trimming {input[0]} "
         input:
             "{:prev:}/{target}.{:pairnames:}.fq.gz"
         output:
@@ -154,7 +144,7 @@ with Stage("trim_bbmap") as S:
         log:
             "{:this:}/{target}.log"
         benchmark:
-            "benchmarks/bbmap_trim/{:this:}/{target}.txt"
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
         params:
             k      = 23,
             mink   = 11,
@@ -224,7 +214,7 @@ with Stage("dedup_bbmap") as S:
         Deduplicate reads using BBMap's dedupe.sh
         """
         message:
-            "BBTools dedupe'ing {input}"
+            "{:name:}: Processing {input[0]}"
         input:
             "{:prev:}/{:target:}.{:pairnames:}.fq.gz"
         output:
@@ -232,7 +222,7 @@ with Stage("dedup_bbmap") as S:
         log:
             "{:this:}/{target}.log"
         benchmark:
-            "benchmarks/bbmap_dedupe/{:this:}/{target}.txt"
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
         resources:
             mem = "80g",
         threads: 4
@@ -259,11 +249,13 @@ with Stage("dedup_bbmap") as S:
         Deduplicate reads using `BBMap's <bioconda:bbmap>` dedupe.sh
         """
         message:
-            "BBTools dedupe'ing {input}"
+            "{:name:}: Processing {input}"
         input:
             "{:prev:}/{:target:}.{:pairnames[0]:}.fq.gz"
         output:
             "{:this:}/{target}.{:pairnames[0]:}.fq.gz"
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
         log:
             "{:this:}/{target}.log"
         resources:
@@ -308,7 +300,7 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
     """)
     rule bbmap_split:
         message:
-            "BBMap filtering - {input[0]}"
+            "{:name:}: {input[0]}"
         input:
             fq    = "{:prev:}/{target}.{:pairnames:}.fq.gz",
             ref   = "{:prev:}/{:target:}"
@@ -318,6 +310,8 @@ with Stage("remove_bbmap", "filter_bbmap") as S:
             stats = expand("{{:this:}}/{{target}}.{x}", x=bbstats)
         log:
                     "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
         params:
             stats    = lambda wc, output: ["{}={}".format(x,y) for x,y in zip(bbstats, output.stats)],
             minid    = 0.95,
@@ -397,7 +391,7 @@ with Stage("primermatch_bbmap", "primerfail_bbmap") as S:
         Splits reads based on primer matching into "primermatch" and "primerfail".
         """
         message:
-            "BBduk: Filtering {wildcards.target} for primer set {input.primer}"
+            "{:name:}: Filtering {wildcards.target} for primer set {input.primer}"
         input:
             fq     = "{:prev:}/{:target:}.{:pairnames:}.fq.gz",
             primer = "{:prev:}/{:target:}.fasta.gz"
@@ -407,6 +401,8 @@ with Stage("primermatch_bbmap", "primerfail_bbmap") as S:
             stats  = expand("{{:this:}}/{{target}}.{x}", x=bbduk_stats)
         log:
             "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
         threads: 8
         params:
             stats   = lambda wc, output: ["{}={}".format(x,y) for x,y in zip(bbstats, output.stats)],
@@ -480,7 +476,7 @@ with Stage("map_bbmap") as S:
         log:
                          "{:this:}/{target}.log"
         benchmark:
-            "benchmarks/bbmap_map/{:this:}/{target}.txt"
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
         params:
             in1 = lambda wc, input: "in="+",".join(ensure_list(input.fq1)),
             in2 = lambda wc, input: "in2="+",".join(ensure_list(input.fq2))
@@ -519,14 +515,6 @@ with Stage("map_bbmap") as S:
         params:
             in2 = ""
 
-    rule bbmap_map_all:
-        message:
-            "BBMap: mapping done"
-        output:
-            touch("{:this:}/all_targets.stamp")
-        input:
-            "{:this:}/{:targets:}.bam"
-
 
 with Stage("dust_bbmap") as S:
     S.doc("""
@@ -550,7 +538,7 @@ with Stage("dust_bbmap") as S:
         log:
                  "{:this:}/{target}.log"
         benchmark:
-            "benchmarks/bbmap_dust/{:this:}/{target}.txt"
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
         threads: 8
         conda: "bbmap"
         params:
@@ -569,14 +557,6 @@ with Stage("dust_bbmap") as S:
             ' pigz unpigz'
             ' -Xmx{resources.mem_mb}m'
             ' >{log} 2>&1'
-
-    rule bbmap_dust_all:
-        message:
-            "BBMap: fishished removing low entropy reads"
-        output:
-            touch("{:this:}/all_targets.stamp")
-        input:
-            "{:this:}/{:targets:}.{:pairnames:}.fq.gz"
 
 
 with Stage("format_bbmap") as S:
@@ -597,6 +577,8 @@ with Stage("format_bbmap") as S:
             fasta = "{:this:}/{target}.fasta.gz"
         log:
                     "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
         params:
             multi = lambda wc, input: isinstance(input.fasta, list)
         threads:
@@ -622,12 +604,4 @@ with Stage("format_bbmap") as S:
             ' bgzip'
             ' fastawrap=0'  # sequence on one line
             ' fastaminlen={params.length}'
-
-    rule bbmap_reformat_all:
-        message:
-            "BBMap: completed {output}"
-        input:
-            "{:this:}/{:targets:}.fasta.gz"
-        output:
-            touch("{:this:}/all_targets.stamp")
 

@@ -69,6 +69,7 @@ with Stage("bin_metabat2") as S:
         conda:
             "metabat2"
         shell:
+            "exec >{log} 2>&1;"
             "metabat2"
             " --inFile {input.fasta}"
             " --abdFile {input.depth}"
@@ -81,25 +82,16 @@ with Stage("bin_metabat2") as S:
             " --numThreads {threads}"
             " --seed {params.seed}"
             " --saveCls"
-            " > {log} 2>&1;"
-            ""
+            ";"
             "mv {params.prefix} {params.prefix}.metabat.txt;"
             ""
             "touch {output.bins};"
-            "ls {params.prefix}*.fa | xargs -P4 pigz;"
-            ""
-            "for bin in {params.prefix}.*.fa.gz; do"
-            "  base=${{bin#{params.prefix}.}};"
-            "  binid=bin_${{base%.fa.gz}};"
-            "  mv $bin {params.prefix}__$binid.fasta.gz;"
-            "  echo $binid >> {output.bins};"
-            "done;"
-
-    rule metabat2_all:
-        message:
-            "Completed Metabat binning"
-        input:
-            "{:this:}/{:targets:}.bins"
-        output:
-            touch("{:this:}/all_targets.stamp")
-        
+            "if compgen -G '{params.prefix}*.fa' >/dev/null; then"
+            "  echo '{params.prefix}'*.fa | xargs -P4 pigz;"
+            "  for bin in {params.prefix}.*.fa.gz; do"
+            "    base=${{bin#{params.prefix}.}};"
+            "    binid=bin_${{base%.fa.gz}};"
+            "    mv $bin {params.prefix}__$binid.fasta.gz;"
+            "    echo $binid >> {output.bins};"
+            "  done;"
+            "fi"

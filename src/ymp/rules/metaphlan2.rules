@@ -93,9 +93,3 @@ with Stage("metaphlan2") as S:
         shell: """
         merge_metaphlan_tables.py {input} > {output} 2>{log}
         """
-
-    rule metaphlan2_all:
-        input:
-            "{:this:}/merged_abundance_table.txt"
-        output:
-            touch("{:this:}/all_targets.stamp")

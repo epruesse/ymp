@@ -32,7 +32,7 @@ class Param(abc.ABC):
             self.default == other.default
         )
 
-    def __str__(self):
+    def __repr__(self):
         return (f"StageParameter(key='{self.key}', typ='{self.type_name}', "
                 f"name='{self.name}', value='{self.value}', default='{self.default}')")
 
@@ -71,24 +71,21 @@ class Param(abc.ABC):
             return f"{{{self.wildcard}{self.constraint}}}"
         return f"{{{self.wildcard}}}"
 
-    def param_func(self):
-        """Returns function that will extract parameter value from wildcards"""
-        def name2param(wildcards):
-            # The part that matched our self.constraint will be in the
-            # wildcard's field self.wildcard the parameter was matched
-            val = wildcards.get(self.wildcard)
-            if val:
-                # Remove they key and return the matched portion
-                return val[len(self.key):]
-            # Return default value
-            return self.default
-        return name2param
+    def parse(self, wildcards, nodefault=False):
+        val = wildcards.get(self.wildcard)
+        if val:
+            # Remove they key and return the matched portion
+            return val[len(self.key):]
+        if nodefault:
+            return None
+        return self.default
 
     def format(self, groupdict):
         value = groupdict.get(self.name)
         if value is not None and value != self.default:
-            return self.key + value
+            return self.key + str(value)
         return ""
+
 
 class Parametrizable(BaseStage):
     def __init__(self, *args, **kwargs):
@@ -155,7 +152,7 @@ class Parametrizable(BaseStage):
         match = self.__regex.fullmatch(name)
         groupdict = match.groupdict() if match else {}
         return {
-            param.name: param.param_func()(groupdict)
+            param.name: param.parse(groupdict)
             for param in self.params
         }
 
@@ -181,13 +178,11 @@ class ParamFlag(Param):
 
         self.regex = f"((?:{self.key})?)"
 
-    def param_func(self):
+    def parse(self, wildcards):
         """Returns function that will extract parameter value from wildcards"""
-        def name2param(wildcards):
-            if wildcards.get(self.wildcard):
-                return self.value
-            return self.default
-        return name2param
+        if wildcards.get(self.wildcard):
+            return self.value
+        return self.default
 
     def format(self, groupdict):
         value = groupdict.get(self.name)
