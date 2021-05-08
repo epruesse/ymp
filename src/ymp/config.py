@@ -371,7 +371,7 @@ class ConfigMgr(object):
             dependfiles=conffiles
         )
 
-        self._workflow = ExpandableWorkflow.register_expanders(
+        ExpandableWorkflow.register_expanders(
             SnakemakeExpander(),
             RecursiveExpander(),
             CondaPathExpander(self),
@@ -381,6 +381,14 @@ class ConfigMgr(object):
             OverrideExpander(self),
             InheritanceExpander(),
         )
+
+    @property
+    def workflow(self):
+        return get_workflow()
+
+    @property
+    def rules(self):
+        return AttrDict(self.workflow._rules)
 
     @property
     def ref(self):

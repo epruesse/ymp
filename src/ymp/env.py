@@ -69,16 +69,17 @@ class Env(WorkflowObject, snakemake_conda.Env):
 
     def __init__(
             self,
+            # Snakemake Params:
             env_file: Optional[str] = None,
             workflow = None,
             env_dir = None,
             container_img=None,
             cleanup=None,
+            # YMP Params:
             name: Optional[str] = None,
             packages: Optional[Union[list, str]] = None,
             base: str = "none",
-            channels: Optional[Union[list, str]] = None,
-            rule: Optional[Rule] = None
+            channels: Optional[Union[list, str]] = None
     ) -> None:
         """Creates an inline defined conda environment
 
@@ -93,68 +94,91 @@ class Env(WorkflowObject, snakemake_conda.Env):
             in ``yml.yml``
         """
         if 'name' in self.__dict__:
+            # already initialized
             return
         cfg = ymp.get_config()
+
+        if env_file:
+            if name:
+                import pdb; pdb.set_trace()
+                raise YmpRuleError(
+                    self,
+                    "Env must not have both 'name' and 'env_file' parameters'"
+                )
+            self.dynamic = False
+            self.name, _ = op.splitext(op.basename(env_file))
+            self.packages = None
+            self.base = None
+            self.channels = None
+
+            # Override location for exceptions:
+            self.filename = env_file
+            self.lineno = 1
+        elif name:
+            self.dynamic = True
+            self.name = name
+            self.packages = ensure_list(packages) + cfg.conda.defaults[base].dependencies
+            self.channels = ensure_list(channels) + cfg.conda.defaults[base].channels
+            env_file = op.join(cfg.ensuredir.dynamic_envs, f"{name}.yml")
+            contents = self._get_dynamic_contents()
+            self._update_file(env_file, contents)
+        else:
+            raise YmpRuleError(
+                self,
+                "Env must have either 'name' or 'env_file' parameter"
+            )
 
         # Unlike within snakemake, we create these objects before the workflow is fully
         # initialized, which means we need to create a fake one:
         if not workflow:
             workflow = AttrDict({
-            'persistence': {
-                'conda_env_path': cfg.ensuredir.conda_prefix,
-                'conda_env_archive_path': cfg.ensuredir.conda_archive_prefix
-            },
-            'conda_frontend': 'conda',
-            'singularity_args': '',
-        })
-
-        # must have either name or env_file:
-        if (name and env_file) or not (name or env_file):
-            raise YmpRuleError(
-                self,
-                "Env must have exactly one of `name` and `file`")
-
-        if name:
-            self.name = name
-        else:
-            self.name, _ = op.splitext(op.basename(env_file))
-
-        if env_file:
-            self.dynamic = False
-            self.filename = env_file
-            self.lineno = 1
-        else:
-            self.dynamic = True
-
-            env_file = op.join(cfg.ensuredir.dynamic_envs, f"{name}.yml")
-            defaults = {
-                'name': self.name,
-                'dependencies': list(ensure_list(packages) +
-                                     cfg.conda.defaults[base].dependencies),
-                'channels': list(ensure_list(channels) +
-                                 cfg.conda.defaults[base].channels)
-            }
-            yaml = YAML(typ='rt')
-            yaml.default_flow_style = False
-            buf = io.StringIO()
-            yaml.dump(defaults, buf)
-            contents = buf.getvalue()
-
-            disk_contents = ""
-            if op.exists(env_file):
-                with open(env_file, "r") as inf:
-                    disk_contents = inf.read()
-            if contents != disk_contents:
-                with open(env_file, "w") as out:
-                    out.write(contents)
+                'persistence': {
+                    'conda_env_path': cfg.ensuredir.conda_prefix,
+                    'conda_env_archive_path': cfg.ensuredir.conda_archive_prefix,
+                },
+                'conda_frontend': cfg.conda.frontend,
+                'singularity_args': '',
+            })
 
         super().__init__(
             env_file,
-            workflow or pseudo_workflow,
+            workflow,
             env_dir if env_dir else cfg.ensuredir.conda_prefix,
             container_img,
             cleanup)
         self.register()
+
+    def _get_dynamic_contents(self):
+        cfg = ymp.get_config()
+        defaults = {
+            'name': self.name,
+            'dependencies': self.packages,
+            'channels': self.channels,
+        }
+        yaml = YAML(typ='rt')
+        yaml.default_flow_style = False
+        buf = io.StringIO()
+        yaml.dump(defaults, buf)
+        return buf.getvalue()
+
+    @staticmethod
+    def _update_file(env_file, contents):
+        disk_contents = ""
+        if op.exists(env_file):
+            with open(env_file, "r") as inf:
+                disk_contents = inf.read()
+        if contents != disk_contents:
+            with open(env_file, "w") as out:
+                out.write(contents)
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        del state['workflow']
+        return state
+
+    def __setstate(self, state):
+        self.__dict__.update(state)
+        self.workflow = ymp.get_config().workflow
 
     @property
     def _env_archive_dir(self):
@@ -162,9 +186,12 @@ class Env(WorkflowObject, snakemake_conda.Env):
         return cfg.ensuredir.conda_archive_prefix
 
     def _get_content(self):
+        if self.dynamic:
+            return self._get_dynamic_contents().encode("utf-8")
         cfg = ymp.get_config()
-        if cfg._workflow:
-            return super()._get_content(self)
+        if cfg.workflow:
+            self.workflow = cfg.workflow
+            return super()._get_content()
         return open(self.file, "rb").read()
 
 
@@ -440,6 +467,6 @@ class CondaPathExpander(BaseExpander):
                 for ext in "", ".yml", ".yaml":
                     env_file = abspath+ext
                     if op.exists(env_file):
-                        Env(env_file, rule=self.current_rule)
+                        Env(env_file)
                         return env_file
         return conda_env

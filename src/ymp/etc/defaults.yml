@@ -17,6 +17,7 @@ directories:
     conda_archive_prefix: "~/.ymp/conda_archive"
 
 conda:
+  frontend: mamba
   # If set, use frozen environments from this set
   env_specs:
     - *conda_envs
