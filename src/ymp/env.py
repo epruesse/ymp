@@ -198,46 +198,43 @@ class Env(WorkflowObject, snakemake_conda.Env):
     def set_prefix(self, prefix):
         self._env_dir = op.abspath(prefix)
 
-    def create(self, dryrun=False, force=False):
+    def create(self, dryrun=False, reinstall=False, nospec=False, noarchive=False):
         """Ensure the conda environment has been created
 
-        Inherits from snakemake.conda.Env.create
+        Inherits from snakemake.deployment.conda.Env.create
 
         Behavior of super class
-            The environment is installed in a folder in ``conda_prefix``
-            named according to a hash of the ``environment.yaml`` defining
-            the environment and the value of ``conda-prefix``
-            (``Env.hash``). The latter is included as installed
-            environments cannot be moved.
-
-            - If this folder (``Env.path``) exists, nothing is done.
-
-            - If a folder named according to the hash of just the contents
-              of ``environment.yaml`` exists, the environment is created by
-              unpacking the tar balls in that folder.
+            - Resolve remote file
+            - If containerized, check environment path exists and return if true
+            - Check for interrupted env create, delete if so
+            - Return if environment exists
+            - Install from archive if env_archive exists
+            - Install using self.frontent if not_careful
 
         Handling pre-computed environment specs
             In addition to freezing environments by maintaining a copy of
             the package binaries, we allow maintaining a copy of the
             package binary URLs, from which the archive folder is populated
-            on demand.
-
-        If a file ``{Env.name}.txt`` exists in ``conda.spec``
-        FIXME
+            on demand. We just download those to self.archive and pass on.
         """
-        # Skip if environment already exists
-        if not force and op.exists(self.path):
-            log.info("Environment '%s' already exists", self.name)
-            return self.path
+        if self.installed:
+            if reinstall:
+                log.info("Environment '%s' already exists. Removing...", self.name)
+                if not dryrun:
+                    shutil.rmtree(self.path, ignore_errors = True)
+            else:
+                log.info("Environment '%s' already exists", self.name)
+                return self.path
 
         log.warning("Creating environment '%s'", self.name)
         log.debug("Target dir is '%s'", self.path)
 
-        # check if we have archive
-        files = self._get_env_from_archive()
+        if noarchive and self.archive_file:
+            log.warning("Removing archived environment packages...")
+            if not dryrun:
+                shutil.rmtree(self.archive_file, ignore_errors = True)
 
-        # no archive? try spec
-        if not files:
+        if not self._have_archive() and not nospec:
             urls, files, md5s = self._get_env_from_spec()
             if files:
                 if dryrun:
@@ -247,45 +244,34 @@ class Env(WorkflowObject, snakemake_conda.Env):
                     packages = op.join(self.archive_file, "packages.txt")
                     with open(packages, "w") as f:
                         f.write("\n".join(files) + "\n")
-
-        # still nothing?
-        if not files:
-            log.warning("Neither spec file nor package archive found for '%s',"
-                        " falling back to native resolver", self.name)
-        else:
-            if dryrun:
-                log.info("Would install %i packages", len(files))
             else:
-                self._install_env(files)
+                log.warning("Neither spec file nor package archive found for '%s',"
+                            " falling back to native resolver", self.name)
 
         res = super().create(dryrun)
         log.info("Created env %s", self.name)
         return res
 
-    def _get_env_from_archive(self):
-        """Parses Snakemake environment archive spec
-
-        Returns:
-          files: List of package archive files
-        """
+    def _have_archive(self):
         packages_txt = op.join(self.archive_file, "packages.txt")
         log.info("Checking for archive in %s", self.archive_file)
         if not op.exists(packages_txt):
-            return []
-        log.info("... found. Using archive.")
+            return False
+        log.info("... found. Checking archive.")
         with open(packages_txt) as f:
             packages = [package.strip() for package in f]
-        missing_packages = [package for package in packages
-                            if not op.exists(op.join(self.archive_file,
-                                                     package))]
+        missing_packages = [
+            package for package in packages
+            if not op.exists(op.join(self.archive_file, package))
+        ]
         if missing_packages:
             log.warning(
                 "Ignoring incomplete package archive for environment %s",
                 self.name)
             log.debug(
                 "Missing packages: %s", missing_packages)
-            return []
-        return packages
+            return False
+        return True
 
     def _get_env_from_spec(self):
         """Parses conda spec file
@@ -341,38 +327,24 @@ class Env(WorkflowObject, snakemake_conda.Env):
                 f"Unable to create environment {self.name}, "
                 f"because downloads failed. See log for details.")
 
-    def _install_env(self, files):
-        # Re-implemented part of Snakemake because we don't want "--copy"
-        # forcing the installed environments to be file copies rather
-        # than hardlinks where possible.
-        log.info("Installing environment '%s' from %i package files",
-                 self.name, len(files))
-        log.debug("Path: %s", self.archive_file)
-        log.debug("Files: %s", files)
-        log.info("Calling conda...")
-        install_files = [op.join(self.archive_file, fn) for fn in files]
-
-        sp = subprocess.run(["conda", "create", "--prefix",
-                             self.path] + install_files)
-        if sp.returncode != 0:
-            # try make sure we don't leave partially installed env around
-            shutil.rmtree(self.path, ignore_errors=True)
-            raise YmpWorkflowError(
-                f"Unable to create environment {self.name}, "
-                f"because conda create failed"
-            )
-        log.info("Conda complete")
-
     @property
     def installed(self):
-        return op.isdir(self.path)
+        if self.is_containerized:
+            return True  # Not checking
+        if not op.exists(self.path):
+            return False
+        start_stamp = op.join(self.path, "env_setup_start")
+        finish_stamp = op.join(self.path, "env_setup_done")
+        if op.exists(start_stamp) and not op.exists(finish_stamp):
+            return False
+        return True
 
     def update(self):
         "Update conda environment"
         self.create()  # call create to make sure environment exists
         log.warning("Updating environment '%s'", self.name)
         return subprocess.run([
-            "conda", "env", "update",
+            self.frontend, "env", "update",
             "--prune",
             "-p", self.path,
             "-f", self.file,

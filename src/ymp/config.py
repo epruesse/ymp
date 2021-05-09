@@ -20,7 +20,8 @@ from ymp.snakemake import \
     ExpandableWorkflow, \
     InheritanceExpander, \
     RecursiveExpander, \
-    SnakemakeExpander
+    SnakemakeExpander, \
+    get_workflow
 from ymp.stage import StageExpander
 from ymp.string import PartialFormatter
 

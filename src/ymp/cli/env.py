@@ -139,35 +139,58 @@ def prepare(**kwargs):
     help="Only show what would be done"
 )
 @click.option(
-    "--force", "-f", is_flag=True,
-    help="Install environment even if it already exists"
+    "--reinstall", "-r", is_flag=True,
+    help="Delete existing environment and reinstall"
+)
+@click.option(
+    "--no-spec", is_flag=True,
+    help="Don't use conda env spec even if present"
+)
+@click.option(
+    "--no-archive", is_flag=True,
+    help="Delete existing archives before install"
+)
+@click.option(
+    "--fresh", is_flag=True,
+    help="Create fresh install. Implies reinstall, no-spec and no-archve"
 )
 @click.argument("ENVNAMES", nargs=-1)
-def install(conda_prefix, conda_env_spec, dry_run, force, envnames):
+def install(
+        conda_prefix,
+        conda_env_spec,
+        dry_run,
+        reinstall,
+        no_spec,
+        no_archive,
+        fresh,
+        envnames):
     "Install conda software environments"
     if conda_env_spec is not None:
         cfg = ymp.get_config()
         cfg.conda.env_specs = conda_env_spec
+    if fresh:
+        reinstall = no_spec = no_archive = True
 
     envs = get_envs(envnames)
-    log.warning(f"Creating {len(envs)} environments.")
+    need_install = len([env for env in envs.values() if not env.installed])
+    if not reinstall and len(envs) != need_install:
+        log.warning("Creating %i environments (%i already installed)",
+                    need_install, len(envs)-need_install)
+    else:
+        log.warning(f"Creating {len(envs)} environments.")
     for env in envs.values():
+        if not reinstall and env.installed:
+            continue
         if conda_prefix:
             env.set_prefix(conda_prefix)
-        env.create(dry_run, force)
+        env.create(dry_run, reinstall=reinstall, nospec=no_spec, noarchive=no_archive)
 
 
 @env.command()
-@click.option(
-    "--reinstall",
-    help="Remove and reinstall environments rather than trying to update"
-)
 @click.argument("ENVNAMES", nargs=-1)
-def update(envnames, reinstall):
+def update(envnames):
     "Update conda environments"
     envs = get_envs(envnames)
-    if reinstall:
-        raise NotImplementedError("FIXME")
     log.warning(f"Updating {len(envs)} environments.")
     for env in get_envs(envnames).values():
         env.update()
