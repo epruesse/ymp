@@ -1,2 +1,10 @@
-include fastentrypoints.py
+# Exclude some files that are in git and added by setuptools-scm but not needed:
+exclude .bandit .gitignore .gitmodules .readthedocs.yml
+prune .github
+prune .circleci
+
+# The "stashed" rules also don't need to be distributed
+prune src/ymp/rules.attic
+
+# The conda envs in the git submodule need to be added manually:
 recursive-include src/ymp/conda_envs *.txt *.yml *.md

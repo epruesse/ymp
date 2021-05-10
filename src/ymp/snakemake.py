@@ -341,6 +341,7 @@ class ExpandableWorkflow(Workflow):
         if cls.global_workflow:
             for expander in cls.__expanders:
                 expander.link_workflow(cls.global_workflow)
+        return cls.global_workflow
 
     @classmethod
     def clear(cls):

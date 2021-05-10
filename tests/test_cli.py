@@ -162,18 +162,18 @@ def test_env_prepare(invoker, demo_dir, mock_conda, mock_downloader):
 def test_env_install(invoker, demo_dir, mock_conda, mock_downloader):
     """Test installing environments"""
     with open("ymp.yml", "a") as f:
-        f.write("directories:\n conda_prefix: '.'")
+        f.write("directories:\n conda_prefix: '.'\nconda:\n frontend: conda\n")
 
     # basic
     res = invoker.call("env", "install", "bbmap")
     assert "Creating 1 environments" in res.output
     assert "'bbmap'" in res.output
-    assert "--prefix "+str(demo_dir) in mock_conda.calls[0]
-    assert len(mock_conda.calls) == 1
+    assert "--prefix "+str(demo_dir) in mock_conda.calls[-1]
+    n_calls = len(mock_conda.calls)
 
     # no double install
     res = invoker.call("env", "install", "bbmap")
-    assert len(mock_conda.calls) == 1
+    assert len(mock_conda.calls) == n_calls
 
     # remove bbmap env
     res = invoker.call("env", "remove", "bbmap")
@@ -182,33 +182,33 @@ def test_env_install(invoker, demo_dir, mock_conda, mock_downloader):
     res = invoker.call("env", "install", "bb?ap", "bbma*")
     assert "Creating 1 environments" in res.output
     assert "'bbmap'" in res.output
-    assert "--prefix "+str(demo_dir) in mock_conda.calls[1]
-    assert len(mock_conda.calls) == 2
+    assert "--prefix "+str(demo_dir) in mock_conda.calls[-1]
+    assert len(mock_conda.calls) == n_calls + 1
 
     # dynamic env
     res = invoker.call("env", "install", "sickle")
     assert "Creating 1 environments" in res.output
     assert "'sickle'" in res.output
-    assert "--prefix "+str(demo_dir) in mock_conda.calls[2]
+    assert "--prefix "+str(demo_dir) in mock_conda.calls[-1]
 
 
 def test_env_update(invoker, demo_dir, mock_conda, mock_downloader):
     """Test updating environments"""
     with open("ymp.yml", "a") as f:
-        f.write("directories:\n conda_prefix: '.'")
+        f.write("directories:\n conda_prefix: '.'\nconda:\n frontend: conda\n")
     # basic
     res = invoker.call("env", "update", "bbmap")
     assert "Updating 1 environments" in res.output
     assert "'bbmap'" in res.output
-    assert "conda create" in mock_conda.calls[0]
-    assert "conda env update" in mock_conda.calls[1]
+    assert "conda create" in mock_conda.calls[-2]
+    assert "conda env update" in mock_conda.calls[-1]
 
 
 def test_env_export(invoker, demo_dir, mock_conda, mock_downloader):
     """Test exporting environments"""
     # install envs locally
     with open("ymp.yml", "a") as f:
-        f.write("directories:\n conda_prefix: '.'")
+        f.write("directories:\n conda_prefix: '.'\nconda:\n frontend: conda\n")
 
     # skip and create are mutually exclusive
     with pytest.raises(click.UsageError) as exc:
@@ -270,20 +270,20 @@ def test_env_export(invoker, demo_dir, mock_conda, mock_downloader):
 def test_env_clean(invoker, demo_dir, mock_conda):
     """Test cleaning environments"""
     with open("ymp.yml", "a") as f:
-        f.write("directories:\n conda_prefix: '.'")
+        f.write("directories:\n conda_prefix: '.'\nconda:\n frontend: conda\n")
 
 
 def test_env_activate(invoker, demo_dir, mock_conda, mock_downloader):
     """Test activating an environment"""
     with open("ymp.yml", "a") as f:
-        f.write("directories:\n conda_prefix: '.'")
+        f.write("directories:\n conda_prefix: '.'\nconda:\n frontend: conda\n")
     res = invoker.call("env", "activate", "bbmap")
     assert str(demo_dir) in res.output
 
 
 def test_env_run(invoker, demo_dir, mock_conda, mock_downloader, capfd):
     with open("ymp.yml", "a") as f:
-        f.write("directories:\n conda_prefix: '.'")
+        f.write("directories:\n conda_prefix: '.'\nconda:\n frontend: conda\n")
 
     with pytest.raises(click.UsageError) as exc:
         res = invoker.call("env", "run", "bbmapx", "bbmap.sh")
