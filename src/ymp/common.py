@@ -245,6 +245,8 @@ class Cache(object):
               VALUES (?, ?, ?)
             """, [cache, key, pickle.dumps(obj)]
             )
+        except pickle.PicklingError:
+            log.error("Failed to pickle %s", obj)
         except FileNotFoundError:
             pass
 
