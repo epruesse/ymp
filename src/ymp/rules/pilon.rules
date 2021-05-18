@@ -6,6 +6,10 @@ with Stage("polish_pilon") as S:
 
     Requires fasta.gz and sorted.bam files as input.
     """)
+    S.add_param("S", typ="flag", name="fix_snps", value="snps")
+    S.add_param("I", typ="flag", name="fix_indels", value="indels")
+    S.add_param("G", typ="flag", name="fix_gaps", value="gaps")
+    S.add_param("L", typ="flag", name="fix_local", value="local")
 
     rule pilon_polish:
         message:
@@ -42,6 +46,7 @@ with Stage("polish_pilon") as S:
             "  echo > {output.changes};"
             "  exit 0;"
             "fi;"
+            "FIX=$(echo {params.fix_snps} {params.fix_indels} {params.fix_gaps} {params.fix_local} | tr ' ' ,);"
             "pilon"
             " -Xmx{resources.mem_mb}m"
             " -Xms{resources.mem_mb}m"
@@ -52,6 +57,7 @@ with Stage("polish_pilon") as S:
             " --vcf"
             " {params.bamopts}"
             " --iupac"
+            " --fix ${{FIX:-all}}"
             ";"
 
             "pigz "
