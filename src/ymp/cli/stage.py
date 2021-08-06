@@ -41,10 +41,14 @@ def stage():
     "--types", "-t", "type_opt", is_flag=True,
     help="Show input/output types"
 )
+@click.option(
+    "--params", "-p", "param_opt", is_flag=True,
+    help="Show parameters"
+)
 @click.argument(
     "stage_opt", metavar="STAGE", nargs=-1
 )
-def ls(long_opt, short_opt, stage_opt, code_opt, type_opt):
+def ls(long_opt, short_opt, stage_opt, code_opt, type_opt, param_opt):
     """
     List available stages
     """
@@ -98,10 +102,16 @@ def ls(long_opt, short_opt, stage_opt, code_opt, type_opt):
         else:
             dtypes = ""
 
-        print("{name:<{width}}{summary}{description}{code}{dtypes}\n"
+        if param_opt:
+            params = wrap("  params: ", map(str, stage.params))
+        else:
+            params = ""
+
+        print("{name:<{width}}{summary}{description}{code}{dtypes}{params}\n"
               "".format(name=stage.name,
                         width=name_width,
                         summary=summary,
                         code=code,
                         dtypes=dtypes,
+                        params=params,
                         description=description))
