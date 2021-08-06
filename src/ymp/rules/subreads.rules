@@ -1,0 +1,26 @@
+Env(name="subread", base="bioconda", packages="subread")
+
+with Stage("count_subread"):
+    rule subread_featureCounts:
+        message:
+            "Counting reads with subreads featureCounts"
+        input:
+            bam = "{:prev:}/{:target:}.bam",
+            gtf = "{:prev:}/{:target:}.gtf",
+        output:
+            counts = "{:this:}/{target}.subread_counts",
+        log:
+            "{:this:}/{target}.log"
+        params:
+            minqual = 20,
+        threads:
+            8
+        conda:
+            "subread"
+        shell:
+            "exec >{log} 2>&1;"
+            "featureCounts"
+            " -a {input.gtf}"
+            " -o {output.counts}"
+            " -Q {params.minqual}"
+            " {input.bam}"

@@ -1,0 +1,41 @@
+Env(name="salmon", base="bioconda", packages=["salmon>1.5"])
+
+with Stage("quant_salmon") as S:
+    S.doc("""
+    """)
+    S.add_param("L", typ="choice", name="libtype", default="A", 
+                value=["A", "IU", "MU", "OU", "ISF", "ISR", "MSF", "MSR", "OSF", "OSR",
+                       "U", "SF", "SR"])
+    rule salmon_quant:
+        message: "{:name:}: {output.quant}"
+        input:
+            index = directory("{:prev:}/{:target:}.salmon_index"),
+            fq = "{:prev:}/{:target:}.{:pairnames:}.fq.gz",
+        output:
+            quant = "{:this:}/{target}.salmon/quant.sf",
+            unmapped = "{:this:}/{target}.salmon/aux_info/unmapped_names.txt",
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
+        log:
+            "{:this:}/{target}.log",
+        params:
+            libtypex = "A"
+        conda:
+            "salmon"
+            
+        threads:
+            32
+        shell:
+            "exec >{log} 2>&1;"
+            "salmon quant"
+            " --libType {params.libtype}"
+            " --threads {threads}"
+            " --seqBias"
+            " --gcBias"
+            " --writeUnmappedNames"
+            " --index {input.index}"
+            " --mates1 {input.fq[0]}"
+            " --mates2 {input.fq[1]}"
+            " --output $(dirname {output.quant})"
+            
+            
