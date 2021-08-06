@@ -150,12 +150,19 @@ class Reference(Activateable, ConfigStage):
         isurl = local_path != maybeurl
         if not isurl:
             local_path = rsc.get_path("url")
+        id = "ALL"
+        if 'id' in rsc:
+            id = rsc["id"]
+            self._ids.add(id)
 
         type_name = rsc.get('type', 'fasta').lower()
-        if 'id' in rsc:
-            self._ids.add(rsc['id'])
-
-        if type_name in ("fasta", "fastp"):
+        if type_name == "direct":
+            if not "extension" in rsc:
+                raise YmpConfigError(
+                    rsc, "Reference resource of type direct must have 'extension' field"
+                )
+            self.files[".".join((id, rsc["extension"]))] = local_path
+        elif type_name in ("fasta", "fastp"):
             self.files[f"ALL.{type_name}.gz"] = local_path
         elif type_name in  ("gtf", "snp", "tsv", "csv"):
             self.files[f"ALL.{type_name}"] = local_path
@@ -199,9 +206,11 @@ class Reference(Activateable, ConfigStage):
     def get_all_targets(self, stack: "StageStack") -> List[str]:
         return [os.path.join(self.dir, fname) for fname in self.files]
 
-    def get_file(self, filename):
+    def get_file(self, filename, isdir=False):
         local_path = self.files.get(filename)
         if local_path:
+            if os.path.isdir(local_path) != isdir:
+                return "YMP_THIS_FILE_MUST_NOT_EXIST"
             return local_path
         log.error(f"{self!r}: Failed to find {filename}")
         log.warning(f"  Available: {self.files}")

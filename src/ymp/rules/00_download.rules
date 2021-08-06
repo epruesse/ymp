@@ -56,7 +56,7 @@ with Stage("references") as S:
         message:
             "Preparing {output}"
         input:
-            files = lambda wc: ymp.get_config().ref[wc.refname].get_file(wc.path)
+            files = lambda wc: ymp.get_config().ref[wc.refname].get_file(wc.path, isdir=False)
         output:
             "{:dir.references:}/{refname}/{path}"
         wildcard_constraints:
@@ -92,6 +92,13 @@ with Stage("references") as S:
                 input_relpath = os.path.relpath(infile, outdir)
                 os.symlink(input_relpath, output[0])
 
+
+    localrules: prepare_reference_dir
+    rule prepare_reference_dir:  # ymp: extends prepare_reference
+        input:
+            files = lambda wc: ymp.get_config().ref[wc.refname].get_file(wc.path, isdir=True)
+        output:
+            directory("{:dir.references:}/{refname}/{path}")
 
     localrules: unpack_archive
     rule unpack_archive:
