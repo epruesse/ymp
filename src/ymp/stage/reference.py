@@ -162,7 +162,7 @@ class Reference(Activateable, ConfigStage):
                     rsc, "Reference resource of type direct must have 'extension' field"
                 )
             self.files[".".join((id, rsc["extension"]))] = local_path
-        elif type_name in ("fasta", "fastp"):
+        elif type_name in ("fasta", "fastp", "tx.fasta"):
             self.files[f"ALL.{type_name}.gz"] = local_path
         elif type_name in  ("gtf", "snp", "tsv", "csv"):
             self.files[f"ALL.{type_name}"] = local_path
