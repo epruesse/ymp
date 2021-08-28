@@ -147,7 +147,7 @@ class FileDownloader(object):
                                                 destfile, md5):
                         return True
                     break
-                except TimeoutError as e:
+                except asyncio.TimeoutError as e:
                     exc = e
         return False
 
