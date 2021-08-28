@@ -85,6 +85,7 @@ class Reference(Activateable, ConfigStage):
         self.archives = []
         self._ids: Set[str] = set()
         self._outputs = None
+        self.cfg = cfg
 
         import ymp
         self.dir = os.path.join(ymp.get_config().dir.references, name)
@@ -235,3 +236,12 @@ class Reference(Activateable, ConfigStage):
 
     def prev(self, args=None, kwargs=None):
         return self.dir
+
+    def minimize_variables(self, groups):
+        """Removes redundant groupings
+
+        This allows the reference to be used as a project, starting a pipeline"
+        """
+        if groups != []:
+            raise YmpConfigError(self.cfg, "Reference may not be (re)grouped")
+        return groups, []

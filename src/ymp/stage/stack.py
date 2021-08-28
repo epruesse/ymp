@@ -106,7 +106,10 @@ class StageStack:
         #: This is needed for grouping variables currently.
         self.project = cfg.projects.get(self.stage_names[0])
         if not self.project:
-            raise YmpStageError(f"No project for stage stack {path} found")
+            if self.stage_names[0].startswith("ref_"):
+                self.project = cfg.references.get(self.stage_names[0][4:])
+            if not self.project:
+                raise YmpStageError(f"No project for stage stack {path} found")
 
         #: Mapping of each input type required by the stage of this stack
         #: to the prefix stack providing it.
