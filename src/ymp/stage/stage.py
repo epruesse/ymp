@@ -172,6 +172,14 @@ class Stage(WorkflowObject, Parametrizable, Activateable, BaseStage):
         """
         self.register_inout("prev", self._inputs, kwargs['item'])
 
+    def all_prevs(self, _args, kwargs) -> None:
+        """Gathers {:all_prevs:} calls from rules
+
+        We register this as input as if called {:prev:}, assuming at
+        least one instance is required.
+        """
+        self.register_inout("all_prevs", self._inputs, kwargs['item'])
+
     def this(self, args=None, kwargs=None):
         """Replaces {:this:} in rules
 

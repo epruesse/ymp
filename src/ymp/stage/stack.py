@@ -243,6 +243,31 @@ class StageStack:
 
         return self.prevs[suffix]
 
+    def all_prevs(self, _args=None, kwargs=None) -> List["StageStack"]:
+        if not kwargs or "wc" not in kwargs:
+            raise ExpandLateException()
+
+        _, _, suffix = kwargs['item'].partition("{:all_prevs:}")
+        suffix = norm_wildcards(suffix)
+
+        stage_names = copy.copy(self.stage_names)
+        stage_names.pop()
+
+        prevs = []
+        while stage_names:
+            path = ".".join(stage_names)
+            prev_stack = self.instance(path)
+            prev_stage = find_stage(stage_names.pop())
+            ## FIXME: using prev_stack.stage instead of finding anew leads to deadlock?!
+            pathlist = prev_stage.can_provide(set((suffix,)), full_stack = True).get(suffix, [])
+            for ppath, hidden in pathlist:
+                if ppath:
+                    npath = prev_stage.get_path(prev_stack, pipeline=ppath)
+                    prevs.append(self.instance(npath))
+                else:
+                    prevs.append(prev_stack)
+
+        return prevs
 
     def get_ids(self, select_cols, where_cols=None, where_vals=None):
         if not self.debug:
