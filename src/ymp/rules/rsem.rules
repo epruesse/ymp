@@ -2,28 +2,32 @@ Env(name="rsem", base="bioconda", packages="rsem")
 
 RSEM_IDX = "chrlist grp idx.fa n2g.idx.fa seq ti transcripts.fa".split()
 
-rule rsem_index:
-    """Build Genome Index for RSEM"""
-    message:
-        "RSEM: Indexing {input.contigs}"
-    input:
-        contigs = "{path}/{source}.fasta",
-        gtf     = "{path}/{source}.gtf"
-    output:
-        index   = expand("{{params.index}}.{ext}", ext=RSEM_IDX)
-    log:
-        "{params.index}.log"
-    params:
-        index   = "{path}.index/{source}.rsem",
-    resources:
-        mem = "20g",
-    threads:
-        1
-    conda:
-        "rsem"
-    shell: """
-    rsem-prepare-reference --gtf {input.gtf} {input.contigs} {params.index}  >{log} 2>&1
-    """
+with Stage("index_rsem") as S:
+    rule rsem_index:
+        """Build Genome Index for RSEM"""
+        message:
+            "RSEM: Indexing {input.contigs}"
+        input:
+            contigs = "{:prev:}/{:target:}.fasta.gz",
+            gtf     = "{:prev:}/{:target:}.gtf"
+        output:
+            index   = expand("{{:this:}}/{{target}}.rsem.{ext}", ext=RSEM_IDX)
+        log:
+            "{:this:}/{target}.log"
+        params:
+            index   = "{:this:}/{target}.rsem"
+        resources:
+            mem = "20g",
+        shadow:
+            "shallow"
+        threads:
+            1
+        conda:
+            "rsem"
+        shell: """
+        gzip -dc {input.contigs} > contigs.fa
+        rsem-prepare-reference --gtf {input.gtf} contigs.fa {params.index}  >{log} 2>&1
+        """
 
 with Stage("quant_rsem") as S:
     S.doc("""
@@ -33,18 +37,18 @@ with Stage("quant_rsem") as S:
         message:
             "RSEM: calculating expression"
         input:
-            bam = "{:prev:}/{target}-annotated.{source}.bam",
-            idx = expand("{{:reference.dir:}}.index/{{target}}.rsem.{ext}",
+            bam = "{:prev:}/{:target:}.tx.bam",
+            idx = expand("{{:prev:}}/{{:target:}}.rsem.{ext}",
                          ext=RSEM_IDX)
         output:
-            "{params.outprefix}.genes.results",
-            "{params.outprefix}.isoforms.results"
+            "{:this:}/{target}.genes.results",
+            "{:this:}/{target}.isoforms.results",
         log:
-            "{params.outprefix}.log"
+            "{:this:}/{target}.log",
         params:
-            index = "{:reference.dir:}.index/{target}.rsem",
-            outprefix = "{:this:}/{target}.{source}",
-            forward_prob = 0, # P of having fwd read
+            outprefix = "{:this:}/{target}",
+            index = lambda wc, input: input.idx[0][:-len(RSEM_IDX[0])-1],
+            forward_prob = 1.0, # P of having fwd read
         resources:
             mem = "16G",
         threads:
@@ -52,35 +56,18 @@ with Stage("quant_rsem") as S:
         conda:
             "rsem"
         shell:
-            "rsem-calculate-expression "
-            " -p {threads} "
+            "rsem-calculate-expression"
+            " -p {threads}"
             " --bam "
-            " --no-bam-output "
-            " --estimate-rspd " # estimate read start position
+            " --no-bam-output"
+            " --estimate-rspd" # estimate read start position
             " --calc-ci" # calculate 95% credibility intervals and posterior mean estimates
-            " --ci-memory $(({resources.mem_mb} / 16 * 10)) "
-            " --forward-prob {params.forward_prob} "
-            " --paired-end "
-            " {input.bam} "
-            " {params.index} "
+            " --ci-memory $(({resources.mem_mb} / 16 * 10))"
+            " --forward-prob {params.forward_prob}"
+            " --paired-end"
+            " {input.bam}"
+            " {params.index}"
             " {params.outprefix} "
             " >{log} 2>&1 "
 
-    rule rsem_all_for_target:
-        message:
-            "RSEM: finished {output}"
-        input:
-            "{:this:}/{target}.{:sources:}.genes.results",
-        output:
-            touch("{:this:}/all_{target}")
-
-    rule rsem_all:
-        message:
-            "RSEM: finished {output}"
-        input:
-            "{:this:}/all_{:targets:}"
-        output:
-            touch("{:this:}/all_targets.stamp")
-
-    # TODO: SE mode
 

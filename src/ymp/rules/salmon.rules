@@ -1,12 +1,42 @@
 Env(name="salmon", base="bioconda", packages=["salmon>1.5"])
 
-with Stage("quant_salmon") as S:
+with Stage("index_salmon") as S:
+    S.doc("""
+    """)
+    S.add_param("G", typ="flag", name="gencode", value="--gencode")
+
+    rule salmon_index:
+        message: "{:name:}: FIXME"
+        input:
+            txfa = "{:prev:}/{:target:}.tx.fasta.gz",
+        output:
+            index = directory("{:this:}/{target}.salmon_index"),
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt",
+        log:
+            "{:this:}/{target}.log",
+        params:
+            kmerlen = 31,
+        conda:
+            "salmon"
+        threads:
+            32
+        shell:
+            "exec >{log} 2>&1;"
+            "salmon index"
+            "  --transcripts {input.txfa}"
+            "  --kmerLen {params.kmerlen}"
+            "  --index {output.index}"
+            "  {params.gencode}"
+
+
+with Stage("quant_salmon_sa") as S:
     S.doc("""
     """)
     S.add_param("L", typ="choice", name="libtype", default="A", 
                 value=["A", "IU", "MU", "OU", "ISF", "ISR", "MSF", "MSR", "OSF", "OSR",
                        "U", "SF", "SR"])
-    rule salmon_quant:
+    rule salmon_sa_quant:
         message: "{:name:}: {output.quant}"
         input:
             index = directory("{:prev:}/{:target:}.salmon_index"),
@@ -15,14 +45,11 @@ with Stage("quant_salmon") as S:
             quant = "{:this:}/{target}.salmon/quant.sf",
             unmapped = "{:this:}/{target}.salmon/aux_info/unmapped_names.txt",
         benchmark:
-            "benchmarks/{:name:}/{:this:}/{target}.txt"
+            "benchmarks/{:name:}/{:this:}/{target}.txt",
         log:
             "{:this:}/{target}.log",
-        params:
-            libtypex = "A"
         conda:
             "salmon"
-            
         threads:
             32
         shell:
@@ -39,3 +66,39 @@ with Stage("quant_salmon") as S:
             " --output $(dirname {output.quant})"
             
             
+with Stage("quant_salmon") as S:
+    S.doc("""
+    """)
+    S.add_param("L", typ="choice", name="libtype", default="A",
+                value=["A", "IU", "MU", "OU", "ISF", "ISR", "MSF", "MSR", "OSF", "OSR",
+                       "U", "SF", "SR"])
+    S.add_param("G", typ="flag", name="gencode", value="--gencode")
+
+    rule salmon_quant:
+        message: "{:name:}: {output.quant}"
+        input:
+            bam = "{:prev:}/{:target:}.tx.bam",
+            txfa = "{:prev:}/{:target:}.tx.fasta.gz"
+        output:
+            quant = "{:this:}/{target}.salmon/quant.sf",
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt",
+        log:
+            "{:this:}/{target}.log",
+        conda:
+            "salmon"
+        threads:
+            32
+        shell:
+            "exec >{log} 2>&1;"
+            "salmon quant"
+            " --libType {params.libtype}"
+            " --threads {threads}"
+            " --seqBias"
+            " --gcBias"
+            " --writeUnmappedNames"
+            " --alignments {input.bam}"
+            " --targets {input.txfa}"
+            " --output $(dirname {output.quant})"
+            " --minAssignedFrags 0"
+            " {params.gencode}"
