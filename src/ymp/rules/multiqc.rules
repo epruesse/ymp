@@ -6,34 +6,62 @@ with Stage("qc_multiqc") as S:
     S.doc("""
     Aggregate QC reports using MultiQC
     """)
-    rule multiqc_fastqc:
+    rule multiqc_merge_configs:
+        message:
+            "Aggregating MultiQC configs for {:this:}"
+        input:
+            conf = "{:all_prevs:}/multiqc_config.yaml"
+        output:
+            conf = "{:this:}/merged_multiqc_config.yaml"
+        run:
+            from ruamel.yaml import YAML
+            yaml = YAML(typ="rt")
+            run_modules = []
+            sp = {}
+            module_order = []
+            for conffile in input.conf:
+                with open(conffile, "r") as fd:
+                    data = yaml.load(fd)
+                run_modules.extend(data.get("run_modules", []))
+                sp.update(data.get("sp", {})) ## FIXME check conflicts!
+                module_order.extend(data.get("module_order", []))
+            run_modules = list(set(run_modules))
+            conf = {
+                "run_modules": run_modules,
+                "sp": sp,
+                "module_order": module_order,
+            }
+            print("writing to ", output.conf)
+            with open(output.conf, "w") as fd:
+                yaml.dump(conf, fd)
+            print("done")
+
+    rule multiqc_report:
         """Assemble report on all FQ files in a directory"""
         message:
-            "Aggregating QC reports for {params.pdir}"
+            "Aggregating QC reports for {:this:}"
         input:
-            fastqc  = "{:prev:}/{:fq_names:}_fastqc.zip"
+            conf = "{:this:}/merged_multiqc_config.yaml",
+            parts = "{:all_prevs:}/multiqc_config.yaml"
         output:
-            flist   = "{:this:}/file_list.txt",
-            report  = "{:this:}/multiqc_report.html",
-        log:
-                     "{:this:}/multiqc.log"
+            report = "{:this:}/multiqc_report.html",
+            stamp = touch("{:this:}/all_targets.stamp")
         params:
-            pdir   = "{:prev:}"
+            dirs = lambda wc, input: [os.path.dirname(p) for p in input.parts]
+        log:
+            "{:this:}/multiqc.log"
         threads:
             1
         conda:
             "multiqc"
-        shell: """
-        echo {input.fastqc} | tr ' ' '\n' > {output.flist}
-        multiqc \
-          --verbose \
-          --module fastqc \
-          --file-list {output.flist} \
-          --filename {output.report} \
-          --title  {params.pdir} \
-          --force \
-          > {log} 2>&1
-        cp {output.report} {output.report2}
-        """
+        shell:
+            "exec >{log} 2>&1;"
+            "multiqc"
+            "  --verbose"
+            "  --force"
+            "  --config {input.conf}"
+            "  --filename {output.report}"
+            "  {params.dirs}"
+
 
 

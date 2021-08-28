@@ -37,3 +37,28 @@ with Stage("count_htseq"):
             " {input.bam}"
             " {input.gtf}"
             " >{output.counts}"
+
+    localrules: htseq_count_multiqc_cfg
+    rule htseq_count_multiqc_cfg:
+        message:
+            "{:name:}: Writing MultiQC config"
+        input:
+            "{:this:}/{:targets:}.htseq_counts"
+        output:
+            "{:this:}/multiqc_config.yaml"
+        params:
+            this = "{:this:}"
+        run:
+            from ruamel.yaml import YAML
+            yaml = YAML(typ="rt")
+            data = {
+                "run_modules": [ "htseq" ],
+                "module_order": [{
+                    "fastqc": {
+                        "name": f"HTSeq-Count ({params.this})",
+                        "path_filters": f"{params.this}/*.htseq_counts"
+                    }
+                }]
+            }
+            with open(output[0], "w") as out:
+                yaml.dump(data, out)

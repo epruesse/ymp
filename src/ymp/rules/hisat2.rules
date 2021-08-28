@@ -4,7 +4,7 @@ HT2IDX_SUFFIXES = ["{}.ht2".format(n+1) for n in range(8)]
 
 with Stage("map_hisat2") as S:
     S.doc("""
-    Map reads using Hisat2
+    Map reads using HISAT2
     """)
     rule hisat2_map:
         """
@@ -43,3 +43,28 @@ with Stage("map_hisat2") as S:
             " -p {threads} "
             " 2>{log}"
             " | samtools view -b -o {output.bam} -"
+
+    localrules: hisat2_map_multiqc_cfg
+    rule hisat2_map_multiqc_cfg:
+        message:
+            "{:name:}: Writing MultiQC config"
+        input:
+            "{:this:}/{:targets:}.stats"
+        output:
+            "{:this:}/multiqc_config.yaml"
+        params:
+            this = "{:this:}"
+        run:
+            from ruamel.yaml import YAML
+            yaml = YAML(typ="rt")
+            data = {
+                "run_modules": [ "hisat2" ],
+                "module_order": [{
+                    "hisat2": {
+                        "name": f"HISAT2 ({params.this})",
+                        "path_filters": f"{params.this}/*.stats"
+                    }
+                }]
+            }
+            with open(output[0], "w") as out:
+                yaml.dump(data, out)
