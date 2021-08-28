@@ -61,7 +61,7 @@ with Stage("quant_rsem") as S:
             " --bam "
             " --no-bam-output"
             " --estimate-rspd" # estimate read start position
-            " --calc-ci" # calculate 95% credibility intervals and posterior mean estimates
+            #" --calc-ci" # calculate 95% credibility intervals and posterior mean estimates
             " --ci-memory $(({resources.mem_mb} / 16 * 10))"
             " --forward-prob {params.forward_prob}"
             " --paired-end"
