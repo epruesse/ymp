@@ -13,6 +13,10 @@ from ymp.exceptions import YmpRuleError
 
 
 def make_local_path(icfg, url: str):
+    """Rewrites remote URLs to point to downloads folder so they will be
+    retrieved by the download rules
+
+    """
     url_match = re.match("^(http|https|ftp|ftps)://", url)
     if url_match:
         return os.path.join(
