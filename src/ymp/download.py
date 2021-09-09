@@ -223,6 +223,7 @@ class FileDownloader(object):
                     return False
             return True
         except (asyncio.CancelledError, asyncio.TimeoutError):
+            self.error("Download failed: %s (cancelled or timed out)", name)
             if os.path.exists(part):
                 os.unlink(part)
             raise
