@@ -111,7 +111,7 @@ class MultiProxy(object):
         return [fn for fn, layer in self._maps]
 
     def get_linenos(self):
-        return [layer._yaml_line_col.line
+        return [layer._yaml_line_col.line + 1
                 for fn, layer in self._maps]
 
     def get_fileline(self, key = None):
@@ -315,7 +315,7 @@ class MultiSeqProxy(MultiProxy, AttrItemAccessMixin, Sequence):
     def __str__(self):
         return "+".join(f"{m}" for _, m in self._maps)
 
-    def _finditem(self, index):
+    def _locateitem(self, index):
         if isinstance(index, slice):
             raise NotImplementedError()
         if isinstance(index, str):
@@ -327,9 +327,13 @@ class MultiSeqProxy(MultiProxy, AttrItemAccessMixin, Sequence):
             if index >= len(smap):
                 index -= len(smap)
             else:
-                return [(fn, smap[index])]
+                return fn, smap, index
         else:
             raise IndexError()
+
+    def _finditem(self, index):
+        fn, smap, index = self._locateitem(index)
+        return [(fn, smap[index])]
 
     def __radd__(self, other):
         return self.__add__(other)
@@ -355,6 +359,12 @@ class MultiSeqProxy(MultiProxy, AttrItemAccessMixin, Sequence):
 
     def get_paths(self, absolute=False):
         return [self.get_path(i, absolute) for i in range(len(self))]
+
+    def get_fileline(self, key = None):
+        if key is None:
+            return ";".join(self.get_files()), next(iter(self.get_linenos()), None)
+        fn, smap, index = self._locateitem(key)
+        return fn, smap._yaml_line_col.data[index][0] + 1
 
 
 class LayeredConfProxy(MultiMapProxy):
