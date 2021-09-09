@@ -16,60 +16,6 @@ from ymp.exceptions import YmpConfigError
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-class Archive(object):
-    name = None
-    hash = None
-    tar = None
-    dirname = None
-    strip_components = None
-    files = None
-
-    def __init__(self, name, dirname, tar, strip, files):
-        self.name = name
-        self.dirname = dirname
-        self.tar = tar
-        self.strip = strip
-        self.files = files
-
-        self.hash = sha1(self.tar.encode("utf-8")).hexdigest()[:8]
-        self.prefix = os.path.join(self.dirname, "_unpacked_" + self.hash)
-
-    def get_files(self):
-        if isinstance(self.files, Sequence):
-            return {fn: os.path.join(self.prefix, fn) for fn in self.files}
-        elif isinstance(self.files, Mapping):
-            return {
-                fn_ymp: os.path.join(self.prefix, fn_arch)
-                for fn_ymp, fn_arch in self.files.items()
-            }
-        else:
-            raise Exception("unknown data type for reference.files")
-
-    def make_unpack_rule(self, baserule: "Rule"):
-        docstr_tpl = """
-        Unpacks {} archive:
-
-        Files:
-        """
-
-        item_tpl = """
-        - {}
-        """
-        docstr = "\n".join(
-            [docstr_tpl.format(self.name)] + [item_tpl.format(fn) for fn in self.files]
-        )
-        return make_rule(
-            name="unpack_{}_{}".format(self.name, self.hash),
-            docstring=docstr,
-            lineno=0,
-            snakefile=__name__,
-            parent=baserule,
-            input=([], {"tar": self.tar}),
-            output=([], {"files": list(self.get_files().values())}),
-            params=([], {"strip": self.strip, "prefix": self.prefix}),
-        )
-
-
 class Resource:
     """References comprise files, possibly remote, spefied as
     "resources". These could e.g. be a archive (tar.gz), a local
@@ -197,29 +143,56 @@ class ArchiveResource(UrlResource):
 
     def __init__(self, *args):
         super().__init__(*args)
+
+        # Generate hash from tarfile name
+        self.fnhash = sha1(self.local_path.encode("utf-8")).hexdigest()[:8]
+        # Compute output prefix
+        self.prefix = os.path.join(
+            self.reference.canonical_location(), "_unpacked_" + self.fnhash
+        )
+
+        # Collect files
         if not "files" in self.cfg:
             raise YmpConfigError(
                 self.cfg, "Reference resource of type archive must have 'files' field"
             )
         files = self.cfg.get("files")
-        if (
-            not isinstance(files, Mapping)
-            and not isinstance(files, Sequence)
-            or isinstance(files, str)
-        ):
+        if isinstance(files, Sequence) and not isinstance(files, str):
+            self.files = {fn: os.path.join(self.prefix, fn) for fn in files}
+        elif isinstance(files, Mapping):
+            self.files = {
+                fn_ymp: os.path.join(self.prefix, fn_arch)
+                for fn_ymp, fn_arch in files.items()
+            }
+        else:
             raise YmpConfigError(
                 self.cfg, "Archive 'files' must be mapping", key="files"
             )
-        self.archive = Archive(
-            name="NAME",
-            dirname=self.reference.canonical_location(),
-            tar=self.local_path,
-            files=files,
-            strip=self.cfg.get("strip_components", 0),
-        )
-        self.files = self.archive.get_files()
 
-    def generate_rules(self, **kwargs):
+        # Collect strip components parameter for untar
+        self.strip = self.cfg.get("strip_components", 0)
+
+    def generate_rules(self, unpack_archive=None, **kwargs):
+        docstr = f"""
+        Unpacks {self.reference.name} archive:
+
+        Files:
+        """
+
+        item_tpl = """
+        - {}
+        """
+        docstr = "\n".join([docstr] + [item_tpl.format(fn) for fn in self.files])
+        return make_rule(
+            name=f"unpack_{self.reference.name}_{self.fnhash}",
+            docstring=docstr,
+            lineno=0,
+            snakefile=__name__,
+            parent=unpack_archive,
+            input=([], {"tar": self.local_path}),
+            output=([], {"files": list(self.files.values())}),
+            params=([], {"strip": self.strip, "prefix": self.prefix}),
+        )
         yield self.archive.make_unpack_rule(kwargs["unpack_archive"])
 
 
