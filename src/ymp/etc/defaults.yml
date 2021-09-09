@@ -63,7 +63,6 @@ references:
     - url: ftp://ftp.ccb.jhu.edu/pub/infphilo/hisat2/data/grch38_snp_tran.tar.gz
       strip_components: 1
       type: dir
-      stage: .index
       files:
         ALL.1.ht2: genome_snp_tran.1.ht2
         ALL.2.ht2: genome_snp_tran.2.ht2

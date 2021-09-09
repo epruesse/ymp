@@ -115,6 +115,8 @@ with Stage("references") as S:
     ruleorder: unpack_archive > prepare_reference
 
     for ref in ymp.get_config().ref.values():
-        for unpack_rule in ref.make_unpack_rules(workflow._rules['unpack_archive']):
+        for unpack_rule in ref.generate_rules(
+                unpack_archive=workflow._rules['unpack_archive'],
+        ):
             unpack_rule
 
