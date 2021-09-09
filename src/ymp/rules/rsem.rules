@@ -21,7 +21,7 @@ with Stage("index_rsem") as S:
         shadow:
             "shallow"
         threads:
-            1
+            32
         conda:
             "rsem"
         shell: """
@@ -52,7 +52,7 @@ with Stage("quant_rsem") as S:
         resources:
             mem = "16G",
         threads:
-            16
+            32
         conda:
             "rsem"
         shell:
