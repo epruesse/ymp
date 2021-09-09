@@ -31,7 +31,7 @@ class FileDownloader(object):
       alturls:    List of regexps modifying URLs
       retry:      Number of times to retry download
     """
-    def __init__(self, block_size: int=4096, timeout: int=300, parallel: int=4,
+    def __init__(self, block_size: int=8192, timeout: int=300, parallel: int=4,
                  loglevel: int=logging.WARNING, alturls=None, retry: int=3):
         self._block_size = block_size
         self._timeout = timeout
