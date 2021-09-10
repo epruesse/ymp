@@ -139,7 +139,7 @@ with Stage("map_bowtie2") as S:
                 "module_order": [{
                     "bowtie2": {
                         "name": f"Bowtie2 ({params.this})",
-                        "path_filters": f"{params.this}/*.log"
+                        "path_filters": [f"{params.this}/*.log"]
                     }
                 }]
             }

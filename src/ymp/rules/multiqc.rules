@@ -12,7 +12,7 @@ with Stage("qc_multiqc") as S:
         input:
             conf = "{:all_prevs:}/multiqc_config.yaml"
         output:
-            conf = "{:this:}/merged_multiqc_config.yaml"
+            conf = temp("{:this:}/merged_multiqc_config.yaml")
         run:
             from ruamel.yaml import YAML
             yaml = YAML(typ="rt")
@@ -31,10 +31,8 @@ with Stage("qc_multiqc") as S:
                 "sp": sp,
                 "module_order": module_order,
             }
-            print("writing to ", output.conf)
             with open(output.conf, "w") as fd:
                 yaml.dump(conf, fd)
-            print("done")
 
     rule multiqc_report:
         """Assemble report on all FQ files in a directory"""

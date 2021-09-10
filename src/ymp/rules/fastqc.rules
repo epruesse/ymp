@@ -56,7 +56,7 @@ with Stage("qc_fastqc") as S:
                 "module_order": [{
                     "fastqc": {
                         "name": f"FastQC ({params.this})",
-                        "path_filters": f"{params.this}/*_fastqc.zip"
+                        "path_filters": [f"{params.this}/*_fastqc.zip"]
                     }
                 }]
             }
