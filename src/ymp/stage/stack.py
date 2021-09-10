@@ -39,6 +39,11 @@ def find_stage(name):
         if refname in cfg.ref:
             return cfg.ref[refname]
         raise YmpStageError(f"Unknown reference '{refname}'")
+    if name.startswith(cfg.dir.references):
+        refname = name[len(cfg.dir.references):].lstrip("/")
+        if refname in cfg.ref:
+            return cfg.ref[refname]
+        raise YmpStageError(f"Unknown reference '{refname}'")
     if name in cfg.projects:
         return cfg.projects[name]
     for stage in registry.values():

@@ -9,7 +9,7 @@ from snakemake.rules import Rule
 
 from ymp.snakemake import make_rule
 from ymp.util import make_local_path
-from ymp.stage import ConfigStage, Activateable, Stage
+from ymp.stage import ConfigStage, Activateable, Stage, Pipeline
 from ymp.exceptions import YmpConfigError
 
 
@@ -266,6 +266,23 @@ class RegexLocalDirResource(UrlResource):
             )
 
 
+class StageResource(Resource):
+    type_names = ["pipeline"]
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.pipeline = Pipeline("NAME", self.cfg)
+        self._files = None
+
+    @property
+    def files(self):
+        if self._files is None:
+            self._files = {}
+            for name, path in self.pipeline.outputs.items():
+                self._files[name.lstrip("/")] = path
+        return self._files
+
+
 class Reference(Activateable, ConfigStage):
     """
     Represents (remote) reference file/database configuration
@@ -276,7 +293,7 @@ class Reference(Activateable, ConfigStage):
         #: Files provided by the reference. Keys are the file names
         #: within ymp ("target.extension"), symlinked into dir.ref/ref_name/ and
         #: values are the path to the reference file from workspace root.
-        self.files: Dict[str, str] = {}
+        self._files: Dict[str, str] = None
         #: Name without the ref_ prefix
         self.plainname = name
         self.archives = []
@@ -293,12 +310,6 @@ class Reference(Activateable, ConfigStage):
         ]
 
         self._ids: Set[str] = set.union(*(rsc._ids for rsc in self._resources))
-        self._files: Dict[str, str] = {}
-        for rsc in self._resources:
-            for name, path in rsc.files.items():
-                if name in self._files:
-                    raise YmpConfigError(rsc.cfg, "Duplicate File")
-                self._files[name] = path
 
         # Copy rules defined in primary references stage
         stage_references = Stage.get_registry().get("references")
@@ -334,31 +345,53 @@ class Reference(Activateable, ConfigStage):
         return super().get_ids(stack, groups, match_groups, match_value)
 
     @property
+    def files(self):
+        if self._files is None:
+            self._files = {}
+            for rsc in self._resources:
+                for name, path in rsc.files.items():
+                    if name in self._files:
+                        raise YmpConfigError(rsc.cfg, "Duplicate File")
+                    self._files[name] = path
+        return self._files
+
+    @property
     def outputs(self) -> Union[Set[str], Dict[str, str]]:
         if self._outputs is None:
             keys = self._ids if self._ids else ["ALL"]
-            self._outputs = {
-                "/"
-                + re.sub(f"(^|.)({'|'.join(keys)})\.", r"\1{sample}.", fname): "."
-                + self.name
-                for fname in self._files
-            }
+            self._outputs = {}
+            for fname, target in self.files.items():
+                if "{sample}" in fname:
+                    self._outputs["/" + fname] = target
+                else:
+                    normname = "/" + re.sub(
+                        f"(^|.)({'|'.join(keys)})\.", r"\1{sample}.", fname
+                    )
+                    self._outputs[normname] = ""
         return self._outputs
 
-    def get_path(self, _stack):
-        return self.dir
+    def can_provide(self, inputs: Set[str], full_stack: bool = False) -> Dict[str, str]:
+        res = {
+            output: path for output, path in self.outputs.items() if output in inputs
+        }
+        return res
+
+    def get_path(self, _stack=None, typ=None):
+        if typ is None:
+            return self.dir
+        return self.name + self.outputs[typ]
 
     def get_all_targets(self, stack: "StageStack") -> List[str]:
-        return [os.path.join(self.dir, fname) for fname in self._files]
+        return [os.path.join(self.dir, fname) for fname in self.files]
 
     def get_file(self, filename, isdir=False):
-        local_path = self._files.get(filename)
+        local_path = self.files.get(filename)
         if local_path:
             if os.path.isdir(local_path) != isdir:
                 return "YMP_THIS_FILE_MUST_NOT_EXIST"
             return local_path
         log.error(f"{self!r}: Failed to find {filename}")
-        log.warning(f"  Available: {self._files}")
+        log.warning(f"  Available: {self.files}")
         return "YMP_FILE_NOT_FOUND__" + "No file {} in Reference {}" "".format(
             filename, self.name
         ).replace(" ", "_")
@@ -374,7 +407,8 @@ class Reference(Activateable, ConfigStage):
         item = kwargs["item"]
         if kwargs.get("field") == "output":
             suffix = self.register_inout("this", set(), item).lstrip("/")
-            self._files[suffix] = os.path.join(self.dir, suffix)
+            ## FIXME
+            self.files[suffix] = os.path.join(self.dir, suffix)
             self._outputs = None  # will need refresh
         return self.dir
 
@@ -389,3 +423,7 @@ class Reference(Activateable, ConfigStage):
         if groups != []:
             raise YmpConfigError(self.cfg, "Reference may not be (re)grouped")
         return groups, []
+
+    @property
+    def variables(self):
+        return []
