@@ -1,0 +1,55 @@
+Env(name="tximport",base="bioconda", packages=[
+    "bioconductor-tximport",
+    "bioconductor-tximeta",
+    "r-readr"  # faster read
+    ])
+
+with Stage("r_tximport") as S:
+    S.doc("""
+    """)
+
+    S.require(
+        counts = [
+            ["isoforms.results", "genes.results"],  # RSEM output
+            ["salmon/quant.sf"]  # Salmon output
+        ],
+        gtf = [["gtf"]],
+    )
+
+    rule tximport_rsem:
+        message:
+            "{:name:}: Importing counts from RSEM"
+        input:
+            counts = "{:prev:}/{:target:}.genes.results",
+            transcripts = "{:prev:}/{:target:}.isoforms.results",
+            gtf = "{:prev:}/{:target:}.gtf",
+        output:
+            counts = "{:this:}/{target}.gene_counts.rds",
+            transcripts = "{:this:}/{target}.tx_counts.rds",
+        log:
+            "{:this:}/{target}.log",
+        threads:
+            1
+        conda:
+            "tximport"
+        script:
+            "tximport_rsem.R"
+
+
+    rule tximport_salmon:
+        message:
+            "{:name:}: Importing counts from Salmon"
+        input:
+            counts = "{:prev:}/{:target:}.salmon/quant.sf", 
+            gtf = "{:prev:}/{:target:}.gtf",
+        output:
+            counts = "{:this:}/{target}.gene_counts.rds",
+            transcripts = "{:this:}/{target}.tx_counts.rds",
+        log:
+            "{:this:}/{target}.log"
+        threads:
+            1
+        conda:
+            "tximport"
+        script:
+            "tximport_salmon.R"
