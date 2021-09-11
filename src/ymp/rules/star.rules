@@ -103,7 +103,8 @@ with Stage("map_star") as S:
                         "name": f"STAR ({params.this})",
                         "path_filters": [f"{params.this}/*.star.Log.final.out"]
                     }
-                }]
+                }],
+                "sample_names_replace": {"(.*)\\\\.star": "\\\\1"},
             }
             with open(output[0], "w") as out:
                 yaml.dump(data, out)

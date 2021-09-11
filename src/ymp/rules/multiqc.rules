@@ -20,17 +20,21 @@ with Stage("qc_multiqc") as S:
             run_modules = []
             sp = {}
             module_order = []
+            sample_names_replace = {}
             for conffile in input.conf:
                 with open(conffile, "r") as fd:
                     data = yaml.load(fd)
                 run_modules.extend(data.get("run_modules", []))
                 sp.update(data.get("sp", {})) ## FIXME check conflicts!
                 module_order.extend(data.get("module_order", []))
+                sample_names_replace.update(data.get("sample_names_replace", {}))
             run_modules = list(set(run_modules))
             conf = {
                 "run_modules": run_modules,
                 "sp": sp,
                 "module_order": module_order,
+                "sample_names_replace": sample_names_replace,
+                "sample_names_replace_regex": True,
             }
             with open(output.conf, "w") as fd:
                 yaml.dump(conf, fd)

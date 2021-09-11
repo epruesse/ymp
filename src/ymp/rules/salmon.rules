@@ -64,6 +64,35 @@ with Stage("quant_salmon_sa") as S:
             " --mates1 {input.fq[0]}"
             " --mates2 {input.fq[1]}"
             " --output $(dirname {output.quant})"
+
+    localrules: salmon_sa_quant_multiqc_cfg
+    rule salmon_sa_quant_multiqc_cfg:
+        message:
+            "{:name:}: Writing MultiQC config"
+        input:
+            "{:this:}/{:targets:}.log"
+        output:
+            "{:this:}/multiqc_config.yaml"
+        params:
+            this = "{:this:}"
+        run:
+            from ruamel.yaml import YAML
+            yaml = YAML(typ="rt")
+            data = {
+                "run_modules": [ "salmon" ],
+                "module_order": [{
+                    "salmon": {
+                        "name": f"Salmon SA ({params.this})",
+                        "path_filters": [
+                            f"{params.this}/*.salmon/aux_info/meta_info.json",
+                            f"{params.this}/*.salmon/libParams/flenDist.txt",
+                        ]
+                    }
+                }],
+                "sample_names_replace": {"(.*)\\.salmon": "\\1"},
+            }
+            with open(output[0], "w") as out:
+                yaml.dump(data, out)
             
             
 with Stage("quant_salmon") as S:
@@ -102,3 +131,32 @@ with Stage("quant_salmon") as S:
             " --output $(dirname {output.quant})"
             " --minAssignedFrags 0"
             " {params.gencode}"
+
+    localrules: salmon_quant_multiqc_cfg
+    rule salmon_quant_multiqc_cfg:
+        message:
+            "{:name:}: Writing MultiQC config"
+        input:
+            "{:this:}/{:targets:}.log"
+        output:
+            "{:this:}/multiqc_config.yaml"
+        params:
+            this = "{:this:}"
+        run:
+            from ruamel.yaml import YAML
+            yaml = YAML(typ="rt")
+            data = {
+                "run_modules": [ "salmon" ],
+                "module_order": [{
+                    "salmon": {
+                        "name": f"Salmon ({params.this})",
+                        "path_filters": [
+                            f"{params.this}/*.salmon/aux_info/meta_info.json",
+                            f"{params.this}/*.salmon/libParams/flenDist.txt",
+                        ],
+                    }
+                }],
+                "sample_names_replace": {"(.*)\\.salmon": "\\1"},
+            }
+            with open(output[0], "w") as out:
+                yaml.dump(data, out)
