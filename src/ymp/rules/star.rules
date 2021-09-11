@@ -51,6 +51,7 @@ with Stage("map_star") as S:
             bamtr = "{:this:}/{target}.tx.bam",
         log:
             std = "{:this:}/{target}.log",
+            final = "{:this:}/{target}.star.Log.final.out",
         params:
             outprefix = "{:this:}/{target}.star.",
             multimap_nmax = 10,
@@ -81,3 +82,28 @@ with Stage("map_star") as S:
         mv {params.outprefix}Aligned.out.bam {output.bamgn}
         mv {params.outprefix}Aligned.toTranscriptome.out.bam {output.bamtr}
         """
+
+    localrules: star_map_multiqc_cfg
+    rule star_map_multiqc_cfg:
+        message:
+            "{:name:}: Writing MultiQC config"
+        input:
+            "{:this:}/{:targets:}.log"
+        output:
+            "{:this:}/multiqc_config.yaml"
+        params:
+            this = "{:this:}"
+        run:
+            from ruamel.yaml import YAML
+            yaml = YAML(typ="rt")
+            data = {
+                "run_modules": [ "star" ],
+                "module_order": [{
+                    "star": {
+                        "name": f"STAR ({params.this})",
+                        "path_filters": [f"{params.this}/*.star.Log.final.out"]
+                    }
+                }]
+            }
+            with open(output[0], "w") as out:
+                yaml.dump(data, out)

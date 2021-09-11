@@ -43,6 +43,9 @@ with Stage("quant_rsem") as S:
         output:
             "{:this:}/{target}.genes.results",
             "{:this:}/{target}.isoforms.results",
+            "{:this:}/{target}.stats/{target}.cnt",
+            "{:this:}/{target}.stats/{target}.model",
+            "{:this:}/{target}.stats/{target}.theta",
         log:
             "{:this:}/{target}.log",
         params:
@@ -71,3 +74,27 @@ with Stage("quant_rsem") as S:
             " >{log} 2>&1 "
 
 
+    localrules: rsem_quant_multiqc_cfg
+    rule rsem_quant_multiqc_cfg:
+        message:
+            "{:name:}: Writing MultiQC config"
+        input:
+            "{:this:}/{:targets:}.genes.results"
+        output:
+            "{:this:}/multiqc_config.yaml"
+        params:
+            this = "{:this:}"
+        run:
+            from ruamel.yaml import YAML
+            yaml = YAML(typ="rt")
+            data = {
+                "run_modules": [ "rsem" ],
+                "module_order": [{
+                    "rsem": {
+                        "name": f"RSEM ({params.this})",
+                        "path_filters": [f"{params.this}/*.stats/*.cnt"]
+                    }
+                }]
+            }
+            with open(output[0], "w") as out:
+                yaml.dump(data, out)

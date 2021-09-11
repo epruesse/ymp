@@ -6,13 +6,14 @@ with Stage("qc_multiqc") as S:
     S.doc("""
     Aggregate QC reports using MultiQC
     """)
+    localrules: multiqc_merge_configs
     rule multiqc_merge_configs:
         message:
             "Aggregating MultiQC configs for {:this:}"
         input:
             conf = "{:all_prevs:}/multiqc_config.yaml"
         output:
-            conf = temp("{:this:}/merged_multiqc_config.yaml")
+            conf = "{:this:}/merged_multiqc_config.yaml"
         run:
             from ruamel.yaml import YAML
             yaml = YAML(typ="rt")
@@ -34,6 +35,7 @@ with Stage("qc_multiqc") as S:
             with open(output.conf, "w") as fd:
                 yaml.dump(conf, fd)
 
+    localrules: multiqc_report
     rule multiqc_report:
         """Assemble report on all FQ files in a directory"""
         message:

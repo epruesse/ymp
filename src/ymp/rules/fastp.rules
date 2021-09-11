@@ -63,7 +63,7 @@ with Stage("trim_fastp") as S:
                 "module_order": [{
                     "fastp": {
                         "name": f"FastP ({params.this})",
-                        "path_filters": f"{params.this}/*.fastp.json"
+                        "path_filters": [f"{params.this}/*.fastp.json"]
                     }
                 }]
             }
