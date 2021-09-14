@@ -202,6 +202,7 @@ def test_regexlocaldir_directory_missing(saved_cwd, check_show):
             ),
         )
     assert excinfo.match("Directory")
+    assert excinfo.match("somewhere")
     check_show(excinfo.value, "line 2")
 
 
@@ -337,17 +338,18 @@ def test_with_ids(demo_dir):
     assert groups == ["ref_test"]
     ids = ref.get_ids(stack, groups)
     assert set(ids) == set(["one", "two"])
-    assert ref.outputs == {"/{sample}.fasta.gz": ".ref_test"}
+    assert ref.outputs == {"/{sample}.fasta.gz": ""}
 
 
 def test_duplicate_file(saved_cwd, check_show):
+    ref = Reference(
+        "test",
+        make_cfg(
+            "- type: fasta", "  url: somewhere", "- type: fasta", "  url: somewhere"
+        ),
+    )
     with pytest.raises(YmpConfigError) as excinfo:
-        ref = Reference(
-            "test",
-            make_cfg(
-                "- type: fasta", "  url: somewhere", "- type: fasta", "  url: somewhere"
-            ),
-        )
+        ref.files
     assert excinfo.match("Duplicate")
     check_show(excinfo.value, "line 4")
 

@@ -233,7 +233,8 @@ class RegexLocalDirResource(UrlResource):
             filenames = os.listdir(self.local_path)
         except FileNotFoundError:
             raise YmpConfigError(
-                self.cfg, "Directory required by path resource inaccessible"
+                self.cfg,
+                f"Directory '{self.local_path}' required by path resource inaccessible",
             )
         self.dir = self.local_path.rstrip("/")
 
