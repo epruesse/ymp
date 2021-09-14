@@ -1,7 +1,7 @@
 import logging
 import os
 import re
-from hashlib import sha1
+from hashlib import sha512
 from typing import Dict, Optional, Union, Set, List
 from collections.abc import Mapping, Sequence
 
@@ -145,7 +145,7 @@ class ArchiveResource(UrlResource):
         super().__init__(*args)
 
         # Generate hash from tarfile name
-        self.fnhash = sha1(self.local_path.encode("utf-8")).hexdigest()[:8]
+        self.fnhash = sha512(self.local_path.encode("utf-8")).hexdigest()[:8]
         # Compute output prefix
         self.prefix = os.path.join(
             self.reference.canonical_location(), "_unpacked_" + self.fnhash
