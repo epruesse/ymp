@@ -9,6 +9,8 @@ from ymp.stage import Reference, StageStack
 from ymp.stage.reference import Resource
 from ymp.exceptions import YmpConfigError
 
+references_test = "references/test"  # place sonarcloud
+
 
 def make_cfg(text, *args):
     fname = "test.yml"
@@ -53,7 +55,7 @@ def test_empty_unknown_type(saved_cwd, check_show):
 
 def test_fasta_no_url(saved_cwd, check_show):
     with pytest.raises(YmpConfigError) as excinfo:
-        ref = Reference("test", make_cfg("- type: fasta"))
+        Reference("test", make_cfg("- type: fasta"))
     assert excinfo.match("fasta")
     assert excinfo.match("must have 'url'")
     check_show(excinfo.value, "line 2")
@@ -67,7 +69,6 @@ def test_duplicate_resource(saved_cwd):
     from ymp.stage.reference import FileResource
 
     with pytest.raises(ValueError) as excinfo:
-
         class duplicate(FileResource):
             pass
 
@@ -77,14 +78,14 @@ def test_duplicate_resource(saved_cwd):
 
 def test_resource_not_mapping(saved_cwd, check_show):
     with pytest.raises(YmpConfigError) as excinfo:
-        ref = Reference("test", make_cfg("- []"))
+        Reference("test", make_cfg("- []"))
     assert excinfo.match("mapping")
     check_show(excinfo.value, "line 2")
 
 
 def test_resource_not_mapping_third(saved_cwd, check_show):
     with pytest.raises(YmpConfigError) as excinfo:
-        ref = Reference(
+        Reference(
             "test",
             make_cfg(
                 "- type: fasta",
@@ -107,7 +108,7 @@ def test_get_id_name(saved_cwd):
 
 def test_file_resource_no_extension(saved_cwd, check_show):
     with pytest.raises(YmpConfigError) as excinfo:
-        ref = Reference("test", make_cfg("- type: file", "  url: somewhere"))
+        Reference("test", make_cfg("- type: file", "  url: somewhere"))
     assert excinfo.match("must have")
     assert excinfo.match("extension")
     check_show(excinfo.value, "line 2")
@@ -121,11 +122,12 @@ def test_file_resource(saved_cwd):
 
 def test_named_unpacked_resource(saved_cwd):
     ref = Reference("test", make_cfg("- type: gtf", "  url: somewhere"))
+    assert ref.files == {"ALL.gtf": "somewhere"}
 
 
 def test_archive_resource_no_url(saved_cwd, check_show):
     with pytest.raises(YmpConfigError) as excinfo:
-        ref = Reference("test", make_cfg(" - type: archive"))
+        Reference("test", make_cfg(" - type: archive"))
     assert excinfo.match("must have")
     assert excinfo.match("url")
     check_show(excinfo.value, "line 2")
@@ -133,7 +135,7 @@ def test_archive_resource_no_url(saved_cwd, check_show):
 
 def test_archive_resource_no_files(saved_cwd, check_show):
     with pytest.raises(YmpConfigError) as excinfo:
-        ref = Reference("test", make_cfg(" - type: archive", "   url: somwhere"))
+        Reference("test", make_cfg(" - type: archive", "   url: somwhere"))
     assert excinfo.match("must have")
     assert excinfo.match("files")
     check_show(excinfo.value, "line 2")
@@ -141,7 +143,7 @@ def test_archive_resource_no_files(saved_cwd, check_show):
 
 def test_archive_resource_files_not_mapping(saved_cwd, check_show):
     with pytest.raises(YmpConfigError) as excinfo:
-        ref = Reference(
+        Reference(
             "test", make_cfg(" - type: archive", "   url: somwhere", "   files:")
         )
     assert excinfo.match("must be mapping")
@@ -159,6 +161,9 @@ def test_archive_resource_no_url(saved_cwd, check_show):
             "     ALL.bam: some.bam",
         ),
     )
+    assert list(ref.files.keys()) == ["ALL.bam"]
+    assert ref.files["ALL.bam"].endswith("/some.bam")
+    assert ref.files["ALL.bam"].startswith(references_test)
 
 
 def test_localdir_resource_no_files(saved_cwd, check_show):
@@ -296,7 +301,7 @@ def test_get_path(demo_dir):
             "  url: somewhere",
         ),
     )
-    assert ref.get_path(None) == "references/test"
+    assert ref.get_path(None) == references_test
     ## FIXME: Do we need the below feature at all?9
     assert str(ref) == "references/test/ALL"
 
@@ -363,12 +368,12 @@ def test_get_file(saved_cwd):
 
 def test_add_rule(saved_cwd):
     ref = Reference("test", make_cfg("- type: fasta", "  url: somewhere.fasta.gz"))
-    assert ref.prev() == "references/test"
+    assert ref.prev() == references_test
     assert ref.get_file("ALL.sometype").startswith("YMP_FILE_NOT_FOUND")
     kwargs = {"item": "{:this:}/{:target:}.sometype"}
-    assert ref.this(kwargs=kwargs) == "references/test"
+    assert ref.this(kwargs=kwargs) == references_test
     assert ref.get_file("ALL.sometype").startswith("YMP_FILE_NOT_FOUND")
     kwargs["field"] = "output"
     ref.set_active(ref)
-    assert ref.this(kwargs=kwargs) == "references/test"
-    assert ref.get_file("{sample}.sometype") == "references/test/{sample}.sometype"
+    assert ref.this(kwargs=kwargs) == references_test
+    assert ref.get_file("{sample}.sometype") == references_test + "/{sample}.sometype"
