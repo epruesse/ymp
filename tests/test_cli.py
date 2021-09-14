@@ -296,7 +296,7 @@ def test_env_run(invoker, demo_dir, mock_conda, mock_downloader, capfd):
     res = invoker.call("env", "run", "bbmap", "true")
     assert res.exit_code == 0
     cap = capfd.readouterr()
-    assert "bin/activate: No such file " in cap.err
+    assert "No such file or directory" in cap.err
 
 
 @pytest.mark.parametrize(
@@ -317,7 +317,7 @@ def test_env_run(invoker, demo_dir, mock_conda, mock_downloader, capfd):
         }],
         ["ymp make toy.assemble_megahit.", -1, {
             "toy.assemble_megahit.trim_",
-            "toy.assemble_megahit.map_"
+            "toy.assemble_megahit.ref_"
         }],
         ["ymp make toy.assemble_megahit.map_", -1, {
             "toy.assemble_megahit.map_bbmap",
