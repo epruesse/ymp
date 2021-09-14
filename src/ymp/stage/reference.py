@@ -183,7 +183,7 @@ class ArchiveResource(UrlResource):
         - {}
         """
         docstr = "\n".join([docstr] + [item_tpl.format(fn) for fn in self.files])
-        return make_rule(
+        yield make_rule(
             name=f"unpack_{self.reference.name}_{self.fnhash}",
             docstring=docstr,
             lineno=0,
@@ -193,7 +193,6 @@ class ArchiveResource(UrlResource):
             output=([], {"files": list(self.files.values())}),
             params=([], {"strip": self.strip, "prefix": self.prefix}),
         )
-        yield self.archive.make_unpack_rule(kwargs["unpack_archive"])
 
 
 class LocalDirResource(UrlResource):
