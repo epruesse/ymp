@@ -49,6 +49,7 @@ with Stage("qc_multiqc") as S:
             parts = "{:all_prevs:}/multiqc_config.yaml"
         output:
             report = "{:this:}/multiqc_report.html",
+            data = directory("{:this:}/multiqc_report_data"),
             stamp = touch("{:this:}/all_targets.stamp")
         params:
             dirs = lambda wc, input: [os.path.dirname(p) for p in input.parts]
