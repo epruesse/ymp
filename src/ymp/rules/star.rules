@@ -13,7 +13,7 @@ with Stage("index_star") as S:
         log:
             "{:this:}/{target}.log",
         threads:
-            16
+            32
         params:
             overhang = 100,
         resources:
@@ -43,12 +43,14 @@ with Stage("map_star") as S:
     Map RNA-Seq reads with STAR
     """)
     rule star_map:
+        message:
+            "STAR: mapping {input.fq[0]} to {input.index}"
         input:
             index = directory("{:prev:}/{:target:}.staridx"),
             fq  = "{:prev:}/{:target:}.{:pairnames:}.fq.gz"
         output:
-            bamgn = "{:this:}/{target}.bam",
-            bamtr = "{:this:}/{target}.tx.bam",
+            bamgn = temp("{:this:}/{target}.bam"),
+            bamtr = temp("{:this:}/{target}.tx.bam"),
         log:
             std = "{:this:}/{target}.log",
             final = "{:this:}/{target}.star.Log.final.out",
@@ -58,7 +60,7 @@ with Stage("map_star") as S:
             quantmode = "TranscriptomeSAM",
             tmpdir = "{:dir.tmp:}/star/{:this:}/{target}"
         resources:
-            mem = "32g",
+            mem = "64g",
         threads:
             32
         conda:
