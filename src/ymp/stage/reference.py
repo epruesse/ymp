@@ -227,7 +227,7 @@ class RegexLocalDirResource(UrlResource):
         matchlist = self.cfg.get("match")
         if not isinstance(matchlist, Sequence) or isinstance(matchlist, str):
             raise YmpConfigError(self.cfg, "Path 'match' must be list", key="match")
-
+        self.reference.dir = self.local_path
         try:
             filenames = os.listdir(self.local_path)
         except FileNotFoundError:
