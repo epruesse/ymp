@@ -43,9 +43,11 @@ with Stage("quant_rsem") as S:
         output:
             "{:this:}/{target}.genes.results",
             "{:this:}/{target}.isoforms.results",
-            "{:this:}/{target}.stats/{target}.cnt",
-            "{:this:}/{target}.stats/{target}.model",
-            "{:this:}/{target}.stats/{target}.theta",
+            "{:this:}/{target}.stat/{target}.cnt",
+            "{:this:}/{target}.stat/{target}.model",
+            "{:this:}/{target}.stat/{target}.theta",
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt",
         log:
             "{:this:}/{target}.log",
         params:
@@ -55,7 +57,7 @@ with Stage("quant_rsem") as S:
         resources:
             mem = "16G",
         threads:
-            32
+            8
         conda:
             "rsem"
         shell:
@@ -68,6 +70,7 @@ with Stage("quant_rsem") as S:
             " --ci-memory $(({resources.mem_mb} / 16 * 10))"
             " --forward-prob {params.forward_prob}"
             " --paired-end"
+            " --temporary-folder {resources.tmpdir}/rsem.{wildcards.target}.$$/"
             " {input.bam}"
             " {params.index}"
             " {params.outprefix} "
