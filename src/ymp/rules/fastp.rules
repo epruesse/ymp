@@ -7,8 +7,8 @@ with Stage("trim_fastp") as S:
     >>>ymp make toy.trim_fastp
 
     """)
-    S.add_param("L", typ="int", name="length", default=20)
     S.add_param("Q", typ="int", name="qual", default=20)
+    S.add_param("L", typ="int", name="length", default=20)
     S.add_param("O", typ="flag", name="overrepresentcheck", value="--overrepresentation_analysis")
     S.add_param("C", typ="flag", name="correction", value="--correction")
 
@@ -18,7 +18,8 @@ with Stage("trim_fastp") as S:
         input:
             fq = "{:prev:}/{:target:}.{:pairnames:}.fq.gz",
         output:
-            fq = "{:this:}/{target}.{:pairnames:}.fq.gz",
+            fq = [temp("{:this:}/{target}.{:pairnames[0]:}.fq.gz"),
+                  temp("{:this:}/{target}.{:pairnames[1]:}.fq.gz")],
             json = "{:this:}/{target}.fastp.json"
         log:
             "{:this:}/{target}.log",
