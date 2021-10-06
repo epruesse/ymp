@@ -462,6 +462,7 @@ def load(files, root=None):
         fname = resolve_installed_package(fname, stack)
         if any(fname == entry.filename for entry in stack):
             raise LayeredConfError((fname, None), "Recursion in includes", stack=stack)
+        log.debug("Loading YAML configuration from %s", fname)
         try:
             with open(fname, "r") as fdes:
                 yaml = rt_yaml.load(fdes)
