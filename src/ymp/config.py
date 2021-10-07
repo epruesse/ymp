@@ -9,7 +9,8 @@ from xdg import XDG_CACHE_HOME  # type: ignore
 from typing import Mapping, Sequence, Optional
 
 import ymp.yaml
-from ymp.common import AttrDict, Cache, MkdirDict, parse_number, format_number, parse_time, format_time
+from ymp.common import AttrDict, MkdirDict, parse_number, format_number, parse_time, format_time
+from ymp.cache import Cache
 from ymp.env import CondaPathExpander
 from ymp.exceptions import YmpSystemError, YmpConfigError
 from ymp.stage import Pipeline, Project, Reference
