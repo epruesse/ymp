@@ -33,7 +33,8 @@ class Slurm(ClusterMS):
         'RUNNING':     'running',  # job has allocation and should be working
         'RESIZING':    'running',  # job is about to change size
         'SUSPENDED':   'running',  # job is paused
-        'TIMEOUT': 'failed',       # job reached time limit
+        'TIMEOUT':     'failed',   # job reached time limit
+        'OUT_OF_MEMORY': 'failed', # job ran out of memory
         # questionable states:
         'SPECIAL_EXIT': 'running',  # job failed but flagged "special_exit"
         'REVOKED': 'running'  # job removed due to other cluster starting it
@@ -63,7 +64,8 @@ class Slurm(ClusterMS):
             try:
                 job = {key: line[header.index(key)]
                        for key in ('JobID', 'State', 'ExitCode')}
-                job['snakestate'] = Slurm.states[job['State'].split(' ')[0]]
+                state = job['State'].split(' ')[0]
+                job['snakestate'] = Slurm.states.get(state, "failed")
                 jobs.append(job)
             except ValueError as e:
                 error(e)
@@ -75,7 +77,7 @@ class Slurm(ClusterMS):
         elif 'failed' in snakestates:
             print('failed')
         else: # job doesn't exist... assuming success
-            print('success')
+            print('running')
         sys.exit(0)
 
 
