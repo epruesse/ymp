@@ -58,7 +58,6 @@ with Stage("map_star") as S:
             outprefix = "{:this:}/{target}.star.",
             multimap_nmax = 10,
             quantmode = "TranscriptomeSAM",
-            tmpdir = "{:dir.tmp:}/star/{:this:}/{target}"
         resources:
             mem = "64g",
         threads:
@@ -66,7 +65,6 @@ with Stage("map_star") as S:
         conda:
             "star"
         shell: """
-        mkdir -p {params.tmpdir}; rmdir {params.tmpdir};
         STAR \
         --genomeDir {input.index} \
         --genomeLoad NoSharedMemory \
@@ -77,7 +75,6 @@ with Stage("map_star") as S:
         --outSAMtype BAM Unsorted \
         --outSAMunmapped Within \
         --outFilterMultimapNmax {params.multimap_nmax} \
-        --outTmpDir {params.tmpdir} \
         --quantMode {params.quantmode} \
         >{log.std} 2>&1
 
