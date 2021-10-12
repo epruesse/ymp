@@ -21,12 +21,53 @@ with Stage("index_salmon") as S:
             "salmon"
         threads:
             32
+        resources:
+            mem = "32G"
         shell:
             "exec >{log} 2>&1;"
             "salmon index"
             "  --transcripts {input.txfa}"
             "  --kmerLen {params.kmerlen}"
             "  --index {output.index}"
+            "  --threads {threads}"
+            "  {params.gencode}"
+
+
+with Stage("index_salmon_decoy") as S:
+    S.doc("""
+    """)
+    S.add_param("G", typ="flag", name="gencode", value="--gencode")
+
+    rule salmon_index_decoy:
+        message: "{:name:}: FIXME"
+        input:
+            txfa = "{:prev:}/{:target:}.tx.fasta.gz",
+            fa = "{:prev:}/{:target:}.fasta.gz",
+        output:
+            index = directory("{:this:}/{target}.salmon_index"),
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt",
+        log:
+            "{:this:}/{target}.log",
+        params:
+            kmerlen = 31,
+        conda:
+            "salmon"
+        threads:
+            64
+        resources:
+            mem = "45G"
+        shadow: "shallow"
+        shell:
+            "exec >{log} 2>&1;"
+            "gzip -dc {input.fa} | sed -n '/>/ s/>\\([^ ]*\\).*/\\1/p' > decoy.txt;"
+            "cat {input.txfa} {input.fa} > gentrome.fa.gz;"
+            "salmon index"
+            "  --transcripts gentrome.fa.gz"
+            "  --kmerLen {params.kmerlen}"
+            "  --index {output.index}"
+            "  --threads {threads}"
+            "  --decoys decoy.txt"
             "  {params.gencode}"
 
 
