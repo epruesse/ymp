@@ -54,13 +54,17 @@ with Stage("quant_rsem") as S:
             outprefix = "{:this:}/{target}",
             index = lambda wc, input: input.idx[0][:-len(RSEM_IDX[0])-1],
             forward_prob = 1.0, # P of having fwd read
+            this = "{:this:}",
         resources:
             mem = "16G",
         threads:
             8
         conda:
             "rsem"
+        shadow:
+            "shallow"
         shell:
+            "exec >{log} 2>&1;"
             "rsem-calculate-expression"
             " -p {threads}"
             " --bam "
@@ -70,7 +74,7 @@ with Stage("quant_rsem") as S:
             " --ci-memory $(({resources.mem_mb} / 16 * 10))"
             " --forward-prob {params.forward_prob}"
             " --paired-end"
-            " --temporary-folder {resources.tmpdir}/rsem.{wildcards.target}.$$/"
+            " --temporary-folder {params.this}/{wildcards.target}.tmp"
             " {input.bam}"
             " {params.index}"
             " {params.outprefix} "
