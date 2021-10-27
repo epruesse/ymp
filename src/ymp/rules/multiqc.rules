@@ -39,7 +39,6 @@ with Stage("qc_multiqc") as S:
             with open(output.conf, "w") as fd:
                 yaml.dump(conf, fd)
 
-    localrules: multiqc_report
     rule multiqc_report:
         """Assemble report on all FQ files in a directory"""
         message:
@@ -51,10 +50,14 @@ with Stage("qc_multiqc") as S:
             report = "{:this:}/multiqc_report.html",
             data = directory("{:this:}/multiqc_report_data"),
             stamp = touch("{:this:}/all_targets.stamp")
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/all.txt",
         params:
             dirs = lambda wc, input: [os.path.dirname(p) for p in input.parts]
         log:
             "{:this:}/multiqc.log"
+        resources:
+            mem = "32g"
         threads:
             1
         conda:
