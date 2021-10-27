@@ -158,7 +158,7 @@ def snake_params(func):
     return decorated
 
 
-def start_snakemake(kwargs):
+def start_snakemake(kwargs, submit=False):
     """Execute Snakemake with given parameters and targets
 
     Fixes paths of kwargs['targets'] to be relative to YMP root.
@@ -197,7 +197,7 @@ def start_snakemake(kwargs):
 
     # our debug flag sets a new excepthoook handler, to we use this
     # to decide whether snakemake should run in debug mode
-    if sys.excepthook.__module__ != "sys":
+    if sys.excepthook.__module__ != "sys" and not submit:
         log.warning(
             "Custom excepthook detected. Having Snakemake open stdin "
             "inside of run: blocks")
@@ -398,6 +398,6 @@ def submit(profile, **kwargs):
 
     config.add_layer("<computed>", {param: cfg.expand(" ".join(cmd))})
 
-    rval = start_snakemake(config)
+    rval = start_snakemake(config, submit=True)
     if not rval:
         sys.exit(1)
