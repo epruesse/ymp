@@ -93,6 +93,8 @@ with Stage("quant_salmon_sa") as S:
             "salmon"
         threads:
             16
+        resources:
+            mem = "48G",
         shell:
             "exec >{log} 2>&1;"
             "salmon quant"
@@ -155,12 +157,12 @@ with Stage("quant_salmon") as S:
             "benchmarks/{:name:}/{:this:}/{target}.txt",
         log:
             "{:this:}/{target}.log",
-        resources:
-            mem = "16G",
         conda:
             "salmon"
         threads:
             32
+        resources:
+            mem = "48G",
         shell:
             "exec >{log} 2>&1;"
             "salmon quant"
