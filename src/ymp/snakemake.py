@@ -16,6 +16,8 @@ from snakemake.io import AnnotatedString, apply_wildcards, \
 from snakemake.io import Namedlist as _Namedlist  # type: ignore
 from snakemake.rules import Rule  # type: ignore
 from snakemake.workflow import RuleInfo, Workflow  # type: ignore
+from snakemake.sourcecache import infer_source_file  # type: ignore
+
 
 import ymp
 from ymp.common import ensure_list, flatten, is_container
@@ -908,22 +910,20 @@ class InheritanceExpander(BaseExpander):
         super().__init__()
         self.ruleinfos = {}
         self.snakefiles = {}
-        self.linemaps = None
 
     def get_code_line(self, rule: Rule) -> str:
         """Returns the source line defining *rule*"""
+        cached_file = infer_source_file(rule.snakefile)
         # Load and cache Snakefile
         if rule.snakefile not in self.snakefiles:
             try:
-                with open(rule.snakefile, "r") as sf:
+                with self.workflow.sourcecache.open(cached_file, "r") as sf:
                     self.snakefiles[rule.snakefile] = sf.readlines()
             except IOError:
                 raise Exception("Can't parse ...")
 
         # `rule.lineno` refers to compiled code. Convert to source line number.
-        if self.linemaps is None:
-            self.linemaps = ExpandableWorkflow.global_workflow.linemaps
-        real_lineno = self.linemaps[rule.snakefile][rule.lineno]
+        real_lineno = self.workflow.linemaps[cached_file][rule.lineno]
 
         return self.snakefiles[rule.snakefile][real_lineno - 1]
 

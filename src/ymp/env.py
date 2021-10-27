@@ -429,10 +429,10 @@ class CondaPathExpander(BaseExpander):
         if not self._envs:
             self._envs = Env.get_registry()
         if conda_env in self._envs:
-            return self._envs[conda_env].file
+            return self._envs[conda_env].file.get_path_or_uri()
 
         for snakefile in reversed(self.workflow.included_stack):
-            basepath = op.dirname(snakefile)
+            basepath = op.dirname(snakefile.get_path_or_uri())
             for _, relpath in sorted(self._search_paths.items()):
                 searchpath = op.join(basepath, relpath)
                 abspath = op.abspath(op.join(searchpath, conda_env))

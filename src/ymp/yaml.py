@@ -36,10 +36,14 @@ class LayeredConfError(YmpConfigError):
                     return self.obj
         return None, None
 
+
 class Entry:
     def __init__(self, filename, yaml, index):
         self.filename = filename
-        self.lineno = yaml._yaml_line_col.data[index][0] + 1
+        try:
+            self.lineno = yaml._yaml_line_col.data[index][0] + 1
+        except AttributeError:
+            self.lineno = 0
 
 
 class MixedTypeError(LayeredConfError):
@@ -118,7 +122,11 @@ class MultiProxy(object):
         if key:
             for fname, layer in self._maps:
                 if key in layer:
-                    return fname, layer._yaml_line_col.data[key][0] + 1
+                    try:
+                        line = layer._yaml_line_col.data[key][0] + 1
+                    except AttributeError:
+                        line = 0
+                    return fname, line
         return ";".join(self.get_files()), next(iter(self.get_linenos()), None)
 
     def to_yaml(self, show_source=False):
