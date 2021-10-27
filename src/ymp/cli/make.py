@@ -337,7 +337,7 @@ def make(**kwargs):
     help="Limit the maximum number of cores used by jobs submitted at a time"
 )
 @click.option(
-    "--cores", "-j", default=16, metavar="N",
+    "--cores", "-j", metavar="N",
     help="Number of local threads to use"
 )
 @click.option(
