@@ -7,6 +7,12 @@ Module handling talking to cluster management systems
 import subprocess as sp
 import sys
 import re
+import logging
+
+log = logging.getLogger(__name__)  # pylint: disable=invalid-name
+
+ATTEMPTS = 20
+DEFAULT_STATE = "running"
 
 def error(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
@@ -44,7 +50,41 @@ class Slurm(ClusterMS):
     }
 
     @staticmethod
-    def status(jobid):
+    def run_sacct(jobid):
+        try:
+            res = sp.run(['sacct', '-pbj', jobid], stdout=sp.PIPE)
+        except sp.CalledProcessError as exc:
+            log.error("Failed to run sacct: %s", exc)
+            return {}
+        try:
+            lines = [line.strip().split("|")
+                     for line in res.stdout.decode().splitlines()]
+            header = lines.pop(0)
+            state_idx = header.index("State")
+            jobid_idx = header.index("JobID")
+            return {
+                line[jobid_idx]: line[state_idx].split(" ", 1)[0]
+                for line in lines
+            }
+        except IndexError as exc:
+            log.error("Failed to parse sacct: %s", exc)
+            return {}
+
+    @staticmethod
+    def run_scontrol(jobid):
+        try:
+            res = sp.run(['scontrol', '-o', 'show', 'job', jobid], stdout=sp.PIPE)
+        except sp.CalledProcessError as e:
+            log.error("Failed to run scontrol: %s", e)
+            return {}
+        try:
+            return {jobid: re.search("JobState=(\w+)", res.stdout.decode()).group(1)}
+        except (AttributeError, IndexError) as exc:
+            log.error("Failed to parse sacct: %s", exc)
+            return {}
+
+    @classmethod
+    def status(cls, jobid):
         """Print status of job @param jobid to stdout (as needed by snakemake)
 
         Anectotal benchmarking shows 200ms per invocation, half used
@@ -52,32 +92,18 @@ class Slurm(ClusterMS):
         show job`` instead of ``sacct -pbs`` is faster by 80ms, but
         finished jobs are purged after unknown time window.
         """
-
-        header = None
-        res = sp.run(['sacct', '-pbj', jobid], stdout=sp.PIPE)
-        jobs = []
-        for line in res.stdout.decode('ascii').splitlines():
-            line = line.strip().split("|")
-            if header is None:
-                header = line
-                continue
-            try:
-                job = {key: line[header.index(key)]
-                       for key in ('JobID', 'State', 'ExitCode')}
-                state = job['State'].split(' ')[0]
-                job['snakestate'] = Slurm.states.get(state, "failed")
-                jobs.append(job)
-            except ValueError as e:
-                error(e)
-                error(res.stdout)
-                sys.exit(1)
-        snakestates = [job['snakestate'] for job in jobs]
-        if 'running' in snakestates:
-            print('running')
-        elif 'failed' in snakestates:
-            print('failed')
-        else: # job doesn't exist... assuming success
-            print('running')
+        for i in range(ATTEMPTS):
+            jobs = cls.run_sacct(jobid)
+            if jobid not in jobs:
+                jobs = cls.run_scontrol(jobid)
+            if jobid in jobs:
+                slurmstate = jobs[jobid]
+                snakestate = cls.states[slurmstate]
+                print(snakestate)
+                sys.exit(0)
+            time.sleep(1)
+        log.error("Failed to obtain job info after %i attempts, claiming job %s", ATTEMPTS, DEFAULT_STATE)
+        print(DEFAULT_STATE)
         sys.exit(0)
 
 
