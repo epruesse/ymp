@@ -285,7 +285,7 @@ class Project(ConfigStage):
 
     RE_REMOTE = re.compile(r"^(?:https?|ftp|sftp)://(?:.*)")
     RE_SRR = re.compile(r"^[SED]RR[0-9]+$")
-    RE_FILE = re.compile(r"^(?!http://).*(?:fq|fastq)(?:|\.gz)$")
+    RE_FILE = re.compile(r"^(?!http://).*\.(?:fq|fastq)(?:|\.gz)$")
 
     def __init__(self, name, cfg):
         super().__init__(name, cfg)
@@ -486,7 +486,7 @@ class Project(ConfigStage):
                  (cols[0] == 'srr' and len(cols) > 1):
                 log.error("Ambiguous data sources found in row %s. "
                           "You may need to constrain the columns allowed "
-                          "to contain read data using '%'.",
+                          "to contain read data using '%s'.",
                           row[1], self.KEY_READCOLS)
                 err = True
             elif len(cols) == 2:
