@@ -149,3 +149,40 @@ with Stage("coverage_samtools") as S:
             ' -o {output}'
             ' >{log} 2>&1'
 
+
+with Stage("index_txfa") as S:
+    rule fai_index:
+        message:
+            "{:name:}: Re-compressing with bgzip and indexing {output.txfa}"
+        input:
+            txfa = "{:prev:}/{:target:}.tx.fasta.gz",
+        output:
+            txfa = "{:this:}/{target}.tx.fasta.gz",
+            gzi = "{:this:}/{target}.tx.fasta.gz.gzi",
+            fai = "{:this:}/{target}.tx.fasta.gz.fai",
+        log:
+            "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
+        conda:
+            "samtools"
+        resources:
+            mem = "4g",
+        threads:
+            8
+        shell:
+            'exec >{log} 2>&1;'
+            'bgzip'
+            ' --threads {threads}'
+            ' --decompress'
+            ' --stdout'
+            ' {input.txfa}'
+            '|'
+            'bgzip'
+            ' --threads {threads}'
+            ' --index --index-name {output.gzi}'
+            ' --compress'
+            ' --stdout'
+            ' >{output.txfa};'
+            ''
+            'samtools faidx {output.txfa}'
