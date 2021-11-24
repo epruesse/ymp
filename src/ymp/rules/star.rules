@@ -12,6 +12,8 @@ with Stage("index_star") as S:
             gdir    = directory("{:this:}/{target}.staridx"),
         log:
             "{:this:}/{target}.log",
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt",
         threads:
             32
         params:
@@ -42,6 +44,9 @@ with Stage("map_star") as S:
     S.doc("""
     Map RNA-Seq reads with STAR
     """)
+    S.add_param("T", typ="flag", name="twopass", value="--twopassMode Basic")
+    S.add_param("Sf", typ="flag", name="", value="--outSAMstrandField intronMotif")
+
     rule star_map:
         message:
             "STAR: mapping {input.fq[0]} to {input.index}"
@@ -54,6 +59,8 @@ with Stage("map_star") as S:
         log:
             std = "{:this:}/{target}.log",
             final = "{:this:}/{target}.star.Log.final.out",
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt",
         params:
             outprefix = "{:this:}/{target}.star.",
             multimap_nmax = 10,
@@ -64,23 +71,24 @@ with Stage("map_star") as S:
             32
         conda:
             "star"
-        shell: """
-        STAR \
-        --genomeDir {input.index} \
-        --genomeLoad NoSharedMemory \
-        --runThreadN {threads} \
-        --readFilesIn {input.fq} \
-        --readFilesCommand "gzip -dc" \
-        --outFileNamePrefix {params.outprefix} \
-        --outSAMtype BAM Unsorted \
-        --outSAMunmapped Within \
-        --outFilterMultimapNmax {params.multimap_nmax} \
-        --quantMode {params.quantmode} \
-        >{log.std} 2>&1
-
-        mv {params.outprefix}Aligned.out.bam {output.bamgn}
-        mv {params.outprefix}Aligned.toTranscriptome.out.bam {output.bamtr}
-        """
+        shell:
+            "exec >{log.std} >&1;"
+            "STAR"
+            "  --genomeDir {input.index}"
+            "  --genomeLoad NoSharedMemory"
+            "  --runThreadN {threads}"
+            "  --readFilesIn {input.fq}"
+            "  --readFilesCommand 'gzip -dc'"
+            "  --outFileNamePrefix {params.outprefix}"
+            "  --outSAMtype BAM Unsorted"
+            "  --outSAMunmapped Within"
+            "  --outFilterMultimapNmax {params.multimap_nmax}"
+            "  --quantMode {params.quantmode}"
+            "  {params.twopass};"
+            "mv {params.outprefix}Aligned.out.bam {output.bamgn};"
+            "mv {params.outprefix}Aligned.toTranscriptome.out.bam {output.bamtr};"
+            "sync {output}"
+            # --outTmpDir ?
 
     localrules: star_map_multiqc_cfg
     rule star_map_multiqc_cfg:
