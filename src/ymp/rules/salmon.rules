@@ -1,4 +1,7 @@
-Env(name="salmon", base="bioconda", packages=["salmon>1.5"])
+Env(name="salmon", base="bioconda", packages=[
+    "salmon>1.5",
+    "samtools"
+])
 
 with Stage("index_salmon") as S:
     S.doc("""
@@ -85,6 +88,7 @@ with Stage("quant_salmon_sa") as S:
         output:
             quant = "{:this:}/{target}.salmon/quant.sf",
             unmapped = "{:this:}/{target}.salmon/aux_info/unmapped_names.txt",
+            bam = temp("{:this:}/{target}.tx.bam"),
         benchmark:
             "benchmarks/{:name:}/{:this:}/{target}.txt",
         log:
@@ -107,6 +111,8 @@ with Stage("quant_salmon_sa") as S:
             " --mates1 {input.fq[0]}"
             " --mates2 {input.fq[1]}"
             " --output $(dirname {output.quant})"
+            " --writeMappings"
+            " | samtools view -b -o {output.bam} --threads 4 -"
 
     localrules: salmon_sa_quant_multiqc_cfg
     rule salmon_sa_quant_multiqc_cfg:
