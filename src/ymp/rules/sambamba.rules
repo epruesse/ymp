@@ -11,11 +11,12 @@ with Stage("sort_bam") as S:
             bam = "{:this:}/{target}.sorted.bam",
             bai = "{:this:}/{target}.sorted.bam.bai",
         log:
-            "{:this:}/{target}.sorted.bam.log"
+            "{:this:}/{target}.log"
         benchmark:
             "benchmarks/{:name:}/{:this:}/{target}.txt"
         params:
             compress = 6,
+            order_by = "position",
         resources:
             mem = "32g",
         threads:
@@ -23,30 +24,63 @@ with Stage("sort_bam") as S:
         conda:
             "sambamba"
         shell:
+            "exec >{log} 2>&1;"
+            "case {params.order_by} in"
+            "  name) PARM=--natural-sort;;"
+            "  position) PARM=;;"
+            "esac;"
+            ""
             "sambamba sort"
             " --memory-limit={resources.mem_mb}MB"
             " --compression-level={params.compress}"
             " --nthreads={threads}"
             " --out={output.bam}"
+            " $PARM"
             " {input.bam}"
             " >{log} 2>&1"
 
 
-with Stage("sort_bam2") as S:
-    rule sambamba_sort_gn: # ymp: extends sambamba_sort
-        input:
-            bam = "{:prev:}/{target}.bam",
-
-    rule sambamba_sort_tx: # ymp: extends sambamba_sort
+with Stage("sort_txbam") as S:
+    rule sambamba_sort_txbam: # ymp: extends sambamba_sort
         input:
             bam = "{:prev:}/{target}.tx.bam",
         output:
             bam = "{:this:}/{target}.sorted.tx.bam",
             bai = "{:this:}/{target}.sorted.tx.bam.bai",
         log:
-            "{:this:}/{target}.sorted.tx.bam.log"
+            "{:this:}/{target}.log"
         benchmark:
-            "benchmarks/{:name:}/{:this:}/{target}.tx.txt"
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
+
+
+with Stage("sort_bam_name") as S:
+    rule sambamba_sort_bam_name: # ymp: extends sambamba_sort
+        input:
+            bam = "{:prev:}/{target}.sorted.bam"
+        output:
+            bam = "{:this:}/{target}.bam",
+            bai = [],
+        params:
+            order_by = "name"
+        log:
+            "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
+
+
+with Stage("sort_txbam_name") as S:
+    rule sambamba_sort_txbam_name:  # ymp: extends sambamba_sort
+        input:
+            bam = "{:prev:}/{target}.sorted.tx.bam",
+        output:
+            bam = "{:this:}/{target}.tx.bam",
+            bai = [],
+        params:
+            order_by = "name"
+        log:
+            "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
 
 
 with Stage("markdup_sambamba") as S:
