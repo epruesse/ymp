@@ -186,3 +186,32 @@ with Stage("index_txfa") as S:
             ' >{output.txfa};'
             ''
             'samtools faidx {output.txfa}'
+
+
+with Stage("collate_txbam") as S:
+    rule samtools_collate:
+        message:
+            "{:name:}: Collating BAM file by read name"
+        input:
+            bam = "{:prev:}/{:target:}.sorted.tx.bam",
+        output:
+            bam = temp("{:this:}/{target}.tx.bam"),
+        log:
+            "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
+        conda:
+            "samtools"
+        params:
+            compression_level = 3,
+        resources:
+            mem = "4g",
+        threads:
+            8
+        shell:
+            'exec >{log} 2>&1;'
+            'samtools collate'
+            ' -o {output.bam}'
+            ' -l {params.compression_level}'
+            ' --threads {threads}'
+            ' {input.bam}'
