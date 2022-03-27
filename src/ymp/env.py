@@ -343,11 +343,12 @@ class Env(WorkflowObject, snakemake_conda.Env):
         "Update conda environment"
         self.create()  # call create to make sure environment exists
         log.warning("Updating environment '%s'", self.name)
+        log.warning(f"Running {self.frontend} env update --prune -p {self.path} -f {self.file} -v")
         return subprocess.run([
             self.frontend, "env", "update",
             "--prune",
-            "-p", self.path,
-            "-f", self.file,
+            "-p", str(self.path),
+            "-f", str(self.file),
             "-v"
         ]).returncode
 
