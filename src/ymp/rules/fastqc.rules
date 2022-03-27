@@ -58,7 +58,8 @@ with Stage("qc_fastqc") as S:
                         "name": f"FastQC ({params.this})",
                         "path_filters": [f"{params.this}/*_fastqc.zip"]
                     }
-                }]
+                }],
+                "sample_names_replace": {"(.*)\\.R1": "\\1"},
             }
 
             with open(output[0], "w") as out:
