@@ -1,5 +1,5 @@
 Env(name="multiqc", base="bioconda", packages=[
-    "multiqc >=1.11"
+    "multiqc >=1.12"
 ])
 
 with Stage("qc_multiqc") as S:
