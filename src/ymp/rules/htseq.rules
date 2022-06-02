@@ -1,6 +1,8 @@
 Env(name="htseq", base="bioconda", packages="htseq>0.13")
 
-with Stage("count_htseq"):
+with Stage("count_htseq") as S:
+    S.add_param("T", typ="choice", name="typ",
+                value = ["exon", "gene"], default = "exon")
     rule htseq_count:
         message:
             "Counting per gene reads with htseq-count"
@@ -30,7 +32,7 @@ with Stage("count_htseq"):
             " --max-reads-in-buffer={params.max_reads_in_buffer}"
             " --stranded={params.stranded}"
             " -a={params.minaqual}"
-            # --type=exon
+            " --type={params.typ}"
             # --idattr=gene_id
             " --mode={params.mode}"
             " --nonunique={params.nonunique}"
