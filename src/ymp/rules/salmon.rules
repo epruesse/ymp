@@ -101,7 +101,9 @@ with Stage("quant_salmon_sa") as S:
             mem = "48G",
         shell:
             "exec >{log} 2>&1;"
-            "salmon quant"
+            "echo Launching salmon on $HOSTNAME;"
+            "set -x; "
+            "if ! salmon quant"
             " --libType {params.libtype}"
             " --threads {threads}"
             " --seqBias"
@@ -112,7 +114,17 @@ with Stage("quant_salmon_sa") as S:
             " --mates2 {input.fq[1]}"
             " --output $(dirname {output.quant})"
             " --writeMappings"
-            " | samtools view -b -o {output.bam} --threads 4 -"
+            " | samtools view -b -o {output.bam} --threads 4 -; then"
+            "    echo Salmon or Samtools failed;"
+            "    if tail -n1 $(dirname {output.quant})/logs/salmon_quant.log |"
+            "       grep -q 'salmon was only able to assign 0 fragments'; then"
+            "        echo Salmon found no fragments. Faking output.;"
+            "        touch {output.unmapped};"
+            "        echo -e 'Name\tLength\tEffectiveLength\tTPM\tNumReads' > {output.quant};"
+            "        exit 0;"
+            "    fi;"
+            "    exit 1;"
+            "fi;"
 
     localrules: salmon_sa_quant_multiqc_cfg
     rule salmon_sa_quant_multiqc_cfg:
