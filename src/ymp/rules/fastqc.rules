@@ -29,14 +29,15 @@ with Stage("qc_fastqc") as S:
             mem = "4g",
         conda:
             "fastqc"
-        shell: """
-        fastqc \
-         -t {threads} \
-         -o $(dirname {output[0]}) \
-         {input} \
-         -k {params.k} \
-         >{log} 2>&1
-        """
+        shell:
+            "exec >{log} 2>&1;"
+            "echo Launching fastqc on $HOSTNAME;"
+            "set -x;"
+            "fastqc"
+            " -t {threads}"
+            " -o $(dirname {output[0]})"
+            " {input}"
+            " -k {params.k}"
 
     localrules: fastqc_multiqc
     rule fastqc_multiqc:
