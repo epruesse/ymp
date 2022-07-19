@@ -105,7 +105,7 @@ class BaseStage:
             for output in inputs.intersection(self.outputs)
         }
 
-    def get_path(self, stack: "StageStack") -> str:
+    def get_path(self, stack: "StageStack", typ = None, pipeline = None) -> str:
         # pylint: disable = no-self-use
         """On disk location for this stage given ``stack``.
 

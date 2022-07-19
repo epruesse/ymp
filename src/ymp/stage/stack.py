@@ -193,7 +193,7 @@ class StageStack:
             provides = stage.satisfy_inputs(prev_stage, inputs)
             for typ, ppath in provides.items():
                 if ppath:
-                    npath = prev_stage.get_path(prev_stack, typ)
+                    npath = prev_stage.get_path(prev_stack, typ, caller=self)
                     prevs[typ] = self.instance(npath)
                 else:
                     prevs[typ] = prev_stack

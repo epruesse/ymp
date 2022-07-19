@@ -110,7 +110,7 @@ class Pipeline(Parametrizable, ConfigStage):
             self._params = params
         return super().params
 
-    def get_path(self, stack, typ=None, pipeline=None):
+    def get_path(self, stack, typ=None, pipeline=None, caller=None):
         pipeline_parameters = self.parse(stack.stage_name)
         param_map = {
             key.format(**pipeline_parameters): value

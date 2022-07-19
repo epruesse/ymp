@@ -376,10 +376,16 @@ class Reference(Activateable, ConfigStage):
         }
         return res
 
-    def get_path(self, _stack=None, typ=None):
+    def get_path(self, stack=None, typ=None, pipeline = None, caller = None):
+        # Send request for a file to the pipeline stage providing it,
+        # taking care not to bounce requests from our own stages back
+        # to themselves.
         if typ is None:
-            return self.dir
-        return self.name + self.outputs[typ]
+            return self.dir  # references/<name>
+        path = self.name + self.outputs[typ]
+        if caller.name == path:
+            return self.name  # ref_<name>
+        return path  # potentially redirect to pipeline
 
     def get_all_targets(self, stack: "StageStack") -> List[str]:
         return [os.path.join(self.dir, fname) for fname in self.files]
