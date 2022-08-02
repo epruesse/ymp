@@ -183,6 +183,7 @@ def start_snakemake(kwargs, submit=False):
         'scriptname': 'jobname',
         'cluster_cores': 'nodes',
         'snake_config': 'config',
+        'scheduler': 'scheduler',
         'drmaa': None,
         'sync': None,
         'sync_arg': None,
@@ -349,6 +350,10 @@ def make(**kwargs):
 @click.option(
     "--scriptname", metavar="NAME",
     help="Set the name template used for submitted jobs"
+)
+@click.option(
+    "--scheduler",
+    help="ILP or greedy"
 )
 def submit(profile, **kwargs):
     """Build target(s) on cluster
