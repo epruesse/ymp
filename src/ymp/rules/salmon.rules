@@ -9,7 +9,7 @@ with Stage("index_salmon") as S:
     S.add_param("G", typ="flag", name="gencode", value="--gencode")
 
     rule salmon_index:
-        message: "{:name:}: FIXME"
+        message: "{:name:}: Creating Salmon Index from {input}"
         input:
             txfa = "{:prev:}/{:target:}.tx.fasta.gz",
         output:
@@ -42,7 +42,7 @@ with Stage("index_salmon_decoy") as S:
     S.add_param("G", typ="flag", name="gencode", value="--gencode")
 
     rule salmon_index_decoy:
-        message: "{:name:}: FIXME"
+        message: "{:name:}: Creating Salmon Index w/ Decoy from {input}"
         input:
             txfa = "{:prev:}/{:target:}.tx.fasta.gz",
             fa = "{:prev:}/{:target:}.fasta.gz",
