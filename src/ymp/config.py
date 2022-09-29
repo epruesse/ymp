@@ -95,10 +95,13 @@ class OverrideExpander(BaseExpander):
                     key=attr_name,
                 )
             if isinstance(values, Mapping):
+                if attr is None:
+                    attr = ((), dict())
+                    setattr(ruleinfo, attr_name, attr)
                 for val_name, value in values.items():
                     log.debug(
                         "Overriding {}.{}={} in {} with {}".format(
-                            attr_name, val_name, attr[1][val_name], rule.name, value
+                            attr_name, val_name, attr[1].get(val_name, "not set"), rule.name, value
                         )
                     )
                     attr[1][val_name] = value
