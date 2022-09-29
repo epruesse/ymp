@@ -79,6 +79,7 @@ with Stage("genotype_bcftools") as S:
             " --threads 2" # second thread for compression
             " --multiallelic-caller"
             " {params.variants_only}"
+            " {params.skip_indels}"
             " --output {output.vcf};"
             "tabix -p vcf {output.vcf};"
             "bcftools stats {output.vcf} > {output.stats};"
