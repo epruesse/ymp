@@ -105,6 +105,13 @@ with Stage("references") as S:
         """
         Template rule for unpacking references provisioned upstream as archive.
         """
+        input:
+            tar = "dummy.in"
+        output:
+            files = "dummy.out"
+        params:
+            strip = 0,
+            prefix = ""
         message:
             "Unpacking {input.tar} into {params.prefix}"
         shell: """

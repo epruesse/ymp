@@ -204,7 +204,7 @@ def remove(envnames):
     log.warning(f"Removing {len(envs)} environments.")
     for env in get_envs(envnames).values():
         if os.path.exists(env.path):
-            log.warning("Removing %s (%s)", env.name, env.path)
+            log.warning("Removing %s (%s)", env._ymp_name, env.path)
             shutil.rmtree(env.path)
 
 
@@ -267,7 +267,7 @@ def export(envnames, dest, overwrite, create_missing, skip_missing, filetype):
         if missing:
             raise click.UsageError(
                 f"Cannot export uninstalled environment(s): "
-                f"{', '.join(env.name for env in missing)}.\n"
+                f"{', '.join(env._ymp_name for env in missing)}.\n"
                 f"Use '-s' to skip these or '-c' to create them prior to export."
             )
 
@@ -328,7 +328,7 @@ def clean(param_all):
     if param_all:  # remove up-to-date environments
         for env in ymp.env.by_name.values():
             if os.path.exists(env.path):
-                log.warning("Removing %s (%s)", env.name, env.path)
+                log.warning("Removing %s (%s)", env._ymp_name, env.path)
                 shutil.rmtree(env.path)
 
     # remove outdated environments

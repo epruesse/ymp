@@ -183,10 +183,12 @@ ruleinfo_fields = {
         'format': 'argstuple',
         'funcparams': ('wildcards',),
         'apply_wildcards': True,
+        'path_modifier': True,
     },
     'output': {
         'format': 'argstuple',
         'apply_wildcards': True,
+        'path_modifier': True,
     },
     'threads': {
         'format': 'int',
@@ -214,6 +216,7 @@ ruleinfo_fields = {
     'log': {
         'format': 'argstuple',
         'apply_wildcards': True,
+        'path_modifier': True,
     },
     'message': {
         'format': 'string',
@@ -222,6 +225,7 @@ ruleinfo_fields = {
     'benchmark': {
         'format': 'string',
         'apply_wildcards': True,
+        'path_modifier': True,
     },
     'wrapper': {
         'format': 'string',
@@ -238,7 +242,8 @@ ruleinfo_fields = {
     },
     'shellcmd': {
         'format': 'string',
-        'format_wildcards': True
+        'format_wildcards': True,
+        'runner': True,
     },
     'docstring': {
         'format': 'string',
@@ -248,17 +253,68 @@ ruleinfo_fields = {
     },
     'func': {
         'format': 'callable',
+        'runner': True,
     },
     'script': {
         'format': 'string',
+        'runner': True,
+    },
+    'cache': {
+        # indicates whether or not output is cached across workflows
+        'format': 'boolean'
+    },
+    'default_target': {
+        # whether or not the rule is the default target called when no
+        # targets specified
+        'format': 'boolean'
+    },
+    'handover': {
+        # rule takes over entire local node
+        'format': 'boolean'
+    },
+    'is_containerized': {
+        'format': 'boolean'
+    },
+    'wrapper': {
+        'format': 'string', # not sure it's really a string
+        'runner': True,
+    },
+    'path_modifier': {
+        'format': 'modifier',
+    },
+    'apply_modifier': {
+        'format': 'modifier',
+    },
+    'cwl': {
+        'format': 'unknown'
+    },
+    'env_modules': {
+        'format': 'string'
+    },
+    'group': {
+        'format': 'string'
+    },
+    'name': {
+        'format': 'string'
+    },
+    'notebook': {
+        'format': 'string',
+        'runner': True
+    },
+    'retries': {
+        'format': 'int'
+    },
+    'template_engine': {
+        'format': 'string',
+        'runner': True
     }
+
     # restart_times
     # env_modules
     # shadow_depth
     # group
     # notebook
     # cwl
-    # cache
 }
 
 
@@ -426,7 +482,7 @@ class ExpandableWorkflow(Workflow):
             # register rule with snakemake
             try:
                 decorator(ruleinfo)  # does not return anything
-            except AttributeError:
+            except (AttributeError, ValueError):
                 print_ruleinfo(rule, ruleinfo, log.error)
                 raise
 
@@ -557,13 +613,15 @@ class BaseExpander(object):
         elif isinstance(item, tuple):
             item = self.expand_tuple(rule, item, expand_args, rec, cb)
         else:
-            log.debug("Not expanding item '{}' of type {}".format(
-                repr(item), type(item)))
+            item = self.expand_unknown(rule, item, expand_args, rec, cb)
 
         if debug:
             log.debug("{}=> {} {}"
                       "".format(" "*(rec*4), type(item).__name__, item))
 
+        return item
+
+    def expand_unknown(self, rule, item, expand_args, rec, cb):
         return item
 
     def expand_ruleinfo(self, rule, item, expand_args, rec):
@@ -766,26 +824,29 @@ class RecursiveExpander(BaseExpander):
         """Recursively expand wildcards within :class:`RuleInfo` object"""
         fields = list(filter(lambda x: x is not None,
                              filter(self.expands_field, ruleinfo_fields)))
-        # normalize field values and create namedlist dictionary
+        # Fetch original ruleinfo values into a dict of NamedList
         args = {}
+        orig_tuples = {}
         for field in fields:
-            attr = getattr(ruleinfo, field)
-            if isinstance(attr, tuple):
-                if len(attr) != 2:
-                    raise Exception("Internal Error")
-                # flatten named lists
-                for key in attr[1]:
-                    if is_container(attr[1][key]):
-                        attr[1][key] = list(flatten(attr[1][key]))
-                # flatten unnamed and overwrite tuples
-                # also turn attr[0] into a list, making it mutable
-                attr = (list(flatten(attr[0])), attr[1])
-
-                setattr(ruleinfo, field, attr)
-                args[field] = NamedList(fromtuple=attr)
-            else:
+            if getattr(ruleinfo, field, None) is None:
+                pass
+            elif ruleinfo_fields[field]["format"] == "argstuple":
+                unnamed, named, *_ = getattr(ruleinfo, field)
+                # flatten values
+                unnamed = list(flatten(unnamed))
+                for key in named:
+                    if is_container(named[key]):
+                        named[key] = list(flatten(named[key]))
+                orig_tuples[field] = (unnamed, named)
+                args[field] = NamedList(fromtuple=(unnamed, named))
+            elif ruleinfo_fields[field].get("path_modifier", False):
+                string, *_ = getattr(ruleinfo, field, ((), None))
                 args[field] = NamedList()
-                args[field].append(attr)
+                args[field].append(string)
+            else:
+                string = getattr(ruleinfo, field, None)
+                args[field] = NamedList()
+                args[field].append(string)
 
         # build graph of expansion dependencies
         deps = networkx().DiGraph()
@@ -862,14 +923,19 @@ class RecursiveExpander(BaseExpander):
                                                     node, value, valnew))
 
         # update ruleinfo
-        for name in fields:
-            attr = getattr(ruleinfo, name)
-            if isinstance(attr, tuple):
-                if len(attr) != 2:
-                    raise Exception("Internal Error")
-                args[name].update_tuple(attr)
+        for field in fields:
+            attr = getattr(ruleinfo, field)
+            if attr is None:
+                pass
+            elif ruleinfo_fields[field]["format"] == "argstuple":
+                args[field].update_tuple(orig_tuples[field])
+                unnamed, named = orig_tuples[field]
+                _, _, *extras = attr
+                setattr(ruleinfo, field, (unnamed, named, *extras))
+            elif ruleinfo_fields[field].get("path_modifier", False):
+                setattr(ruleinfo, field, (args[field][0], attr[1]))
             else:
-                setattr(ruleinfo, name, args[name][0])
+                setattr(ruleinfo, field, args[field][0])
 
 
 class InheritanceExpander(BaseExpander):
@@ -913,17 +979,18 @@ class InheritanceExpander(BaseExpander):
 
     def get_code_line(self, rule: Rule) -> str:
         """Returns the source line defining *rule*"""
-        cached_file = infer_source_file(rule.snakefile)
+
         # Load and cache Snakefile
         if rule.snakefile not in self.snakefiles:
             try:
+                cached_file = infer_source_file(rule.snakefile)
                 with self.workflow.sourcecache.open(cached_file, "r") as sf:
                     self.snakefiles[rule.snakefile] = sf.readlines()
             except IOError:
                 raise Exception("Can't parse ...")
 
         # `rule.lineno` refers to compiled code. Convert to source line number.
-        real_lineno = self.workflow.linemaps[cached_file][rule.lineno]
+        real_lineno = self.workflow.linemaps[rule.snakefile][rule.lineno]
 
         return self.snakefiles[rule.snakefile][real_lineno - 1]
 
@@ -940,11 +1007,13 @@ class InheritanceExpander(BaseExpander):
         """
         self.ruleinfos[rule.name] = ruleinfo  # stash original ruleinfos
 
+        # If the rule was created with make_rule and has a parent
+        # attribute set, fetch that.
         if hasattr(ruleinfo, 'parent'):
             return ruleinfo.parent.name, self.ruleinfos[ruleinfo.parent.name]
 
+        # Otherwise, check the rule definition line for the marker comment
         line = self.get_code_line(rule)
-
         if "#" in line:
             comment = line.split("#")[1].strip()
             if comment.startswith(self.KEYWORD):
@@ -960,33 +1029,35 @@ class InheritanceExpander(BaseExpander):
         super_name, super_ruleinfo = self.get_super(rule, ruleinfo)
         if super_ruleinfo is None:
             return
-
         for field in dir(ruleinfo):
-            if field.startswith("__") or field == "parent":
+            if field.startswith("__") or field in ("parent", "name"):
                 continue
 
-            base_attr = getattr(super_ruleinfo, field)
-            if field not in ("path_modifier", "apply_modifier"):
-                base_attr = deepcopy(base_attr)
             override_attr = getattr(ruleinfo, field)
+            base_attr = getattr(super_ruleinfo, field)
 
-            if field in ("shellcmd", "wrapper", "script", "func"):
-                if not ruleinfo.norun:  # child rule is runnable, clear out base
-                    base_attr = None
-                elif not super_ruleinfo.norun:  # base is runnable, child not, clear out child
-                    override_attr = None
-
-            if isinstance(override_attr, tuple):
-                if base_attr is None:
-                    base_attr = ([], {})
-                if override_attr[0]:
-                    base_attr = (override_attr[0], base_attr[1])
-                if override_attr[1]:
-                    base_attr[1].update(override_attr[1])
-            elif override_attr is not None:
-                base_attr = override_attr
-
-            setattr(ruleinfo, field, base_attr)
+            if ruleinfo_fields[field].get("runner", False):
+                # If the child is not runnable, copy all runner
+                # attributed from base.
+                if ruleinfo.norun:
+                    setattr(ruleinfo, field, base_attr)
+            elif override_attr is None:
+                # Attribute missing in child, take base
+                setattr(ruleinfo, field, base_attr)
+            elif base_attr is None:
+                # Attribute missing in base, do nothing
+                pass
+            elif ruleinfo_fields[field]["format"] == "argstuple":
+                unnamed_child, named_child, *extra_child = override_attr
+                unnamed_base, named_base, *extra_base = base_attr
+                unnamed = unnamed_child or unnamed_base
+                extra = extra_child or extra_base
+                named = deepcopy(named_base)
+                named.update(named_child)
+                setattr(ruleinfo, field, (unnamed, named, *extra))
+            else:
+                # Both set, not argstuple, keep child intact
+                pass
 
         if not ruleinfo.norun or not super_ruleinfo.norun:
             ruleinfo.norun = False
@@ -1054,7 +1125,7 @@ class WorkflowObject(object):
         cache = self.get_registry()
 
         names = []
-        for attr in 'name', 'altname':
+        for attr in 'name', 'altname', '_ymp_name':
             if hasattr(self, attr):
                 names += ensure_list(getattr(self, attr))
 
