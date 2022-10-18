@@ -394,7 +394,9 @@ class Reference(Activateable, ConfigStage):
         local_path = self.files.get(filename)
         if local_path:
             if os.path.isdir(local_path) != isdir:
-                return "YMP_THIS_FILE_MUST_NOT_EXIST"
+                return (f"YMP ERROR: File '{local_path}' should be"
+                        f" {'directory' if isdir else 'file'}"
+                        f" but is not")
             return local_path
         log.error(f"{self!r}: Failed to find {filename}")
         log.warning(f"  Available: {self.files}")
