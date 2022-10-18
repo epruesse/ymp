@@ -210,6 +210,7 @@ def start_snakemake(kwargs, submit=False):
     if log.getEffectiveLevel() < logging.WARNING:
         kwargs['verbose'] = True
     kwargs['use_conda'] = True
+    kwargs['conda_frontend'] = cfg.conda.frontend
 
     # expand stack paths
     stage_stack_failure = None
