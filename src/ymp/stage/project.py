@@ -66,9 +66,7 @@ class PandasTableBuilder:
         if not (key in cfg or isinstance(cfg, Sequence)):
             raise YmpConfigError(cfg, f"Missing key '{key}' in project data config", key=key)
         value = cfg[key]
-        if isinstance(value, str):
-            return self._load_file(cfg, key)
-        if isinstance(value, Sequence):
+        if isinstance(value, Sequence) and not isinstance(value, str):
             return self._rowbind(cfg, key)
         if isinstance(value, Mapping):
             command = next(iter(value), None)
@@ -80,7 +78,7 @@ class PandasTableBuilder:
                 return self._paste(value["paste"])
             if command == "table":
                 return self._table(value["table"])
-        raise YmpConfigError(cfg, "Unrecognized statement in data config", key=key)
+        return self._load_file(cfg, key)
 
     def _load_file(self, cfg, key):
         fname = cfg.get_path(key)
