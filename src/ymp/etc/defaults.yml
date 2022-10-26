@@ -226,7 +226,8 @@ cluster:
       # - cluster.x (values from snakemake cluster config)
       # - rule (rule name)
       args: {}                 # arguments for job submission
-      cluster_cores: 1024      # max number of cores to use in parallel
+      nodes: 1024              # max jobs queued to cluster engine
+      local_cores: 4           # max threads used on submit host
       scriptname: "ymp.{rulename}.{jobid}.sh"
       command:
 
@@ -234,7 +235,7 @@ cluster:
     dummy:
       command:  "sh"     # command for job submission
       sync_arg: ""            # parameter for sync mode
-      cluster_cores: 2
+      nodes: 2
     # Profile for Torque engine
     torque:
       command:    "qsub"

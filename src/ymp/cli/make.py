@@ -176,12 +176,13 @@ def start_snakemake(kwargs, submit=False):
         raise YmpException("internal error - CWD moved out of YMP root?!")
     cur_path = cur_path[len(root_path)+1:]
 
-    # translate renamed arguments to snakemake synopsis
+    # translate renamed arguments to snakemake synopsis. entries
+    # mapping to None will be deleted, entries not in this map will be
+    # copied 1:1, entires with value will be renamed.
     arg_map = {
         'immediate': 'immediate_submit',
         'wrapper': 'jobscript',
         'scriptname': 'jobname',
-        'cluster_cores': 'nodes',
         'snake_config': 'config',
         'scheduler': 'scheduler',
         'drmaa': None,
@@ -191,9 +192,11 @@ def start_snakemake(kwargs, submit=False):
         'args': None,
         'nohup': None
     }
-    kwargs = {arg_map.get(key, key): value
-              for key, value in kwargs.items()
-              if arg_map.get(key, key) is not None}
+    kwargs = {
+        arg_map.get(key, key): value
+        for key, value in kwargs.items()
+        if arg_map.get(key, key) is not None
+    }
     kwargs['workdir'] = root_path
 
     # our debug flag sets a new excepthoook handler, to we use this
@@ -260,7 +263,7 @@ def start_snakemake(kwargs, submit=False):
 @command()
 @snake_params
 @click.option(
-    "--cores", "-j", default=1, metavar="CORES",
+    "--cores", "-j", default=1, metavar="N",
     help="The number of parallel threads used for scheduling jobs"
 )
 @click.option(
@@ -335,11 +338,13 @@ def make(**kwargs):
     "60 seconds."
 )
 @click.option(
-    "--cluster-cores", "-J", type=int, metavar="N",
-    help="Limit the maximum number of cores used by jobs submitted at a time"
+    "--nodes", "-J", type=int, metavar="N",
+    help="Limit the maximum number of jobs submitted at a time. Note "
+    "that this does not imply a maximum core count or running job "
+    "count, but simply limits the number of queued jobs."
 )
 @click.option(
-    "--cores", "-j", metavar="N",
+    "--local-cores", "-j", metavar="N",
     help="Number of local threads to use"
 )
 @click.option(
