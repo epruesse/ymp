@@ -126,17 +126,19 @@ class Scanner:
 @click.option("--out", type=click.File('w'))
 @click.option("--sample-re", default=".*")
 @click.option("--folder-re", default=".*")
-@click.option("-s", "extra_keys", flag_value="slot", multiple=True)
-@click.option("-l", "extra_keys", flag_value="lane", multiple=True)
+@click.option("-s", "--export-slot", flag_value="slot")
+@click.option("-l", "--export-lane", flag_value="lane")
 @click.option("-v", "--verbose", count=True)
 @click.argument("folders", nargs=-1)
-def scan(folders, out, sample_re, folder_re, extra_keys, verbose):
+def scan(folders, out, sample_re, folder_re, export_slot, export_lane, verbose):
     if (out is None):
         raise click.UsageError("--out parameter required")
     scanner = Scanner(folders)
     scanner.set_sample_pattern(sample_re)
     scanner.set_folder_pattern(folder_re)
     scanner.set_verbosity(verbose)
+    extra_keys = [export_slot, export_lane]
+    extra_keys = [key for key in extra_keys if key is not None]
     scanner.set_extra_keys(list(extra_keys))
     scanner.scan()
     scanner.write_csv(out)
