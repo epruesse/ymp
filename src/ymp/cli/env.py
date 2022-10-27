@@ -48,7 +48,7 @@ def get_env(envname):
                                "".format(envname, envs.keys()))
 
     env = next(iter(envs.values()))
-    if not os.path.exists(env.path):
+    if not os.path.exists(env.address):
         log.warning("Environment not yet installed")
         env.create()
     return env
@@ -203,9 +203,9 @@ def remove(envnames):
     envs = get_envs(envnames)
     log.warning(f"Removing {len(envs)} environments.")
     for env in get_envs(envnames).values():
-        if os.path.exists(env.path):
-            log.warning("Removing %s (%s)", env._ymp_name, env.path)
-            shutil.rmtree(env.path)
+        if os.path.exists(env.address):
+            log.warning("Removing %s (%s)", env._ymp_name, env.address)
+            shutil.rmtree(env.address)
 
 
 @env.command()
