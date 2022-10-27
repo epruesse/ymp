@@ -15,7 +15,7 @@ from ymp.cli.shared_options import group
 
 log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
-ENV_COLUMNS = ('name', 'hash', 'path', 'installed')
+ENV_COLUMNS = ('label', 'hash', 'address', 'installed')
 
 
 def get_envs(patterns=None):
@@ -327,9 +327,9 @@ def clean(param_all):
     "Remove unused conda environments"
     if param_all:  # remove up-to-date environments
         for env in ymp.env.by_name.values():
-            if os.path.exists(env.path):
-                log.warning("Removing %s (%s)", env._ymp_name, env.path)
-                shutil.rmtree(env.path)
+            if os.path.exists(env.address):
+                log.warning("Removing %s (%s)", env._ymp_name, env.address)
+                shutil.rmtree(env.address)
 
     # remove outdated environments
     for _, path in ymp.env.dead.items():
@@ -347,7 +347,7 @@ def activate(envname):
     $(ymp activate env [ENVNAME])
     """
     env = get_env(envname)
-    print("source activate {}".format(env.path))
+    print("source activate {}".format(env.address))
 
 
 @env.command()

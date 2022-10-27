@@ -118,7 +118,7 @@ def test_env_list(invoker):
     res = invoker.call("env", "list")
     lines = res.output.splitlines()
     assert len(lines) > 2
-    assert lines[0].startswith("name"), "first row should start with name"
+    assert lines[0].startswith("label"), "first row should start with name"
     assert all(lines[i].upper() <= lines[i+1].upper()
                for i in range(2, len(lines)-1)), \
         f"output should be sorted: {lines}"

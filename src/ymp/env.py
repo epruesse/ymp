@@ -330,6 +330,10 @@ class Env(WorkflowObject, snakemake_conda.Env):
                 f"because downloads failed. See log for details.")
 
     @property
+    def label(self):
+        return self._ymp_name
+
+    @property
     def installed(self):
         if self.is_containerized:
             return True  # Not checking
