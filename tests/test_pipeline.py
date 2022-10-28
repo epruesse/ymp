@@ -14,9 +14,19 @@ def test_pipeline_hide(invoker, demo_dir):
     """Checks that hiding of pipeline intermediary outputs works"""
     
     res = invoker.call("make", "toy.mypipeline", "--dag", "-qq")
-    
-    # This line will segfault if there is any extra data in res!
-    dotgraph = pgv.AGraph(res.output)
+    # Graphvis is really fragile w.r.t. input graph format. We need to
+    # make sure it gets fed the graph and only the graph, otherwise it
+    # will segfault on us.
+    # The graph starts with "digraph". Make sure we have that
+    assert "digraph" in res.output
+    # Cut of anything before. Keeping snakemake quiet is just too
+    # fragile. Something always talks, so we just cut that off to make
+    # testing robust.
+    graphtext = res.output[res.output.index("digraph"):]
+    # The last line minus white space must comprise a "}" ending the graph
+    assert graphtext.splitlines()[-1].strip() == "}"
+    # Findgers crossed...
+    dotgraph = pgv.AGraph(graphtext)
 
     graph = nx.DiGraph(dotgraph)
     nodemap = {
