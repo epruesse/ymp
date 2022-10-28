@@ -87,8 +87,12 @@ def saved_tmpdir(request, tmpdir):
 
 @pytest.fixture()
 def saved_cwd(saved_tmpdir):
+    # unload everything that may have depended on previous location
+    ymp.get_config().unload()
     with saved_tmpdir.as_cwd():
         yield saved_tmpdir
+    # do it after to be safe
+    ymp.get_config().unload()
 
 
 # Inject executables into PATH
