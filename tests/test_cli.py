@@ -366,10 +366,15 @@ def test_completion(
     # in case no values match, and $value is ignored. We wrap types
     # other than plain in double underscore and otherwise keep the
     # value to compare to expected test results.
-    result = set(
-        val if typ == "plain" else f"__{typ}__"
-        for typ, val in (line.split(",") for line in cap.out.split())
-    )
+    lines = cap.out.splitlines()
+    result = set()
+    for line in lines:
+        assert line.count(",") == 1, f"wrong field count in {line}"
+        typ, val = line.split(",")
+        if typ == "plain":
+            result.add(val)
+        else:
+            result.add(f"__{typ}__")
 
     assert exp_len == -1 or len(result) == exp_len, \
         f"Expected {exp_len} results for '{comp_words}' but got" \
