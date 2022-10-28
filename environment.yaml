@@ -8,7 +8,6 @@ dependencies:
   - mamba
   - conda !=4.6.11
   - click
-  - click-completion
   - ruamel.yaml >0.15 # new api
   - drmaa
   - pandas >=0.20  # need dtype support in python csv engine

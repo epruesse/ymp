@@ -7,6 +7,7 @@ import shutil
 import sys
 
 import click
+from click.shell_completion import CompletionItem
 
 import ymp
 from ymp.cli.shared_options import command, nohup_option, Log
@@ -39,14 +40,14 @@ debug("started")
 class TargetParam(click.ParamType):
     """Handles tab expansion for build targets"""
 
-    @classmethod
-    def complete(cls, ctx, incomplete):
+    def shell_complete(self, ctx, _param, incomplete):
         """Try to complete incomplete command
 
         This is executed on tab or tab-tab from the shell
 
         Args:
           ctx: click context object
+          param: current parameter requesting completion
           incomplete: last word in command line up until cursor
 
         Returns:
@@ -97,7 +98,7 @@ class TargetParam(click.ParamType):
                        if not ext[-1] == "_")
 
         debug("res={}", result)
-        return result
+        return [CompletionItem(item) for item in result]
 
 
 def snake_params(func):

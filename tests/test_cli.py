@@ -338,20 +338,43 @@ def test_completion(
         exp_len,     # expected number of result options (or -1)
         exp_res      # (subset of) expected result options
 ):
+    """This tests click completion by launching an external python
+    process and checking the output it would return to click's bash
+    code. If things change within click, this code will have to change
+    too.
+
+    """
+
     import subprocess as sp
+    # Set an environment variable that will make expansion code blab
+    # to stderr for debugging:
     envvar('YMP_DEBUG_EXPAND', 'stderr')
-    envvar('_YMP_COMPLETE', 'complete-bash')
+    # Set the trigger variable that will initiate bash completion by
+    # click:
+    envvar('_YMP_COMPLETE', 'bash_complete')
+    # Pass the variables bash would set to request completion of the
+    # 2nd word after the command name, which in this case is the stage
+    # stack name.
     envvar('COMP_CWORD', '2')
     envvar('COMP_WORDS', comp_words)
+    # Run and capture:
     sp.run(["python", "-m", "ymp"])
     cap = capfd.readouterr()
-    result = set(cap.out.split())
+    # Click sends one line per expansion in form $type,$value. If the
+    # type is "plain", the value is added as expansion option. If the
+    # type is dir or file, directory or filename expansion is enabled
+    # in case no values match, and $value is ignored. We wrap types
+    # other than plain in double underscore and otherwise keep the
+    # value to compare to expected test results.
+    result = set(
+        val if typ == "plain" else f"__{typ}__"
+        for typ, val in (line.split(",") for line in cap.out.split())
+    )
 
-    if exp_len != -1:
-        assert len(result) == exp_len, \
-            f"Expected {exp_len} results for '{comp_words}' but got" \
-            f" {len(result)}:\n" \
-            f"{result}"
+    assert exp_len == -1 or len(result) == exp_len, \
+        f"Expected {exp_len} results for '{comp_words}' but got" \
+        f" {len(result)}:\n" \
+        f"{result}"
 
     assert exp_res.issubset(result), \
         f"Completion for '{comp_words}' is missing: {exp_res - result}"
