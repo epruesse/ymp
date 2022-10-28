@@ -254,6 +254,10 @@ def start_snakemake(kwargs, submit=False):
     # snakemake.
     cfg.unload()
 
+    # Check snakemake version
+    from ymp.snakemake import check_snakemake
+    check_snakemake()
+
     import snakemake
     res = snakemake.snakemake(ymp._snakefile, **kwargs)
     if not res and stage_stack_failure:
