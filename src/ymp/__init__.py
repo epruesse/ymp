@@ -53,7 +53,7 @@ snakemake_versions = [
 ]
 
 
-def get_config() -> 'config.ConfigMgr':
+def get_config() -> 'ymp.config.ConfigMgr':
     """Access the current YMP configuration object.
 
     This object might change once during normal execution: it is
