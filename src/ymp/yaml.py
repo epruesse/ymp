@@ -246,14 +246,24 @@ class MultiMapProxy(MultiProxy, AttrItemAccessMixin, Mapping):
         items = [(fn, m[key]) for fn, m in self._maps if key in m]
         if not items:
             raise KeyError(f"key '{key}' not found in any map")
-        typs = set(type(m[1]) for m in items if m[1])
+        # Mappings, Sequences and Atomic types should not override one
+        # another, can only have one of those and None.
+        def get_type(obj):
+            if isinstance(obj, Mapping):
+                return "Mapping"
+            if isinstance(obj, str):
+                return "Scalar"
+            if isinstance(obj, Sequence):
+                return "Sequence"
+            return "Scalar"
+        typs = set(get_type(m[1]) for m in items if m[1])
         if len(typs) > 1:
             stack = [Entry(fn, m, key) for fn, m in self._maps if key in m]
             raise MixedTypeError(
                 self,
                 f"Mixed data types for key '{key}'s in present in files",
                 key = key,
-                stack=stack
+                stack = stack
             )
         return items
 
