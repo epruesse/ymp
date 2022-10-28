@@ -362,7 +362,8 @@ def test_duplicate_file(saved_cwd, check_show):
 def test_get_file(saved_cwd):
     ref = Reference("test", make_cfg("- type: fasta", "  url: somewhere.fasta.gz"))
     assert ref.get_file("ALL.fasta.gz") == "somewhere.fasta.gz"
-    assert ref.get_file("ALL.fasta.gz", isdir=True) == "YMP_THIS_FILE_MUST_NOT_EXIST"
+    assert ref.get_file("ALL.fasta.gz", isdir=True) == \
+        "YMP ERROR: File 'somewhere.fasta.gz' should be directory but is not"
     assert ref.get_file("blabla").startswith("YMP_FILE_NOT_FOUND")
 
 
