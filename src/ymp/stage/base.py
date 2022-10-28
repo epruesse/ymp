@@ -196,8 +196,10 @@ class BaseStage:
         return False
 
 class Activateable:
-    """
-    Mixin for Stages that can be filled with rules from Snakefiles.
+    """Mixin for Stages that can be filled with rules from Snakefiles.
+
+    There can be only one active stage across all classes deriving
+    from this.
     """
     #: Currently active stage ("entered")
     _active: Optional[BaseStage] = None

@@ -341,7 +341,7 @@ class ConfigMgr(object):
         cls.__instance = None
         from ymp.stage import Stage, StageStack
         StageStack.stacks = {}
-        Stage.active = None
+        Stage.set_active(None)
 
     def __init__(self, root, conffiles):
         log.debug("Inizializing ConfigMgr")
