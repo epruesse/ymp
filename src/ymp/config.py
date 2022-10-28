@@ -10,7 +10,7 @@ from typing import Mapping, Sequence, Optional
 
 import ymp.yaml
 from ymp.common import AttrDict, MkdirDict, parse_number, format_number, parse_time, format_time
-from ymp.cache import Cache
+from ymp.cache import Cache, NoCache
 from ymp.env import CondaPathExpander
 from ymp.exceptions import YmpSystemError, YmpConfigError
 from ymp.stage import Pipeline, Project, Reference
@@ -354,7 +354,7 @@ class ConfigMgr(object):
             self.cachedir = os.path.join(XDG_CACHE_HOME, "ymp")
 
         self._config = ymp.yaml.load(conffiles, root)
-        self.cache = cache = Cache(self.cachedir)
+        self.cache = cache = NoCache(self.cachedir)
 
         # lazy filled by accessors
         self._snakefiles = None
