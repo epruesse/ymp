@@ -4,7 +4,7 @@ channels:
   - bioconda
 dependencies:
   - python >=3.7
-  - snakemake-minimal >=6.0.5
+  - snakemake-minimal >=7.15
   - mamba
   - conda !=4.6.11
   - click
