@@ -366,9 +366,10 @@ def test_completion(
     # in case no values match, and $value is ignored. We wrap types
     # other than plain in double underscore and otherwise keep the
     # value to compare to expected test results.
-    lines = cap.out.splitlines()
     result = set()
-    for line in lines:
+    for line in cap.out.splitlines():
+        if exp_len == 0 and not line:
+            continue  # empty line ok for empty result
         assert line.count(",") == 1, f"wrong field count in {line}"
         typ, val = line.split(",")
         if typ == "plain":
