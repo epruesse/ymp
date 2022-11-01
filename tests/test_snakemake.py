@@ -51,11 +51,14 @@ def test_snakemake_version_above_tested_warns(monkeypatch, caplog):
         m.setattr("ymp.snakemake_tested_version", "0")
         m.setattr("ymp.snakemake.check_snakemake.result", None)
         check_snakemake()
-        assert "newer than the latest version" in caplog.records[-1].message
+        msg_count = sum(
+            "newer than the latest version" in rec.message for rec in caplog.records
+        )
+        assert msg_count == 1
     assert check_snakemake(), "cached value not reset?"
 
 
-def test_snakemake_version_above_tested_warns_once(
+def test_snakemake_version_above_tested_warns_invoked(
     invoker, demo_dir, monkeypatch, caplog
 ):
     with monkeypatch.context() as m:
