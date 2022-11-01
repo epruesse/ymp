@@ -200,7 +200,7 @@ class Env(WorkflowObject, snakemake_conda.Env):
     def set_prefix(self, prefix):
         self._env_dir = op.abspath(prefix)
 
-    def create(self, dryrun=False, reinstall=False, nospec=False, noarchive=False):
+    def create(self, dryrun=False, reinstall=None, nospec=None, noarchive=None):
         """Ensure the conda environment has been created
 
         Inherits from snakemake.deployment.conda.Env.create
@@ -218,7 +218,20 @@ class Env(WorkflowObject, snakemake_conda.Env):
             the package binaries, we allow maintaining a copy of the
             package binary URLs, from which the archive folder is populated
             on demand. We just download those to self.archive and pass on.
+
+        Parameters:
+          - reinstall: force re-installing already installed envs
+          - noarchive: delete existing archives before installing, forcing re-download
+          - nospec: do not use stored spec ("lock", set of urls for env)
         """
+        cfg = ymp.get_config()
+        if nospec is None:
+            nospec = cfg.conda.create.nospec
+        if noarchive is None:
+            noarchive = cfg.conda.create.noarchive
+        if reinstall is None:
+            reinstall = cfg.conda.create.reinstall
+
         if self.installed:
             if reinstall:
                 log.info("Environment '%s' already exists. Removing...", self._ymp_name)

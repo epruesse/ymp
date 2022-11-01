@@ -117,10 +117,32 @@ def ls(param_all, static, dynamic, sort_col, reverse, envnames):
 
 @env.command()
 @snake_params
-def prepare(**kwargs):
+@click.option(
+    "--reinstall", is_flag=True,
+    help="Delete existing environment and reinstall"
+)
+@click.option(
+    "--no-spec", is_flag=True,
+    help="Don't use conda env spec even if present"
+)
+@click.option(
+    "--no-archive", is_flag=True,
+    help="Delete existing archives before install"
+)
+@click.option(
+    "--fresh", is_flag=True,
+    help="Create fresh install. Implies reinstall, no-spec and no-archve"
+)
+def prepare(reinstall, no_spec, no_archive, fresh, **kwargs):
     "Create envs needed to build target"
     kwargs['conda_create_envs_only'] = True
-    rval = start_snakemake(kwargs)
+    cfg = ymp.get_config()
+    if (fresh):
+        reinstall = no_spec = no_archive = True
+    cfg.conda.create.reinstall = reinstall
+    cfg.conda.create.nospec = no_spec
+    cfg.conda.create.noarchive = no_archive
+    rval = start_snakemake(kwargs, unload=False)
     if not rval:
         sys.exit(1)
 

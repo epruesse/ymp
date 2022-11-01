@@ -159,7 +159,7 @@ def snake_params(func):
     return decorated
 
 
-def start_snakemake(kwargs, submit=False):
+def start_snakemake(kwargs, submit=False, unload=True):
     """Execute Snakemake with given parameters and targets
 
     Fixes paths of kwargs['targets'] to be relative to YMP root.
@@ -252,7 +252,8 @@ def start_snakemake(kwargs, submit=False):
     # A snakemake workflow was created above to resolve the
     # stage stack. Unload it so things run correctly from within
     # snakemake.
-    cfg.unload()
+    if unload:
+        cfg.unload()
 
     # Check snakemake version
     from ymp.snakemake import check_snakemake

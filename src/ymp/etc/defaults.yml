@@ -48,6 +48,11 @@ conda:
     - /conda-forge/conda-forge\/label\/broken/
     - /conda-forge/conda-forge\/label\/cf201901/  # gcc4
     - /conda-forge/conda-forge\/label\/old_feature_broken/  # gcc4
+  create: # defaults for env creation
+    reinstall: false  # always install again, used by --fresh option
+    noarchive: false  # delete archive files before creating
+    nospec: false  # no not use spec, always calculate new package set
+
 # Default references
 references:
   # Human Genomes
