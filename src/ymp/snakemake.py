@@ -56,7 +56,7 @@ def check_snakemake() -> bool:
             f"Snakemake version {need_vers} required but {have_vers} installed"
         )
     if have_vers > test_vers:
-        log.warning(
+        log.error(
             "Snakemake %s found is newer than the latest version (%s) verified to"
             " work with YMP-%s. If you encounter unexpected errors, please"
             " downgrade Snakemake or upgrade YMP.",
