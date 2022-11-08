@@ -136,7 +136,7 @@ def test_param_from_stage(saved_cwd):
         "stages: [trim_bbmap]"
     ))
     assert pipe.params
-    
+
 def test_stage_with_curly(saved_cwd):
     pipe = Pipeline("test", make_cfg(
         "params:\n"
@@ -158,14 +158,15 @@ def test_stage_not_parametrizable(saved_cwd):
     assert pipe.params == [] 
 
 
-class mock:
-    pass
+class mock_stack:
+    def __init__(self, name):
+        self.name = f"stack.{name}"
+        self.stage_name = name
+        self.stage = f"stage.{name}"
 
     
 def test_pipeline_path(saved_cwd):
-    stack = mock()
-    stack.name = "stack.test_pipe"
-    stack.stage_name = "test_pipe"
+    stack = mock_stack("test_pipe")
     pipe = Pipeline("test_pipe", make_cfg(
         "stages:\n"
         " - trim_bbmap\n"
@@ -177,9 +178,7 @@ def test_pipeline_path(saved_cwd):
 
 
 def test_pipeline_path_with_param(saved_cwd):
-    stack = mock()
-    stack.name = "stack.test_pipe"
-    stack.stage_name = "test_pipe"
+    stack = mock_stack("test_pipe")
     pipe = Pipeline("test_pipe", make_cfg(
         "stages:\n"
         " - trim_bbmapQ10\n"
