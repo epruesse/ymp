@@ -2,6 +2,7 @@ import logging
 import os
 import shlex
 import shutil
+import json
 
 import py
 
@@ -153,10 +154,11 @@ def mock_conda(bin_dir):
         'cmd=""',
         'while [ -n "$1" ]; do',
         '  case $1 in',
-        '  --version)   echo conda 4.2; exit 0;;',
+        '  --version)   echo conda 22.9.0; exit 0;;',
         '  --prefix|-p) shift; p="$1";;',
         '  --file|-f)   shift; f="$1";;'
         '  --json)      j=Y;;'
+        '  --get)       shift; get="$1";;',
         '  *)           cmd="$cmd $1";;',
         '  esac',
         '  shift',
@@ -167,8 +169,18 @@ def mock_conda(bin_dir):
         'if [ x"$cmd" = x" env export" -a -n "$p" ]; then',
         '  echo "dependencies: [one, two]"',
         'fi',
-        'if [ x"$cmd" = x" info" ]; then',
-        '  echo \'{{"conda_prefix": "{}"}}\''.format(base_dir),
+        'if [ x"$cmd" = x" info"  ]; then',
+        '  echo \'{}\''.format(json.dumps({
+            "platform": "linux",
+            "conda_prefix": base_dir
+        })),
+        'fi',
+        'if [ x"$cmd" = x" config" -a x"$get" = x"channel_priority"  -a -n "$j" ]; then',
+        '  echo \'{}\''.format(json.dumps({
+            "get": {
+                "channel_priority": "strict"
+            }
+        })),
         'fi',
     ]))
 
