@@ -48,7 +48,7 @@ def test_snakemake_version_below_min_raises(monkeypatch):
 
 @pytest.mark.xfail(
     sys.platform == "darwin",
-    "unclear with this is failing on osx, likely the test"
+    reason="unclear with this is failing on osx, likely the test"
 )
 def test_snakemake_version_above_tested_warns(monkeypatch, caplog):
     with monkeypatch.context() as m:
