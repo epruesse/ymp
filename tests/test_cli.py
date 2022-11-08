@@ -296,7 +296,7 @@ def test_env_run(invoker, demo_dir, mock_conda, mock_downloader, capfd):
     res = invoker.call("env", "run", "bbmap", "true")
     assert res.exit_code == 0
     cap = capfd.readouterr()
-    assert "Not a conda environment" in cap.err
+    assert "bin/activate: No such file or directory" in cap.err
 
 
 @pytest.mark.parametrize(
