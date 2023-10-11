@@ -21,7 +21,7 @@ with Stage("qc_multiqc") as S:
             sp = {}
             module_order = []
             sample_names_replace = {}
-            for conffile in input.conf:
+            for conffile in ensure_list(input.conf):
                 with open(conffile, "r") as fd:
                     data = yaml.load(fd)
                 run_modules.extend(data.get("run_modules", []))
@@ -53,7 +53,7 @@ with Stage("qc_multiqc") as S:
         benchmark:
             "benchmarks/{:name:}/{:this:}/all.txt",
         params:
-            dirs = lambda wc, input: [os.path.dirname(p) for p in input.parts]
+            dirs = lambda wc, input: [os.path.dirname(p) for p in ensure_list(input.parts)]
         log:
             "{:this:}/multiqc.log"
         resources:
@@ -70,6 +70,3 @@ with Stage("qc_multiqc") as S:
             "  --config {input.conf}"
             "  --filename {output.report}"
             "  {params.dirs}"
-
-
-

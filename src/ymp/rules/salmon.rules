@@ -77,7 +77,7 @@ with Stage("index_salmon_decoy") as S:
 with Stage("quant_salmon_sa") as S:
     S.doc("""
     """)
-    S.add_param("L", typ="choice", name="libtype", default="A", 
+    S.add_param("L", typ="choice", name="libtype", default="A",
                 value=["A", "IU", "MU", "OU", "ISF", "ISR", "MSF", "MSR", "OSF", "OSR",
                        "U", "SF", "SR"])
     rule salmon_sa_quant:
@@ -154,8 +154,8 @@ with Stage("quant_salmon_sa") as S:
             }
             with open(output[0], "w") as out:
                 yaml.dump(data, out)
-            
-            
+
+
 with Stage("quant_salmon") as S:
     S.doc("""
     """)
@@ -183,7 +183,9 @@ with Stage("quant_salmon") as S:
             mem = "48G",
         shell:
             "exec >{log} 2>&1;"
-            "salmon quant"
+            "echo Launching salmon on $HOSTNAME;"
+            "set -x; "
+            "if ! salmon quant"
             " --libType {params.libtype}"
             " --threads {threads}"
             " --seqBias"
@@ -193,7 +195,16 @@ with Stage("quant_salmon") as S:
             " --targets {input.txfa}"
             " --output $(dirname {output.quant})"
             " --minAssignedFrags 0"
-            " {params.gencode}"
+            " {params.gencode}; then"
+            "    echo Salmon or Samtools failed;"
+            "    if tail -n20 $(dirname {output.quant})/logs/salmon_quant.log |"
+            "       grep -qE ' [0-9]+ fragments were mapped, but the number of burn-in fragments'; then"
+            "        echo Salmon found insufficient fragments. Faking output.;"
+            "        echo -e 'Name\tLength\tEffectiveLength\tTPM\tNumReads' > {output.quant};"
+            "        exit 0;"
+            "    fi;"
+            "    exit 1;"
+            "fi;"
 
     localrules: salmon_quant_multiqc_cfg
     rule salmon_quant_multiqc_cfg:

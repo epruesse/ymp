@@ -261,9 +261,11 @@ class MultiMapProxy(MultiProxy, AttrItemAccessMixin, Mapping):
             stack = [Entry(fn, m, key) for fn, m in self._maps if key in m]
             raise MixedTypeError(
                 self,
-                f"Mixed data types for key '{key}'s in present in files",
-                key = key,
-                stack = stack
+                f"Mixed data types for key '{key}'s in present in files: {typs}",
+                key=key,
+                stack=stack,
+                typs=typs,
+                stack=stack
             )
         return items
 

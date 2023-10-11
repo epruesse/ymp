@@ -21,7 +21,7 @@ conda:
   # If set, use frozen environments from this set
   env_specs:
     - *conda_envs
-    - ../conda_envs/latest
+    #- ../conda_envs/latest
 
   # Search path for <envname>.yml files:
   env_path:
