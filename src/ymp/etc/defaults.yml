@@ -268,6 +268,7 @@ cluster:
         memory:   "--mem={resources.mem_mb}"
         walltime: "--time={resources.walltime}"
       cluster_status: "python -m ymp.cluster slurm status"
+      cluster_cancel: "scancel"
     lsf:
       command:    "python -m ymp.cluster lsf submit"
       args:
