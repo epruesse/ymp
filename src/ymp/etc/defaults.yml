@@ -232,6 +232,7 @@ cluster:
       # - rule (rule name)
       args: {}                 # arguments for job submission
       nodes: 1024              # max jobs queued to cluster engine
+      cores: 1024              # max cores
       local_cores: 4           # max threads used on submit host
       scriptname: "ymp.{rulename}.{jobid}.sh"
       command:
@@ -284,4 +285,3 @@ pairnames:
     - R2
 
 shell: "/bin/bash"
-

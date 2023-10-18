@@ -350,7 +350,11 @@ def make(**kwargs):
     "count, but simply limits the number of queued jobs."
 )
 @click.option(
-    "--local-cores", "-j", metavar="N",
+    "--cores", "-c", type=int, metavar="N",
+    help="Maximum number of cluster cores to use"
+)
+@click.option(
+    "--local-cores", "-j", type=int, metavar="N",
     help="Number of local threads to use"
 )
 @click.option(
