@@ -256,15 +256,15 @@ class MultiMapProxy(MultiProxy, AttrItemAccessMixin, Mapping):
             if isinstance(obj, Sequence):
                 return "Sequence"
             return "Scalar"
-        typs = set(get_type(m[1]) for m in items if m[1])
-        if len(typs) > 1:
+        typs = [get_type(m[1]) for m in items if m[1]]
+        if len(set(typs)) > 1:
             stack = [Entry(fn, m, key) for fn, m in self._maps if key in m]
             raise MixedTypeError(
                 self,
-                f"Mixed data types for key '{key}'s in present in files: {typs}",
+                f"Cannot merge contents of configuration key '{key}'"
+                f" due to mismatching content types.\n"
+                f"  types = {typs}",
                 key=key,
-                stack=stack,
-                typs=typs,
                 stack=stack
             )
         return items
