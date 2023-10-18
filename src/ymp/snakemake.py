@@ -22,8 +22,9 @@ from snakemake.io import (
 )  # type: ignore
 from snakemake.io import Namedlist as _Namedlist  # type: ignore
 from snakemake.rules import Rule  # type: ignore
-from snakemake.workflow import RuleInfo, Workflow  # type: ignore
+from snakemake.workflow import Workflow  # type: ignore
 from snakemake.sourcecache import infer_source_file  # type: ignore
+from snakemake.ruleinfo import InOutput, RuleInfo # type: ignore
 
 from packaging import version
 
@@ -71,9 +72,9 @@ def check_snakemake() -> bool:
 def networkx():
     import networkx
 
-    if networkx.__version__[0] != "2":
+    if networkx.__version__[0] not in ("2", "3"):
         log.fatal(
-            "Networkx version 2.* required by YMP but {} found"
+            "Networkx version 1.x not supported by YMP (found {})"
             "".format(networkx.__version__)
         )
         sys.exit(1)
@@ -208,15 +209,13 @@ ruleinfo_fields = {
         "format": "argstuple",  # len(t[0]) must be == 0
     },
     "input": {
-        "format": "argstuple",
+        "format": "inoutput",
         "funcparams": ("wildcards",),
         "apply_wildcards": True,
-        "path_modifier": True,
     },
     "output": {
-        "format": "argstuple",
+        "format": "inoutput",
         "apply_wildcards": True,
-        "path_modifier": True,
     },
     "threads": {
         "format": "int",
@@ -242,18 +241,16 @@ ruleinfo_fields = {
         "format": "object",
     },
     "log": {
-        "format": "argstuple",
+        "format": "inoutput",
         "apply_wildcards": True,
-        "path_modifier": True,
     },
     "message": {
         "format": "string",
         "format_wildcards": True,
     },
     "benchmark": {
-        "format": "string",
+        "format": "inoutput",
         "apply_wildcards": True,
-        "path_modifier": True,
     },
     "wrapper": {
         "format": "string",
@@ -317,7 +314,9 @@ ruleinfo_fields = {
     "name": {"format": "string"},
     "notebook": {"format": "string", "runner": True},
     "retries": {"format": "int"},
-    "template_engine": {"format": "string", "runner": True}
+    "template_engine": {"format": "string", "runner": True},
+    "localrule": {"format": "boolean"},
+    "ref_attributes": {"format": "set"}
     # restart_times
     # env_modules
     # shadow_depth
@@ -469,10 +468,20 @@ class ExpandableWorkflow(Workflow):
                 rule._ymp_print_rule = True
 
             for expander in reversed(self.__expanders):
+                rule_pre = copy(rule)
+                ruleinfo_pre = copy(ruleinfo)
                 expander.expand(rule, ruleinfo)
                 if ymp.print_rule == 1:
                     log.error("### expanded with " + type(expander).__name__)
                     print_ruleinfo(rule, ruleinfo, log.error)
+                # Check types:
+                for field_name,field in ruleinfo_fields.items():
+                    if field["format"] == "inoutput":
+                        attr = getattr(ruleinfo, field_name)
+                        if attr is not None and not isinstance(attr, InOutput):
+                            raise TypeError(
+                                f"Expected InOut object for '{field_name}'"
+                            )
             if ymp.print_rule:
                 log.error("#### END expansion")
 
@@ -499,11 +508,15 @@ class ExpandableWorkflow(Workflow):
 
 def make_rule(name: str = None, lineno: int = None, snakefile: str = None, **kwargs):
     log.debug("Synthesizing rule {}".format(name))
+    workflow = get_workflow()
     ruleinfo = RuleInfo(lambda: None)
     for arg in kwargs:
+        if ruleinfo_fields.get(arg, {}).get("format") == "inoutput":
+            if not isinstance(kwargs[arg], InOutput):
+                kwargs[arg] = InOutput(kwargs[arg][0], kwargs[arg][1],
+                                       workflow.modifier.path_modifier)
         setattr(ruleinfo, arg, kwargs[arg])
     ruleinfo.norun = True
-    workflow = get_workflow()
     try:
         return workflow.rule(name, lineno, snakefile)(ruleinfo)
     except CreateRuleException:
@@ -626,6 +639,8 @@ class BaseExpander(object):
             item = self.expand_dict(rule, item, expand_args, rec)
         elif isinstance(item, list):
             item = self.expand_list(rule, item, expand_args, rec, cb)
+        elif isinstance(item, InOutput):
+            item = self.expand_inoutput(rule, item, expand_args, rec, cb)
         elif isinstance(item, tuple):
             item = self.expand_tuple(rule, item, expand_args, rec, cb)
         else:
@@ -747,6 +762,11 @@ class BaseExpander(object):
 
     def expand_tuple(self, rule, item, expand_args, rec, cb):
         return tuple(self.expand_list(rule, item, expand_args, rec, cb))
+
+    def expand_inoutput(self, rule, item, expand_args, rec, cb):
+        res = self.expand_tuple(rule, (item.paths, item.kwpaths),
+                                expand_args, rec, cb)
+        return InOutput(res[0], res[1], item.modifier)
 
 
 class SnakemakeExpander(BaseExpander):
@@ -876,10 +896,15 @@ class RecursiveExpander(BaseExpander):
                         named[key] = list(flatten(named[key]))
                 orig_tuples[field] = (unnamed, named)
                 args[field] = NamedList(fromtuple=(unnamed, named))
-            elif ruleinfo_fields[field].get("path_modifier", False):
-                string, *_ = getattr(ruleinfo, field, ((), None))
-                args[field] = NamedList()
-                args[field].append(string)
+            elif ruleinfo_fields[field]["format"] == "inoutput":
+                inout = getattr(ruleinfo, field)
+                unnamed = list(flatten(inout.paths))
+                named = copy(inout.kwpaths)
+                for key in named:
+                    if is_container(named[key]):
+                        named[key] = list(flatten(named[key]))
+                orig_tuples[field] = (unnamed, named)
+                args[field] = NamedList(fromtuple=orig_tuples[field])
             else:
                 string = getattr(ruleinfo, field, None)
                 args[field] = NamedList()
@@ -978,8 +1003,14 @@ class RecursiveExpander(BaseExpander):
                 unnamed, named = orig_tuples[field]
                 _, _, *extras = attr
                 setattr(ruleinfo, field, (unnamed, named, *extras))
-            elif ruleinfo_fields[field].get("path_modifier", False):
-                setattr(ruleinfo, field, (args[field][0], attr[1]))
+            elif ruleinfo_fields[field]["format"] == "inoutput":
+                args[field].update_tuple(orig_tuples[field])
+                unnamed, named = orig_tuples[field]
+                if isinstance(attr.paths, str):
+                    unnamed = unnamed[0]
+                setattr(ruleinfo, field, InOutput(
+                    unnamed, named, attr.modifier
+                ))
             else:
                 setattr(ruleinfo, field, args[field][0])
 
@@ -1103,6 +1134,12 @@ class InheritanceExpander(BaseExpander):
                 named = deepcopy(named_base)
                 named.update(named_child)
                 setattr(ruleinfo, field, (unnamed, named, *extra))
+            elif ruleinfo_fields[field]["format"] == "inoutput":
+                kwpaths = deepcopy(base_attr.kwpaths)
+                kwpaths.update(override_attr.kwpaths)
+                paths = override_attr.paths or base_attr.paths
+                modifier = override_attr.modifier or base_attr.modifier
+                setattr(ruleinfo, field, InOutput(paths, kwpaths, modifier))
             else:
                 # Both set, not argstuple, keep child intact
                 pass

@@ -51,7 +51,7 @@ print_rule = 0
 snakemake_minimum_version = "7.15"
 #: Lastest version of snakemake that was tested (breaking changes for
 #: us can happen at patch level)
-snakemake_tested_version = "7.17"
+snakemake_tested_version = "7.32.4"
 
 
 def get_config() -> 'ymp.config.ConfigMgr':
