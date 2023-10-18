@@ -229,10 +229,12 @@ with Stage("annotate_blast") as S:
 
     def blastn_join_input(wildcards):
         cpt = checkpoints.blastn_split_query_fasta.get(**wildcards)
-        cpt_outdir = cpt.output.queries
-        indices = glob_wildcards(os.path.join(cpt_outdir, '{index}.fasta'))
-        return expand(os.path.join(cpt_outdir, '{index}.blast7.gz'),
-                          index=indices.index)
+        fastadir = cpt.output.queries
+        blastdir = re.sub("_queries$", "_results", fastadir)
+        indices = glob_wildcards(os.path.join(fastadir, '{index}.fasta'))
+        res = expand(os.path.join(blastdir, '{index}.blast7.gz'),
+                     index=indices.index)
+        return res
 
     localrules: blastn_join_result
     rule blastn_join_result:
@@ -240,12 +242,20 @@ with Stage("annotate_blast") as S:
         message:
             "{:name:}: merging result {output}"
         input:
-            results = blastn_join_input,
-            folder = "{:this:}/{target}.split_queries"
+            results = blastn_join_input
         output:
             "{:this:}/{target}.blast7.gz"
+        log:
+            "{:this:}/{target}.log"
         shell:
-            "cat {input.results} > {output}"
+            "if [ -z \"{input.results}\" ]; then"
+            "  echo YMP: making empty output >{log};"
+            "  echo | gzip > {output};"
+            "else "
+            "  echo YMP: concatenating files >{log};"
+            "  echo \"{input.results}\" >> {log};"
+            "  cat {input.results} > {output};"
+            "fi"
 
     rule blastn_query:
         """Runs BLAST"""
@@ -257,9 +267,9 @@ with Stage("annotate_blast") as S:
             db = expand("{{:prev:}}/{{:target:}}.{ext}",
                         ext=BLASTIDX_SUFFIXES)
         output:
-            "{:this:}/{target}.split_queries/{index}.blast7.gz"
+            "{:this:}/{target}.split_results/{index}.blast7.gz"
         log:
-            "{:this:}/{target}.split_queries.{index}.log"
+            "{:this:}/{target}.split_results.{index}.log"
         benchmark:
             "benchmarks/{:name:}/{:this:}/{target}.{index}.txt"
         params:
@@ -294,7 +304,7 @@ with Stage("annotate_blast") as S:
             ';'
             'mv $tmpout {output}'
 
-    rule blastn_query_SPLIT: # ymp: extends blastn_query
+    rule blastn_query_SPLITIDX: # ymp: extends blastn_query
         """Variant of `blastn_query` for multi-file blast indices"""
         input:
             db = expand("{{:prev:}}/{{:target:}}.{ext}",
