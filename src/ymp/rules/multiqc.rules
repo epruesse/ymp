@@ -1,5 +1,7 @@
 Env(name="multiqc", base="bioconda", packages=[
-    "multiqc >=1.12"
+    "multiqc >=1.12",
+    "Python <3.12"  # multiqc uses lzstring which uses future which uses
+                    # imp which was removed in 3.12
 ])
 
 with Stage("qc_multiqc") as S:
