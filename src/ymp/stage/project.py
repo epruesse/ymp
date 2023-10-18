@@ -101,7 +101,7 @@ class PandasTableBuilder:
                 ) from exc
         # prefix fq files with name of config file's directory
         rdir = os.path.dirname(fname)
-        data = data.applymap(
+        data = data.map(
             lambda s: os.path.join(rdir, s)
             if is_fq(s) and os.path.exists(os.path.join(rdir, s))
             else s
@@ -360,7 +360,7 @@ class Project(ConfigStage):
     def do_get_ids(self, _stack, groups, match_groups=None, match_values=None):
         if match_values:
             match_values = match_values.split("__")
-        
+
         return ["__".join(t) for t in self.data.fetch(
             groups,
             match_groups,
