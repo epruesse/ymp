@@ -4,10 +4,10 @@ channels:
   - bioconda
 dependencies:
   - python >=3.7
-  - snakemake-minimal >=7.15
+  - snakemake-minimal >=7.32
   - mamba
   - conda !=4.6.11
-  - click
+  - click >8
   - ruamel.yaml >0.15 # new api
   - drmaa
   - pandas >=0.20  # need dtype support in python csv engine
