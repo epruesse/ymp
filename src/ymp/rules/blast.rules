@@ -181,7 +181,6 @@ with Stage("annotate_blast") as S:
         echo {input.contigs} > {output.contig_list}
         """
 
-    localrules: blastn_split_query_fasta
     checkpoint blastn_split_query_fasta:
         """Split FASTA query file into chunks for individual BLAST runs"""
         message:
@@ -189,11 +188,12 @@ with Stage("annotate_blast") as S:
         input:
             contigs = "{:prev:}/{:target:}.fasta.gz",
             dbsize = "{:this:}/{target}.blast_db_size",
-            contig_list = "{:this:}/{target}.fasta_files"
+            contig_list = "{:this:}/{target}.fasta_files",
         output:
             queries = temp(directory(
                 "{:this:}/{target}.split_queries"
-            ))
+            )),
+            query_list = "{:this:}/{target}.split_fasta_files",
         params:
             nseq_max = 100000,
             nseq_min = 10
@@ -205,6 +205,7 @@ with Stage("annotate_blast") as S:
             with open(input.contig_list, "r") as fd:
                 contigs = fd.read().strip()
 
+            fnames = []
             os.makedirs(output.queries, exist_ok=True)
             import gzip
             template = os.path.join(output.queries,"{index}.fasta")
@@ -218,6 +219,7 @@ with Stage("annotate_blast") as S:
                             fname = template.format(index=file_count)
                             with open(fname, "wb") as out:
                                 out.write(b"".join(lines))
+                            fnames.append(fname)
                             seq_count = 0
                             file_count += 1
                             lines = []
@@ -226,15 +228,22 @@ with Stage("annotate_blast") as S:
                 fname = template.format(index=file_count)
                 with open(fname, "wb") as out:
                     out.write(b"".join(lines))
+                fnames.append(fname)
+            with open(output.query_list, "w") as fd:
+                fd.writelines(fname + "\n" for fname in fnames)
 
     def blastn_join_input(wildcards):
         cpt = checkpoints.blastn_split_query_fasta.get(**wildcards)
-        fastadir = cpt.output.queries
-        blastdir = re.sub("_queries$", "_results", fastadir)
-        indices = glob_wildcards(os.path.join(fastadir, '{index}.fasta'))
-        res = expand(os.path.join(blastdir, '{index}.blast7.gz'),
-                     index=indices.index)
-        return res
+        with open(cpt.output.query_list) as fd:
+            fastafiles = fd.readlines()
+        return [
+            re.sub(
+                r".split_queries/(.*).fasta$",
+                r".split_results/\1.blast7.gz",
+                fname.rstrip("\n")
+            )
+            for fname in fastafiles
+        ]
 
     localrules: blastn_join_result
     rule blastn_join_result:
@@ -248,12 +257,14 @@ with Stage("annotate_blast") as S:
         log:
             "{:this:}/{target}.log"
         shell:
+            "exec >{log} 2>&1;"
+            "echo YMP: concatenating files;"
+            "echo \"{input.results}\";"
             "if [ -z \"{input.results}\" ]; then"
-            "  echo YMP: making empty output >{log};"
+            "  echo YMP: no files - making empty output;"
+            "  exit 1;" # not blast7 format, need to fix
             "  echo | gzip > {output};"
             "else "
-            "  echo YMP: concatenating files >{log};"
-            "  echo \"{input.results}\" >> {log};"
             "  cat {input.results} > {output};"
             "fi"
 
