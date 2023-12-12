@@ -69,18 +69,6 @@ def env():
 
 @env.command(name="list")
 @click.option(
-    "--static/--no-static", default=True,
-    help="List environments statically defined via env.yml files"
-)
-@click.option(
-    "--dynamic/--no-dynamic", default=True,
-    help="List environments defined inline from rule files"
-)
-@click.option(
-    "--all", "-a", "param_all", is_flag=True,
-    help="List all environments, including outdated ones."
-)
-@click.option(
     "--sort", "-s", "sort_col",
     type=click.Choice(ENV_COLUMNS), default=ENV_COLUMNS[0],
     help="Sort by column"
@@ -94,7 +82,7 @@ def env():
     help="List only installed/not installed environments"
 )
 @click.argument("ENVNAMES", nargs=-1)
-def ls(param_all, static, dynamic, sort_col, reverse, envnames, installed):
+def ls(sort_col, reverse, envnames, installed):
     """List conda environments"""
     envs = get_envs(envnames)
 
