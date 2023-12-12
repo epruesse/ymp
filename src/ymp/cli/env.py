@@ -1,3 +1,4 @@
+import csv
 import logging
 import os
 import shutil
@@ -108,8 +109,9 @@ def env():
     type=str,
     help="Show additional fields (all: everything)",
 )
+@click.option("--csv", "write_csv", is_flag=True, help="Output as machine readable CSV")
 @click.argument("ENVNAMES", nargs=-1)
-def ls(sort_col, reverse, envnames, installed, extra_fields):
+def ls(sort_col, reverse, envnames, installed, extra_fields, write_csv):
     """List conda environments"""
     envs = get_envs(envnames)
     if extra_fields is None:
@@ -138,15 +140,20 @@ def ls(sort_col, reverse, envnames, installed, extra_fields):
             row for row in table_content if row["installed"] == str(installed)
         ]
 
-    table_header = [{col: col for col in fields}]
-    table = table_header + table_content
-    widths = {col: max(len(row[col]) for row in table) for col in fields}
+    if write_csv:
+        writer = csv.DictWriter(sys.stdout, fields)
+        writer.writeheader()
+        writer.writerows(table_content)
+    else:
+        table_header = [{col: col for col in fields}]
+        table = table_header + table_content
+        widths = {col: max(len(row[col]) for row in table) for col in fields}
 
-    lines = [
-        " ".join("{!s:<{}}".format(row[col], widths[col]) for col in fields)
-        for row in table
-    ]
-    echo("\n".join(lines))
+        lines = [
+            " ".join("{!s:<{}}".format(row[col], widths[col]) for col in fields)
+            for row in table
+        ]
+        echo("\n".join(lines))
 
 
 @env.command()
