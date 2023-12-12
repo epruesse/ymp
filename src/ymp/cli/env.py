@@ -89,8 +89,12 @@ def env():
     "--reverse", "-r", is_flag=True,
     help="Reverse sort order"
 )
+@click.option(
+    "--installed/--not-installed", default=None, is_flag=True,
+    help="List only installed/not installed environments"
+)
 @click.argument("ENVNAMES", nargs=-1)
-def ls(param_all, static, dynamic, sort_col, reverse, envnames):
+def ls(param_all, static, dynamic, sort_col, reverse, envnames, installed):
     """List conda environments"""
     envs = get_envs(envnames)
 
@@ -103,6 +107,11 @@ def ls(param_all, static, dynamic, sort_col, reverse, envnames):
     ]
     table_content.sort(key=lambda row: row[sort_col].upper(),
                        reverse=reverse)
+    if installed is not None:
+        table_content = [
+            row for row in table_content
+            if row['installed'] == str(installed)
+        ]
 
     table_header = [{col: col for col in ENV_COLUMNS}]
     table = table_header + table_content
