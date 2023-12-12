@@ -9,7 +9,7 @@ import os
 
 from collections import OrderedDict
 from collections.abc import Mapping
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Set, Optional, Tuple
 
 from ymp.stage import StageStack, find_stage
 from ymp.stage.base import ConfigStage
@@ -110,16 +110,16 @@ class Pipeline(Parametrizable, ConfigStage):
             self._params = params
         return super().params
 
-    def get_path(self, stack, typ=None):
+    def get_path(self, stack, typ=None, pipeline=None, caller=None):
         pipeline_parameters = self.parse(stack.stage_name)
         param_map = {
             key.format(**pipeline_parameters): value
             for key, value in self._params.items()
         }
-        if typ is None:
-            pipeline = self.pipeline
-        else:
+        if typ is not None:
             pipeline = self.outputs[typ]
+        if pipeline is None:
+            pipeline = self.pipeline
         pipeline = pipeline.format(**pipeline_parameters)
         stages = []
         path = ""
@@ -140,16 +140,32 @@ class Pipeline(Parametrizable, ConfigStage):
         prefix = stack.name.rsplit(".", 1)[0]
         return ".".join([prefix]+stages)
 
-    def _make_outputs(self) -> Dict[str, str]:
+    def _make_outputs(self) -> Dict[str, List[Tuple[str,bool]]]:
+        """Collects outputs from all stages within pipeline
+
+        Returns: { suffix: (stack_suffix, is_hidden) }
+        """
         outputs = {}
         for stage_path, cfg in self.stages.items():
-            if cfg.get("hide", self.hide_outputs):
-                continue
             stage_name = stage_path.rsplit(".", 1)[-1]
             stage = find_stage(stage_name)
-            new_outputs = stage.get_outputs(stage_path)
-            outputs.update(new_outputs)
+            ourhide = cfg.get("hide", self.hide_outputs)
+            for output, pathlist in stage.get_outputs(stage_path).items():
+                ourpathlist = outputs.setdefault(output, [])
+                for path, hide in pathlist:
+                    ourpathlist.append((path, hide|ourhide))
         return outputs
+
+    def get_outputs(self, path: str) -> Dict[str, List[Tuple[str,bool]]]:
+        """Returns a dictionary of outputs"""
+        if self._outputs is None:
+            self._outputs = self._make_outputs()
+        path, _, _, = path.rpartition("." + self.name)
+        return {
+            output: [(path + lpath, hidden) for lpath, hidden in pathlist]
+            for output, pathlist in self._outputs.items()
+        }
+
 
     @property
     def outputs(self) -> Dict[str, str]:
@@ -159,18 +175,35 @@ class Pipeline(Parametrizable, ConfigStage):
         """
         if self._outputs is None:
             self._outputs = self._make_outputs()
-        return self._outputs
+        res = {}
+        for output, pathlist in self._outputs.items():
+            for path, hidden in reversed(pathlist):
+                if hidden:
+                    continue
+                res[output] = path
+                break
+        return res
 
-    def can_provide(self, inputs: Set[str]) -> Dict[str, str]:
+    def can_provide(self, inputs: Set[str], full_stack: bool = False) -> Dict[str, str]:
         """Determines which of ``inputs`` this stage can provide.
 
         The result dictionary values will point to the "real" output.
         """
-        res = {
-            output: path
-            for output, path in self.outputs.items()
-            if output in inputs
-        }
+        if full_stack:
+            if self._outputs is None:
+                self._outputs = self._make_outputs()
+
+            res = {
+                output: pathlist
+                for output, pathlist in self._outputs.items()
+                if output in inputs
+            }
+        else:
+            res = {
+                output: path
+                for output, path in self.outputs.items()
+                if output in inputs
+            }
         return res
 
     def get_all_targets(self, stack):

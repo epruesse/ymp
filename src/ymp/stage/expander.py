@@ -17,23 +17,23 @@ class StageExpander(ColonExpander):
     - Registers rules with stages when they are created
     """
 
-    def expand_ruleinfo(self, rule, item, expand_args, rec):
+    def expand_ruleinfo(self, rule, ruleinfo, expand_args, rec):
         stage = Stage.get_active()
         if not stage:
-            return item
+            return ruleinfo
 
         stage.add_rule(rule, self.workflow)
 
-        if not item.conda_env and stage.conda_env:
-            item.conda_env = stage.conda_env
+        if not ruleinfo.conda_env and getattr(stage, "conda_env", False):
+            ruleinfo.conda_env = stage.conda_env
 
-        if getattr(stage, "params", None):
-            if not item.params:
-                item.params = ((), {})
+        if getattr(stage, "params", False):
+            if not ruleinfo.params:
+                ruleinfo.params = ((), {})
             for param in stage.params:
-                item.params[1][param.name] = param.parse
+                ruleinfo.params[1][param.name] = param.parse
 
-        return super().expand_ruleinfo(rule, item, expand_args, rec)
+        return super().expand_ruleinfo(rule, ruleinfo, expand_args, rec)
 
     def expand_str(self, rule, item, expand_args, rec, cb):
         if cb:

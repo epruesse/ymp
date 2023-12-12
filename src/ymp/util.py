@@ -13,6 +13,10 @@ from ymp.exceptions import YmpRuleError
 
 
 def make_local_path(icfg, url: str):
+    """Rewrites remote URLs to point to downloads folder so they will be
+    retrieved by the download rules
+
+    """
     url_match = re.match("^(http|https|ftp|ftps)://", url)
     if url_match:
         return os.path.join(
@@ -125,16 +129,21 @@ def check_input(names: Sequence[str],
                     openfunc = gzip.open
                 else:
                     openfunc = open
-                with openfunc(fname, "rb") as fd:
-                    btes = fd.read(8192)
-                    while btes:
-                        nlines += btes.count(b"\n")
-                        nbytes += len(btes)
-                        if nbytes >= minbytes and nlines >= minlines:
-                            break
+                try:
+                    with openfunc(fname, "rb") as fd:
                         btes = fd.read(8192)
-            if nbytes < minbytes or nlines < minlines:
-                return False
+                        while btes:
+                            nlines += btes.count(b"\n")
+                            nbytes += len(btes)
+                            if nbytes >= minbytes and nlines >= minlines:
+                                break
+                            btes = fd.read(8192)
+                    if nbytes < minbytes or nlines < minlines:
+                        return False
+                except (IOError, EOFError):
+                    raise YmpRuleError(
+                        None, f"Failed to read file '{fname}'"
+                    )
         elif any(files_exist):
             raise YmpRuleError(
                 None,

@@ -1,15 +1,9 @@
 rule test:
-    wildcard_constraints:
     input: "ymp.yml"
     output: "{params[0]}.tmp"
-#    threads:
-#    resources:
-    params: "{log}", "{input}"
-#    priority:
+    params:
+      "{version}",
+      "{input}"
     version: "{params[1]}"
-    log: "{version}"
-#    message: "{version}"
-#    benchmark:
-    shell: "touch {output}"
-    
-        
+    log: "{output}.log"
+    shell: "touch {output} {log}"

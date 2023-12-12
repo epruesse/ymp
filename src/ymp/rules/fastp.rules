@@ -1,0 +1,73 @@
+Env(name="fastp", base="bioconda", packages=["fastp"])
+
+with Stage("trim_fastp") as S:
+    S.doc("""
+    Trims reads with `fastp <bioconda:fastp>`
+
+    >>>ymp make toy.trim_fastp
+
+    """)
+    S.add_param("Q", typ="int", name="qual", default=20)
+    S.add_param("L", typ="int", name="length", default=20)
+    S.add_param("O", typ="flag", name="overrepresentcheck", value="--overrepresentation_analysis")
+    S.add_param("C", typ="flag", name="correction", value="--correction")
+
+    rule fastp_trim:
+        message:
+            "{:name:}: Trimming {input[0]}"
+        input:
+            fq = "{:prev:}/{:target:}.{:pairnames:}.fq.gz",
+        output:
+            fq = [temp("{:this:}/{target}.{:pairnames[0]:}.fq.gz"),
+                  temp("{:this:}/{target}.{:pairnames[1]:}.fq.gz")],
+            json = "{:this:}/{target}.fastp.json"
+        log:
+            "{:this:}/{target}.log",
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt",
+        params:
+        resources:
+            mem = "2g",
+        threads: 4
+        conda: "fastp"
+        shell:
+            "exec >{log} 2>&1;"
+            "fastp"
+            " --in1 {input.fq[0]}"
+            " --in2 {input.fq[1]}"
+            " --out1 {output.fq[0]}"
+            " --out2 {output.fq[1]}"
+            " --json {output.json}"
+            " --length_required {params.length}"
+            " --cut_mean_quality {params.qual}"
+            " --cut_tail"
+            " --thread {threads}"
+            " {params.overrepresentcheck}"
+            " {params.correction}"
+            
+        
+    localrules: fastp_multiqc
+    rule fastp_multiqc:
+        message:
+            "{:name:}: Writing MultiQC config"
+        input:
+            "{:this:}/{:targets:}.fastp.json"
+        output:
+            "{:this:}/multiqc_config.yaml"
+        params:
+            this = "{:this:}"
+        run:
+            from ruamel.yaml import YAML
+            yaml = YAML(typ="rt")
+            data = {
+                "run_modules": [ "fastp" ],
+                "module_order": [{
+                    "fastp": {
+                        "name": f"FastP ({params.this})",
+                        "path_filters": [f"{params.this}/*.fastp.json"]
+                    }
+                }]
+            }
+            
+            with open(output[0], "w") as out:
+                yaml.dump(data, out)

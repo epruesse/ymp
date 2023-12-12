@@ -121,3 +121,28 @@ with Stage("map_bowtie2") as S:
             r1 = filter_input("r1", join=","),
             r2 = ""
 
+    localrules: bowtie2_map_multiqc_cfg
+    rule bowtie2_map_multiqc_cfg:
+        message:
+            "{:name:}: Writing MultiQC config"
+        input:
+            "{:this:}/{:targets:}.log"
+        output:
+            "{:this:}/multiqc_config.yaml"
+        params:
+            this = "{:this:}"
+        run:
+            from ruamel.yaml import YAML
+            yaml = YAML(typ="rt")
+            data = {
+                "run_modules": [ "bowtie2" ],
+                "module_order": [{
+                    "bowtie2": {
+                        "name": f"Bowtie2 ({params.this})",
+                        "path_filters": [f"{params.this}/*.log"]
+                    }
+                }]
+            }
+            with open(output[0], "w") as out:
+                yaml.dump(data, out)
+

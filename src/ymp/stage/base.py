@@ -6,7 +6,7 @@ import logging
 import os
 import re
 
-from typing import Set, Dict, Union, List, Optional
+from typing import Set, Dict, Union, List, Optional, Tuple
 
 from snakemake.rules import Rule
 from snakemake.workflow import Workflow
@@ -83,19 +83,15 @@ class BaseStage:
         """
         return set()
 
-    def get_outputs(self, path: str) -> Dict[str, str]:
+    def get_outputs(self, path: str) -> Dict[str, List[Tuple[str,bool]]]:
         """Returns a dictionary of outputs"""
         outputs = self.outputs
-        if isinstance(outputs, set):
-            return {output: path for output in outputs}
-        path, _, _ = path.rpartition("." + self.name)
-        # false positive - pylint: disable=no-member
         return {
-            output: path + p
-            for output, p in outputs.items()
+            output: [(path, False)]
+            for output in self.outputs
         }
 
-    def can_provide(self, inputs: Set[str]) -> Dict[str, str]:
+    def can_provide(self, inputs: Set[str], full_stack: bool = False) -> Dict[str, str]:
         """Determines which of ``inputs`` this stage can provide.
 
         Returns a dictionary with the keys a subset of ``inputs`` and
@@ -105,11 +101,11 @@ class BaseStage:
 
         """
         return {
-            output: ""
+            output: [("",False)] if full_stack else ""
             for output in inputs.intersection(self.outputs)
         }
 
-    def get_path(self, stack: "StageStack") -> str:
+    def get_path(self, stack: "StageStack", typ = None, pipeline = None) -> str:
         # pylint: disable = no-self-use
         """On disk location for this stage given ``stack``.
 
@@ -200,8 +196,10 @@ class BaseStage:
         return False
 
 class Activateable:
-    """
-    Mixin for Stages that can be filled with rules from Snakefiles.
+    """Mixin for Stages that can be filled with rules from Snakefiles.
+
+    There can be only one active stage across all classes deriving
+    from this.
     """
     #: Currently active stage ("entered")
     _active: Optional[BaseStage] = None

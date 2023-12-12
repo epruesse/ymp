@@ -2,28 +2,32 @@ Env(name="rsem", base="bioconda", packages="rsem")
 
 RSEM_IDX = "chrlist grp idx.fa n2g.idx.fa seq ti transcripts.fa".split()
 
-rule rsem_index:
-    """Build Genome Index for RSEM"""
-    message:
-        "RSEM: Indexing {input.contigs}"
-    input:
-        contigs = "{path}/{source}.fasta",
-        gtf     = "{path}/{source}.gtf"
-    output:
-        index   = expand("{{params.index}}.{ext}", ext=RSEM_IDX)
-    log:
-        "{params.index}.log"
-    params:
-        index   = "{path}.index/{source}.rsem",
-    resources:
-        mem = "20g",
-    threads:
-        1
-    conda:
-        "rsem"
-    shell: """
-    rsem-prepare-reference --gtf {input.gtf} {input.contigs} {params.index}  >{log} 2>&1
-    """
+with Stage("index_rsem") as S:
+    rule rsem_index:
+        """Build Genome Index for RSEM"""
+        message:
+            "RSEM: Indexing {input.contigs}"
+        input:
+            contigs = "{:prev:}/{:target:}.fasta.gz",
+            gtf     = "{:prev:}/{:target:}.gtf"
+        output:
+            index   = expand("{{:this:}}/{{target}}.rsem.{ext}", ext=RSEM_IDX)
+        log:
+            "{:this:}/{target}.log"
+        params:
+            index   = "{:this:}/{target}.rsem"
+        resources:
+            mem = "20g",
+        shadow:
+            "shallow"
+        threads:
+            32
+        conda:
+            "rsem"
+        shell: """
+        gzip -dc {input.contigs} > contigs.fa
+        rsem-prepare-reference --gtf {input.gtf} contigs.fa {params.index}  >{log} 2>&1
+        """
 
 with Stage("quant_rsem") as S:
     S.doc("""
@@ -33,54 +37,71 @@ with Stage("quant_rsem") as S:
         message:
             "RSEM: calculating expression"
         input:
-            bam = "{:prev:}/{target}-annotated.{source}.bam",
-            idx = expand("{{:reference.dir:}}.index/{{target}}.rsem.{ext}",
+            bam = "{:prev:}/{:target:}.tx.bam",
+            idx = expand("{{:prev:}}/{{:target:}}.rsem.{ext}",
                          ext=RSEM_IDX)
         output:
-            "{params.outprefix}.genes.results",
-            "{params.outprefix}.isoforms.results"
+            "{:this:}/{target}.genes.results",
+            "{:this:}/{target}.isoforms.results",
+            "{:this:}/{target}.stat/{target}.cnt",
+            "{:this:}/{target}.stat/{target}.model",
+            "{:this:}/{target}.stat/{target}.theta",
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt",
         log:
-            "{params.outprefix}.log"
+            "{:this:}/{target}.log",
         params:
-            index = "{:reference.dir:}.index/{target}.rsem",
-            outprefix = "{:this:}/{target}.{source}",
-            forward_prob = 0, # P of having fwd read
+            outprefix = "{:this:}/{target}",
+            index = lambda wc, input: input.idx[0][:-len(RSEM_IDX[0])-1],
+            forward_prob = 1.0, # P of having fwd read
+            this = "{:this:}",
         resources:
             mem = "16G",
         threads:
-            16
+            8
         conda:
             "rsem"
+        shadow:
+            "shallow"
         shell:
-            "rsem-calculate-expression "
-            " -p {threads} "
+            "exec >{log} 2>&1;"
+            "rsem-calculate-expression"
+            " -p {threads}"
             " --bam "
-            " --no-bam-output "
-            " --estimate-rspd " # estimate read start position
-            " --calc-ci" # calculate 95% credibility intervals and posterior mean estimates
-            " --ci-memory $(({resources.mem_mb} / 16 * 10)) "
-            " --forward-prob {params.forward_prob} "
-            " --paired-end "
-            " {input.bam} "
-            " {params.index} "
+            " --no-bam-output"
+            " --estimate-rspd" # estimate read start position
+            #" --calc-ci" # calculate 95% credibility intervals and posterior mean estimates
+            " --ci-memory $(({resources.mem_mb} / 16 * 10))"
+            " --forward-prob {params.forward_prob}"
+            " --paired-end"
+            " --temporary-folder {params.this}/{wildcards.target}.tmp"
+            " {input.bam}"
+            " {params.index}"
             " {params.outprefix} "
             " >{log} 2>&1 "
 
-    rule rsem_all_for_target:
+
+    localrules: rsem_quant_multiqc_cfg
+    rule rsem_quant_multiqc_cfg:
         message:
-            "RSEM: finished {output}"
+            "{:name:}: Writing MultiQC config"
         input:
-            "{:this:}/{target}.{:sources:}.genes.results",
+            "{:this:}/{:targets:}.genes.results"
         output:
-            touch("{:this:}/all_{target}")
-
-    rule rsem_all:
-        message:
-            "RSEM: finished {output}"
-        input:
-            "{:this:}/all_{:targets:}"
-        output:
-            touch("{:this:}/all_targets.stamp")
-
-    # TODO: SE mode
-
+            "{:this:}/multiqc_config.yaml"
+        params:
+            this = "{:this:}"
+        run:
+            from ruamel.yaml import YAML
+            yaml = YAML(typ="rt")
+            data = {
+                "run_modules": [ "rsem" ],
+                "module_order": [{
+                    "rsem": {
+                        "name": f"RSEM ({params.this})",
+                        "path_filters": [f"{params.this}/*.stats/*.cnt"]
+                    }
+                }]
+            }
+            with open(output[0], "w") as out:
+                yaml.dump(data, out)

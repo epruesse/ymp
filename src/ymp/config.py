@@ -9,7 +9,8 @@ from xdg import XDG_CACHE_HOME  # type: ignore
 from typing import Mapping, Sequence, Optional
 
 import ymp.yaml
-from ymp.common import AttrDict, Cache, MkdirDict, parse_number, format_number, parse_time, format_time
+from ymp.common import AttrDict, MkdirDict, parse_number, format_number, parse_time, format_time
+from ymp.cache import Cache, NoCache
 from ymp.env import CondaPathExpander
 from ymp.exceptions import YmpSystemError, YmpConfigError
 from ymp.stage import Pipeline, Project, Reference
@@ -95,10 +96,13 @@ class OverrideExpander(BaseExpander):
                     key=attr_name,
                 )
             if isinstance(values, Mapping):
+                if attr is None:
+                    attr = ((), dict())
+                    setattr(ruleinfo, attr_name, attr)
                 for val_name, value in values.items():
                     log.debug(
                         "Overriding {}.{}={} in {} with {}".format(
-                            attr_name, val_name, attr[1][val_name], rule.name, value
+                            attr_name, val_name, attr[1].get(val_name, "not set"), rule.name, value
                         )
                     )
                     attr[1][val_name] = value
@@ -142,6 +146,7 @@ class ResourceLimitsExpander(BaseExpander):
         if not isinstance(cfg, Mapping):
             raise YmpConfigError(cfg, "Limits section must be a map (key: value)")
         self.limits = self.parse_config(cfg)
+        log.debug("Parsed Resource Limits: %s", str(self.limits))
 
     def parse_config(self, cfg):
         """Parses limits config"""
@@ -167,22 +172,25 @@ class ResourceLimitsExpander(BaseExpander):
                     )
                 lconf["from"] = source
             for opt in params:
-                if opt in ("format", "unit", "from"):
-                    continue
-                if opt not in ("default", "scale", "min", "max"):
+                if opt in ("default", "min", "max"):
+                    try:
+                        lconf[opt] = lconf['parser'](params.get(opt))
+                    except ValueError:
+                        raise YmpConfigError(
+                            params,
+                            f'Failed to parse "{params.get(opt)}"',
+                            key=opt
+                        ) from None
+                elif opt in ("scale"):
+                    lconf[opt] = params.get(opt)
+                elif opt in ("format", "unit", "from"):
+                    pass
+                else:
                     raise YmpConfigError(
                         params,
                         f'Unknown parameter "{opt}" in "{name}" resource_limits',
                         opt
                     )
-                try:
-                    lconf[opt] = lconf['parser'](params.get(opt))
-                except ValueError:
-                    raise YmpConfigError(
-                        params,
-                        f'Failed to parse "{params.get(opt)}"',
-                        key=opt
-                    ) from None
             limits[name] = lconf
         for key in list(limits.keys()):
             if limits[key].get("from"):
@@ -333,7 +341,7 @@ class ConfigMgr(object):
         cls.__instance = None
         from ymp.stage import Stage, StageStack
         StageStack.stacks = {}
-        Stage.active = None
+        Stage.set_active(None)
 
     def __init__(self, root, conffiles):
         log.debug("Inizializing ConfigMgr")
@@ -346,7 +354,7 @@ class ConfigMgr(object):
             self.cachedir = os.path.join(XDG_CACHE_HOME, "ymp")
 
         self._config = ymp.yaml.load(conffiles, root)
-        self.cache = cache = Cache(self.cachedir)
+        self.cache = cache = NoCache(self.cachedir)
 
         # lazy filled by accessors
         self._snakefiles = None

@@ -7,6 +7,7 @@ import shutil
 import sys
 
 import click
+from click.shell_completion import CompletionItem
 
 import ymp
 from ymp.cli.shared_options import command, nohup_option, Log
@@ -39,14 +40,14 @@ debug("started")
 class TargetParam(click.ParamType):
     """Handles tab expansion for build targets"""
 
-    @classmethod
-    def complete(cls, ctx, incomplete):
+    def shell_complete(self, ctx, _param, incomplete):
         """Try to complete incomplete command
 
         This is executed on tab or tab-tab from the shell
 
         Args:
           ctx: click context object
+          param: current parameter requesting completion
           incomplete: last word in command line up until cursor
 
         Returns:
@@ -97,7 +98,7 @@ class TargetParam(click.ParamType):
                        if not ext[-1] == "_")
 
         debug("res={}", result)
-        return result
+        return [CompletionItem(item) for item in result]
 
 
 def snake_params(func):
@@ -158,7 +159,7 @@ def snake_params(func):
     return decorated
 
 
-def start_snakemake(kwargs):
+def start_snakemake(kwargs, submit=False, unload=True):
     """Execute Snakemake with given parameters and targets
 
     Fixes paths of kwargs['targets'] to be relative to YMP root.
@@ -176,13 +177,15 @@ def start_snakemake(kwargs):
         raise YmpException("internal error - CWD moved out of YMP root?!")
     cur_path = cur_path[len(root_path)+1:]
 
-    # translate renamed arguments to snakemake synopsis
+    # translate renamed arguments to snakemake synopsis. entries
+    # mapping to None will be deleted, entries not in this map will be
+    # copied 1:1, entires with value will be renamed.
     arg_map = {
         'immediate': 'immediate_submit',
         'wrapper': 'jobscript',
         'scriptname': 'jobname',
-        'cluster_cores': 'nodes',
         'snake_config': 'config',
+        'scheduler': 'scheduler',
         'drmaa': None,
         'sync': None,
         'sync_arg': None,
@@ -190,14 +193,16 @@ def start_snakemake(kwargs):
         'args': None,
         'nohup': None
     }
-    kwargs = {arg_map.get(key, key): value
-              for key, value in kwargs.items()
-              if arg_map.get(key, key) is not None}
+    kwargs = {
+        arg_map.get(key, key): value
+        for key, value in kwargs.items()
+        if arg_map.get(key, key) is not None
+    }
     kwargs['workdir'] = root_path
 
     # our debug flag sets a new excepthoook handler, to we use this
     # to decide whether snakemake should run in debug mode
-    if sys.excepthook.__module__ != "sys":
+    if sys.excepthook.__module__ != "sys" and not submit:
         log.warning(
             "Custom excepthook detected. Having Snakemake open stdin "
             "inside of run: blocks")
@@ -209,6 +214,7 @@ def start_snakemake(kwargs):
     if log.getEffectiveLevel() < logging.WARNING:
         kwargs['verbose'] = True
     kwargs['use_conda'] = True
+    kwargs['conda_frontend'] = cfg.conda.frontend
 
     # expand stack paths
     stage_stack_failure = None
@@ -246,7 +252,12 @@ def start_snakemake(kwargs):
     # A snakemake workflow was created above to resolve the
     # stage stack. Unload it so things run correctly from within
     # snakemake.
-    cfg.unload()
+    if unload:
+        cfg.unload()
+
+    # Check snakemake version
+    from ymp.snakemake import check_snakemake
+    check_snakemake()
 
     import snakemake
     res = snakemake.snakemake(ymp._snakefile, **kwargs)
@@ -258,7 +269,7 @@ def start_snakemake(kwargs):
 @command()
 @snake_params
 @click.option(
-    "--cores", "-j", default=1, metavar="CORES",
+    "--cores", "-j", default=1, metavar="N",
     help="The number of parallel threads used for scheduling jobs"
 )
 @click.option(
@@ -333,11 +344,17 @@ def make(**kwargs):
     "60 seconds."
 )
 @click.option(
-    "--cluster-cores", "-J", type=int, metavar="N",
-    help="Limit the maximum number of cores used by jobs submitted at a time"
+    "--nodes", "-J", type=int, metavar="N",
+    help="Limit the maximum number of jobs submitted at a time. Note "
+    "that this does not imply a maximum core count or running job "
+    "count, but simply limits the number of queued jobs."
 )
 @click.option(
-    "--cores", "-j", default=16, metavar="N",
+    "--cores", "-c", type=int, metavar="N",
+    help="Maximum number of cluster cores to use"
+)
+@click.option(
+    "--local-cores", "-j", type=int, metavar="N",
     help="Number of local threads to use"
 )
 @click.option(
@@ -349,6 +366,10 @@ def make(**kwargs):
 @click.option(
     "--scriptname", metavar="NAME",
     help="Set the name template used for submitted jobs"
+)
+@click.option(
+    "--scheduler",
+    help="ILP or greedy"
 )
 def submit(profile, **kwargs):
     """Build target(s) on cluster
@@ -398,6 +419,6 @@ def submit(profile, **kwargs):
 
     config.add_layer("<computed>", {param: cfg.expand(" ".join(cmd))})
 
-    rval = start_snakemake(config)
+    rval = start_snakemake(config, submit=True)
     if not rval:
         sys.exit(1)

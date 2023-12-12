@@ -56,7 +56,7 @@ with Stage("references") as S:
         message:
             "Preparing {output}"
         input:
-            files = lambda wc: ymp.get_config().ref[wc.refname].get_file(wc.path)
+            files = lambda wc: ymp.get_config().ref[wc.refname].get_file(wc.path, isdir=False)
         output:
             "{:dir.references:}/{refname}/{path}"
         wildcard_constraints:
@@ -93,11 +93,25 @@ with Stage("references") as S:
                 os.symlink(input_relpath, output[0])
 
 
+    localrules: prepare_reference_dir
+    rule prepare_reference_dir:  # ymp: extends prepare_reference
+        input:
+            files = lambda wc: ymp.get_config().ref[wc.refname].get_file(wc.path, isdir=True)
+        output:
+            directory("{:dir.references:}/{refname}/{path}")
+
     localrules: unpack_archive
     rule unpack_archive:
         """
         Template rule for unpacking references provisioned upstream as archive.
         """
+        input:
+            tar = "dummy.in"
+        output:
+            files = "dummy.out"
+        params:
+            strip = 0,
+            prefix = ""
         message:
             "Unpacking {input.tar} into {params.prefix}"
         shell: """
@@ -108,6 +122,8 @@ with Stage("references") as S:
     ruleorder: unpack_archive > prepare_reference
 
     for ref in ymp.get_config().ref.values():
-        for unpack_rule in ref.make_unpack_rules(workflow._rules['unpack_archive']):
+        for unpack_rule in ref.generate_rules(
+                unpack_archive=workflow._rules['unpack_archive'],
+        ):
             unpack_rule
 

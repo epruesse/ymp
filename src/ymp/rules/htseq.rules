@@ -1,0 +1,66 @@
+Env(name="htseq", base="bioconda", packages="htseq>0.13")
+
+with Stage("count_htseq") as S:
+    S.add_param("T", typ="choice", name="typ",
+                value = ["exon", "gene"], default = "exon")
+    rule htseq_count:
+        message:
+            "Counting per gene reads with htseq-count"
+        input:
+            bam = "{:prev:}/{:target:}.sorted.bam",
+            gtf = "{:prev:}/{:target:}.gtf"
+        output:
+            counts = "{:this:}/{target}.htseq_counts",
+        log:
+            "{:this:}/{target}.log"
+        params:
+            max_reads_in_buffer = 30000000,  # 30m
+            stranded = "reverse", # yes, no, reverse
+            minaqual = 20,
+            mode = "intersection-nonempty",
+            nonunique = "none",
+        threads:
+            1  ## like fastqc, only 1 thread per file
+        conda:
+            "htseq"
+        shell:
+            "exec >/dev/null 2>&1;"
+            "htseq-count"
+            " --nprocesses={threads}"
+            " --format=bam"
+            " --order=pos"
+            " --max-reads-in-buffer={params.max_reads_in_buffer}"
+            " --stranded={params.stranded}"
+            " -a={params.minaqual}"
+            " --type={params.typ}"
+            # --idattr=gene_id
+            " --mode={params.mode}"
+            " --nonunique={params.nonunique}"
+            " {input.bam}"
+            " {input.gtf}"
+            " >{output.counts}"
+
+    localrules: htseq_count_multiqc_cfg
+    rule htseq_count_multiqc_cfg:
+        message:
+            "{:name:}: Writing MultiQC config"
+        input:
+            "{:this:}/{:targets:}.htseq_counts"
+        output:
+            "{:this:}/multiqc_config.yaml"
+        params:
+            this = "{:this:}"
+        run:
+            from ruamel.yaml import YAML
+            yaml = YAML(typ="rt")
+            data = {
+                "run_modules": [ "htseq" ],
+                "module_order": [{
+                    "fastqc": {
+                        "name": f"HTSeq-Count ({params.this})",
+                        "path_filters": f"{params.this}/*.htseq_counts"
+                    }
+                }]
+            }
+            with open(output[0], "w") as out:
+                yaml.dump(data, out)

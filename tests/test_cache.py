@@ -1,5 +1,5 @@
 import ymp
-from ymp.common import Cache
+from ymp.cache import Cache
 
 
 class LoadFuncs(object):

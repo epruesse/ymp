@@ -56,33 +56,38 @@ rule fastq_dump:
     output:
         "{:dir.scratch:}/SRR/{SRR}_1.fastq.gz",
         "{:dir.scratch:}/SRR/{SRR}_2.fastq.gz"
+    log:
+        "{:dir.scratch:}/SRR/{SRR}.log"
     wildcard_constraints:
         SRR = r"[EDS]RR[0-9]+",
-    params:
-        outdir = "{:ensuredir.scratch:}/SRR",
-        p      = lambda wc, threads: int(threads/2+.5),
     resources:
-        mem = "200M",
+        mem = "10G",
+    threads:
+        6
     conda:
         "sratools.yml"
-    threads:
-        4
-    # FIXME
-    # the two cut processes use about 1 cpu each, fastqdump 1/4 and pgzip about 1 each.
-    # not ideal. not sure why cut needs so much time. 
-    shell: """
-    fastq-dump {wildcards.SRR} \
-        --split-files \
-        --readids \
-        --dumpbase \
-        --skip-technical \
-        --clip \
-        --read-filter pass \
-        --stdout | \
-      paste - - - -  - - - - | \
-      tee >(cut -f 1-4 | tr "\t" "\\n" | pigz -p {params.p} > {output[0]}) | \
-      cut -f 5-8 | tr "\t" "\\n" | pigz -p {params.p} > {output[1]}
-    """
+    shell:
+        "exec >{log} 2>&1;"
+        "TMPDIR=$(mktemp -d);"
+        "trap 'rm -rf $TMPDIR' EXIT;"
+        "fasterq-dump"
+        " {wildcards.SRR}"
+        " --details"
+        " --print-read-nr"
+        " --temp $TMPDIR"
+        " --outdir $TMPDIR"
+        " --threads {threads};"
+        "pigz "
+        " --stdout "
+        " --processes {threads}"
+        " $TMPDIR/{wildcards.SRR}_1.fastq"
+        " >{output[0]};"
+        "pigz "
+        " --stdout "
+        " --processes {threads}"
+        " $TMPDIR/{wildcards.SRR}_2.fastq"
+        " >{output[1]};"
+
 
 with Stage("") as S:
     S.doc("""

@@ -29,11 +29,39 @@ with Stage("qc_fastqc") as S:
             mem = "4g",
         conda:
             "fastqc"
-        shell: """
-        fastqc \
-         -t {threads} \
-         -o $(dirname {output[0]}) \
-         {input} \
-         -k {params.k} \
-         >{log} 2>&1
-        """
+        shell:
+            "exec >{log} 2>&1;"
+            "echo Launching fastqc on $HOSTNAME;"
+            "set -x;"
+            "fastqc"
+            " -t {threads}"
+            " -o $(dirname {output[0]})"
+            " {input}"
+            " -k {params.k}"
+
+    localrules: fastqc_multiqc
+    rule fastqc_multiqc:
+        message:
+            "{:name:}: Writing MultiQC config"
+        input:
+            "{:this:}/{:targets:}.{:pairnames:}_fastqc.zip"
+        output:
+            "{:this:}/multiqc_config.yaml"
+        params:
+            this = "{:this:}"
+        run:
+            from ruamel.yaml import YAML
+            yaml = YAML(typ="rt")
+            data = {
+                "run_modules": [ "fastqc" ],
+                "module_order": [{
+                    "fastqc": {
+                        "name": f"FastQC ({params.this})",
+                        "path_filters": [f"{params.this}/*_fastqc.zip"]
+                    }
+                }],
+                "sample_names_replace": {"(.*)\\.R1": "\\1"},
+            }
+
+            with open(output[0], "w") as out:
+                yaml.dump(data, out)

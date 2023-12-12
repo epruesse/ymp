@@ -11,11 +11,12 @@ with Stage("sort_bam") as S:
             bam = "{:this:}/{target}.sorted.bam",
             bai = "{:this:}/{target}.sorted.bam.bai",
         log:
-            "{:this:}/{target}.sorted.bam.log"
+            "{:this:}/{target}.log"
         benchmark:
             "benchmarks/{:name:}/{:this:}/{target}.txt"
         params:
             compress = 6,
+            order_by = "position",
         resources:
             mem = "32g",
         threads:
@@ -23,13 +24,63 @@ with Stage("sort_bam") as S:
         conda:
             "sambamba"
         shell:
+            "exec >{log} 2>&1;"
+            "case {params.order_by} in"
+            "  name) PARM=--natural-sort;;"
+            "  position) PARM=;;"
+            "esac;"
+            ""
             "sambamba sort"
             " --memory-limit={resources.mem_mb}MB"
             " --compression-level={params.compress}"
             " --nthreads={threads}"
             " --out={output.bam}"
+            " $PARM"
             " {input.bam}"
             " >{log} 2>&1"
+
+
+with Stage("sort_txbam") as S:
+    rule sambamba_sort_txbam: # ymp: extends sambamba_sort
+        input:
+            bam = "{:prev:}/{target}.tx.bam",
+        output:
+            bam = "{:this:}/{target}.sorted.tx.bam",
+            bai = "{:this:}/{target}.sorted.tx.bam.bai",
+        log:
+            "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
+
+
+with Stage("sort_bam_name") as S:
+    rule sambamba_sort_bam_name: # ymp: extends sambamba_sort
+        input:
+            bam = "{:prev:}/{target}.sorted.bam"
+        output:
+            bam = "{:this:}/{target}.bam",
+            bai = [],
+        params:
+            order_by = "name"
+        log:
+            "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
+
+
+with Stage("sort_txbam_name") as S:
+    rule sambamba_sort_txbam_name:  # ymp: extends sambamba_sort
+        input:
+            bam = "{:prev:}/{target}.sorted.tx.bam",
+        output:
+            bam = "{:this:}/{target}.tx.bam",
+            bai = [],
+        params:
+            order_by = "name"
+        log:
+            "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
 
 
 with Stage("markdup_sambamba") as S:
@@ -48,6 +99,29 @@ with Stage("markdup_sambamba") as S:
             "benchmarks/{:name:}/{:this:}/{target}.txt"
         params:
             compress = 6,
+
+            hash_table_size = 262144,
+            # From help:
+            # size of hash table for finding read pairs (default is 262144 reads);
+            # will be rounded down to the nearest power of two;
+            # should be > (average coverage) * (insert size) for good performance
+
+            overflow_list_size = 600000,
+            # From help:
+            # size of the overflow list where reads, thrown from the hash table,
+            # get a second chance to meet their pairs (default is 200000 reads);
+            # increasing the size reduces the number of temporary files created
+
+            sort_buffer_size = 4096,
+            # From help:
+            # total amount of memory (in *megabytes*) used for sorting purposes;
+            # the default is 2048, increasing it will reduce the number of created
+            # temporary files and the time spent in the main thread
+
+            io_buffer_size = 128,
+            # From help:
+            # two buffers of BUFFER_SIZE *megabytes* each are used
+            # for reading and writing BAM during the second pass (default is 128)
         resources:
             mem = "32g",
         threads:
@@ -58,6 +132,10 @@ with Stage("markdup_sambamba") as S:
             "exec >{log} 2>&1;"
             "sambamba markdup"
             " --compression-level={params.compress}"
+            " --hash-table-size={params.hash_table_size}"
+            " --overflow-list-size={params.overflow_list_size}"
+            " --sort-buffer-size={params.sort_buffer_size}"
+            " --io-buffer-size={params.io_buffer_size}"
             " --nthreads={threads}"
             " {params.remove_dups}"
             " {input.bam}"
@@ -66,3 +144,28 @@ with Stage("markdup_sambamba") as S:
             "sambamba index"
             " --nthreads={threads}"
             "  {output.bam} {output.bai};"
+
+    localrules: sambamba_markdup_multiqc_cfg
+    rule sambamba_markdup_multiqc_cfg:
+        message:
+            "{:name:}: Writing MultiQC config"
+        input:
+            "{:this:}/{:targets:}.sorted.bam.log"
+        output:
+            "{:this:}/multiqc_config.yaml"
+        params:
+            this = "{:this:}"
+        run:
+            from ruamel.yaml import YAML
+            yaml = YAML(typ="rt")
+            data = {
+                "run_modules": [ "sambamba" ],
+                "module_order": [{
+                    "sambamba": {
+                        "name": f"Sambamba Markdup ({params.this})",
+                        "path_filters": [f"{params.this}/*.log"]
+                    }
+                }]
+            }
+            with open(output[0], "w") as out:
+                yaml.dump(data, out)

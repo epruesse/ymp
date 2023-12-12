@@ -21,7 +21,7 @@ conda:
   # If set, use frozen environments from this set
   env_specs:
     - *conda_envs
-    - ../conda_envs/latest
+    #- ../conda_envs/latest
 
   # Search path for <envname>.yml files:
   env_path:
@@ -48,6 +48,11 @@ conda:
     - /conda-forge/conda-forge\/label\/broken/
     - /conda-forge/conda-forge\/label\/cf201901/  # gcc4
     - /conda-forge/conda-forge\/label\/old_feature_broken/  # gcc4
+  create: # defaults for env creation
+    reinstall: false  # always install again, used by --fresh option
+    noarchive: false  # delete archive files before creating
+    nospec: false  # no not use spec, always calculate new package set
+
 # Default references
 references:
   # Human Genomes
@@ -63,7 +68,6 @@ references:
     - url: ftp://ftp.ccb.jhu.edu/pub/infphilo/hisat2/data/grch38_snp_tran.tar.gz
       strip_components: 1
       type: dir
-      stage: .index
       files:
         ALL.1.ht2: genome_snp_tran.1.ht2
         ALL.2.ht2: genome_snp_tran.2.ht2
@@ -227,7 +231,9 @@ cluster:
       # - cluster.x (values from snakemake cluster config)
       # - rule (rule name)
       args: {}                 # arguments for job submission
-      cluster_cores: 1024      # max number of cores to use in parallel
+      nodes: 1024              # max jobs queued to cluster engine
+      cores: 1024              # max cores
+      local_cores: 4           # max threads used on submit host
       scriptname: "ymp.{rulename}.{jobid}.sh"
       command:
 
@@ -235,7 +241,7 @@ cluster:
     dummy:
       command:  "sh"     # command for job submission
       sync_arg: ""            # parameter for sync mode
-      cluster_cores: 2
+      nodes: 2
     # Profile for Torque engine
     torque:
       command:    "qsub"
@@ -263,6 +269,7 @@ cluster:
         memory:   "--mem={resources.mem_mb}"
         walltime: "--time={resources.walltime}"
       cluster_status: "python -m ymp.cluster slurm status"
+      cluster_cancel: "scancel"
     lsf:
       command:    "python -m ymp.cluster lsf submit"
       args:
@@ -278,4 +285,3 @@ pairnames:
     - R2
 
 shell: "/bin/bash"
-

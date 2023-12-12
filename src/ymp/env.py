@@ -70,8 +70,9 @@ class Env(WorkflowObject, snakemake_conda.Env):
     def __init__(
             self,
             # Snakemake Params:
-            env_file: Optional[str] = None,
             workflow = None,
+            env_file: Optional[str] = None,
+            env_name: Optional[str] = None,
             env_dir = None,
             container_img=None,
             cleanup=None,
@@ -100,13 +101,12 @@ class Env(WorkflowObject, snakemake_conda.Env):
 
         if env_file:
             if name:
-                import pdb; pdb.set_trace()
                 raise YmpRuleError(
                     self,
                     "Env must not have both 'name' and 'env_file' parameters'"
                 )
             self.dynamic = False
-            self.name, _ = op.splitext(op.basename(env_file))
+            self._ymp_name, _ = op.splitext(op.basename(env_file))
             self.packages = None
             self.base = None
             self.channels = None
@@ -116,7 +116,7 @@ class Env(WorkflowObject, snakemake_conda.Env):
             self.lineno = 1
         elif name:
             self.dynamic = True
-            self.name = name
+            self._ymp_name = name
             self.packages = ensure_list(packages) + cfg.conda.defaults[base].dependencies
             self.channels = ensure_list(channels) + cfg.conda.defaults[base].channels
             env_file = op.join(cfg.ensuredir.dynamic_envs, f"{name}.yml")
@@ -141,17 +141,19 @@ class Env(WorkflowObject, snakemake_conda.Env):
             })
 
         super().__init__(
-            env_file,
-            workflow,
-            env_dir if env_dir else cfg.ensuredir.conda_prefix,
-            container_img,
-            cleanup)
+            workflow = workflow,
+            env_file = env_file,
+            env_dir = env_dir if env_dir else cfg.ensuredir.conda_prefix,
+            container_img = container_img,
+            cleanup = cleanup
+        )
+
         self.register()
 
     def _get_dynamic_contents(self):
         cfg = ymp.get_config()
         defaults = {
-            'name': self.name,
+            'name': self._ymp_name,
             'dependencies': self.packages,
             'channels': self.channels,
         }
@@ -198,7 +200,7 @@ class Env(WorkflowObject, snakemake_conda.Env):
     def set_prefix(self, prefix):
         self._env_dir = op.abspath(prefix)
 
-    def create(self, dryrun=False, reinstall=False, nospec=False, noarchive=False):
+    def create(self, dryrun=False, reinstall=None, nospec=None, noarchive=None):
         """Ensure the conda environment has been created
 
         Inherits from snakemake.deployment.conda.Env.create
@@ -216,18 +218,31 @@ class Env(WorkflowObject, snakemake_conda.Env):
             the package binaries, we allow maintaining a copy of the
             package binary URLs, from which the archive folder is populated
             on demand. We just download those to self.archive and pass on.
+
+        Parameters:
+          - reinstall: force re-installing already installed envs
+          - noarchive: delete existing archives before installing, forcing re-download
+          - nospec: do not use stored spec ("lock", set of urls for env)
         """
+        cfg = ymp.get_config()
+        if nospec is None:
+            nospec = cfg.conda.create.nospec
+        if noarchive is None:
+            noarchive = cfg.conda.create.noarchive
+        if reinstall is None:
+            reinstall = cfg.conda.create.reinstall
+
         if self.installed:
             if reinstall:
-                log.info("Environment '%s' already exists. Removing...", self.name)
+                log.info("Environment '%s' already exists. Removing...", self._ymp_name)
                 if not dryrun:
-                    shutil.rmtree(self.path, ignore_errors = True)
+                    shutil.rmtree(self.address, ignore_errors = True)
             else:
-                log.info("Environment '%s' already exists", self.name)
-                return self.path
+                log.info("Environment '%s' already exists", self._ymp_name)
+                return self.address
 
-        log.warning("Creating environment '%s'", self.name)
-        log.debug("Target dir is '%s'", self.path)
+        log.warning("Creating environment '%s'", self._ymp_name)
+        log.debug("Target dir is '%s'", self.address)
 
         if noarchive and self.archive_file:
             log.warning("Removing archived environment packages...")
@@ -246,10 +261,10 @@ class Env(WorkflowObject, snakemake_conda.Env):
                         f.write("\n".join(files) + "\n")
             else:
                 log.warning("Neither spec file nor package archive found for '%s',"
-                            " falling back to native resolver", self.name)
+                            " falling back to native resolver", self._ymp_name)
 
         res = super().create(dryrun)
-        log.info("Created env %s", self.name)
+        log.info("Created env %s", self._ymp_name)
         return res
 
     def _have_archive(self):
@@ -267,7 +282,7 @@ class Env(WorkflowObject, snakemake_conda.Env):
         if missing_packages:
             log.warning(
                 "Ignoring incomplete package archive for environment %s",
-                self.name)
+                self._ymp_name)
             log.debug(
                 "Missing packages: %s", missing_packages)
             return False
@@ -293,7 +308,7 @@ class Env(WorkflowObject, snakemake_conda.Env):
                 spec_path = spec_path.replace("BUILTIN:", "")
                 spec_path = op.join(ymp._env_dir, spec_path)
             for path in (op.join(spec_path, cfg.platform), spec_path):
-                spec_file = op.join(path, self.name + ".txt")
+                spec_file = op.join(path, self._ymp_name + ".txt")
                 log.debug("Trying %s", spec_file)
                 if op.exists(spec_file):
                     log.info("Using %s", spec_file)
@@ -324,17 +339,21 @@ class Env(WorkflowObject, snakemake_conda.Env):
             # remove partially download archive folder?
             # shutil.rmtree(self.archive_file, ignore_errors=True)
             raise YmpWorkflowError(
-                f"Unable to create environment {self.name}, "
+                f"Unable to create environment {self._ymp_name}, "
                 f"because downloads failed. See log for details.")
+
+    @property
+    def label(self):
+        return self._ymp_name
 
     @property
     def installed(self):
         if self.is_containerized:
             return True  # Not checking
-        if not op.exists(self.path):
+        if not op.exists(self.address):
             return False
-        start_stamp = op.join(self.path, "env_setup_start")
-        finish_stamp = op.join(self.path, "env_setup_done")
+        start_stamp = op.join(self.address, "env_setup_start")
+        finish_stamp = op.join(self.address, "env_setup_done")
         if op.exists(start_stamp) and not op.exists(finish_stamp):
             return False
         return True
@@ -342,12 +361,13 @@ class Env(WorkflowObject, snakemake_conda.Env):
     def update(self):
         "Update conda environment"
         self.create()  # call create to make sure environment exists
-        log.warning("Updating environment '%s'", self.name)
+        log.warning("Updating environment '%s'", self._ymp_name)
+        log.warning(f"Running {self.frontend} env update --prune -p {self.address} -f {self.file} -v")
         return subprocess.run([
             self.frontend, "env", "update",
             "--prune",
-            "-p", self.path,
-            "-f", self.file,
+            "-p", str(self.address),
+            "-f", str(self.file),
             "-v"
         ]).returncode
 
@@ -357,7 +377,7 @@ class Env(WorkflowObject, snakemake_conda.Env):
         Returns exit code of command run.
         """
         command = " ".join(command)
-        command = snakemake_conda.Conda().shellcmd(self.path, command)
+        command = snakemake_conda.Conda().shellcmd(self.address, command)
         cfg = ymp.get_config()
         log.debug("Running: %s", command)
         return subprocess.run(
@@ -368,30 +388,30 @@ class Env(WorkflowObject, snakemake_conda.Env):
 
     def export(self, stream, typ='yml'):
         """Freeze environment"""
-        log.warning("Exporting environment '%s'", self.name)
+        log.warning("Exporting environment '%s'", self._ymp_name)
         if typ == 'yml':
             res = subprocess.run([
                 "conda", "env", "export",
-                "-p", self.path,
+                "-p", self.address,
             ], stdout=subprocess.PIPE)
 
             yaml = YAML(typ='rt')
             yaml.default_flow_style = False
             env = yaml.load(res.stdout)
-            env['name'] = self.name
+            env['name'] = self._ymp_name
             if 'prefix' in env:
                 del env['prefix']
             yaml.dump(env, stream)
         elif typ == 'txt':
             res = subprocess.run([
                 "conda", "list", "--explicit", "--md5",
-                "-p", self.path,
+                "-p", self.address,
             ], stdout=stream)
         return res.returncode
 
     def __lt__(self, other):
         "Comparator for sorting"
-        return self.name < other.name
+        return self._ymp_name < other._ymp_name
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.__dict__!r})"
@@ -429,16 +449,16 @@ class CondaPathExpander(BaseExpander):
         if not self._envs:
             self._envs = Env.get_registry()
         if conda_env in self._envs:
-            return self._envs[conda_env].file
+            return self._envs[conda_env].file.get_path_or_uri()
 
         for snakefile in reversed(self.workflow.included_stack):
-            basepath = op.dirname(snakefile)
+            basepath = op.dirname(snakefile.get_path_or_uri())
             for _, relpath in sorted(self._search_paths.items()):
                 searchpath = op.join(basepath, relpath)
                 abspath = op.abspath(op.join(searchpath, conda_env))
                 for ext in "", ".yml", ".yaml":
                     env_file = abspath+ext
                     if op.exists(env_file):
-                        Env(env_file)
+                        Env(env_file = env_file)
                         return env_file
         return conda_env

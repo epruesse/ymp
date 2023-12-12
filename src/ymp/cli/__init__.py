@@ -1,5 +1,4 @@
 import click
-import click_completion
 
 import ymp
 from ymp.cli.env import env
@@ -8,8 +7,7 @@ from ymp.cli.shared_options import group
 from ymp.cli.stage import stage
 from ymp.cli.show import show
 from ymp.cli.init import init
-
-click_completion.init()
+from ymp.cli.scan import scan
 
 
 def install_completion(ctx, attr, value):
@@ -67,3 +65,4 @@ main.add_command(env)
 main.add_command(stage)
 main.add_command(show)
 main.add_command(init)
+main.add_command(scan)

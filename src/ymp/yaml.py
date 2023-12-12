@@ -36,10 +36,14 @@ class LayeredConfError(YmpConfigError):
                     return self.obj
         return None, None
 
+
 class Entry:
     def __init__(self, filename, yaml, index):
         self.filename = filename
-        self.lineno = yaml._yaml_line_col.data[index][0] + 1
+        try:
+            self.lineno = yaml._yaml_line_col.data[index][0] + 1
+        except AttributeError:
+            self.lineno = 0
 
 
 class MixedTypeError(LayeredConfError):
@@ -111,14 +115,18 @@ class MultiProxy(object):
         return [fn for fn, layer in self._maps]
 
     def get_linenos(self):
-        return [layer._yaml_line_col.line
+        return [layer._yaml_line_col.line + 1
                 for fn, layer in self._maps]
 
     def get_fileline(self, key = None):
         if key:
             for fname, layer in self._maps:
                 if key in layer:
-                    return fname, layer._yaml_line_col.data[key][0] + 1
+                    try:
+                        line = layer._yaml_line_col.data[key][0] + 1
+                    except AttributeError:
+                        line = 0
+                    return fname, line
         return ";".join(self.get_files()), next(iter(self.get_linenos()), None)
 
     def to_yaml(self, show_source=False):
@@ -238,13 +246,25 @@ class MultiMapProxy(MultiProxy, AttrItemAccessMixin, Mapping):
         items = [(fn, m[key]) for fn, m in self._maps if key in m]
         if not items:
             raise KeyError(f"key '{key}' not found in any map")
-        typs = set(type(m[1]) for m in items if m[1])
-        if len(typs) > 1:
+        # Mappings, Sequences and Atomic types should not override one
+        # another, can only have one of those and None.
+        def get_type(obj):
+            if isinstance(obj, Mapping):
+                return "Mapping"
+            if isinstance(obj, str):
+                return "Scalar"
+            if isinstance(obj, Sequence):
+                return "Sequence"
+            return "Scalar"
+        typs = [get_type(m[1]) for m in items if m[1]]
+        if len(set(typs)) > 1:
             stack = [Entry(fn, m, key) for fn, m in self._maps if key in m]
             raise MixedTypeError(
                 self,
-                f"Mixed data types for key '{key}'s in present in files",
-                key = key,
+                f"Cannot merge contents of configuration key '{key}'"
+                f" due to mismatching content types.\n"
+                f"  types = {typs}",
+                key=key,
                 stack=stack
             )
         return items
@@ -315,7 +335,7 @@ class MultiSeqProxy(MultiProxy, AttrItemAccessMixin, Sequence):
     def __str__(self):
         return "+".join(f"{m}" for _, m in self._maps)
 
-    def _finditem(self, index):
+    def _locateitem(self, index):
         if isinstance(index, slice):
             raise NotImplementedError()
         if isinstance(index, str):
@@ -327,9 +347,13 @@ class MultiSeqProxy(MultiProxy, AttrItemAccessMixin, Sequence):
             if index >= len(smap):
                 index -= len(smap)
             else:
-                return [(fn, smap[index])]
+                return fn, smap, index
         else:
             raise IndexError()
+
+    def _finditem(self, index):
+        fn, smap, index = self._locateitem(index)
+        return [(fn, smap[index])]
 
     def __radd__(self, other):
         return self.__add__(other)
@@ -355,6 +379,12 @@ class MultiSeqProxy(MultiProxy, AttrItemAccessMixin, Sequence):
 
     def get_paths(self, absolute=False):
         return [self.get_path(i, absolute) for i in range(len(self))]
+
+    def get_fileline(self, key = None):
+        if key is None:
+            return ";".join(self.get_files()), next(iter(self.get_linenos()), None)
+        fn, smap, index = self._locateitem(key)
+        return fn, smap._yaml_line_col.data[index][0] + 1
 
 
 class LayeredConfProxy(MultiMapProxy):
@@ -444,6 +474,7 @@ def load(files, root=None):
         fname = resolve_installed_package(fname, stack)
         if any(fname == entry.filename for entry in stack):
             raise LayeredConfError((fname, None), "Recursion in includes", stack=stack)
+        log.debug("Loading YAML configuration from %s", fname)
         try:
             with open(fname, "r") as fdes:
                 yaml = rt_yaml.load(fdes)

@@ -15,7 +15,7 @@ jobs:
       matrix:
         os: ['ubuntu-latest', 'macos-latest']
         section: ["Tools", "Core"]
-        python-version: ['3.7']
+        python-version: ['3.10']
     defaults:
       run:
         shell: bash -l {0}
@@ -24,12 +24,6 @@ jobs:
         with:
           submodules: true
           fetch-depth: 0  # full history for setuptools_scm
-      - uses: actions/cache@v1
-        env:
-          CACHE_VERS: 1  # bump to manually reset cache
-        with:
-          path: ~/conda_pkgs_dir
-          key: ${{runner.os}}-conda-${{env.CACHE_VERS}}-${{hashFiles('environment.yaml')}}
       - uses: conda-incubator/setup-miniconda@v2
         with:
           # Don't update conda - performance:
@@ -40,7 +34,6 @@ jobs:
           environment-file: environment.yaml
           activate-environment: ymp
           channel-priority: strict
-          use-only-tar-bz2: true  # needed for caching
           mamba-version: "*"
       - name: Install
         run: |

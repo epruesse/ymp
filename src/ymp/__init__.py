@@ -47,13 +47,14 @@ if 'sphinx' in sys.modules:
 #: >>> ymp make broken -vvv
 print_rule = 0
 
-#: List of versions this version of YMP has been verified to work with
-snakemake_versions = [
-    '6.0.5', '6.1.0', '6.1.1', '6.2.1'
-]
+#: Minimal version of snakemake required
+snakemake_minimum_version = "7.15"
+#: Lastest version of snakemake that was tested (breaking changes for
+#: us can happen at patch level)
+snakemake_tested_version = "7.32.4"
 
 
-def get_config() -> 'config.ConfigMgr':
+def get_config() -> 'ymp.config.ConfigMgr':
     """Access the current YMP configuration object.
 
     This object might change once during normal execution: it is

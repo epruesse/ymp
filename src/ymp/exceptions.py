@@ -1,5 +1,5 @@
 """Exceptions raised by YMP"""
-
+import sys
 import textwrap
 from inspect import stack
 from typing import Optional, Tuple
@@ -60,6 +60,8 @@ class YmpLocateableError(YmpPrettyException):
 
     def show(self, file=None) -> None:
         super().show(file)
+        if file is None:
+            file = sys.stderr
         fname, line = self.get_fileline()
         if fname:
             if line is None:
