@@ -50,7 +50,7 @@ class Param(abc.ABC):
     def make(cls, stage: BaseStage, typ: str, key: str, name: str, value, default) -> "Param":
         if typ not in cls.types:
             raise YmpRuleError(stage, f"Unknown stage Parameter type '{typ}'")
-        return cls.types[typ](stage, key,name, value, default)
+        return cls.types[typ](stage, key, name, value, default)
 
     @property
     def wildcard(self):
@@ -121,13 +121,13 @@ class Parametrizable(BaseStage):
             if key and param.key == key:
                 raise YmpRuleError(
                     self,
-                    f"Keys must be uninque. Key '{key}' already used by {param}.\n"
+                    f"Keys must be unique. Key '{key}' already used by {param}.\n"
                     f"  while trying to add {new_param}"
                 )
             if param.name == name:
                 raise YmpRuleError(
                     self,
-                    f"Names must be uninque. Name '{name}' already used by {param}.\n"
+                    f"Names must be unique. Name '{name}' already used by {param}.\n"
                     f"  while trying to add {new_param}"
                 )
         self.__params.append(new_param)
@@ -213,7 +213,7 @@ class ParamChoice(Param):
         super().__init__(*args, **kwargs)
         if self.default is not None:
             self.value = list(self.value) + [""]
-        self.regex = f"({self.key}({'|'.join(self.value)}))"
+        self.regex = f"({self.key}({'|'.join(self.value)}))?"
 
 
 class ParamRef(Param):

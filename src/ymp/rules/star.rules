@@ -1,89 +1,117 @@
 Env(name="star", base="bioconda", packages="star")
 
-rule star_index:
-    """Build Genome Index for Star"""
-    message:
-        "Star: Indexing {input.contigs}"
-    input:
-        contigs = "{path}/{source}.fasta",
-        gtf     = "{path}/{source}.gtf"
-    output:
-        gdir    = "{path}.index/{source}.star/",
-        index   = "{path}.index/{source}.star/SA"
-    log:
-        std     = "{path}.index/{source}.star.log",
-        log     = "{path}.index/{source}.star/Log.txt"
-    threads:
-        16
-    params:
-        overhang = 100
-    resources:
-        mem = "32g",
-    shadow:
-        "shallow"
-    conda:
-        "star"
-    shell: """
-    STAR \
-      --runThreadN {threads} \
-      --limitGenomeGenerateRAM $(({resources.mem_mb}-1000))000000 \
-      --runMode genomeGenerate \
-      --genomeDir {output.gdir} \
-      --genomeFastaFiles {input.contigs} \
-      --sjdbGTFfile {input.gtf} \
-      --sjdbOverhang {params.overhang} \
-      >{log.std} 2>&1
-    mv Log.txt {log.log}
-    """
-    # TODO:
-    # - pass --genomeSAindexNbases =min(14, math.log2(genomelen)/2-1)
+with Stage("index_star") as S:
+    rule star_index:
+        """Build Genome Index for Star"""
+        message:
+            "Star: Indexing {input.contigs}"
+        input:
+            contigs = "{:prev:}/{:target:}.fasta.gz",
+            gtf     = "{:prev:}/{:target:}.gtf",
+        output:
+            gdir    = directory("{:this:}/{target}.staridx"),
+        log:
+            "{:this:}/{target}.log",
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt",
+        threads:
+            32
+        params:
+            overhang = 100,
+        resources:
+            mem = "32g",
+        shadow:
+            "shallow"
+        conda:
+            "star"
+        shell: """
+        gzip -dc {input.contigs} > genome.fa;
+        STAR \
+        --runMode genomeGenerate \
+        --runThreadN {threads} \
+        --limitGenomeGenerateRAM $(({resources.mem_mb}-1000))000000 \
+        --sjdbOverhang {params.overhang} \
+        --genomeFastaFiles genome.fa \
+        --sjdbGTFfile {input.gtf} \
+        --genomeDir {output.gdir} \
+        >{log} 2>&1
+        """
+        # TODO:
+        # - pass --genomeSAindexNbases =min(14, math.log2(genomelen)/2-1)
 
 
 with Stage("map_star") as S:
     S.doc("""
     Map RNA-Seq reads with STAR
     """)
+    S.add_param("T", typ="flag", name="twopass", value="--twopassMode Basic")
+    S.add_param("Sf", typ="flag", name="", value="--outSAMstrandField intronMotif")
+
     rule star_map:
+        message:
+            "STAR: mapping {input.fq[0]} to {input.index}"
         input:
-            index = "{:reference.dir:}.index/{target}.star/SA",
-            fq  = "{:prev:}/{source}.{:pairnames:}.fq.gz"
+            index = directory("{:prev:}/{:target:}.staridx"),
+            fq  = "{:prev:}/{:target:}.{:pairnames:}.fq.gz"
         output:
-            bamgn = "{:this:}/{target}.{source}.bam",
-            bamtr = "{:this:}/{target}-annotated.{source}.bam",
-            sj    = "{:this:}/{target}.{source}.SJ.out.tab"
+            bamgn = temp("{:this:}/{target}.bam"),
+            bamtr = temp("{:this:}/{target}.tx.bam"),
         log:
-            std = "{:this:}/{target}.{source}.log",
-            log = "{:this:}/{target}.{source}.Log.out",
-            prg = "{:this:}/{target}.{source}.Log.progress.out",
-            fin = "{:this:}/{target}.{source}.Log.final.out"
+            std = "{:this:}/{target}.log",
+            final = "{:this:}/{target}.star.Log.final.out",
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt",
         params:
-            outprefix = "{:this:}/{target}.{source}.",
+            outprefix = "{:this:}/{target}.star.",
             multimap_nmax = 10,
             quantmode = "TranscriptomeSAM",
-            tmpdir = "{params.outprefix}_STAR_tmp"
         resources:
-            mem = "32g",
+            mem = "64g",
         threads:
-            16
+            32
         conda:
             "star"
-        shell: """
-        STAR \
-        --genomeDir $(dirname {input.index}) \
-        --genomeLoad NoSharedMemory \
-        --runThreadN {threads} \
-        --readFilesIn {input.fq} \
-        --readFilesCommand zcat \
-        --outFileNamePrefix {params.outprefix} \
-        --outSAMtype BAM Unsorted \
-        --outSAMunmapped Within \
-        --outFilterMultimapNmax {params.multimap_nmax} \
-        --outTmpDir {params.tmpdir} \
-        --quantMode {params.quantmode} \
-        >{log.std} 2>&1
+        shell:
+            "exec >{log.std} >&1;"
+            "STAR"
+            "  --genomeDir {input.index}"
+            "  --genomeLoad NoSharedMemory"
+            "  --runThreadN {threads}"
+            "  --readFilesIn {input.fq}"
+            "  --readFilesCommand 'gzip -dc'"
+            "  --outFileNamePrefix {params.outprefix}"
+            "  --outSAMtype BAM Unsorted"
+            "  --outSAMunmapped Within"
+            "  --outFilterMultimapNmax {params.multimap_nmax}"
+            "  --quantMode {params.quantmode}"
+            "  {params.twopass};"
+            "mv {params.outprefix}Aligned.out.bam {output.bamgn};"
+            "mv {params.outprefix}Aligned.toTranscriptome.out.bam {output.bamtr};"
+            "sync {output}"
+            # --outTmpDir ?
 
-        mv {params.outprefix}Aligned.out.bam {output.bamgn}
-        mv {params.outprefix}Aligned.toTranscriptome.out.bam {output.bamtr}
-        """
-
-    # TODO: SE mode
+    localrules: star_map_multiqc_cfg
+    rule star_map_multiqc_cfg:
+        message:
+            "{:name:}: Writing MultiQC config"
+        input:
+            "{:this:}/{:targets:}.log"
+        output:
+            "{:this:}/multiqc_config.yaml"
+        params:
+            this = "{:this:}"
+        run:
+            from ruamel.yaml import YAML
+            yaml = YAML(typ="rt")
+            data = {
+                "run_modules": [ "star" ],
+                "module_order": [{
+                    "star": {
+                        "name": f"STAR ({params.this})",
+                        "path_filters": [f"{params.this}/*.star.Log.final.out"]
+                    }
+                }],
+                "sample_names_replace": {"(.*)\\.star": "\\1"},
+            }
+            with open(output[0], "w") as out:
+                yaml.dump(data, out)

@@ -1,0 +1,236 @@
+Env(name="salmon", base="bioconda", packages=[
+    "salmon>1.5",
+    "samtools"
+])
+
+with Stage("index_salmon") as S:
+    S.doc("""
+    """)
+    S.add_param("G", typ="flag", name="gencode", value="--gencode")
+
+    rule salmon_index:
+        message: "{:name:}: Creating Salmon Index from {input}"
+        input:
+            txfa = "{:prev:}/{:target:}.tx.fasta.gz",
+        output:
+            index = directory("{:this:}/{target}.salmon_index"),
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt",
+        log:
+            "{:this:}/{target}.log",
+        params:
+            kmerlen = 31,
+        conda:
+            "salmon"
+        threads:
+            32
+        resources:
+            mem = "32G"
+        shell:
+            "exec >{log} 2>&1;"
+            "salmon index"
+            "  --transcripts {input.txfa}"
+            "  --kmerLen {params.kmerlen}"
+            "  --index {output.index}"
+            "  --threads {threads}"
+            "  {params.gencode}"
+
+
+with Stage("index_salmon_decoy") as S:
+    S.doc("""
+    """)
+    S.add_param("G", typ="flag", name="gencode", value="--gencode")
+
+    rule salmon_index_decoy:
+        message: "{:name:}: Creating Salmon Index w/ Decoy from {input}"
+        input:
+            txfa = "{:prev:}/{:target:}.tx.fasta.gz",
+            fa = "{:prev:}/{:target:}.fasta.gz",
+        output:
+            index = directory("{:this:}/{target}.salmon_index"),
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt",
+        log:
+            "{:this:}/{target}.log",
+        params:
+            kmerlen = 31,
+        conda:
+            "salmon"
+        threads:
+            64
+        resources:
+            mem = "45G"
+        shadow: "shallow"
+        shell:
+            "exec >{log} 2>&1;"
+            "gzip -dc {input.fa} | sed -n '/>/ s/>\\([^ ]*\\).*/\\1/p' > decoy.txt;"
+            "cat {input.txfa} {input.fa} > gentrome.fa.gz;"
+            "salmon index"
+            "  --transcripts gentrome.fa.gz"
+            "  --kmerLen {params.kmerlen}"
+            "  --index {output.index}"
+            "  --threads {threads}"
+            "  --decoys decoy.txt"
+            "  {params.gencode}"
+
+
+with Stage("quant_salmon_sa") as S:
+    S.doc("""
+    """)
+    S.add_param("L", typ="choice", name="libtype", default="A",
+                value=["A", "IU", "MU", "OU", "ISF", "ISR", "MSF", "MSR", "OSF", "OSR",
+                       "U", "SF", "SR"])
+    rule salmon_sa_quant:
+        message: "{:name:}: {output.quant}"
+        input:
+            index = directory("{:prev:}/{:target:}.salmon_index"),
+            fq = "{:prev:}/{:target:}.{:pairnames:}.fq.gz",
+        output:
+            quant = "{:this:}/{target}.salmon/quant.sf",
+            unmapped = "{:this:}/{target}.salmon/aux_info/unmapped_names.txt",
+            bam = temp("{:this:}/{target}.tx.bam"),
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt",
+        log:
+            "{:this:}/{target}.log",
+        conda:
+            "salmon"
+        threads:
+            16
+        resources:
+            mem = "48G",
+        shell:
+            "exec >{log} 2>&1;"
+            "echo Launching salmon on $HOSTNAME;"
+            "set -x; "
+            "if ! salmon quant"
+            " --libType {params.libtype}"
+            " --threads {threads}"
+            " --seqBias"
+            " --gcBias"
+            " --writeUnmappedNames"
+            " --index {input.index}"
+            " --mates1 {input.fq[0]}"
+            " --mates2 {input.fq[1]}"
+            " --output $(dirname {output.quant})"
+            " --writeMappings"
+            " | samtools view -b -o {output.bam} --threads 4 -; then"
+            "    echo Salmon or Samtools failed;"
+            "    if tail -n1 $(dirname {output.quant})/logs/salmon_quant.log |"
+            "       grep -qE 'salmon was only able to assign [0-9]+ fragments'; then"
+            "        echo Salmon found insufficient fragments. Faking output.;"
+            "        touch {output.unmapped};"
+            "        echo -e 'Name\tLength\tEffectiveLength\tTPM\tNumReads' > {output.quant};"
+            "        exit 0;"
+            "    fi;"
+            "    exit 1;"
+            "fi;"
+
+    localrules: salmon_sa_quant_multiqc_cfg
+    rule salmon_sa_quant_multiqc_cfg:
+        message:
+            "{:name:}: Writing MultiQC config"
+        input:
+            "{:this:}/{:targets:}.log"
+        output:
+            "{:this:}/multiqc_config.yaml"
+        params:
+            this = "{:this:}"
+        run:
+            from ruamel.yaml import YAML
+            yaml = YAML(typ="rt")
+            data = {
+                "run_modules": [ "salmon" ],
+                "module_order": [{
+                    "salmon": {
+                        "name": f"Salmon SA ({params.this})",
+                        "path_filters": [
+                            f"{params.this}/*.salmon/aux_info/meta_info.json",
+                            f"{params.this}/*.salmon/libParams/flenDist.txt",
+                        ]
+                    }
+                }],
+                "sample_names_replace": {"(.*)\\.salmon": "\\1"},
+            }
+            with open(output[0], "w") as out:
+                yaml.dump(data, out)
+
+
+with Stage("quant_salmon") as S:
+    S.doc("""
+    """)
+    S.add_param("L", typ="choice", name="libtype", default="A",
+                value=["A", "IU", "MU", "OU", "ISF", "ISR", "MSF", "MSR", "OSF", "OSR",
+                       "U", "SF", "SR"])
+    S.add_param("G", typ="flag", name="gencode", value="--gencode")
+
+    rule salmon_quant:
+        message: "{:name:}: {output.quant}"
+        input:
+            bam = "{:prev:}/{:target:}.tx.bam",
+            txfa = "{:prev:}/{:target:}.tx.fasta.gz"
+        output:
+            quant = "{:this:}/{target}.salmon/quant.sf",
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt",
+        log:
+            "{:this:}/{target}.log",
+        conda:
+            "salmon"
+        threads:
+            32
+        resources:
+            mem = "48G",
+        shell:
+            "exec >{log} 2>&1;"
+            "echo Launching salmon on $HOSTNAME;"
+            "set -x; "
+            "if ! salmon quant"
+            " --libType {params.libtype}"
+            " --threads {threads}"
+            " --seqBias"
+            " --gcBias"
+            " --writeUnmappedNames"
+            " --alignments {input.bam}"
+            " --targets {input.txfa}"
+            " --output $(dirname {output.quant})"
+            " --minAssignedFrags 0"
+            " {params.gencode}; then"
+            "    echo Salmon or Samtools failed;"
+            "    if tail -n20 $(dirname {output.quant})/logs/salmon_quant.log |"
+            "       grep -qE ' [0-9]+ fragments were mapped, but the number of burn-in fragments'; then"
+            "        echo Salmon found insufficient fragments. Faking output.;"
+            "        echo -e 'Name\tLength\tEffectiveLength\tTPM\tNumReads' > {output.quant};"
+            "        exit 0;"
+            "    fi;"
+            "    exit 1;"
+            "fi;"
+
+    localrules: salmon_quant_multiqc_cfg
+    rule salmon_quant_multiqc_cfg:
+        message:
+            "{:name:}: Writing MultiQC config"
+        input:
+            "{:this:}/{:targets:}.log"
+        output:
+            "{:this:}/multiqc_config.yaml"
+        params:
+            this = "{:this:}"
+        run:
+            from ruamel.yaml import YAML
+            yaml = YAML(typ="rt")
+            data = {
+                "run_modules": [ "salmon" ],
+                "module_order": [{
+                    "salmon": {
+                        "name": f"Salmon ({params.this})",
+                        "path_filters": [
+                            f"{params.this}/*.salmon/aux_info/meta_info.json",
+                            f"{params.this}/*.salmon/libParams/flenDist.txt",
+                        ],
+                    }
+                }],
+                "sample_names_replace": {"(.*)\\.salmon": "\\1"},
+            }
+            with open(output[0], "w") as out:
+                yaml.dump(data, out)

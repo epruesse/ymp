@@ -66,9 +66,7 @@ class PandasTableBuilder:
         if not (key in cfg or isinstance(cfg, Sequence)):
             raise YmpConfigError(cfg, f"Missing key '{key}' in project data config", key=key)
         value = cfg[key]
-        if isinstance(value, str):
-            return self._load_file(cfg, key)
-        if isinstance(value, Sequence):
+        if isinstance(value, Sequence) and not isinstance(value, str):
             return self._rowbind(cfg, key)
         if isinstance(value, Mapping):
             command = next(iter(value), None)
@@ -80,7 +78,7 @@ class PandasTableBuilder:
                 return self._paste(value["paste"])
             if command == "table":
                 return self._table(value["table"])
-        raise YmpConfigError(cfg, "Unrecognized statement in data config", key=key)
+        return self._load_file(cfg, key)
 
     def _load_file(self, cfg, key):
         fname = cfg.get_path(key)
@@ -103,7 +101,7 @@ class PandasTableBuilder:
                 ) from exc
         # prefix fq files with name of config file's directory
         rdir = os.path.dirname(fname)
-        data = data.applymap(
+        data = data.map(
             lambda s: os.path.join(rdir, s)
             if is_fq(s) and os.path.exists(os.path.join(rdir, s))
             else s
@@ -285,7 +283,7 @@ class Project(ConfigStage):
 
     RE_REMOTE = re.compile(r"^(?:https?|ftp|sftp)://(?:.*)")
     RE_SRR = re.compile(r"^[SED]RR[0-9]+$")
-    RE_FILE = re.compile(r"^(?!http://).*(?:fq|fastq)(?:|\.gz)$")
+    RE_FILE = re.compile(r"^(?!http://).*\.(?:fq|fastq)(?:|\.gz)$")
 
     def __init__(self, name, cfg):
         super().__init__(name, cfg)
@@ -362,7 +360,7 @@ class Project(ConfigStage):
     def do_get_ids(self, _stack, groups, match_groups=None, match_values=None):
         if match_values:
             match_values = match_values.split("__")
-        
+
         return ["__".join(t) for t in self.data.fetch(
             groups,
             match_groups,
@@ -486,7 +484,7 @@ class Project(ConfigStage):
                  (cols[0] == 'srr' and len(cols) > 1):
                 log.error("Ambiguous data sources found in row %s. "
                           "You may need to constrain the columns allowed "
-                          "to contain read data using '%'.",
+                          "to contain read data using '%s'.",
                           row[1], self.KEY_READCOLS)
                 err = True
             elif len(cols) == 2:

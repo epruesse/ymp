@@ -10,16 +10,27 @@ from copy import copy, deepcopy
 from inspect import Parameter, signature, stack
 from typing import Optional
 
-from snakemake.exceptions import CreateRuleException, RuleException  # type: ignore
-from snakemake.io import AnnotatedString, apply_wildcards, \
-    strip_wildcard_constraints  # type: ignore
+import snakemake
+from snakemake.exceptions import (
+    CreateRuleException,
+    RuleException,
+)  # type: ignore
+from snakemake.io import (
+    AnnotatedString,
+    apply_wildcards,
+    strip_wildcard_constraints,
+)  # type: ignore
 from snakemake.io import Namedlist as _Namedlist  # type: ignore
 from snakemake.rules import Rule  # type: ignore
-from snakemake.workflow import RuleInfo, Workflow  # type: ignore
+from snakemake.workflow import Workflow  # type: ignore
+from snakemake.sourcecache import infer_source_file  # type: ignore
+from snakemake.ruleinfo import InOutput, RuleInfo # type: ignore
+
+from packaging import version
 
 import ymp
 from ymp.common import ensure_list, flatten, is_container
-from ymp.exceptions import YmpRuleError
+from ymp.exceptions import YmpRuleError, YmpPrettyException
 from ymp.string import ProductFormatter, make_formatter
 
 
@@ -29,23 +40,43 @@ partial_format = partial_formatter.format
 get_names = partial_formatter.get_names
 
 
+class IncompatibleVersionException(YmpPrettyException):
+    """Raised when required packages do not match version requirements"""
+
+
 def check_snakemake() -> bool:
     prev_result = getattr(check_snakemake, "result", None)
     if prev_result is not None:
         return prev_result
-    import snakemake
-    check_snakemake.result = snakemake.__version__ in ymp.snakemake_versions
-    if not check_snakemake.result:
-        log.fatal("YMP-%s was not verified to work with Snakemake-%s",
-                  ymp.__version__, snakemake.__version__)
-    return check_snakemake.result
+
+    have_vers = version.parse(snakemake.__version__)
+    need_vers = version.parse(ymp.snakemake_minimum_version)
+    test_vers = version.parse(ymp.snakemake_tested_version)
+    if have_vers < need_vers:
+        raise IncompatibleVersionException(
+            f"Snakemake version {need_vers} required but {have_vers} installed"
+        )
+    if have_vers > test_vers:
+        log.warning(
+            "Snakemake %s found is newer than the latest version (%s) verified to"
+            " work with YMP-%s. If you encounter unexpected errors, please"
+            " downgrade Snakemake or upgrade YMP.",
+            have_vers,
+            test_vers,
+            version.parse(ymp.__version__),
+        )
+    check_snakemake.result = True
+    return True
 
 
 def networkx():
     import networkx
-    if networkx.__version__[0] != "2":
-        log.fatal("Networkx version 2.* required by YMP but {} found"
-                  "".format(networkx.__version__))
+
+    if networkx.__version__[0] not in ("2", "3"):
+        log.fatal(
+            "Networkx version 1.x not supported by YMP (found {})"
+            "".format(networkx.__version__)
+        )
         sys.exit(1)
     return networkx
 
@@ -58,14 +89,11 @@ def print_ruleinfo(rule: Rule, ruleinfo: RuleInfo, func=log.debug):
       ruleinfo: Matching RuleInfo object to be printed
       func: Function used for printing (default is log.error)
     """
-    func("rule {}".format({'n': rule.name,
-                           'l': rule.lineno,
-                           's': rule.snakefile}))
+    func("rule {}".format({"n": rule.name, "l": rule.lineno, "s": rule.snakefile}))
     for attr in dir(ruleinfo):
         if attr.startswith("__"):
             continue
-        func("  {}: {}".format(attr,
-                               getattr(ruleinfo, attr, "")))
+        func("  {}: {}".format(attr, getattr(ruleinfo, attr, "")))
     func(ruleinfo.func.__code__)
 
 
@@ -85,25 +113,28 @@ class ExpandLateException(Exception):
 
 class CircularReferenceException(YmpRuleError):
     """Exception raised if parameters in rule contain a circular reference"""
+
     def __init__(self, deps, rule):
         nodes = [n[0] for n in networkx().find_cycle(deps)]
         message = "Circular reference in rule {}\n'{}'".format(
-            rule, " => ".join(nodes + [nodes[0]]))
+            rule, " => ".join(nodes + [nodes[0]])
+        )
         rule.filename = rule.snakefile
         super().__init__(rule, message)
 
 
 class InheritanceException(RuleException):
     """Exception raised for errors during rule inheritance"""
-    def __init__(self, msg, rule, parent,
-                 include=None, lineno=None, snakefile=None):
-        message = "'{}' when deriving {} from {}".format(
-            msg, rule.name, parent)
-        super().__init__(message=message,
-                         include=include,
-                         lineno=lineno,
-                         snakefile=snakefile,
-                         rule=rule)
+
+    def __init__(self, msg, rule, parent, include=None, lineno=None, snakefile=None):
+        message = "'{}' when deriving {} from {}".format(msg, rule.name, parent)
+        super().__init__(
+            message=message,
+            include=include,
+            lineno=lineno,
+            snakefile=snakefile,
+            rule=rule,
+        )
 
 
 class NamedList(_Namedlist):
@@ -120,6 +151,7 @@ class NamedList(_Namedlist):
       :class:`ruleinfo` structures.
 
     """
+
     def __init__(self, fromtuple=None, **kwargs):
         """"""  # blank out docstring in super class w different formatting
         super().__init__(**kwargs)
@@ -149,7 +181,6 @@ class NamedList(_Namedlist):
         """Export ``get_names`` as public func"""
         return self._get_names(*args, *kwargs)
 
-
     def update_tuple(self, totuple):
         """Update values in ``(args, kwargs)`` tuple.
 
@@ -174,94 +205,130 @@ class NamedList(_Namedlist):
 
 #: describes attributes of :py:class:`snakemake.workflow.RuleInfo`
 ruleinfo_fields = {
-    'wildcard_constraints': {
-        'format': 'argstuple',  # len(t[0]) must be == 0
+    "wildcard_constraints": {
+        "format": "argstuple",  # len(t[0]) must be == 0
     },
-    'input': {
-        'format': 'argstuple',
-        'funcparams': ('wildcards',),
-        'apply_wildcards': True,
+    "input": {
+        "format": "inoutput",
+        "funcparams": ("wildcards",),
+        "apply_wildcards": True,
     },
-    'output': {
-        'format': 'argstuple',
-        'apply_wildcards': True,
+    "output": {
+        "format": "inoutput",
+        "apply_wildcards": True,
     },
-    'threads': {
-        'format': 'int',
-        'funcparams': ('wildcards', 'input', 'attempt', 'threads')
+    "threads": {
+        "format": "int",
+        "funcparams": ("wildcards", "input", "attempt", "threads")
         # stored as resources._cores
     },
-    'resources': {
-        'format': 'argstuple',  # len(t[0]) must be == 0, t[1] must be ints
-        'funcparams': ('wildcards', 'input', 'attempt', 'threads'),
+    "resources": {
+        "format": "argstuple",  # len(t[0]) must be == 0, t[1] must be ints
+        "funcparams": ("wildcards", "input", "attempt", "threads"),
     },
-    'params': {
-        'format': 'argstuple',
-        'funcparams': ('wildcards', 'input', 'resources', 'output', 'threads'),
-        'apply_wildcards': True,
+    "params": {
+        "format": "argstuple",
+        "funcparams": ("wildcards", "input", "resources", "output", "threads"),
+        "apply_wildcards": True,
     },
-    'shadow_depth': {
-        'format': 'string_or_true',
+    "shadow_depth": {
+        "format": "string_or_true",
     },
-    'priority': {
-        'format': 'numeric',
+    "priority": {
+        "format": "numeric",
     },
-    'version': {
-        'format': 'object',
+    "version": {
+        "format": "object",
     },
-    'log': {
-        'format': 'argstuple',
-        'apply_wildcards': True,
+    "log": {
+        "format": "inoutput",
+        "apply_wildcards": True,
     },
-    'message': {
-        'format': 'string',
-        'format_wildcards': True,
+    "message": {
+        "format": "string",
+        "format_wildcards": True,
     },
-    'benchmark': {
-        'format': 'string',
-        'apply_wildcards': True,
+    "benchmark": {
+        "format": "inoutput",
+        "apply_wildcards": True,
     },
-    'wrapper': {
-        'format': 'string',
+    "wrapper": {
+        "format": "string",
         # sets conda_env
     },
-    'conda_env': {
-        'format': 'string',  # path, relative to cwd or abs
-        'apply_wildcards': True,
+    "conda_env": {
+        "format": "string",  # path, relative to cwd or abs
+        "apply_wildcards": True,
         # works only with shell/script/wrapper, not run
     },
-    'container_img': {
-        'format': 'string',
+    "container_img": {
+        "format": "string",
         # works ony with shell/script/wrapper, not run
     },
-    'shellcmd': {
-        'format': 'string',
-        'format_wildcards': True
+    "shellcmd": {
+        "format": "string",
+        "format_wildcards": True,
+        "runner": True,
     },
-    'docstring': {
-        'format': 'string',
+    "docstring": {
+        "format": "string",
     },
-    'norun': {  # does the rule have executable data?
-        'format': 'bool',
+    "norun": {  # does the rule have executable data?
+        "format": "bool",
     },
-    'func': {
-        'format': 'callable',
+    "func": {
+        "format": "callable",
+        "runner": True,
     },
-    'script': {
-        'format': 'string',
-    }
+    "script": {
+        "format": "string",
+        "runner": True,
+    },
+    "cache": {
+        # indicates whether or not output is cached across workflows
+        "format": "boolean"
+    },
+    "default_target": {
+        # whether or not the rule is the default target called when no
+        # targets specified
+        "format": "boolean"
+    },
+    "handover": {
+        # rule takes over entire local node
+        "format": "boolean"
+    },
+    "is_containerized": {"format": "boolean"},
+    "wrapper": {
+        "format": "string",  # not sure it's really a string
+        "runner": True,
+    },
+    "path_modifier": {
+        "format": "modifier",
+    },
+    "apply_modifier": {
+        "format": "modifier",
+    },
+    "cwl": {"format": "unknown"},
+    "env_modules": {"format": "string"},
+    "group": {"format": "string"},
+    "name": {"format": "string"},
+    "notebook": {"format": "string", "runner": True},
+    "retries": {"format": "int"},
+    "template_engine": {"format": "string", "runner": True},
+    "localrule": {"format": "boolean"},
+    "ref_attributes": {"format": "set"}
     # restart_times
     # env_modules
     # shadow_depth
     # group
     # notebook
     # cwl
-    # cache
 }
 
 
 class ExpandableWorkflow(Workflow):
     """Adds hook for additional rule expansion methods to Snakemake"""
+
     global_workflow = None
     __expanders = []
 
@@ -290,6 +357,7 @@ class ExpandableWorkflow(Workflow):
 
         # Remove log stream handler installed by Snakemake
         from snakemake.logging import logger, ColorizingStreamHandler
+
         for handler in logger.logger.handlers:
             if isinstance(handler, ColorizingStreamHandler):
                 logger.logger.removeHandler(handler)
@@ -350,15 +418,16 @@ class ExpandableWorkflow(Workflow):
         # make sure there is no workflow in snakemake either
         # (we try to load that in activate())
         import snakemake.workflow
+
         snakemake.workflow.workflow = None
 
     def add_rule(
-            self,
-            name=None,
-            lineno=None,
-            snakefile=None,
-            checkpoint=False,
-            allow_overwrite=False
+        self,
+        name=None,
+        lineno=None,
+        snakefile=None,
+        checkpoint=False,
+        allow_overwrite=False,
     ):
         """Add a rule.
 
@@ -370,11 +439,7 @@ class ExpandableWorkflow(Workflow):
         # super().add_rule() dynamically creates a name if `name` is None
         # stash the name so we can access it from `get_rule`
         self._last_rule_name = super().add_rule(
-            name,
-            lineno,
-            snakefile,
-            checkpoint,
-            allow_overwrite
+            name, lineno, snakefile, checkpoint, allow_overwrite
         )
         return self._last_rule_name
 
@@ -403,10 +468,20 @@ class ExpandableWorkflow(Workflow):
                 rule._ymp_print_rule = True
 
             for expander in reversed(self.__expanders):
+                rule_pre = copy(rule)
+                ruleinfo_pre = copy(ruleinfo)
                 expander.expand(rule, ruleinfo)
                 if ymp.print_rule == 1:
                     log.error("### expanded with " + type(expander).__name__)
                     print_ruleinfo(rule, ruleinfo, log.error)
+                # Check types:
+                for field_name,field in ruleinfo_fields.items():
+                    if field["format"] == "inoutput":
+                        attr = getattr(ruleinfo, field_name)
+                        if attr is not None and not isinstance(attr, InOutput):
+                            raise TypeError(
+                                f"Expected InOut object for '{field_name}'"
+                            )
             if ymp.print_rule:
                 log.error("#### END expansion")
 
@@ -424,21 +499,24 @@ class ExpandableWorkflow(Workflow):
             # register rule with snakemake
             try:
                 decorator(ruleinfo)  # does not return anything
-            except AttributeError:
+            except (AttributeError, ValueError):
                 print_ruleinfo(rule, ruleinfo, log.error)
                 raise
 
         return decorate
 
 
-def make_rule(name: str=None, lineno: int=None, snakefile: str=None,
-              **kwargs):
+def make_rule(name: str = None, lineno: int = None, snakefile: str = None, **kwargs):
     log.debug("Synthesizing rule {}".format(name))
+    workflow = get_workflow()
     ruleinfo = RuleInfo(lambda: None)
     for arg in kwargs:
+        if ruleinfo_fields.get(arg, {}).get("format") == "inoutput":
+            if not isinstance(kwargs[arg], InOutput):
+                kwargs[arg] = InOutput(kwargs[arg][0], kwargs[arg][1],
+                                       workflow.modifier.path_modifier)
         setattr(ruleinfo, arg, kwargs[arg])
     ruleinfo.norun = True
-    workflow = get_workflow()
     try:
         return workflow.rule(name, lineno, snakefile)(ruleinfo)
     except CreateRuleException:
@@ -467,8 +545,9 @@ class BaseExpander(object):
 
         May be called multiple times if a new workflow object is created.
         """
-        log.debug("Linking %s with %s",
-                  self.__class__.__name__, workflow.__class__.__name__)
+        log.debug(
+            "Linking %s with %s", self.__class__.__name__, workflow.__class__.__name__
+        )
         self.workflow = workflow
 
     def format(self, item, *args, **kwargs):
@@ -532,9 +611,17 @@ class BaseExpander(object):
             expand_args = {}
         debug = ymp.print_rule or getattr(rule, "_ymp_print_rule", False)
         if debug:
-            log.debug("{}{}: ({}) {} in rule {} with args {}"
-                      "".format(" "*rec*4, type(self).__name__,
-                                type(item).__name__, item, rule, expand_args))
+            log.debug(
+                "{}{}: ({}) {} in rule {} with args {}"
+                "".format(
+                    " " * rec * 4,
+                    type(self).__name__,
+                    type(item).__name__,
+                    item,
+                    rule,
+                    expand_args,
+                )
+            )
         if item is None:
             item = None
         elif isinstance(item, RuleInfo):
@@ -544,7 +631,7 @@ class BaseExpander(object):
                 item = self.expand_str(rule, item, expand_args, rec, cb)
             except RemoveValue:
                 item = None
-        elif hasattr(item, '__call__'):
+        elif hasattr(item, "__call__"):
             item = self.expand_func(rule, item, expand_args, rec, debug)
         elif isinstance(item, int) or isinstance(item, float):
             pass
@@ -552,23 +639,28 @@ class BaseExpander(object):
             item = self.expand_dict(rule, item, expand_args, rec)
         elif isinstance(item, list):
             item = self.expand_list(rule, item, expand_args, rec, cb)
+        elif isinstance(item, InOutput):
+            item = self.expand_inoutput(rule, item, expand_args, rec, cb)
         elif isinstance(item, tuple):
             item = self.expand_tuple(rule, item, expand_args, rec, cb)
         else:
-            log.debug("Not expanding item '{}' of type {}".format(
-                repr(item), type(item)))
+            item = self.expand_unknown(rule, item, expand_args, rec, cb)
 
         if debug:
-            log.debug("{}=> {} {}"
-                      "".format(" "*(rec*4), type(item).__name__, item))
+            log.debug(
+                "{}=> {} {}" "".format(" " * (rec * 4), type(item).__name__, item)
+            )
 
+        return item
+
+    def expand_unknown(self, rule, item, expand_args, rec, cb):
         return item
 
     def expand_ruleinfo(self, rule, item, expand_args, rec):
         self.current_rule = rule
         for field in filter(self.expands_field, ruleinfo_fields):
-            expand_args['field'] = field
-            expand_args['ruleinfo'] = item
+            expand_args["field"] = field
+            expand_args["ruleinfo"] = item
             attr = getattr(item, field)
             value = self.expand(rule, attr, expand_args=expand_args, rec=rec)
             setattr(item, field, value)
@@ -576,7 +668,7 @@ class BaseExpander(object):
         return item
 
     def expand_str(self, rule, item, expand_args, rec, cb):
-        expand_args['rule'] = rule
+        expand_args["rule"] = rule
         try:
             return self.format_annotated(item, expand_args)
         except (KeyError, TypeError, ExpandLateException):
@@ -584,24 +676,32 @@ class BaseExpander(object):
             if cb:
                 raise
             expand_args = expand_args.copy()
+
             def item_wrapped(wc):
-                expand_args['wc'] = wc
+                expand_args["wc"] = wc
                 return self.expand(rule, item, expand_args, cb=True)
+
             return item_wrapped
 
     def expand_func(self, rule, item, expand_args, rec, debug):
         expand_args = expand_args.copy()
+
         @functools.wraps(item)
         def late_expand(*args, **kwargs):
             if debug:
-                log.debug("{}{} late {} {} ".format(
-                    " "*rec*4, type(self).__name__, args, kwargs))
-            expand_args['wc'] = args[0]
-            res = self.expand(rule, item(*args, **kwargs),
-                              expand_args, rec=rec, cb=True)
+                log.debug(
+                    "{}{} late {} {} ".format(
+                        " " * rec * 4, type(self).__name__, args, kwargs
+                    )
+                )
+            expand_args["wc"] = args[0]
+            res = self.expand(
+                rule, item(*args, **kwargs), expand_args, rec=rec, cb=True
+            )
             if debug:
-                log.debug("{}=> '{}'".format(" "*rec*4, res))
+                log.debug("{}=> '{}'".format(" " * rec * 4, res))
             return res
+
         return late_expand
 
     def _make_list_wrapper(self, value):
@@ -610,28 +710,32 @@ class BaseExpander(object):
             for subitem in value:
                 if callable(subitem):
                     subparms = signature(subitem).parameters
-                    extra_args = {
-                        k: v
-                        for k, v in kwargs.items()
-                        if k in subparms
-                    }
+                    extra_args = {k: v for k, v in kwargs.items() if k in subparms}
                     res.append(subitem(*args, **extra_args))
                 else:
                     res.append(subitem)
             return res
+
         # Gather the arguments
-        parms = tuple(set(flatten([
-            list(signature(x).parameters.values())
-            for x in value if callable(x)
-        ])))
+        parms = tuple(
+            set(
+                flatten(
+                    [
+                        list(signature(x).parameters.values())
+                        for x in value
+                        if callable(x)
+                    ]
+                )
+            )
+        )
         # Rewrite signature
         wrapper.__signature__ = signature(wrapper).replace(parameters=parms)
         return wrapper
 
     def expand_dict(self, rule, item, expand_args, rec):
-        path = expand_args.get('path', list())
+        path = expand_args.get("path", list())
         for key, value in tuple(item.items()):
-            expand_args['path'] = path + [key]
+            expand_args["path"] = path + [key]
             value = self.expand(rule, value, expand_args=expand_args, rec=rec)
 
             # Snakemake can't have functions in lists in dictionaries.
@@ -645,18 +749,24 @@ class BaseExpander(object):
         return item
 
     def expand_list(self, rule, item, expand_args, rec, cb):
-        path = expand_args.get('path', list())
+        path = expand_args.get("path", list())
         res = list()
         for n, subitem in enumerate(item):
-            expand_args['path'] = path + [str(n)]
-            newitem = self.expand(rule, subitem, expand_args=expand_args,
-                                  rec=rec, cb=cb)
+            expand_args["path"] = path + [str(n)]
+            newitem = self.expand(
+                rule, subitem, expand_args=expand_args, rec=rec, cb=cb
+            )
             if newitem is not None:
                 res.append(newitem)
         return res
 
     def expand_tuple(self, rule, item, expand_args, rec, cb):
         return tuple(self.expand_list(rule, item, expand_args, rec, cb))
+
+    def expand_inoutput(self, rule, item, expand_args, rec, cb):
+        res = self.expand_tuple(rule, (item.paths, item.kwpaths),
+                                expand_args, rec, cb)
+        return InOutput(res[0], res[1], item.modifier)
 
 
 class SnakemakeExpander(BaseExpander):
@@ -666,12 +776,13 @@ class SnakemakeExpander(BaseExpander):
     the functions provided themselves. Since we never want ``{input}`` to be
     in a string returned as a file, we expand those always.
     """
+
     def expands_field(self, field):
-        return field in ('input', 'output')
+        return field in ("input", "output")
 
     def format(self, item, *args, **kwargs):
-        if 'wc' in kwargs:
-            item = apply_wildcards(item, kwargs['wc'])
+        if "wc" in kwargs:
+            item = apply_wildcards(item, kwargs["wc"])
         return item
 
 
@@ -679,6 +790,7 @@ class FormatExpander(BaseExpander):
     """
     Expander using a custom formatter object.
     """
+
     regex = re.compile(
         r"""
         \{
@@ -686,7 +798,9 @@ class FormatExpander(BaseExpander):
                 (?P<name>[^{}]+)
             ))\1
         \}
-        """, re.VERBOSE)
+        """,
+        re.VERBOSE,
+    )
 
     spec = "{{{}}}"
 
@@ -709,22 +823,25 @@ class FormatExpander(BaseExpander):
 
             start = 0
             for match in self.expander.regex.finditer(format_string):
-                yield (format_string[start:match.start()],
-                       match.group('name'), '', None)
+                yield (
+                    format_string[start : match.start()],
+                    match.group("name"),
+                    "",
+                    None,
+                )
                 start = match.end()
 
-            yield (format_string[start:],
-                   None, None, None)
+            yield (format_string[start:], None, None, None)
 
     def get_names(self, pattern):
-        return set(match.group('name')
-                   for match in self.regex.finditer(pattern))
+        return set(match.group("name") for match in self.regex.finditer(pattern))
 
 
 class ColonExpander(FormatExpander):
     """
     Expander using ``{:xyz:}`` formatted variables.
     """
+
     regex = re.compile(
         r"""
         \{:
@@ -734,7 +851,9 @@ class ColonExpander(FormatExpander):
                 \s*
             ))\1
         :\}
-        """, re.VERBOSE)
+        """,
+        re.VERBOSE,
+    )
 
     spec = "{{:{}:}}"
 
@@ -744,6 +863,7 @@ class ColonExpander(FormatExpander):
 
 class RecursiveExpander(BaseExpander):
     """Recursively expands ``{xyz}`` wildcards in Snakemake rules."""
+
     def expands_field(self, field):
         """
         Returns true for all fields but ``shell:``, ``message:`` and
@@ -754,36 +874,41 @@ class RecursiveExpander(BaseExpander):
         ``message:`` or ``shell:`` as these already have all wildcards applied
         just before job execution (by :meth:`format_wildcards`).
         """
-        return field not in (
-            'shellcmd',
-            'message',
-            'wildcard_constraints'
-        )
+        return field not in ("shellcmd", "message", "wildcard_constraints")
 
     def expand(self, rule, ruleinfo):
         """Recursively expand wildcards within :class:`RuleInfo` object"""
-        fields = list(filter(lambda x: x is not None,
-                             filter(self.expands_field, ruleinfo_fields)))
-        # normalize field values and create namedlist dictionary
+        fields = list(
+            filter(lambda x: x is not None, filter(self.expands_field, ruleinfo_fields))
+        )
+        # Fetch original ruleinfo values into a dict of NamedList
         args = {}
+        orig_tuples = {}
         for field in fields:
-            attr = getattr(ruleinfo, field)
-            if isinstance(attr, tuple):
-                if len(attr) != 2:
-                    raise Exception("Internal Error")
-                # flatten named lists
-                for key in attr[1]:
-                    if is_container(attr[1][key]):
-                        attr[1][key] = list(flatten(attr[1][key]))
-                # flatten unnamed and overwrite tuples
-                # also turn attr[0] into a list, making it mutable
-                attr = (list(flatten(attr[0])), attr[1])
-
-                setattr(ruleinfo, field, attr)
-                args[field] = NamedList(fromtuple=attr)
+            if getattr(ruleinfo, field, None) is None:
+                pass
+            elif ruleinfo_fields[field]["format"] == "argstuple":
+                unnamed, named, *_ = getattr(ruleinfo, field)
+                # flatten values
+                unnamed = list(flatten(unnamed))
+                for key in named:
+                    if is_container(named[key]):
+                        named[key] = list(flatten(named[key]))
+                orig_tuples[field] = (unnamed, named)
+                args[field] = NamedList(fromtuple=(unnamed, named))
+            elif ruleinfo_fields[field]["format"] == "inoutput":
+                inout = getattr(ruleinfo, field)
+                unnamed = list(flatten(inout.paths))
+                named = copy(inout.kwpaths)
+                for key in named:
+                    if is_container(named[key]):
+                        named[key] = list(flatten(named[key]))
+                orig_tuples[field] = (unnamed, named)
+                args[field] = NamedList(fromtuple=orig_tuples[field])
             else:
+                string = getattr(ruleinfo, field, None)
                 args[field] = NamedList()
-                args[field].append(attr)
+                args[field].append(string)
 
         # build graph of expansion dependencies
         deps = networkx().DiGraph()
@@ -795,9 +920,11 @@ class RecursiveExpander(BaseExpander):
                 # create node for value itself
                 deps.add_node(s, core=True, name=field, idx=n)
                 # node depends on wildcards contained in value
-                deps.add_edges_from((s, t)
-                                    for t in get_names(value)
-                                    if t.split(".")[0].split("[")[0] in fields)
+                deps.add_edges_from(
+                    (s, t)
+                    for t in get_names(value)
+                    if t.split(".")[0].split("[")[0] in fields
+                )
                 # field node depends on all it's value nodes
                 deps.add_edge(field, s)
             # create edges field.name -> field[n]
@@ -805,23 +932,26 @@ class RecursiveExpander(BaseExpander):
                 s = "{}.{}".format(field, name)
                 if j is None:
                     j = i + 1
-                deps.add_edges_from((s, "{}[{}]".format(field, n))
-                                    for n in range(i, j))
+                deps.add_edges_from((s, "{}[{}]".format(field, n)) for n in range(i, j))
 
         # sort variables so that they can be expanded in order
         try:
-            nodes = list(reversed([
-                node
-                for node in networkx().algorithms.dag.topological_sort(deps)
-                if deps.out_degree(node) > 0 and 'core' in deps.nodes[node]
-            ]))
+            nodes = list(
+                reversed(
+                    [
+                        node
+                        for node in networkx().algorithms.dag.topological_sort(deps)
+                        if deps.out_degree(node) > 0 and "core" in deps.nodes[node]
+                    ]
+                )
+            )
         except networkx().NetworkXUnfeasible:
             raise CircularReferenceException(deps, rule) from None
 
         # expand variables
         for node in nodes:
-            var_name = deps.nodes[node]['name']
-            var_idx = deps.nodes[node]['idx']
+            var_name = deps.nodes[node]["name"]
+            var_idx = deps.nodes[node]["idx"]
             value = args[var_name][var_idx]
             if not isinstance(value, str):
                 continue
@@ -830,9 +960,10 @@ class RecursiveExpander(BaseExpander):
             valnew = partial_format(value, **args)
 
             # check if any remaining wilcards refer to rule fields
-            names = [re.split(r'\.|\[', name, maxsplit=1)[0]
-                     for name in get_names(valnew)]
-            field_names = ruleinfo_fields[var_name].get('funcparams', [])
+            names = [
+                re.split(r"\.|\[", name, maxsplit=1)[0] for name in get_names(valnew)
+            ]
+            field_names = ruleinfo_fields[var_name].get("funcparams", [])
             parm_names = [name for name in field_names if name in names]
 
             if parm_names:
@@ -842,11 +973,15 @@ class RecursiveExpander(BaseExpander):
                     def wrapper(wildcards, **kwargs):
                         # no partial here, fail if anything left
                         return strip_wildcard_constraints(val).format(
-                            **kwargs, **wildcards)
+                            **kwargs, **wildcards
+                        )
+
                     # adjust the signature so that snakemake will pass us
                     # everything we need
-                    parms = (Parameter(pname, Parameter.POSITIONAL_OR_KEYWORD)
-                             for pname in fparms)
+                    parms = (
+                        Parameter(pname, Parameter.POSITIONAL_OR_KEYWORD)
+                        for pname in fparms
+                    )
                     newsig = signature(wrapper).replace(parameters=parms)
                     wrapper.__signature__ = newsig
                     return wrapper
@@ -856,18 +991,28 @@ class RecursiveExpander(BaseExpander):
             args[var_name][var_idx] = valnew
 
             if ymp.print_rule == 1:
-                log.debug("{}::{}: {} => {}".format(rule.name,
-                                                    node, value, valnew))
+                log.debug("{}::{}: {} => {}".format(rule.name, node, value, valnew))
 
         # update ruleinfo
-        for name in fields:
-            attr = getattr(ruleinfo, name)
-            if isinstance(attr, tuple):
-                if len(attr) != 2:
-                    raise Exception("Internal Error")
-                args[name].update_tuple(attr)
+        for field in fields:
+            attr = getattr(ruleinfo, field)
+            if attr is None:
+                pass
+            elif ruleinfo_fields[field]["format"] == "argstuple":
+                args[field].update_tuple(orig_tuples[field])
+                unnamed, named = orig_tuples[field]
+                _, _, *extras = attr
+                setattr(ruleinfo, field, (unnamed, named, *extras))
+            elif ruleinfo_fields[field]["format"] == "inoutput":
+                args[field].update_tuple(orig_tuples[field])
+                unnamed, named = orig_tuples[field]
+                if isinstance(attr.paths, str):
+                    unnamed = unnamed[0]
+                setattr(ruleinfo, field, InOutput(
+                    unnamed, named, attr.modifier
+                ))
             else:
-                setattr(ruleinfo, name, args[name][0])
+                setattr(ruleinfo, field, args[field][0])
 
 
 class InheritanceExpander(BaseExpander):
@@ -898,6 +1043,7 @@ class InheritanceExpander(BaseExpander):
     specifying an unnamed value overrides all unnamed values in the parent
     attribute.
     """
+
     # FIXME: link to http://snakemake.readthedocs.io/en/latest/snakefiles/
     #                rules.html#handling-ambiguous-rules
 
@@ -908,22 +1054,21 @@ class InheritanceExpander(BaseExpander):
         super().__init__()
         self.ruleinfos = {}
         self.snakefiles = {}
-        self.linemaps = None
 
     def get_code_line(self, rule: Rule) -> str:
         """Returns the source line defining *rule*"""
+
         # Load and cache Snakefile
         if rule.snakefile not in self.snakefiles:
             try:
-                with open(rule.snakefile, "r") as sf:
+                cached_file = infer_source_file(rule.snakefile)
+                with self.workflow.sourcecache.open(cached_file, "r") as sf:
                     self.snakefiles[rule.snakefile] = sf.readlines()
             except IOError:
                 raise Exception("Can't parse ...")
 
         # `rule.lineno` refers to compiled code. Convert to source line number.
-        if self.linemaps is None:
-            self.linemaps = ExpandableWorkflow.global_workflow.linemaps
-        real_lineno = self.linemaps[rule.snakefile][rule.lineno]
+        real_lineno = self.workflow.linemaps[rule.snakefile][rule.lineno]
 
         return self.snakefiles[rule.snakefile][real_lineno - 1]
 
@@ -940,53 +1085,64 @@ class InheritanceExpander(BaseExpander):
         """
         self.ruleinfos[rule.name] = ruleinfo  # stash original ruleinfos
 
-        if hasattr(ruleinfo, 'parent'):
+        # If the rule was created with make_rule and has a parent
+        # attribute set, fetch that.
+        if hasattr(ruleinfo, "parent"):
             return ruleinfo.parent.name, self.ruleinfos[ruleinfo.parent.name]
 
+        # Otherwise, check the rule definition line for the marker comment
         line = self.get_code_line(rule)
-
         if "#" in line:
             comment = line.split("#")[1].strip()
             if comment.startswith(self.KEYWORD):
-                superrule_name = comment[len(self.KEYWORD):].strip()
+                superrule_name = comment[len(self.KEYWORD) :].strip()
                 try:
                     return superrule_name, self.ruleinfos[superrule_name]
                 except KeyError:
-                    raise InheritanceException("Unable to find parent",
-                                               rule, superrule_name)
+                    raise InheritanceException(
+                        "Unable to find parent", rule, superrule_name
+                    )
         return None, None
 
     def expand(self, rule, ruleinfo):
         super_name, super_ruleinfo = self.get_super(rule, ruleinfo)
         if super_ruleinfo is None:
             return
-
         for field in dir(ruleinfo):
-            if field.startswith("__") or field == "parent":
+            if field.startswith("__") or field in ("parent", "name"):
                 continue
 
-            base_attr = getattr(super_ruleinfo, field)
-            if field not in ("path_modifier", "apply_modifier"):
-                base_attr = deepcopy(base_attr)
             override_attr = getattr(ruleinfo, field)
+            base_attr = getattr(super_ruleinfo, field)
 
-            if field in ("shellcmd", "wrapper", "script", "func"):
-                if not ruleinfo.norun:  # child rule is runnable, clear out base
-                    base_attr = None
-                elif not super_ruleinfo.norun:  # base is runnable, child not, clear out child
-                    override_attr = None
-
-            if isinstance(override_attr, tuple):
-                if base_attr is None:
-                    base_attr = ([], {})
-                if override_attr[0]:
-                    base_attr = (override_attr[0], base_attr[1])
-                if override_attr[1]:
-                    base_attr[1].update(override_attr[1])
-            elif override_attr is not None:
-                base_attr = override_attr
-
-            setattr(ruleinfo, field, base_attr)
+            if ruleinfo_fields[field].get("runner", False):
+                # If the child is not runnable, copy all runner
+                # attributed from base.
+                if ruleinfo.norun:
+                    setattr(ruleinfo, field, base_attr)
+            elif override_attr is None:
+                # Attribute missing in child, take base
+                setattr(ruleinfo, field, base_attr)
+            elif base_attr is None:
+                # Attribute missing in base, do nothing
+                pass
+            elif ruleinfo_fields[field]["format"] == "argstuple":
+                unnamed_child, named_child, *extra_child = override_attr
+                unnamed_base, named_base, *extra_base = base_attr
+                unnamed = unnamed_child or unnamed_base
+                extra = extra_child or extra_base
+                named = deepcopy(named_base)
+                named.update(named_child)
+                setattr(ruleinfo, field, (unnamed, named, *extra))
+            elif ruleinfo_fields[field]["format"] == "inoutput":
+                kwpaths = deepcopy(base_attr.kwpaths)
+                kwpaths.update(override_attr.kwpaths)
+                paths = override_attr.paths or base_attr.paths
+                modifier = override_attr.modifier or base_attr.modifier
+                setattr(ruleinfo, field, InOutput(paths, kwpaths, modifier))
+            else:
+                # Both set, not argstuple, keep child intact
+                pass
 
         if not ruleinfo.norun or not super_ruleinfo.norun:
             ruleinfo.norun = False
@@ -1003,6 +1159,7 @@ class DefaultExpander(InheritanceExpander):
     The implementation simply makes all rules inherit from a defaults
     rule.
     """
+
     def __init__(self, **kwargs):
         """
         Creates DefaultExpander
@@ -1032,6 +1189,7 @@ class WorkflowObject(object):
     within the Snakemake workflow object and provides an accessor method
     to this registry.
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -1040,10 +1198,10 @@ class WorkflowObject(object):
         # that is not a constructor call (i.e. not __init__)
         try:
             caller = next(fi for fi in stack() if fi.function != "__init__")
-            if not hasattr(self, 'filename'):
+            if not hasattr(self, "filename"):
                 #: str: Name of file in which object was defined
                 self.filename = caller.filename
-            if not hasattr(self, 'lineno'):
+            if not hasattr(self, "lineno"):
                 #: int: Line number of object definition
                 self.lineno = caller.lineno
         except IndexError:
@@ -1054,20 +1212,24 @@ class WorkflowObject(object):
         cache = self.get_registry()
 
         names = []
-        for attr in 'name', 'altname':
+        for attr in "name", "altname", "_ymp_name":
             if hasattr(self, attr):
                 names += ensure_list(getattr(self, attr))
 
         for name in names:
-            if (name in cache
+            if (
+                name in cache
                 and self != cache[name]
-                and (self.filename != cache[name].filename
-                     or self.lineno != cache[name].lineno)):
+                and (
+                    self.filename != cache[name].filename
+                    or self.lineno != cache[name].lineno
+                )
+            ):
                 other = cache[name]
                 raise YmpRuleError(
                     self,
                     f"Failed to create {self.__class__.__name__} '{names[0]}':"
-                    f" already defined in {other.filename}:{other.lineno}"
+                    f" already defined in {other.filename}:{other.lineno}",
                 )
 
         for name in names:
@@ -1087,8 +1249,10 @@ class WorkflowObject(object):
         Return all objects of this class registered with current workflow
         """
         import ymp
+
         cfg = ymp.get_config()
         return cfg.cache.get_cache(
             cls.__name__,
             loadfunc=ExpandableWorkflow.ensure_global_workflow,
-            clean=clean)
+            clean=clean,
+        )

@@ -1,0 +1,56 @@
+Env(name="subread", base="bioconda", packages="subread")
+
+with Stage("count_subread"):
+    rule subread_featureCounts:
+        message:
+            "Counting reads with subreads featureCounts"
+        input:
+            bam = "{:prev:}/{:target:}.bam",
+            gtf = "{:prev:}/{:target:}.gtf",
+        output:
+            counts = "{:this:}/{target}.subread_counts",
+        log:
+            "{:this:}/{target}.log"
+        params:
+            minqual = 20,
+        threads:
+            8
+        conda:
+            "subread"
+        shell:
+            "exec >{log} 2>&1;"
+            "featureCounts"
+            " -a {input.gtf}"
+            " -o {output.counts}"
+            " -Q {params.minqual}"
+            " {input.bam}"
+
+    localrules: subread_featureCounts_multiqc_cfg
+    rule subread_featureCounts_multiqc_cfg:
+        message:
+            "{:name:}: Writing MultiQC config"
+        input:
+            "{:this:}/{:targets:}.subread_counts"
+        output:
+            "{:this:}/multiqc_config.yaml"
+        params:
+            this = "{:this:}"
+        run:
+            from ruamel.yaml import YAML
+            yaml = YAML(typ="rt")
+            data = {
+                "run_modules": [ "featurecounts" ],
+                "sp": {
+                    "featurecounts": {
+                        "fn": "subread_counts"
+                    }
+                },
+                "module_order": [{
+                    "fastqc": {
+                        "name": f"featureCounts ({params.this})",
+                        "path_filters": f"{params.this}/*.subread_counts"
+                    }
+                }]
+            }
+            with open(output[0], "w") as out:
+                yaml.dump(data, out)

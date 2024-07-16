@@ -14,9 +14,19 @@ def test_pipeline_hide(invoker, demo_dir):
     """Checks that hiding of pipeline intermediary outputs works"""
     
     res = invoker.call("make", "toy.mypipeline", "--dag", "-qq")
-    
-    # This line will segfault if there is any extra data in res!
-    dotgraph = pgv.AGraph(res.output)
+    # Graphvis is really fragile w.r.t. input graph format. We need to
+    # make sure it gets fed the graph and only the graph, otherwise it
+    # will segfault on us.
+    # The graph starts with "digraph". Make sure we have that
+    assert "digraph" in res.output
+    # Cut of anything before. Keeping snakemake quiet is just too
+    # fragile. Something always talks, so we just cut that off to make
+    # testing robust.
+    graphtext = res.output[res.output.index("digraph"):]
+    # The last line minus white space must comprise a "}" ending the graph
+    assert graphtext.splitlines()[-1].strip() == "}"
+    # Findgers crossed...
+    dotgraph = pgv.AGraph(graphtext)
 
     graph = nx.DiGraph(dotgraph)
     nodemap = {
@@ -126,7 +136,7 @@ def test_param_from_stage(saved_cwd):
         "stages: [trim_bbmap]"
     ))
     assert pipe.params
-    
+
 def test_stage_with_curly(saved_cwd):
     pipe = Pipeline("test", make_cfg(
         "params:\n"
@@ -148,14 +158,15 @@ def test_stage_not_parametrizable(saved_cwd):
     assert pipe.params == [] 
 
 
-class mock:
-    pass
+class mock_stack:
+    def __init__(self, name):
+        self.name = f"stack.{name}"
+        self.stage_name = name
+        self.stage = f"stage.{name}"
 
     
 def test_pipeline_path(saved_cwd):
-    stack = mock()
-    stack.name = "stack.test_pipe"
-    stack.stage_name = "test_pipe"
+    stack = mock_stack("test_pipe")
     pipe = Pipeline("test_pipe", make_cfg(
         "stages:\n"
         " - trim_bbmap\n"
@@ -167,9 +178,7 @@ def test_pipeline_path(saved_cwd):
 
 
 def test_pipeline_path_with_param(saved_cwd):
-    stack = mock()
-    stack.name = "stack.test_pipe"
-    stack.stage_name = "test_pipe"
+    stack = mock_stack("test_pipe")
     pipe = Pipeline("test_pipe", make_cfg(
         "stages:\n"
         " - trim_bbmapQ10\n"

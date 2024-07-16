@@ -19,6 +19,15 @@ def test_mixed_type(saved_tmpdir):
     excinfo.value.show()
 
 
+def test_mixed_type_tag_workdir(saved_tmpdir):
+    with open(saved_tmpdir / "ymp.yml", "w") as fdes:
+        fdes.write("data: string")
+    with open(saved_tmpdir / "other.yml", "w") as fdes:
+        fdes.write("data: !workdir string")
+    config = yaml.load([saved_tmpdir / "ymp.yml", saved_tmpdir / "other.yml"])
+    assert config.get_path("data") == "string"
+
+
 def test_recusion_in_includes(saved_tmpdir):
     with open(saved_tmpdir / "ymp.yml", "w") as fdes:
         fdes.write("include: other.yaml")

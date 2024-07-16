@@ -58,3 +58,28 @@ with Stage("trim_sickle") as S:
             touch("{:this:}/all_targets.stamp")
         input:
             "{:this:}/{:fq_names:}.fq.gz"
+
+    localrules: sickle_multiqc_cfg
+    rule sickle_multiqc_cfg:
+        message:
+            "{:name:}: Writing MultiQC config"
+        input:
+            "{:this:}/{:targets:}.log"
+        output:
+            "{:this:}/multiqc_config.yaml"
+        params:
+            this = "{:this:}"
+        run:
+            from ruamel.yaml import YAML
+            yaml = YAML(typ="rt")
+            data = {
+                "run_modules": [ "sickle" ],
+                "module_order": [{
+                    "sickle": {
+                        "name": f"Sickle ({params.this})",
+                        "path_filters": [f"{params.this}/*.log"]
+                    }
+                }]
+            }
+            with open(output[0], "w") as out:
+                yaml.dump(data, out)

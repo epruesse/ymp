@@ -1,0 +1,134 @@
+Env(name="bcftools", base="bioconda", packages=["bcftools"])
+
+with Stage("index_fasta") as S:
+    rule fasta_index:
+        message: "{:name:}: Recompressing and indexing fasta"
+        input:
+            fagz = "{:prev:}/{:target:}.fasta.gz",
+        output:
+            fagz = "{:this:}/{target}.fasta.gz",
+            fagzi = "{:this:}/{target}.fasta.gz.gzi",
+        log:
+            "{:this:}/{target}.log"
+        threads:
+            8
+        resources:
+            mem = "8G",
+        conda:
+            "bcftools"
+        shell:
+            "exec >{log} 2>&1;"
+            "gzip -dc {input.fagz} |"
+            "  bgzip "
+            "  --index --index-name {output.fagzi}"
+            "  --threads {threads}"
+            "  --stdout > {output.fagz}"
+
+with Stage("index_tx_fasta") as S:
+    rule tx_fasta_index:  # ymp: extends fasta_index
+        input:
+            fagz = "{:prev:}/{:target:}.tx.fasta.gz",
+        output:
+            fagz = "{:this:}/{target}.tx.fasta.gz",
+            fagzi = "{:this:}/{target}.tx.fasta.gz.gzi",
+
+
+with Stage("genotype_bcftools") as S:
+    S.add_param("Vo", typ = "flag", name = "variants_only", value = "--variants-only")
+    S.add_param("Si", typ = "flag", name = "skip_indels", value = "--skip-variants indels")
+    S.add_param("D", typ = "int", name = "max_depth", default = 250)
+    S.add_param("R", typ = "choice", name = "region", default = "", value = [
+        "X", "Y"
+    ])
+
+    rule bcftools_call:
+        message: "{:name:} Genotyping {input.bam}"
+        input:
+            bam = "{:prev:}/{:target:}.sorted.bam",
+            ref = "{:prev:}/{:target:}.fasta.gz",
+            refi = "{:prev:}/{:target:}.fasta.gz.gzi",
+        output:
+            vcf = "{:this:}/{target}.vcf.gz",
+            tbi = "{:this:}/{target}.vcf.gz.tbi",
+            stats = "{:this:}/{target}.bcftools_stats.txt"
+        log:
+            "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
+        resources:
+            mem = "10g",
+        threads:
+            2
+        conda:
+            "bcftools"
+        shell:
+            "exec >{log} 2>&1;"
+            "set -x;"
+            "if [ x\"{params.region}\" != x ]; then"
+            " region_param=\"-r chr{params.region}\";"
+            "fi;"
+            "bcftools mpileup "
+            " --fasta-ref {input.ref}"
+            " --output-type u"
+            " --max-depth {params.max_depth}"
+            " ${{region_param:-}}"
+            " {input.bam}"
+            "|"
+            "bcftools call"
+            " --output-type z"
+            " --threads 2" # second thread for compression
+            " --multiallelic-caller"
+            " {params.variants_only}"
+            " {params.skip_indels}"
+            " --output {output.vcf};"
+            "tabix -p vcf {output.vcf};"
+            "bcftools stats {output.vcf} > {output.stats};"
+
+
+with Stage("genotype_bcftools_tx") as S:
+    S.add_param("Vo", typ = "flag", name = "variants_only", value = "--variants-only")
+    S.add_param("Si", typ = "flag", name = "skip_indels", value = "--skip-variants indels")
+    S.add_param("D", typ = "int", name = "max_depth", default = 250)
+    S.add_param("R", typ = "choice", name = "region", default = "", value = [
+        "X", "Y"
+    ])
+
+    rule bcftools_call_tx:  # ymp: extends bcftools_call
+        input:
+            bam = "{:prev:}/{:target:}.sorted.tx.bam",
+            ref = "{:prev:}/{:target:}.tx.fasta.gz",
+            refi = "{:prev:}/{:target:}.tx.fasta.gz.gzi",
+        output:
+            vcf = "{:this:}/{target}.tx.vcf.gz",
+            tbi = "{:this:}/{target}.tx.vcf.gz.tbi",
+            stats = "{:this:}/{target}.tx.bcftools_stats.txt"
+
+with Stage("merge_vcf") as S:
+    rule bcftools_merge:
+        message: "{:name:} {output.vcf}"
+        input:
+            vcf = "{:prev:}/{:target:}.vcf.gz"
+        output:
+            vcf = "{:this:}/{target}.vcf.gz",
+            tbi = "{:this:}/{target}.vcf.gz.tbi",
+            stats = "{:this:}/{target}.bcftools_stats.txt"
+        log:
+            "{:this:}/{target}.log"
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
+        resources:
+            mem = "10g",
+        threads:
+            12
+        conda:
+            "bcftools"
+        shell:
+            "exec >{log} 2>&1;"
+            "set -x;"
+            "bcftools merge"
+            " --output-type z"
+            " --threads {threads}"
+            " --output {output.vcf}"
+            " {input.vcf};"
+            "tabix -p vcf {output.vcf};"
+            "bcftools stats {output.vcf} > {output.stats}"

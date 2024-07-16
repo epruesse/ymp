@@ -39,6 +39,11 @@ def find_stage(name):
         if refname in cfg.ref:
             return cfg.ref[refname]
         raise YmpStageError(f"Unknown reference '{refname}'")
+    if name.startswith(cfg.dir.references):
+        refname = name[len(cfg.dir.references):].lstrip("/")
+        if refname in cfg.ref:
+            return cfg.ref[refname]
+        raise YmpStageError(f"Unknown reference '{refname}'")
     if name in cfg.projects:
         return cfg.projects[name]
     for stage in registry.values():
@@ -106,7 +111,10 @@ class StageStack:
         #: This is needed for grouping variables currently.
         self.project = cfg.projects.get(self.stage_names[0])
         if not self.project:
-            raise YmpStageError(f"No project for stage stack {path} found")
+            if self.stage_names[0].startswith("ref_"):
+                self.project = cfg.references.get(self.stage_names[0][4:])
+            if not self.project:
+                raise YmpStageError(f"No project for stage stack {path} found")
 
         #: Mapping of each input type required by the stage of this stack
         #: to the prefix stack providing it.
@@ -185,7 +193,7 @@ class StageStack:
             provides = stage.satisfy_inputs(prev_stage, inputs)
             for typ, ppath in provides.items():
                 if ppath:
-                    npath = prev_stage.get_path(prev_stack, typ)
+                    npath = prev_stage.get_path(prev_stack, typ, caller=self)
                     prevs[typ] = self.instance(npath)
                 else:
                     prevs[typ] = prev_stack
@@ -243,6 +251,31 @@ class StageStack:
 
         return self.prevs[suffix]
 
+    def all_prevs(self, _args=None, kwargs=None) -> List["StageStack"]:
+        if not kwargs or "wc" not in kwargs:
+            raise ExpandLateException()
+
+        _, _, suffix = kwargs['item'].partition("{:all_prevs:}")
+        suffix = norm_wildcards(suffix)
+
+        stage_names = copy.copy(self.stage_names)
+        stage_names.pop()
+
+        prevs = []
+        while stage_names:
+            path = ".".join(stage_names)
+            prev_stack = self.instance(path)
+            prev_stage = find_stage(stage_names.pop())
+            ## FIXME: using prev_stack.stage instead of finding anew leads to deadlock?!
+            pathlist = prev_stage.can_provide(set((suffix,)), full_stack = True).get(suffix, [])
+            for ppath, hidden in pathlist:
+                if ppath:
+                    npath = prev_stage.get_path(prev_stack, pipeline=ppath)
+                    prevs.append(self.instance(npath))
+                else:
+                    prevs.append(prev_stack)
+
+        return prevs
 
     def get_ids(self, select_cols, where_cols=None, where_vals=None):
         if not self.debug:
