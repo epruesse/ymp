@@ -4,10 +4,11 @@ channels:
   - bioconda
 dependencies:
   - python >=3.10
-  - snakemake-minimal >=7.34
+  - snakemake-minimal =7.32.*
   - mamba
   - conda !=4.6.11
   - click >8
+  - click-completion
   - shellingham # (needed for click)
   - ruamel.yaml >0.15 # new api
   - drmaa
