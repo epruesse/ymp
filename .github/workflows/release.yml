@@ -1,6 +1,7 @@
 name: PyPI Release
 
 on:
+  workflow_dispatch:
   release:
     types: [ published ]
 
@@ -50,8 +51,8 @@ jobs:
         run:
           ./setup.py bdist_wheel
       - name: Publish
-        if: startsWith(github.event.ref, 'refs/tags') || github.event_name == 'release'
-        uses: pypa/gh-action-pypi-publish@master
+        if: startsWith(github.event.ref, 'refs/tags') && github.event_name == 'push'
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
           password: ${{ secrets.pypi_password }}
