@@ -36,7 +36,7 @@ jobs:
           channel-priority: strict
           environment-file: environment.yaml
           activate-environment: ymp
-     - name: Install
+      - name: Install
         run: |
           pip install --no-deps .
       - name: Testing Core
