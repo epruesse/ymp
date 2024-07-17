@@ -48,16 +48,15 @@ setup(
         'pytest-runner',
     ],
     install_requires=[
-        'snakemake>=6.0.5',
-        'Click',
-        'Click-completion',
+        'snakemake>=7.32,<8',
+        'click>8',
+        'click-completion',
         'ruamel.yaml>0.15',
         'drmaa',
         'pandas>=0.20',
         'openpyxl',  # excel support
         'coloredlogs',
         'xdg',  # user paths
-        'tqdm >4.21',
         'aiohttp',
         'tqdm>=4.21.0',
     ],
@@ -82,7 +81,7 @@ setup(
             'ftputil',
         ]
     },
-    python_requires='>=3.6',
+    python_requires='>=3.10',
     include_package_data=True,
     entry_points='''
         [console_scripts]
