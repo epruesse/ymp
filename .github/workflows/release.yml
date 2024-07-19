@@ -2,6 +2,12 @@ name: Upload PyPI Release
 
 on:
   workflow_dispatch:
+    inputs:
+      do_upload:
+        description: "Do Upload?"
+        required: true
+        type: boolean
+        default: false
   release:
     types: [ published ]
 
@@ -43,7 +49,7 @@ jobs:
         run:
           ./setup.py bdist_wheel
       - name: Publish
-        if: startsWith(github.event.ref, 'refs/tags') && github.event_name == 'push'
+        if: (startsWith(github.event.ref, 'refs/tags') && github.event_name == 'push') || ${{ inputs.do_upload }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
