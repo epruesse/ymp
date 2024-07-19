@@ -20,7 +20,7 @@ jobs:
         with:
           submodules: true
           fetch-depth: 0  # full history for setuptools_scm
-     - uses: conda-incubator/setup-miniconda@v3
+      - uses: conda-incubator/setup-miniconda@v3
         with:
           miniforge-variant: Mambaforge
           mamba-version: "*"
