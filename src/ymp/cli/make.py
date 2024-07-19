@@ -20,6 +20,7 @@ log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 DEBUG_LOGFILE_NAME = os.environ.get("YMP_DEBUG_EXPAND")
 if DEBUG_LOGFILE_NAME:
     import time
+
     start_time = time.time()
     if DEBUG_LOGFILE_NAME == "stderr":
         DEBUG_LOGFILE = sys.stderr
@@ -29,9 +30,9 @@ if DEBUG_LOGFILE_NAME:
 
 def debug(msg, *args, **kwargs):
     if DEBUG_LOGFILE_NAME:
-        tim = (time.time() - start_time)
+        tim = time.time() - start_time
         msg = "{:4.4f}: " + msg
-        DEBUG_LOGFILE.write(msg.format(tim, *args, **kwargs) + '\n')
+        DEBUG_LOGFILE.write(msg.format(tim, *args, **kwargs) + "\n")
 
 
 debug("started")
@@ -70,6 +71,7 @@ class TargetParam(click.ParamType):
             result += (o + "." for o in options if o.startswith(tocomplete))
         else:
             from ymp.stage import StageStack
+
             try:
                 stackobj = StageStack.instance(stack)
             except YmpStageError as e:
@@ -93,9 +95,10 @@ class TargetParam(click.ParamType):
                         extensions.append(prefix + "_")
                     else:
                         extensions.append(group[0])
-            result += ('.'.join((stack, ext)) for ext in extensions)
-            result += ('.'.join((stack, ext))+"." for ext in extensions
-                       if not ext[-1] == "_")
+            result += (".".join((stack, ext)) for ext in extensions)
+            result += (
+                ".".join((stack, ext)) + "." for ext in extensions if not ext[-1] == "_"
+            )
 
         debug("res={}", result)
         return [CompletionItem(item) for item in result]
@@ -103,59 +106,92 @@ class TargetParam(click.ParamType):
 
 def snake_params(func):
     """Default parameters for subcommands launching Snakemake"""
-    @click.argument(
-        "targets", nargs=-1, metavar="TARGET_FILES",
-        type=TargetParam()
+
+    @click.argument("targets", nargs=-1, metavar="TARGET_FILES", type=TargetParam())
+    @click.option(
+        "--dryrun",
+        "-n",
+        default=False,
+        is_flag=True,
+        help="Only show what would be done",
     )
     @click.option(
-        "--dryrun", "-n", default=False, is_flag=True,
-        help="Only show what would be done"
+        "--printshellcmds",
+        "-p",
+        default=False,
+        is_flag=True,
+        help="Print shell commands to be executed on shell",
     )
     @click.option(
-        "--printshellcmds", "-p", default=False, is_flag=True,
-        help="Print shell commands to be executed on shell"
-    )
-    @click.option(
-        "--keepgoing", "-k", default=False, is_flag=True,
-        help="Don't stop after failed job"
+        "--keepgoing",
+        "-k",
+        default=False,
+        is_flag=True,
+        help="Don't stop after failed job",
     )
     @click.option(
         "--lock/--no-lock",
         help="Use/don't use locking to prevent clobbering of files"
-        " by parallel instances of YMP running"
+        " by parallel instances of YMP running",
     )
     @click.option(
-        "--rerun-incomplete", "--ri", 'force_incomplete', is_flag=True,
-        help="Re-run jobs left incomplete in last run"
+        "--rerun-incomplete",
+        "--ri",
+        "force_incomplete",
+        is_flag=True,
+        help="Re-run jobs left incomplete in last run",
     )
     @click.option(
-        "--forceall", "-F", is_flag=True, default=False,
-        help="Force rebuilding of all stages leading to target"
+        "--rerun-triggers",
+        type=click.Choice(["mtime", "params", "input", "software-env", "code"]),
+        multiple=True,
+        default=["mtime"],
+        help="Select reasons for reruns. Default changed from Snakemake to"
+        "only mtime for performance reasons.",
     )
     @click.option(
-        "--force", "-f", "forcetargets", is_flag=True, default=False,
-        help="Force rebuilding of target"
+        "--forceall",
+        "-F",
+        is_flag=True,
+        default=False,
+        help="Force rebuilding of all stages leading to target",
     )
     @click.option(
-        "--notemp", is_flag=True, default=False,
-        help="Do not remove temporary files"
+        "--force",
+        "-f",
+        "forcetargets",
+        is_flag=True,
+        default=False,
+        help="Force rebuilding of target",
     )
     @click.option(
-        "--touch", "-t", is_flag=True, default=False,
-        help="Only touch files, faking update"
+        "--notemp", is_flag=True, default=False, help="Do not remove temporary files"
     )
     @click.option(
-        "--shadow-prefix", default=None,
-        help="Directory to place data for shadowed rules"
+        "--touch",
+        "-t",
+        is_flag=True,
+        default=False,
+        help="Only touch files, faking update",
     )
     @click.option(
-        "--reason", "-r", "printreason", is_flag=True, default=False,
-        help="Print reason for executing rule"
+        "--shadow-prefix",
+        default=None,
+        help="Directory to place data for shadowed rules",
+    )
+    @click.option(
+        "--reason",
+        "-r",
+        "printreason",
+        is_flag=True,
+        default=False,
+        help="Print reason for executing rule",
     )
     @nohup_option
     @functools.wraps(func)
     def decorated(*args, **kwargs):  # pylint: disable=missing-docstring
         return func(*args, **kwargs)
+
     return decorated
 
 
@@ -175,55 +211,56 @@ def start_snakemake(kwargs, submit=False, unload=True):
     cur_path = os.path.abspath(os.getcwd())
     if not cur_path.startswith(root_path):
         raise YmpException("internal error - CWD moved out of YMP root?!")
-    cur_path = cur_path[len(root_path)+1:]
+    cur_path = cur_path[len(root_path) + 1 :]
 
     # translate renamed arguments to snakemake synopsis. entries
     # mapping to None will be deleted, entries not in this map will be
     # copied 1:1, entires with value will be renamed.
     arg_map = {
-        'immediate': 'immediate_submit',
-        'wrapper': 'jobscript',
-        'scriptname': 'jobname',
-        'snake_config': 'config',
-        'scheduler': 'scheduler',
-        'drmaa': None,
-        'sync': None,
-        'sync_arg': None,
-        'command': None,
-        'args': None,
-        'nohup': None
+        "immediate": "immediate_submit",
+        "wrapper": "jobscript",
+        "scriptname": "jobname",
+        "snake_config": "config",
+        "scheduler": "scheduler",
+        "drmaa": None,
+        "sync": None,
+        "sync_arg": None,
+        "command": None,
+        "args": None,
+        "nohup": None,
     }
     kwargs = {
         arg_map.get(key, key): value
         for key, value in kwargs.items()
         if arg_map.get(key, key) is not None
     }
-    kwargs['workdir'] = root_path
+    kwargs["workdir"] = root_path
 
     # our debug flag sets a new excepthoook handler, to we use this
     # to decide whether snakemake should run in debug mode
     if sys.excepthook.__module__ != "sys" and not submit:
         log.warning(
             "Custom excepthook detected. Having Snakemake open stdin "
-            "inside of run: blocks")
-        kwargs['debug'] = True
+            "inside of run: blocks"
+        )
+        kwargs["debug"] = True
 
     # map our logging level to snakemake logging level
     if log.getEffectiveLevel() > logging.WARNING:
-        kwargs['quiet'] = True
+        kwargs["quiet"] = True
     if log.getEffectiveLevel() < logging.WARNING:
-        kwargs['verbose'] = True
-    kwargs['use_conda'] = True
-    kwargs['conda_frontend'] = cfg.conda.frontend
+        kwargs["verbose"] = True
+    kwargs["use_conda"] = True
+    kwargs["conda_frontend"] = cfg.conda.frontend
 
     # expand stack paths
     stage_stack_failure = None
     targets = []
-    for target in kwargs.get('targets', []):
+    for target in kwargs.get("targets", []):
         if cur_path:
             # CWD is inside a stack. Prefix path.
             target = os.path.join(cur_path, target)
-        stack_path, _, item_path = target.partition('/')
+        stack_path, _, item_path = target.partition("/")
 
         try:
             stack = StageStack.instance(stack_path)
@@ -237,7 +274,9 @@ def start_snakemake(kwargs, submit=False, unload=True):
             targets.append(target)
         except YmpException as exc:  # Something else happened. Abort.
             if kwargs.get("debug"):
-                import pdb; pdb.post_mortem()
+                import pdb
+
+                pdb.post_mortem()
             log.error("Failure assembling stack:")
             raise
 
@@ -245,7 +284,7 @@ def start_snakemake(kwargs, submit=False, unload=True):
         log.info("Making targets:")
         for target in targets:
             log.info("  - %s", target)
-        kwargs['targets'] = targets
+        kwargs["targets"] = targets
 
     log.debug("Running snakemake.snakemake with args: %s", kwargs)
 
@@ -257,9 +296,11 @@ def start_snakemake(kwargs, submit=False, unload=True):
 
     # Check snakemake version
     from ymp.snakemake import check_snakemake
+
     check_snakemake()
 
     import snakemake
+
     res = snakemake.snakemake(ymp._snakefile, **kwargs)
     if not res and stage_stack_failure:
         log.error("Incomplete stage stack: %s", stage_stack_failure)
@@ -269,25 +310,35 @@ def start_snakemake(kwargs, submit=False, unload=True):
 @command()
 @snake_params
 @click.option(
-    "--cores", "-j", default=1, metavar="N",
-    help="The number of parallel threads used for scheduling jobs"
+    "--cores",
+    "-j",
+    default=1,
+    metavar="N",
+    help="The number of parallel threads used for scheduling jobs",
 )
 @click.option(
-    "--dag", "printdag", default=False, is_flag=True,
-    help="Print the Snakemake execution DAG and exit"
+    "--dag",
+    "printdag",
+    default=False,
+    is_flag=True,
+    help="Print the Snakemake execution DAG and exit",
 )
 @click.option(
-    "--rulegraph", "printrulegraph", default=False, is_flag=True,
-    help="Print the Snakemake rule graph and exit"
+    "--rulegraph",
+    "printrulegraph",
+    default=False,
+    is_flag=True,
+    help="Print the Snakemake rule graph and exit",
 )
 @click.option(
-    "--debug-dag", default=False, is_flag=True,
+    "--debug-dag",
+    default=False,
+    is_flag=True,
     help="Show candidates and selections made while the rule execution graph "
-    "is being built"
+    "is being built",
 )
 @click.option(
-    "--debug", default=False, is_flag=True,
-    help="Set the Snakemake debug flag"
+    "--debug", default=False, is_flag=True, help="Set the Snakemake debug flag"
 )
 def make(**kwargs):
     "Build target(s) locally"
@@ -299,78 +350,90 @@ def make(**kwargs):
 @command()
 @snake_params
 @click.option(
-    "--profile", "-P", metavar="NAME",
+    "--profile",
+    "-P",
+    metavar="NAME",
     help="Select cluster config profile to use. Overrides cluster.profile "
-    "setting from config."
+    "setting from config.",
 )
 @click.option(
-    "--snake-config", "-c", metavar="FILE",
-    help="Provide snakemake cluster config file"
+    "--snake-config", "-c", metavar="FILE", help="Provide snakemake cluster config file"
 )
 @click.option(
-    "--drmaa", "-d", is_flag=True,
+    "--drmaa",
+    "-d",
+    is_flag=True,
     help="Use DRMAA to submit jobs to cluster. Note: Make sure you have "
-    "a working DRMAA library. Set DRMAA_LIBRAY_PATH if necessary."
+    "a working DRMAA library. Set DRMAA_LIBRAY_PATH if necessary.",
 )
 @click.option(
-    "--sync", "-s", is_flag=True,
+    "--sync",
+    "-s",
+    is_flag=True,
     help="Use synchronous cluster submission, keeping the submit command "
     "running until the job has completed. Adds qsub_sync_arg to cluster "
-    "command"
+    "command",
 )
 @click.option(
-    "--immediate", "-i", is_flag=True,
-    help="Use immediate submission, submitting all jobs to the cluster "
-    "at once."
+    "--immediate",
+    "-i",
+    is_flag=True,
+    help="Use immediate submission, submitting all jobs to the cluster " "at once.",
 )
 @click.option(
-    "--command", metavar="CMD",
-    help="Use CMD to submit job script to the cluster"
+    "--command", metavar="CMD", help="Use CMD to submit job script to the cluster"
 )
 @click.option(
-    "--wrapper", metavar="CMD",
+    "--wrapper",
+    metavar="CMD",
     help="Use CMD as script submitted to the cluster. See Snakemake "
-    "documentation for more information."
+    "documentation for more information.",
 )
 @click.option(
-    "--max-jobs-per-second", metavar="N",
-    help="Limit the number of jobs submitted per second"
+    "--max-jobs-per-second",
+    metavar="N",
+    help="Limit the number of jobs submitted per second",
 )
 @click.option(
-    "--latency-wait", "-l", metavar="T",
+    "--latency-wait",
+    "-l",
+    metavar="T",
     help="Time in seconds to wait after job completed until files are "
     "expected to have appeared in local file system view. On NFS, this "
     "time is governed by the acdirmax mount option, which defaults to "
-    "60 seconds."
+    "60 seconds.",
 )
 @click.option(
-    "--nodes", "-J", type=int, metavar="N",
+    "--nodes",
+    "-J",
+    type=int,
+    metavar="N",
     help="Limit the maximum number of jobs submitted at a time. Note "
     "that this does not imply a maximum core count or running job "
-    "count, but simply limits the number of queued jobs."
+    "count, but simply limits the number of queued jobs.",
 )
 @click.option(
-    "--cores", "-c", type=int, metavar="N",
-    help="Maximum number of cluster cores to use"
+    "--cores",
+    "-c",
+    type=int,
+    metavar="N",
+    help="Maximum number of cluster cores to use",
 )
 @click.option(
-    "--local-cores", "-j", type=int, metavar="N",
-    help="Number of local threads to use"
+    "--local-cores", "-j", type=int, metavar="N", help="Number of local threads to use"
 )
 @click.option(
-    "--args", "args", metavar="ARGS",
+    "--args",
+    "args",
+    metavar="ARGS",
     help="Additional arguments passed to cluster submission command. "
     "Note: Make sure the first character of the argument is not '-', "
-    "prefix with ' ' as necessary."
+    "prefix with ' ' as necessary.",
 )
 @click.option(
-    "--scriptname", metavar="NAME",
-    help="Set the name template used for submitted jobs"
+    "--scriptname", metavar="NAME", help="Set the name template used for submitted jobs"
 )
-@click.option(
-    "--scheduler",
-    help="ILP or greedy"
-)
+@click.option("--scheduler", help="ILP or greedy")
 def submit(profile, **kwargs):
     """Build target(s) on cluster
 
@@ -387,35 +450,35 @@ def submit(profile, **kwargs):
     config = cfg.cluster.profiles.default
     profile_name = profile or cfg.cluster.profile
     if profile_name:
-        config.add_layer(profile_name,
-                         cfg.cluster.profiles[profile_name])
-    cli_params = {key: value
-                  for key, value in kwargs.items()
-                  if value is not None}
-    config.add_layer("<shell arguments>",
-                     cli_params)
+        config.add_layer(profile_name, cfg.cluster.profiles[profile_name])
+    cli_params = {key: value for key, value in kwargs.items() if value is not None}
+    config.add_layer("<shell arguments>", cli_params)
 
     # prepare cluster command
     if config.command is None:
-        raise click.UsageError("""
+        raise click.UsageError(
+            """
         No cluster submission command configured.
         Please check the manual on how to configure YMP for your cluster"
-        """)
+        """
+        )
     cmd = config.command.split() + config.args.values()
     if config.drmaa:
-        param = 'drmaa'
-        cmd[0] = ''
+        param = "drmaa"
+        cmd[0] = ""
     elif config.sync:
-        param = 'cluster_sync'
+        param = "cluster_sync"
         cmd.append(config.sync_arg)
     else:
-        param = 'cluster'
+        param = "cluster"
 
     if cmd[0] and not shutil.which(cmd[0]):
-        raise click.UsageError(f"""
+        raise click.UsageError(
+            f"""
         The configured cluster submission command '{cmd[0]}' is does not
         exist or is not executable. Please check your cluster configuration.
-        """)
+        """
+        )
 
     config.add_layer("<computed>", {param: cfg.expand(" ".join(cmd))})
 
