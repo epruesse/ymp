@@ -20,21 +20,19 @@ jobs:
       run:
         shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
           fetch-depth: 0  # full history for setuptools_scm
       - uses: conda-incubator/setup-miniconda@v3
         with:
-          # Don't update conda - performance:
-          #  miniconda-version: 'latest'
-          #  auto-update-conda: true
-          python-version: ${{ matrix.python-version }}
           miniforge-variant: Mambaforge
           mamba-version: "*"
+          use-mamba: true
           channels: conda-forge,bioconda
           channel-priority: strict
           environment-file: environment.yaml
+          python-version: ${{ matrix.python-version }}
           activate-environment: ymp
       - name: Install
         run: |

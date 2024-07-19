@@ -11,33 +11,25 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        #os: ['ubuntu-latest', 'macos-latest']
         python-version: ['3.10']
     defaults:
       run:
         shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: true
           fetch-depth: 0  # full history for setuptools_scm
-      - uses: actions/cache@v1
-        env:
-          CACHE_VERS: 0  # bump to manually reset cache
+     - uses: conda-incubator/setup-miniconda@v3
         with:
-          path: ~/conda_pkgs_dir
-          key: ${{runner.os}}-conda-${{env.CACHE_VERS}}-${{hashFiles('environment.yaml')}}
-      - uses: goanpeca/setup-miniconda@v1
-        with:
-          # Don't update conda - performance:
-          #  miniconda-version: 'latest'
-          #  auto-update-conda: true
-          python-version: ${{ matrix.python-version }}
+          miniforge-variant: Mambaforge
+          mamba-version: "*"
+          use-mamba: true
           channels: conda-forge,bioconda
-          environment-file: environment.yaml
-          activate-environment: ymp
           channel-priority: strict
-          use-only-tar-bz2: true  # needed for caching
+          environment-file: environment.yaml
+          python-version: ${{ matrix.python-version }}
+          activate-environment: ymp
       - name: Install Twine
         run: |
           pip install --user twine
