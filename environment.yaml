@@ -3,7 +3,8 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
-  - python >=3.10
+  # snakmake <02/2024 will has issue with 3.12 fstrings
+  - python >=3.10,<3.12
   - snakemake-minimal =7.32.*
   - mamba
   - conda !=4.6.11
@@ -41,3 +42,5 @@ dependencies:
   - sphinx-click
   - sphinx-autodoc-typehints
   - ftputil
+  ### fix pulp ###
+  - pulp <2.8
