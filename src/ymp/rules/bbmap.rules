@@ -132,6 +132,8 @@ with Stage("trim_bbmap") as S:
     S.add_param("Q", typ="int", name="qual", default=20)
     S.add_param("L", typ="int", name="length", default=20)
     S.add_param("E", typ="int", name="entropy", default=0)
+    S.add_param("Pa", typ="int", name="trimpolya", default=0)
+    S.add_param("Ftr", typ="int", name="forcetrimright", default=0)
     rule bbmap_trim:
         """Trimming and Adapter Removal using BBTools BBDuk"""
         message:
@@ -174,6 +176,8 @@ with Stage("trim_bbmap") as S:
             ' hdist={params.hdist}'                # hamming distance, allow 1 mismatch
             ' tpe' # trimpairsevenly -- in case adapter detected in only one read
             ' tbo' # trimbyoverlap -- trim if read runs over other reads' end
+            ' trimpolya={params.trimpolya}'
+            ' forcetrimright={params.forcetrimright}'
             ' entropy=0.{params.entropy}'
             ' entropywindow={params.entropy_window}'
             ' entropyk={params.entropy_k}'
