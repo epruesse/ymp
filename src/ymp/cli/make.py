@@ -149,6 +149,7 @@ def snake_params(func):
         help="Select reasons for reruns. Default changed from Snakemake to"
         "only mtime for performance reasons.",
     )
+    @click.option("--scheduler", help="ILP or greedy")
     @click.option(
         "--forceall",
         "-F",
@@ -433,7 +434,6 @@ def make(**kwargs):
 @click.option(
     "--scriptname", metavar="NAME", help="Set the name template used for submitted jobs"
 )
-@click.option("--scheduler", help="ILP or greedy")
 def submit(profile, **kwargs):
     """Build target(s) on cluster
 
