@@ -228,16 +228,15 @@ class RegexLocalDirResource(UrlResource):
         if not isinstance(matchlist, Sequence) or isinstance(matchlist, str):
             raise YmpConfigError(self.cfg, "Path 'match' must be list", key="match")
         self.reference.dir = self.local_path
+        self.dir = self.local_path.rstrip("/")
+        self.files = {}
         try:
             filenames = os.listdir(self.local_path)
         except FileNotFoundError:
-            raise YmpConfigError(
-                self.cfg,
-                f"Directory '{self.local_path}' required by path resource inaccessible",
-            )
-        self.dir = self.local_path.rstrip("/")
+            log.error(f"Directory '{self.local_path}' required by path resource inaccessible")
+            self.files = {}
+            return
 
-        self.files = {}
         for num, regex in enumerate(matchlist):
             try:
                 comp_regex = re.compile(regex)
@@ -365,7 +364,7 @@ class Reference(Activateable, ConfigStage):
                     self._outputs["/" + fname] = target
                 else:
                     normname = "/" + re.sub(
-                        f"(^|.)({'|'.join(keys)})\.", r"\1{sample}.", fname
+                        f"(^|.)({'|'.join(keys)})\\.", r"\1{sample}.", fname
                     )
                     self._outputs[normname] = ""
         return self._outputs
