@@ -132,7 +132,7 @@ class NamedResource(FileResource):
 
 
 class NamedUnpackedResources(FileResource):
-    type_names = ["gtf", "snp", "tsv", "csv"]
+    type_names = ["gtf", "snp", "tsv", "csv", "bed"]
 
     def get_extension(self, cfg):
         return self.type_name
