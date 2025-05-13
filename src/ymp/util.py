@@ -122,9 +122,17 @@ def check_input(names: Sequence[str],
         files_exist = [os.path.exists(fname) for fname in files]
 
         if all(files_exist):
+            if minlines == 0 and minbytes == 0:
+                return True
             nbytes = 0
             nlines = 0
             for fname in files:
+                if minlines == 0:
+                    size = os.path.getsize(fname)
+                    if fname.endswith(".gz"):
+                        size -= 1000
+                    if size > minbytes:
+                        continue
                 if fname.endswith(".gz"):
                     openfunc = gzip.open
                 else:
