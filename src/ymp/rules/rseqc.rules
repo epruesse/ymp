@@ -1,0 +1,35 @@
+"""
+Rules using RSeQC
+"""
+
+Env(name="rseqc", base="bioconda", packages=[
+    "rseqc"
+])
+
+with Stage("qc_rseqc") as S:
+    S.doc("""
+    """)
+
+    rule rseqc_read_distribution:
+        message:
+            "{:name:}: Running read_distribution.py"
+        input:
+            bam = "{:prev:}/{:target:}.bam",
+            bed = "{:prev:}/{:target:}.bed",
+        output:
+            csv = "{:this:}/{target}.rseqc_readdist.csv"
+        log:
+            "{:this:}/{target}.rseqc_readdist.log"
+        resources:
+            mem = "2g",
+        benchmark:
+            "benchmarks/{:name:}/{:this:}/{target}.txt"
+        threads: 2
+        conda:
+            "rseqc"
+        shell:
+            'exec >{log} 2>&1;'
+            'read_distribution.py'
+            ' -i {input.bam}'
+            ' -r {input.bed}'
+            ' > {output.csv}'
