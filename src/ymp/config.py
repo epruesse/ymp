@@ -265,6 +265,7 @@ class ConfigMgr(object):
     KEY_REFERENCES = 'references'
     KEY_PIPELINES = 'pipelines'
     KEY_LIMITS = "resource_limits"
+    KEY_OVERRIDES = "overrides"
     CONF_FNAME = 'ymp.yml'
     CONF_DEFAULT_FNAME = ymp._defaults_file
     CONF_USER_FNAME = os.path.expanduser("~/.ymp/ymp.yml")
@@ -457,6 +458,20 @@ class ConfigMgr(object):
         The YMP cluster configuration.
         """
         return self._config.cluster
+
+    @property
+    def resource_limits(self):
+        """
+        Global job resource adjustments
+        """
+        return self._config[self.KEY_LIMITS]
+
+    @property
+    def overrides(self):
+        """
+        Job overrides
+        """
+        return self._config.overrides
 
     @property
     def userdata(self):
