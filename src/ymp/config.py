@@ -431,6 +431,11 @@ class ConfigMgr(object):
         return self._config.directories.get_paths()
 
     @property
+    def directories(self):
+        """Alias for `dir()`"""
+        return self.dir()
+
+    @property
     def absdir(self):
         """
         Dictionary of absolute paths of named YMP directories
@@ -452,6 +457,13 @@ class ConfigMgr(object):
         The YMP cluster configuration.
         """
         return self._config.cluster
+
+    @property
+    def userdata(self):
+        """
+        User data (pipeline configurations) stored in ymp config object
+        """
+        return self._config.userdata
 
     @property
     def snakefiles(self):
