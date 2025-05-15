@@ -22,10 +22,11 @@ class ConfigPropertyParam(click.ParamType):
         if not self._properties:
             from ymp.config import ConfigMgr
             self._properties = {
-                prop: getattr(getattr(ConfigMgr, prop), "__doc__")
+                prop: getattr(getattr(ConfigMgr, prop), "__doc__").strip().splitlines()[0].strip()
                 for prop in dir(ConfigMgr)
                 if (prop[0] != "_"
-                    and isinstance(getattr(ConfigMgr, prop), property))
+                    and isinstance(getattr(ConfigMgr, prop), property)
+                    and getattr(getattr(ConfigMgr, prop), "__doc__"))
             }
         return self._properties
 
@@ -63,7 +64,7 @@ class ConfigPropertyParam(click.ParamType):
             for p in self.properties
             if self.properties[p]
         )
-        return "\n".join(["Properties:", props])
+        return "\n".join(["Properties available:", props])
 
 
 def show_help(ctx, _param=None, value=True):
