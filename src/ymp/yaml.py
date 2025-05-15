@@ -2,14 +2,19 @@ import io
 import logging
 import os
 from collections.abc import (
-    ItemsView, KeysView, Mapping, MappingView, Sequence, ValuesView
+    ItemsView,
+    KeysView,
+    Mapping,
+    MappingView,
+    Sequence,
+    ValuesView,
 )
 
 from typing import Union, List, Optional
 
 import ruamel.yaml  # type: ignore
 from ruamel.yaml import RoundTripRepresenter, YAML, yaml_object, RoundTripConstructor  # type: ignore
-from ruamel.yaml.comments import CommentedMap  # type: ignore
+from ruamel.yaml.comments import CommentedMap, CommentedSeq  # type: ignore
 
 from ymp.exceptions import YmpConfigError
 from ymp.common import AttrDict
@@ -20,7 +25,8 @@ log = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 class LayeredConfError(YmpConfigError):
     """Error in LayeredConf"""
-    def __init__(self, obj: object, msg: str, key: Optional[object]=None, stack = None):
+
+    def __init__(self, obj: object, msg: str, key: Optional[object] = None, stack=None):
         super().__init__(obj, msg, key)
         if stack:
             self.stack = stack
@@ -65,6 +71,7 @@ class AttrItemAccessMixin(object):
     __delitem__, this mixin will allow acessing items using dot
     notation. I.e. "object.xyz" is translated to "object[xyz]".
     """
+
     def __getattr__(self, key):
         try:
             if key[0] == "_":
@@ -89,6 +96,7 @@ class AttrItemAccessMixin(object):
 
 class MultiProxy(object):
     """Base class for layered container structure"""
+
     def __init__(self, maps, root=None, parent=None, key=None):
         self._maps = list(maps)
         self._parent = parent
@@ -115,10 +123,9 @@ class MultiProxy(object):
         return [fn for fn, layer in self._maps]
 
     def get_linenos(self):
-        return [layer._yaml_line_col.line + 1
-                for fn, layer in self._maps]
+        return [layer._yaml_line_col.line + 1 for fn, layer in self._maps]
 
-    def get_fileline(self, key = None):
+    def get_fileline(self, key=None):
         if key:
             for fname, layer in self._maps:
                 if key in layer:
@@ -187,6 +194,7 @@ class MultiProxy(object):
 
 class MultiMapProxyMappingView(MappingView):
     """MappingView for MultiMapProxy"""
+
     def __init__(self, mapping):
         self._mapping = mapping
 
@@ -194,7 +202,7 @@ class MultiMapProxyMappingView(MappingView):
         return len(self._mapping)
 
     def __repr__(self):
-        return '{0.__class__.__name__}({0._mapping!r})'.format(self)
+        return "{0.__class__.__name__}({0._mapping!r})".format(self)
 
     def __radd__(self, other):
         if isinstance(other, Sequence):
@@ -204,11 +212,14 @@ class MultiMapProxyMappingView(MappingView):
 
 class MultiMapProxyItemsView(MultiMapProxyMappingView, ItemsView):
     """ItemsView for MultiMapProxy"""
+
     def __contains__(self, key):
-        return (isinstance(key, tuple)
-                and len(key) == 2
-                and key[0] in self._mapping
-                and self._mapping[key[0]] == key[1])
+        return (
+            isinstance(key, tuple)
+            and len(key) == 2
+            and key[0] in self._mapping
+            and self._mapping[key[0]] == key[1]
+        )
 
     def __iter__(self):
         for key in self._mapping:
@@ -217,6 +228,7 @@ class MultiMapProxyItemsView(MultiMapProxyMappingView, ItemsView):
 
 class MultiMapProxyKeysView(MultiMapProxyMappingView, KeysView):
     """KeysView for MultiMapProxy"""
+
     def __contains__(self, key):
         return key in self._mapping
 
@@ -226,6 +238,7 @@ class MultiMapProxyKeysView(MultiMapProxyMappingView, KeysView):
 
 class MultiMapProxyValuesView(MultiMapProxyMappingView, ValuesView):
     """ValuesView for MultiMapProxy"""
+
     def __contains__(self, key):
         return any(self._mapping[k] == key for k in self._mapping)
 
@@ -236,6 +249,7 @@ class MultiMapProxyValuesView(MultiMapProxyMappingView, ValuesView):
 
 class MultiMapProxy(MultiProxy, AttrItemAccessMixin, Mapping):
     """Mapping Proxy for layered containers"""
+
     def __contains__(self, key):
         return any(key in m for _, m in self._maps)
 
@@ -246,6 +260,7 @@ class MultiMapProxy(MultiProxy, AttrItemAccessMixin, Mapping):
         items = [(fn, m[key]) for fn, m in self._maps if key in m]
         if not items:
             raise KeyError(f"key '{key}' not found in any map")
+
         # Mappings, Sequences and Atomic types should not override one
         # another, can only have one of those and None.
         def get_type(obj):
@@ -256,6 +271,7 @@ class MultiMapProxy(MultiProxy, AttrItemAccessMixin, Mapping):
             if isinstance(obj, Sequence):
                 return "Sequence"
             return "Scalar"
+
         typs = [get_type(m[1]) for m in items if m[1]]
         if len(set(typs)) > 1:
             stack = [Entry(fn, m, key) for fn, m in self._maps if key in m]
@@ -265,7 +281,7 @@ class MultiMapProxy(MultiProxy, AttrItemAccessMixin, Mapping):
                 f" due to mismatching content types.\n"
                 f"  types = {typs}",
                 key=key,
-                stack=stack
+                stack=stack,
             )
         return items
 
@@ -308,7 +324,7 @@ class MultiMapProxy(MultiProxy, AttrItemAccessMixin, Mapping):
 
     def get_paths(self, absolute=False):
         return AttrDict(
-            (key, self.get_path(key, absolute) )
+            (key, self.get_path(key, absolute))
             for key in self.keys()
             if self.get(key) is not None
         )
@@ -316,18 +332,26 @@ class MultiMapProxy(MultiProxy, AttrItemAccessMixin, Mapping):
 
 class MultiSeqProxy(MultiProxy, AttrItemAccessMixin, Sequence):
     """Sequence Proxy for layered containers"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for idx, m in enumerate(self._maps):
+            if isinstance(m[1], ClearListTag):
+                break
+        self._used_maps = self._maps[0 : idx + 1]
+
     def __contains__(self, value):
-        return any(value in m for _, m in self._maps)
+        return any(value in m for _, m in self._used_maps)
 
     def __iter__(self):
         index = 0
-        for fn, smap in self._maps:
+        for fn, smap in self._used_maps:
             for item in smap:
                 yield self._make_proxy(index, [(fn, item)])
                 index += 1
 
     def __len__(self):
-        return sum(len(m) for _, m in self._maps)
+        return sum(len(m) for _, m in self._used_maps)
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self._maps})"
@@ -343,7 +367,7 @@ class MultiSeqProxy(MultiProxy, AttrItemAccessMixin, Sequence):
                 index = int(index)
             except ValueError as exc:
                 raise KeyError() from exc
-        for fn, smap in self._maps:
+        for fn, smap in self._used_maps:
             if index >= len(smap):
                 index -= len(smap)
             else:
@@ -374,13 +398,13 @@ class MultiSeqProxy(MultiProxy, AttrItemAccessMixin, Sequence):
         self.extend(item)
 
     def extend(self, item):
-        smap = self._maps[0][1]
+        smap = self._used_maps[0][1]
         smap.extend(item)
 
     def get_paths(self, absolute=False):
         return [self.get_path(i, absolute) for i in range(len(self))]
 
-    def get_fileline(self, key = None):
+    def get_fileline(self, key=None):
         if key is None:
             return ";".join(self.get_files()), next(iter(self.get_linenos()), None)
         fn, smap, index = self._locateitem(key)
@@ -409,31 +433,31 @@ class LayeredConfProxy(MultiMapProxy):
             rt_yaml.dump(self._maps[layer][1], outstream)
         else:
             outfile = self._maps[layer][0]
-            with open(outfile+".tmp", "w") as outstream:
+            with open(outfile + ".tmp", "w") as outstream:
                 rt_yaml.dump(self._maps[layer][1], outstream)
-            os.rename(outfile, outfile+".bkup")
-            os.rename(outfile+".tmp", outfile)
+            os.rename(outfile, outfile + ".bkup")
+            os.rename(outfile + ".tmp", outfile)
 
 
-RoundTripRepresenter.add_representer(LayeredConfProxy,
-                                     RoundTripRepresenter.represent_dict)
-RoundTripRepresenter.add_representer(MultiMapProxy,
-                                     RoundTripRepresenter.represent_dict)
-RoundTripRepresenter.add_representer(MultiSeqProxy,
-                                     RoundTripRepresenter.represent_list)
+RoundTripRepresenter.add_representer(
+    LayeredConfProxy, RoundTripRepresenter.represent_dict
+)
+RoundTripRepresenter.add_representer(MultiMapProxy, RoundTripRepresenter.represent_dict)
+RoundTripRepresenter.add_representer(MultiSeqProxy, RoundTripRepresenter.represent_list)
 
 
 rt_yaml = YAML(typ="rt")
 
+
 @yaml_object(rt_yaml)
 class WorkdirTag:
-    yaml_tag = u"!workdir"
+    yaml_tag = "!workdir"
 
     def __init__(self, path) -> None:
         self.path = path
 
     def __repr__(self):
-        return f"!workdir {self.path}"
+        return f"{self.yaml_tag} {self.path}"
 
     def __str__(self):
         return self.path
@@ -444,22 +468,42 @@ class WorkdirTag:
 
     @classmethod
     def to_yaml(cls, representer, instance):
-        return representer.represent_scalar(
-            cls.yaml_tag, instance.path
-        )
+        return representer.represent_scalar(cls.yaml_tag, instance.path)
+
+
+@yaml_object(rt_yaml)
+class ClearListTag(CommentedSeq):
+    yaml_tag = "!clear"
+
+    def __repr__(self):
+        return f"{self.yaml_tag} {super().__repr__()} /*end*/"
+
+    @classmethod
+    def from_yaml(cls, constructor, node):
+        data = constructor.construct_sequence(node)
+        return cls(data)
+
+    @classmethod
+    def to_yaml(cls, representer, instance):
+        return representer.represent_sequence(cls.yaml_tag, instance)
+
 
 def resolve_installed_package(fname, stack):
     basename = os.path.basename(fname)
     if basename.startswith("<") and basename.endswith(">"):
         package = basename[1:-1]
         from pkg_resources import iter_entry_points
+
         for entry in iter_entry_points("ymp.pipelines"):
             if entry.name == package:
                 func = entry.load()
                 real_include = func()
                 return real_include
-        raise LayeredConfError((fname, None), f"Extension package '{package}' not found", stack=stack)
+        raise LayeredConfError(
+            (fname, None), f"Extension package '{package}' not found", stack=stack
+        )
     return fname
+
 
 def load(files, root=None):
     """Load configuration files
@@ -479,9 +523,13 @@ def load(files, root=None):
             with open(fname, "r") as fdes:
                 yaml = rt_yaml.load(fdes)
         except IOError as exc:
-            raise LayeredConfError((fname, None), "Failed to read file", stack=stack) from exc
+            raise LayeredConfError(
+                (fname, None), "Failed to read file", stack=stack
+            ) from exc
         if not isinstance(yaml, Mapping):
-            raise LayeredConfError((fname, 1), "Config must have mapping as toplevel", stack=stack)
+            raise LayeredConfError(
+                (fname, 1), "Config must have mapping as toplevel", stack=stack
+            )
         layers = [(fname, yaml)]
 
         includes = yaml.get("include", [])
@@ -497,7 +545,9 @@ def load(files, root=None):
             return layers
 
         if not isinstance(includes, Sequence):
-            raise LayeredConfError((fname, includes), 'Statement "include" must be a list', stack=stack)
+            raise LayeredConfError(
+                (fname, includes), 'Statement "include" must be a list', stack=stack
+            )
 
         for num, include in enumerate(reversed(includes)):
             path = os.path.join(basedir, include)
