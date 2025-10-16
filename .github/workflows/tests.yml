@@ -46,7 +46,7 @@ jobs:
           pytest -vvvs -n 1 --junit-xml junit-tools/report.xml --run-tools -m runs_tool --timeout=600 --durations=0
       - name: Upload logs
         if: failure()
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: Test Failure Logs ${{matrix.os}} ${{matrix.section}}
           path: test_failures
